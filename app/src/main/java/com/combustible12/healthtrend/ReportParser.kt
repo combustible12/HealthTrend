@@ -20,17 +20,18 @@ object ReportParser {
   val match=numeric.find(line)
   val textual=Regex("^(.*?)\\s+(阴性|阳性|弱阳性|未检出|正常|异常|[+-]{1,4})(.*)$").find(line)
   if(match==null && textual==null) return@mapNotNull null
-  val prefix=if(textual!=null && (match==null || textual.range.first<match.range.first)) textual.groupValues[1] else line.substring(0,match!!.range.first)
+  val isText=textual!=null && (match==null || textual.groupValues[1].length<match.range.first)
+  val prefix=if(isText)textual!!.groupValues[1] else line.substring(0,match!!.range.first)
   val name=prefix.trim().trimEnd(':','↑','↓','*').replace(Regex("^\\d+[.、]\\s*"),"")
   if(name.isBlank() || !name.any{it.isLetter()} || name.length>55) return@mapNotNull null
-  val isText=textual!=null && !prefix.any{it.isDigit()}
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?)").find(suffix)
   val one=if(limits==null)Regex("[<>≤≥]\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix)else null
   val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith(">")||it.startsWith("≥")}?.replace(Regex("[>≥\\s]"),"")?.toDoubleOrNull()
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
-  val unit=suffix.substring(0,limits?.range?.first ?: one?.range?.first ?: suffix.length).trim().trim('↑','↓','*',' ','|')
+  val limitMatch=limits?:one
+  val unit=(if(limitMatch!=null)suffix.removeRange(limitMatch.range)else suffix).trim().trim('↑','↓','*',' ','|')
   val k=key(name)
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue,rawValue.takeWhile{it in "<>≤≥"})
  }

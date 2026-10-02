@@ -53,6 +53,26 @@ class CoreFlowTest{
   assertTrue(latch.await(60,TimeUnit.SECONDS));recognizer.close();assertNull(failure)
   val rows=ReportParser.parse(raw);assertTrue("OCR output: $raw",rows.any{it.metricKey=="WBC"&&it.value==3.75});assertTrue(rows.any{it.metricKey=="LDH"})
  }
+ @Test fun realUiConfirmsReportAndEditsTrendPoint(){
+  compose.onNodeWithText("手动录入").performClick()
+  compose.onNodeWithText("医院").performTextInput("测试医院")
+  compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
+  compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
+  compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
+  compose.onNodeWithText("参考下限").performScrollTo().performTextInput("113")
+  compose.onNodeWithText("参考上限").performScrollTo().performTextInput("151")
+  compose.onNodeWithText("确认保存 · 1 个项目").performClick()
+  compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("102").assertExists()
+  compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("编辑数据点").performScrollTo().performClick()
+  compose.onNodeWithText("结果").performTextReplacement("120")
+  compose.onNodeWithText("保存").performClick()
+  compose.onNodeWithContentDescription("关闭").performClick()
+  val result=HealthStore(context).reports().single().results.single()
+  assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
+ }
  @Test fun realUiCreatesAndReopensSymptom(){
   compose.onNodeWithText("症状记录").performClick();compose.onNodeWithText("症状名称").performTextInput("小腿酸痛")
   compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")
