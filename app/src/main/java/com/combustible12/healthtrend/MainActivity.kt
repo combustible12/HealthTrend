@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +49,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport(store,{draft=it},{error=it})
+ Box(Modifier.fillMaxSize()){
+ Box(Modifier.fillMaxSize().then(if(draft!=null||report!=null||entry!=null||template!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"记录" to Icons.Outlined.FolderOpen,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first)})}}}){padding->
   val m=Modifier.padding(padding)
   when(tab){
@@ -57,6 +60,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    3->Mine(m,templates,{template=it},store,{error=it})
   }
  }
+ }
+ CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
    val t=if(d.newTemplate||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,d.newTemplate)else existing
@@ -69,8 +74,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value->change{store.updateValue(current.id,result.id,value)}})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{items->change{store.confirmTemplate(template!!.hospitalKey,template!!.reportType,items,template!!.systemKey,true);template=null}})
+ }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null})
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
+ }
 }
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",content:@Composable ColumnScope.()->Unit){Column(m.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content();Spacer(Modifier.height(12.dp))}}
 @Composable fun Paper(m:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){Card(modifier=m.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}

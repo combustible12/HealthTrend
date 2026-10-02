@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -24,10 +25,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,13 +44,18 @@ data class ReportDraft(val hospital:String="",val type:String="血常规",val sy
  fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
  companion object{fun from(r:LabReport)=ReportDraft(r.hospitalKey,r.reportType,r.systemKey,dateText(r.testedAtEpochMillis),r.sourceImages.map{it.uri},r.rawOcr,r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},false,r)}
 }
-@Composable fun FullPage(title:String,onClose:()->Unit,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=true)){
- Surface(color=Warm,modifier=Modifier.fillMaxSize()){Column(Modifier.fillMaxSize().imePadding()){
+val LocalPageVisible=staticCompositionLocalOf{true}
+@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
+ val active=!hidden&&LocalPageVisible.current
+ val focus=LocalFocusManager.current
+ BackHandler(enabled=active,onBack=onClose)
+ LaunchedEffect(active){if(active)focus.clearFocus()}
+ Surface(color=Warm,modifier=Modifier.fillMaxSize().then(if(active)Modifier else Modifier.clearAndSetSemantics{})){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(Icons.Outlined.Close,"关闭")};Text(title,fontSize=21.sp,modifier=Modifier.weight(1f))}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
   Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
  }}
-}}
+}
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true)}
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
@@ -57,7 +63,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
  LazyColumn(m.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   item{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted)}
   item{Field(d.hospital,{d=d.copy(hospital=it)},"医院")};item{Field(d.type,{d=d.copy(type=it)},"检查类型")};item{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")};item{Field(d.date,{d=d.copy(date=it)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null)Text("请核对并填写实际检查日期",color=Bad)}
@@ -106,7 +112,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  val context=LocalContext.current
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
- FullPage("医院模板 v${t.version}",close,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ FullPage("医院模板 v${t.version}",close,hidden=editing!=null,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
  item{Text("${t.hospitalKey}\n${t.reportType} · ${t.systemKey}");Text("保存为新版本，不改写既往报告。",color=Muted)}
  itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}},true)}
  item{TextButton({val added=DraftRow(text="0");rows=rows+added;editing=added.id}){Text("+ 添加指标")}}

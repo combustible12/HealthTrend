@@ -113,26 +113,45 @@ class CoreFlowTest{
  @Test fun realUiCreatesAndReopensSymptom(){
   compose.onNodeWithText("症状记录").performClick();compose.onNodeWithText("症状名称").performTextInput("小腿酸痛")
   compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")
+  val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+  automation.serviceInfo=checkNotNull(automation.serviceInfo).apply{flags=flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS}
+  compose.onNode(hasSetTextAction() and hasText("晚上明显")).performClick()
+  compose.waitUntil(10000){automation.windows.any{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD}}
+  compose.waitForIdle()
+  captureSymptomPage()
+  assertSaveControlInsideSystemArea()
+  automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+  compose.waitUntil(10000){automation.windows.none{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD}}
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("小腿酸痛").assertExists()
   compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
   compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
-  val bitmap=checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
-  val values=android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"qa-symptom.png");put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/png");put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,"Pictures/HealthTrendQA/");put(android.provider.MediaStore.Images.Media.IS_PENDING,1)}
-  val uri=checkNotNull(context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values))
-  context.contentResolver.openOutputStream(uri).use{checkNotNull(it);bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}
-  context.contentResolver.update(uri,android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.IS_PENDING,0)},null,null)
+  compose.onNodeWithText("保存记录").assertIsDisplayed()
+  assertSaveControlInsideSystemArea()
+  compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
+ }
+ private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
-  val activeRoot=checkNotNull(automation.rootInActiveWindow){"Active dialog is inaccessible"}
+  val activeRoot=checkNotNull(automation.rootInActiveWindow){"Active page is inaccessible"}
   val button=activeRoot.findAccessibilityNodeInfosByText("保存记录").firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the active window")
   val rect=android.graphics.Rect();button.getBoundsInScreen(rect)
   assertTrue("Save control is not visible to accessibility",button.isVisibleToUser&&rect.height()>0)
-  val window=compose.activity.windowManager.currentWindowMetrics
-  val system=checkNotNull(compose.activity.window.decorView.rootWindowInsets).getInsets(android.view.WindowInsets.Type.navigationBars())
-  assertTrue("Save control overlaps system navigation: $rect / "+window.bounds+" inset "+system.bottom,rect.bottom<=window.bounds.bottom-system.bottom)
-  compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
+  val metrics=compose.activity.windowManager.currentWindowMetrics
+  val insets=checkNotNull(compose.activity.window.decorView.rootWindowInsets)
+  val system=insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout() or android.view.WindowInsets.Type.ime())
+  assertTrue("Save control overlaps system navigation or keyboard: $rect / "+metrics.bounds+" inset "+system.bottom,rect.bottom<=metrics.bounds.bottom-system.bottom)
  }
+
+ private var qaImage:Uri?=null
+ private fun captureSymptomPage(){
+  val bitmap=checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+  val values=android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"qa-symptom.png");put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/png");put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,"Pictures/HealthTrendQA/");put(android.provider.MediaStore.Images.Media.IS_PENDING,1)}
+  val uri=qaImage?:checkNotNull(context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values)).also{qaImage=it}
+  context.contentResolver.openOutputStream(uri,"wt").use{checkNotNull(it);bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}
+  context.contentResolver.update(uri,android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.IS_PENDING,0)},null,null)
+ }
+
 }
