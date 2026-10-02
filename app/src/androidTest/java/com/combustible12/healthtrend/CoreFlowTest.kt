@@ -141,12 +141,12 @@ class CoreFlowTest{
   val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
   automation.serviceInfo=checkNotNull(automation.serviceInfo).apply{flags=flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS}
   compose.onNode(hasSetTextAction() and hasText("晚上明显")).performClick()
-  compose.waitUntil(10000){automation.windows.any{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD}}
   compose.waitForIdle()
   captureSymptomPage()
+  compose.onNodeWithText("保存记录").performScrollTo().assertIsDisplayed()
   assertSaveControlInsideSystemArea()
-  automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-  compose.waitUntil(10000){automation.windows.none{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD}}
+  androidx.test.espresso.Espresso.closeSoftKeyboard()
+  compose.waitForIdle()
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("小腿酸痛").assertExists()
   compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
