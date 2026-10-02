@@ -64,19 +64,19 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
- LazyColumn(m.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  item{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted)}
-  item{Field(d.hospital,{d=d.copy(hospital=it)},"医院")};item{Field(d.type,{d=d.copy(type=it)},"检查类型")};item{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")};item{Field(d.date,{d=d.copy(date=it)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null)Text("请核对并填写实际检查日期",color=Bad)}
-  item{
+ Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted)}
+  run{Field(d.hospital,{d=d.copy(hospital=it)},"医院")};run{Field(d.type,{d=d.copy(type=it)},"检查类型")};run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")};run{Field(d.date,{d=d.copy(date=it)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null)Text("请核对并填写实际检查日期",color=Bad)}
+  run{
    Paper{Text(if(template==null)"首次确认将建立医院模板"else"已确认模板 v${template.version}",color=Accent)
     if(template!=null){TextButton({d=d.copy(rows=store.applyTemplate(d.parsed(),template).mapIndexed{i,p->DraftRow.from(p).copy(id=d.rows[i].id)})}){Text("套用此医院模板的单位与参考范围")};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d.newTemplate,{d=d.copy(newTemplate=it)});Text("将本次核对保存为新版模板",modifier=Modifier.weight(1f))}}
     Text("原有报告的历史参考范围保持原样。",fontSize=12.sp,color=Muted)
    }
   }
-  if(d.images.isNotEmpty())item{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
-  if(d.ocr.isNotBlank())item{TextButton({showRaw=!showRaw}){Text(if(showRaw)"收起原始识别文字"else"检查原始识别文字 / 遗漏项目")};if(showRaw)androidx.compose.foundation.text.selection.SelectionContainer{Text(d.ocr,fontSize=13.sp)}}
-  itemsIndexed(d.rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
-  item{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
+  if(d.images.isNotEmpty())run{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
+  if(d.ocr.isNotBlank())run{TextButton({showRaw=!showRaw}){Text(if(showRaw)"收起原始识别文字"else"检查原始识别文字 / 遗漏项目")};if(showRaw)androidx.compose.foundation.text.selection.SelectionContainer{Text(d.ocr,fontSize=13.sp)}}
+  d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
+  run{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
  }
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null})}
