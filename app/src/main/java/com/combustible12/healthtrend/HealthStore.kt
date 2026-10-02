@@ -17,6 +17,7 @@ class HealthStore(context: Context) {
         val a=JSONArray();all.forEach{a.put(reportToJson(it))}
         prefs.edit().putString("reports",a.toString()).apply()
     }
+    fun trend(metricKey:String):List<Pair<LabReport,LabResult>> = reports().flatMap { r -> r.results.filter { it.metricKey==metricKey }.map { r to it } }.sortedBy { it.first.testedAtEpochMillis }
     fun updateValue(reportId:String,resultId:String,newValue:Double){
         reports().firstOrNull{it.id==reportId}?.let{r->
             saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(newValue) else it}))
