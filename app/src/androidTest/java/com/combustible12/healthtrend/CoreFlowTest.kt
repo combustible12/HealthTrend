@@ -143,7 +143,7 @@ class CoreFlowTest{
   compose.onNode(hasSetTextAction() and hasText("晚上明显")).performClick()
   compose.waitForIdle()
   captureSymptomPage()
-  compose.onNodeWithText("保存记录").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("保存记录").assertIsDisplayed()
   assertSaveControlInsideSystemArea()
   automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
   compose.waitForIdle()
