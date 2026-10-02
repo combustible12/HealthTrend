@@ -46,10 +46,10 @@ class CoreFlowTest{
   val store=HealthStore(context);val r=store.reports().single();assertEquals("102.0",r.results.single().textValue);store.updateValue("old","point",120.0);assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
  }
  @Test fun bundledOcrReadsActualBitmap(){
-  val b=Bitmap.createBitmap(1800,700,Bitmap.Config.ARGB_8888);val canvas=Canvas(b);canvas.drawColor(Color.WHITE);val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
-  listOf("WBC 3.75  3.5-9.5","HGB 102  113-151","LDH 189  120-250").forEachIndexed{i,s->canvas.drawText(s,70f,120f+i*150,paint)}
+  val b=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888);val canvas=Canvas(b);canvas.drawColor(Color.WHITE);val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
+  listOf("白细胞计数 3.75  3.5-9.5","中性粒细胞百分比 51.2 % 40-75","HGB 102  113-151","LDH 189  120-250").forEachIndexed{i,s->canvas.drawText(s,70f,120f+i*150,paint)}
   val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build());val latch=CountDownLatch(1);var raw="";var failure:Exception?=null
-  recognizer.process(InputImage.fromBitmap(b,0)).addOnSuccessListener{raw=it.text;latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
+  recognizer.process(InputImage.fromBitmap(b,0)).addOnSuccessListener{raw=ReportOcr.tableText(it);latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
   assertTrue(latch.await(60,TimeUnit.SECONDS));recognizer.close();assertNull(failure)
   val rows=ReportParser.parse(raw);assertTrue("OCR output: $raw",rows.any{it.metricKey=="WBC"&&it.value==3.75});assertTrue(rows.any{it.metricKey=="LDH"})
  }

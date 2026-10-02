@@ -96,7 +96,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun DeleteConfirmation(close:()->Unit,remove:()->Unit){AlertDialog(onDismissRequest=close,title={Text("删除这条记录？")},text={Text("删除后无法在应用内恢复。")},confirmButton={TextButton({remove();close()}){Text("删除",color=Bad)}},dismissButton={TextButton(close){Text("取消")}})}
 @Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<ParsedLabResult>)->Unit){
  var rows by remember(t){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
- FullPage("医院模板 v${t.version} → v${t.version+1}",close,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ FullPage("医院模板 v${t.version}",close,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
  item{Text("${t.hospitalKey}\n${t.reportType} · ${t.systemKey}");Text("保存为新版本，不改写既往报告。",color=Muted)}
  itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowEditor(r,{c->rows=rows.mapIndexed{j,x->if(i==j)c else x}},{rows=rows.filterIndexed{j,_->i!=j}},true)}
  item{TextButton({rows=rows+DraftRow(text="0")}){Text("+ 添加指标")}}

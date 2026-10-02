@@ -31,12 +31,7 @@ private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnS
      try{
       val input=withContext(Dispatchers.IO){InputImage.fromFilePath(context,Uri.parse(saved))}
       val t=recognizer.process(input).result()
-      // Merge fragmented table columns by the line baselines, then restore left-to-right order.
-      val lines=t.textBlocks.flatMap{it.lines}.filter{it.boundingBox!=null}.sortedBy{it.boundingBox!!.centerY()}
-      val groups=mutableListOf<MutableList<com.google.mlkit.vision.text.Text.Line>>()
-      lines.forEach{line->val box=line.boundingBox!!;val group=groups.lastOrNull();val base=group?.firstOrNull()?.boundingBox
-       if(base!=null && kotlin.math.abs(box.centerY()-base.centerY())<=minOf(box.height(),base.height())*.5)group.add(line)else groups.add(mutableListOf(line))}
-      texts.add(groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){it.text}})
+      texts.add(ReportOcr.tableText(t))
      }catch(e:Exception){failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
     }}finally{recognizer.close()}
     val raw=texts.joinToString("\n\n");val parsed=ReportParser.parse(raw)
@@ -52,4 +47,15 @@ private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnS
  val gallery=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){recognize(it)}
  val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()){success->val uri=cameraUri;if(success&&uri!=null)recognize(listOf(uri));cameraUri=null}
  return ImportActions(camera={if(!busy)try{val dir=File(context.cacheDir,"capture").apply{mkdirs()};val file=File.createTempFile("report-",".jpg",dir);val uri=FileProvider.getUriForFile(context,context.packageName+".files",file);cameraUri=uri;camera.launch(uri)}catch(e:Exception){error("无法启动相机：${e.message}")}},gallery={if(!busy)gallery.launch(arrayOf("image/*"))},manual={ready(ReportDraft(rows=listOf(DraftRow())))},busy=busy,message=message)
+}
+
+/** Spatial reconstruction prevents OCR block order from separating a result from its name. */
+object ReportOcr {
+ fun tableText(t:com.google.mlkit.vision.text.Text):String {
+  val lines=t.textBlocks.flatMap{it.lines}.filter{it.boundingBox!=null}.sortedBy{it.boundingBox!!.centerY()}
+  val groups=mutableListOf<MutableList<com.google.mlkit.vision.text.Text.Line>>()
+  lines.forEach{line->val box=line.boundingBox!!;val group=groups.lastOrNull();val base=group?.firstOrNull()?.boundingBox
+   if(base!=null && kotlin.math.abs(box.centerY()-base.centerY())<=minOf(box.height(),base.height())*.5)group.add(line)else groups.add(mutableListOf(line))}
+  return groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){it.text}}
+ }
 }
