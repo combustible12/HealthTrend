@@ -163,8 +163,9 @@ class CoreFlowTest{
  private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
-  val activeRoot=checkNotNull(automation.rootInActiveWindow){"Active page is inaccessible"}
-  val button=activeRoot.findAccessibilityNodeInfosByText("保存记录").firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the active window")
+  // With the keyboard open the active accessibility window can be the IME.
+  // Inspect the application window, where the save control is actually drawn.
+  val button=automation.windows.asSequence().filter{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION}.mapNotNull{it.root}.flatMap{it.findAccessibilityNodeInfosByText("保存记录").asSequence()}.firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the application window")
   val rect=android.graphics.Rect();button.getBoundsInScreen(rect)
   assertTrue("Save control is not visible to accessibility",button.isVisibleToUser&&rect.height()>0)
   val metrics=compose.activity.windowManager.currentWindowMetrics
