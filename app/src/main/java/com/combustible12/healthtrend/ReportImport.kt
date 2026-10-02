@@ -56,6 +56,6 @@ object ReportOcr {
   val groups=mutableListOf<MutableList<com.google.mlkit.vision.text.Text.Line>>()
   lines.forEach{line->val box=line.boundingBox!!;val group=groups.lastOrNull();val base=group?.firstOrNull()?.boundingBox
    if(base!=null && kotlin.math.abs(box.centerY()-base.centerY())<=minOf(box.height(),base.height())*.5)group.add(line)else groups.add(mutableListOf(line))}
-  return groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){it.text}}
+  return groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){line->line.elements.joinToString(" "){it.text}}}
  }
 }
