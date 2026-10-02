@@ -167,7 +167,7 @@ class CoreFlowTest{
   compose.onNodeWithContentDescription("关闭").assertIsDisplayed()
   val save=compose.onNodeWithText("保存记录").fetchSemanticsNode().boundsInRoot
   val close=compose.onNodeWithContentDescription("关闭").fetchSemanticsNode().boundsInRoot
-  val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+  val roots=compose.onAllNodes(isRoot()).fetchSemanticsNodes()\n  val root=roots.maxByOrNull{it.boundsInRoot.width*it.boundsInRoot.height}?.boundsInRoot ?: error("No Compose root")
   assertTrue("Save control has no visible size: $save",save.width>0f&&save.height>0f)
   assertTrue("Save control is outside the Compose root: $save / $root",save.left>=root.left&&save.right<=root.right&&save.top>=root.top&&save.bottom<=root.bottom)
   assertTrue("Close control is outside the Compose root: $close / $root",close.left>=root.left&&close.right<=root.right&&close.top>=root.top&&close.bottom<=root.bottom)
