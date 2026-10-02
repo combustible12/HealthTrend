@@ -56,7 +56,9 @@ class CoreFlowTest{
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
-  compose.onNodeWithText("编辑指标 · 尚未完成核对").performScrollTo().performClick()
+  compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑指标 · 尚未完成核对"))
+  compose.waitForIdle()
+  compose.onNodeWithText("编辑指标 · 尚未完成核对").performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
   compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
