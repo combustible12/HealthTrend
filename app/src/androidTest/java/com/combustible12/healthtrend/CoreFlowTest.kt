@@ -162,6 +162,7 @@ class CoreFlowTest{
  }
  private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
+  compose.onNodeWithContentDescription("关闭").assertIsDisplayed()
   val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
   // With the keyboard open the active accessibility window can be the IME.
   // Inspect the application window, where the save control is actually drawn.
@@ -172,6 +173,15 @@ class CoreFlowTest{
   val insets=checkNotNull(compose.activity.window.decorView.rootWindowInsets)
   val system=insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout() or android.view.WindowInsets.Type.ime())
   assertTrue("Save control overlaps system navigation or keyboard: $rect / "+metrics.bounds+" inset "+system.bottom,rect.bottom<=metrics.bounds.bottom-system.bottom)
+  fun closeControl(n:android.view.accessibility.AccessibilityNodeInfo):android.view.accessibility.AccessibilityNodeInfo?{
+   if(n.contentDescription?.toString()=="关闭")return n
+   for(i in 0 until n.childCount){val child=n.getChild(i)?:continue;closeControl(child)?.let{return it}}
+   return null
+  }
+  val close=automation.windows.asSequence().filter{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION}.mapNotNull{it.root}.mapNotNull{closeControl(it)}.firstOrNull()?:error("Close control is absent")
+  val closeRect=android.graphics.Rect();close.getBoundsInScreen(closeRect)
+  assertTrue("Close control is panned behind the status bar: $closeRect",close.isVisibleToUser&&closeRect.top>=metrics.bounds.top+system.top)
+
  }
 
  private var qaImage:Uri?=null
