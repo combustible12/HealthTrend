@@ -10,7 +10,7 @@ data class ReportImage(val uri:String,val pageIndex:Int,val importedAtEpochMilli
 data class LabResult(
  val id:String,val reportId:String,val hospitalKey:String,val reportType:String,val templateVersion:Int?,val metricKey:String,val rawName:String,
  val value:Double?,val unitAtTest:String,val referenceLowAtTest:Double?,val referenceHighAtTest:Double?,val testedAtEpochMillis:Long,
- val editedByUser:Boolean=false,val textValue:String=value?.toString().orEmpty(),val comparator:String="",val rawLine:String=""
+ val editedByUser:Boolean=false,val textValue:String=value?.toString().orEmpty(),val comparator:String="",val rawLine:String="",\n val normalizedValue:Double?=value,val normalizedUnit:String=unitAtTest
 ):java.io.Serializable{
  fun status():ResultStatus {
   val n=value ?: return ResultStatus.UNKNOWN
@@ -22,7 +22,7 @@ data class LabResult(
    else -> ResultStatus.NORMAL
   }
  }
- fun withEditedValue(newValue:Double)=copy(value=newValue,textValue=newValue.toString(),comparator="",editedByUser=true)
+ fun withEditedValue(newValue:Double)=copy(value=newValue,textValue=newValue.toString(),comparator="",editedByUser=true,normalizedValue=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).first,normalizedUnit=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).second)
 }
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
@@ -33,3 +33,24 @@ data class HealthEntry(
 ):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
 data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpochMillis:Long,val category:String,val sourceImageUri:String?)
+
+
+/** Conservative normalization: only conversions with an unambiguous laboratory-unit relationship are applied. */
+object UnitNormalizer {
+ fun normalize(metricKey:String,value:Double?,unit:String):Pair<Double?,String>{
+  if(value==null)return null to unit
+  val u=unit.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
+  return when {
+   metricKey in setOf("WBC","NEUT#","PLT","RBC","LYMPH#") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "×10^9/L"
+   metricKey in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
+   metricKey=="ALB" && u=="g/dl" -> value*10.0 to "g/L"
+   metricKey in setOf("TBIL","CREA","UA") && u in setOf("umol/l","μmol/l") -> value to "μmol/L"
+   metricKey=="CREA" && u=="mg/dl" -> value*88.4 to "μmol/L"
+   metricKey=="TBIL" && u=="mg/dl" -> value*17.104 to "μmol/L"
+   metricKey=="UA" && u=="mg/dl" -> value*59.48 to "μmol/L"
+   metricKey=="UREA" && u=="mmol/l" -> value to "mmol/L"
+   metricKey=="UREA" && u=="mg/dl" -> value/6.006 to "mmol/L"
+   else -> value to unit
+  }
+ }
+}
