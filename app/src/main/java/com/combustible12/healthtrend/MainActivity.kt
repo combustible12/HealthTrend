@@ -47,14 +47,17 @@ class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.o
 @Composable fun Home(m:Modifier){
  val ctx=LocalContext.current
  var ocrStatus by remember{mutableStateOf("")}
+ var parsedResults by remember{mutableStateOf<List<ParsedLabResult>>(emptyList())}
+ var showConfirm by remember{mutableStateOf(false)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
   if(uri!=null){try{ctx.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){}
    ocrStatus="正在识别报告…"
    TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()).process(InputImage.fromFilePath(ctx,uri))
-    .addOnSuccessListener{t->ctx.getSharedPreferences("healthtrend",0).edit().putString("last_report_uri",uri.toString()).putString("last_report_ocr",t.text).apply();ocrStatus="识别完成，原报告已绑定保存"}
+    .addOnSuccessListener{t->parsedResults=ReportParser.parse(t.text);ctx.getSharedPreferences("healthtrend",0).edit().putString("last_report_uri",uri.toString()).putString("last_report_ocr",t.text).apply();ocrStatus="识别完成：识别到 ${parsedResults.size} 个重点指标";showConfirm=true}
     .addOnFailureListener{ocrStatus="识别失败，请重新选择清晰图片"}
   }
  }
+ if(showConfirm){AlertDialog(onDismissRequest={showConfirm=false},title={Text("核对识别结果")},text={Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState())){if(parsedResults.isEmpty())Text("暂未匹配到重点指标，可返回重拍或重新导入。",color=Bad);parsedResults.forEach{r->Card(Modifier.fillMaxWidth().padding(vertical=4.dp),colors=CardDefaults.cardColors(containerColor=Warm)){Column(Modifier.padding(12.dp)){Text("${r.displayName}  ${r.metricKey}",fontWeight=FontWeight.Bold);Text("${r.value} ${r.unit}",fontSize=20.sp);Text("参考 ${r.referenceLow}–${r.referenceHigh}",color=Muted,fontSize=12.sp)}}}}},confirmButton={Button({val json=parsedResults.joinToString("||"){r->"${r.metricKey}|${r.displayName}|${r.value}|${r.unit}|${r.referenceLow}|${r.referenceHigh}"};ctx.getSharedPreferences("healthtrend",0).edit().putString("last_report_results",json).apply();showConfirm=false;ocrStatus="已确认并保存 ${parsedResults.size} 个指标"}){Text("确认保存")}},dismissButton={TextButton({showConfirm=false}){Text("返回")}})}
  Column(m.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   Spacer(Modifier.height(8.dp));Text("HealthTrend",fontSize=28.sp,fontWeight=FontWeight.Bold,color=Ink)
   Text("把检查、症状和病历放在一条清楚的时间线上",color=Muted)
