@@ -1,47 +1,57 @@
 package com.combustible12.healthtrend
 
 import android.content.Context
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
+import java.io.File
 
-class HealthStore(context: Context) {
-    private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
-
-    fun reports():List<LabReport>{
-        val a=JSONArray(prefs.getString("reports","[]"))
-        return (0 until a.length()).mapNotNull{i->runCatching{reportFromJson(a.getJSONObject(i))}.getOrNull()}.sortedByDescending{it.testedAtEpochMillis}
-    }
-    fun saveReport(report:LabReport){
-        val all=reports().filterNot{it.id==report.id}+report
-        val a=JSONArray();all.forEach{a.put(reportToJson(it))}
-        prefs.edit().putString("reports",a.toString()).apply()
-    }
-    fun trend(metricKey:String):List<Pair<LabReport,LabResult>> = reports().flatMap { r -> r.results.filter { it.metricKey==metricKey }.map { r to it } }.sortedBy { it.first.testedAtEpochMillis }
-    fun updateValue(reportId:String,resultId:String,newValue:Double){
-        reports().firstOrNull{it.id==reportId}?.let{r->
-            saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(newValue) else it}))
-        }
-    }
-    fun templates():List<HospitalLabTemplate>{
-        val a=JSONArray(prefs.getString("templates","[]"))
-        return (0 until a.length()).mapNotNull{i->runCatching{templateFromJson(a.getJSONObject(i))}.getOrNull()}
-    }
-    fun latestTemplate(hospital:String,type:String)=templates().filter{it.hospitalKey==hospital&&it.reportType==type&&it.confirmed}.maxByOrNull{it.version}
-    fun confirmTemplate(hospital:String,type:String,items:List<ParsedLabResult>):HospitalLabTemplate{
-        latestTemplate(hospital,type)?.let{return it}
-        val t=HospitalLabTemplate(hospital,type,1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,it.unit,it.referenceLow,it.referenceHigh)})
-        val a=JSONArray();templates().forEach{a.put(templateToJson(it))};a.put(templateToJson(t));prefs.edit().putString("templates",a.toString()).apply();return t
-    }
-    fun buildReport(hospital:String,type:String,testedAt:Long,imageUri:String,parsed:List<ParsedLabResult>,template:HospitalLabTemplate):LabReport{
-        val reportId=UUID.randomUUID().toString();val fields=template.fields.associateBy{it.metricKey}
-        return LabReport(reportId,hospital,type,testedAt,template.version,listOf(ReportImage(imageUri,0,System.currentTimeMillis())),parsed.map{p->
-            val f=fields[p.metricKey]
-            LabResult(UUID.randomUUID().toString(),reportId,hospital,type,template.version,p.metricKey,p.displayName,p.value,f?.unit?:p.unit,f?.referenceLow?:p.referenceLow,f?.referenceHigh?:p.referenceHigh,testedAt)
-        })
-    }
-    private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest).put("high",it.referenceHighAtTest).put("edited",it.editedByUser))}})
-    private fun reportFromJson(o:JSONObject):LabReport{val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val d=o.getLong("date");val tv=if(o.isNull("tv"))null else o.getInt("tv");val ia=o.getJSONArray("images");val ra=o.getJSONArray("results");return LabReport(id,h,t,d,tv,(0 until ia.length()).map{i->val x=ia.getJSONObject(i);ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},(0 until ra.length()).map{i->val x=ra.getJSONObject(i);LabResult(x.getString("id"),id,h,t,tv,x.getString("key"),x.getString("raw"),x.getDouble("value"),x.getString("unit"),if(x.isNull("low"))null else x.getDouble("low"),if(x.isNull("high"))null else x.getDouble("high"),d,x.optBoolean("edited",false))})}
-    private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow).put("high",it.referenceHigh))}})
-    private fun templateFromJson(o:JSONObject):HospitalLabTemplate{val a=o.getJSONArray("fields");return HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),(0 until a.length()).map{i->val x=a.getJSONObject(i);LabFieldTemplate(x.getString("key"),x.getString("name"),x.getString("unit"),if(x.isNull("low"))null else x.getDouble("low"),if(x.isNull("high"))null else x.getDouble("high"))})}
+/** Keep v1 preference names and fields so existing installations migrate in place. */
+class HealthStore(private val context:Context) {
+ private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+ private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
+ private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
+ private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
+ @Synchronized fun reports()=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
+ @Synchronized fun saveReport(r:LabReport){ require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank());write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}}) }
+ @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
+ fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
+ @Synchronized fun updateValue(reportId:String,resultId:String,value:Double){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value)else it}))}
+ @Synchronized fun templates()=rows(read("templates"),::templateFromJson)
+ fun latestTemplate(h:String,t:String,system:String="")=templates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
+ @Synchronized fun confirmTemplate(h:String,t:String,items:List<ParsedLabResult>,system:String="",newVersion:Boolean=false):HospitalLabTemplate {
+  require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
+  val old=latestTemplate(h,t,system)
+  if(old!=null && !newVersion)return old
+  val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,it.unit,it.referenceLow,it.referenceHigh)},system.trim())
+  write("templates",JSONArray().apply{templates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
+ }
+ fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=items.map{p->template?.fields?.firstOrNull{it.metricKey==p.metricKey}?.let{f->p.copy(unit=f.unit,referenceLow=f.referenceLow,referenceHigh=f.referenceHigh)}?:p}
+ fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
+  require(ReportParser.valid(items));val id=newId()
+  // The editor has applied the selected version. Snapshot exactly what the user confirmed.
+  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,p.unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine)},raw,system.trim())
+ }
+ @Synchronized fun entries()=rows(read("entries"),::entryFromJson).sortedByDescending{it.occurredAtEpochMillis}
+ @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
+ @Synchronized fun deleteEntry(id:String){write("entries",JSONArray().apply{entries().filterNot{it.id==id}.forEach{put(entryToJson(it))}})}
+ fun isPrimary(k:String)=if(prefs.contains("primary:$k"))prefs.getBoolean("primary:$k",false)else k in ReportParser.primaryKeys
+ fun setPrimary(k:String,value:Boolean){check(prefs.edit().putBoolean("primary:$k",value).commit())}
+ fun ownImage(uri:Uri):String {
+  if(uri.scheme=="file" && uri.path?.startsWith(File(context.filesDir,"sources").path)==true)return uri.toString()
+  val dir=File(context.filesDir,"sources").apply{mkdirs()};val dest=File(dir,newId()+".image");val temp=File(dir,dest.name+".tmp")
+  try { context.contentResolver.openInputStream(uri).use{input->requireNotNull(input){"原图无法读取"};temp.outputStream().use{out->input.copyTo(out)}};check(temp.length()>0);check(temp.renameTo(dest));return Uri.fromFile(dest).toString() }finally{temp.delete()}
+ }
+ fun exportBackup():String=JSONObject().put("schema",2).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser))}})
+ private fun reportFromJson(o:JSONObject):LabReport {
+  val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
+  return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->LabResult(x.getString("id"),id,h,t,version,x.getString("key"),x.getString("raw"),x.doubleOrNull("value"),x.getString("unit"),x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",x.doubleOrNull("value")?.toString().orEmpty()),x.optString("cmp"),x.optString("line"))},o.optString("ocr"),o.optString("system"))
+ }
+ private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("system",t.systemKey).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow?:JSONObject.NULL).put("high",it.referenceHigh?:JSONObject.NULL))}})
+ private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),x.getString("unit"),x.doubleOrNull("low"),x.doubleOrNull("high"))},o.optString("system"))
+ private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
+ private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
 }
+private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
+private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)

@@ -1,38 +1,38 @@
 package com.combustible12.healthtrend
 
-data class ParsedLabResult(
-    val metricKey: String,
-    val displayName: String,
-    val value: Double,
-    val unit: String,
-    val referenceLow: Double?,
-    val referenceHigh: Double?,
-    val rawLine: String,
-    val primary: Boolean
-)
-
+/** Values, units and limits come from the source, never population defaults. */
+data class ParsedLabResult(val metricKey:String,val displayName:String,val value:Double?,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val rawLine:String,val primary:Boolean,val textValue:String=value?.toString().orEmpty(),val comparator:String="")
 object ReportParser {
-    private data class Spec(val key:String,val name:String,val aliases:List<String>,val unit:String,val low:Double?,val high:Double?,val primary:Boolean)
-    private val specs=listOf(
-        Spec("WBC","白细胞计数",listOf("WBC","白细胞计数","白细胞"),"×10^9/L",3.5,9.5,true),
-        Spec("NEUT#","中性粒细胞计数",listOf("NEUT#","NEUT","中性粒细胞计数","中性粒细胞绝对值"),"×10^9/L",2.0,7.0,true),
-        Spec("HGB","血红蛋白",listOf("HGB","血红蛋白"),"g/L",113.0,151.0,true),
-        Spec("PLT","血小板计数",listOf("PLT","血小板计数","血小板"),"×10^9/L",100.0,300.0,true),
-        Spec("ALT","丙氨酸氨基转移酶",listOf("ALT","丙氨酸氨基转移酶","谷丙转氨酶"),"U/L",7.0,40.0,true),
-        Spec("AST","天门冬氨酸氨基转移酶",listOf("AST","天门冬氨酸氨基转移酶","谷草转氨酶"),"U/L",13.0,35.0,true),
-        Spec("TBIL","总胆红素",listOf("TBIL","总胆红素"),"μmol/L",3.4,20.6,true),
-        Spec("ALB","白蛋白",listOf("ALB","白蛋白"),"g/L",40.0,55.0,true),
-        Spec("CREA","肌酐",listOf("CREA","CRE","肌酐"),"μmol/L",35.0,80.0,true),
-        Spec("UREA","尿素",listOf("UREA","尿素"),"mmol/L",1.43,7.14,true),
-        Spec("UA","尿酸",listOf("UA","尿酸"),"μmol/L",90.0,357.0,true)
-    )
-    private val number=Regex("""[-+]?\d+(?:\.\d+)?""")
-    fun parse(text:String):List<ParsedLabResult>{
-        val lines=text.lines().map{it.trim()}.filter{it.isNotEmpty()}
-        return specs.mapNotNull{s->
-            val line=lines.firstOrNull{ln->s.aliases.any{a->ln.contains(a,ignoreCase=true)}}?:return@mapNotNull null
-            val value=number.findAll(line).mapNotNull{it.value.toDoubleOrNull()}.firstOrNull()?:return@mapNotNull null
-            ParsedLabResult(s.key,s.name,value,s.unit,s.low,s.high,line,s.primary)
-        }.distinctBy{it.metricKey}
-    }
+ val primaryKeys=setOf("WBC","NEUT#","HGB","PLT","ALT","AST","TBIL","ALB","CREA","UREA","UA")
+ private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA")
+ private val numeric=Regex("[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
+ fun key(name:String):String {
+  val clean=name.trim().replace(" ","")
+  aliases[clean]?.let{return it}
+  aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
+  Regex("[A-Za-z]+[#%]?").findAll(clean).map{it.value.uppercase()}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MCV","MCH","MCHC","RDW","MPV") }?.let{return it}
+  return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
+ }
+ fun parse(text:String):List<ParsedLabResult> = text.lines().mapNotNull { source ->
+  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%')
+  if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间").any{line.startsWith(it)}) return@mapNotNull null
+  val match=numeric.find(line)
+  val textual=Regex("^(.*?)\\s+(阴性|阳性|弱阳性|未检出|正常|异常|[+-]{1,4})(.*)$").find(line)
+  if(match==null && textual==null) return@mapNotNull null
+  val prefix=if(textual!=null && (match==null || textual.range.first<match.range.first)) textual.groupValues[1] else line.substring(0,match!!.range.first)
+  val name=prefix.trim().trimEnd(':','↑','↓','*').replace(Regex("^\\d+[.、]\\s*"),"")
+  if(name.isBlank() || !name.any{it.isLetter()} || name.length>55) return@mapNotNull null
+  val isText=textual!=null && !prefix.any{it.isDigit()}
+  val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
+  val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
+  val limits=Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?)").find(suffix)
+  val one=if(limits==null)Regex("[<>≤≥]\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix)else null
+  val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith(">")||it.startsWith("≥")}?.replace(Regex("[>≥\\s]"),"")?.toDoubleOrNull()
+  val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
+  val unit=suffix.substring(0,limits?.range?.first ?: one?.range?.first ?: suffix.length).trim().trim('↑','↓','*',' ','|')
+  val k=key(name)
+  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue,rawValue.takeWhile{it in "<>≤≥"})
+ }
+ fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }
