@@ -7,7 +7,12 @@ permissions:
   contents: read
 jobs:
   build:
+    name: Android ${{ matrix.api }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [35, 36]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +59,7 @@ jobs:
       - name: Core flows on Android
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api }}
           arch: x86_64
           profile: pixel_2
           disable-animations: true
@@ -78,7 +83,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: HealthTrend-verification
+          name: HealthTrend-verification-android-${{ matrix.api }}
           path: |
             app/build/reports/
             app/build/outputs/androidTest-results/
@@ -87,5 +92,5 @@ jobs:
             upgrade-result.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: HealthTrend-debug
+          name: HealthTrend-debug-android-${{ matrix.api }}
           path: app/build/outputs/apk/debug/app-debug.apk
