@@ -119,7 +119,7 @@ class CoreFlowTest{
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
   compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
-  compose.onNodeWithText("保存记录").assertIsDisplayed()
+  compose.onNodeWithText("保存记录").performScrollTo().assertIsDisplayed()
   val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
   val activeRoot=checkNotNull(automation.rootInActiveWindow){"Active dialog is inaccessible"}
   val button=activeRoot.findAccessibilityNodeInfosByText("保存记录").firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the active window")
