@@ -76,6 +76,7 @@ jobs:
             python -c "from pathlib import Path; assert 'OK (1 test)' in Path('upgrade-result.txt').read_text(), 'Actual upgrade validation failed'"
             gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest
             adb pull /sdcard/Pictures/HealthTrendQA/qa-symptom.png qa-symptom.png
+            python -c "import base64,pathlib; data=base64.b64encode(pathlib.Path('qa-symptom.png').read_bytes()).decode(); [print('QA_PNG:'+data[i:i+4096]) for i in range(0,len(data),4096)]"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
