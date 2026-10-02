@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 class CoreFlowTest{
  @get:Rule val compose=createAndroidComposeRule<MainActivity>()
  private val context:Context get()=InstrumentationRegistry.getInstrumentation().targetContext
- @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit()}
+ @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit();compose.activityRule.scenario.recreate()}
  @Test fun persistenceTemplatesImagesAndHistoricalReferences(){
   val store=HealthStore(context);val items=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nLDH 189 U/L 120-250")
   val t=store.confirmTemplate("测试医院","血常规",items)
@@ -68,6 +68,21 @@ class CoreFlowTest{
   recognizer.process(InputImage.fromBitmap(decodeReportBitmap(context,Uri.fromFile(ocrSource)),0)).addOnSuccessListener{raw=ReportOcr.tableText(it);latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
   assertTrue(latch.await(60,TimeUnit.SECONDS));recognizer.close();assertNull(failure)
   val rows=ReportParser.parse(raw);assertTrue("OCR output: $raw",rows.any{it.metricKey=="WBC"&&it.value==3.75});assertTrue(rows.any{it.metricKey=="LDH"})
+  val store=HealthStore(context);val source=store.ownImage(Uri.fromFile(ocrSource));val template=store.confirmTemplate("OCR测试医院","血常规",rows)
+  store.saveReport(store.buildReport("OCR测试医院","血常规",System.currentTimeMillis(),listOf(source,source),rows,template,raw))
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("查看原报告 · 2 页").performScrollTo().performClick()
+  compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
+  compose.onNodeWithText("原报告 1/2").assertExists()
+  compose.onNodeWithText("下一页").performClick();compose.onNodeWithText("原报告 2/2").assertExists()
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("原报告 2/2").assertExists()
+  compose.onNodeWithText("重置缩放").performClick()
+  compose.onNodeWithText("上一页").performClick();compose.onNodeWithText("原报告 1/2").assertExists()
+  compose.onNodeWithContentDescription("关闭").performClick()
+  compose.onNodeWithText("查看原报告 · 2 页").assertExists()
+  compose.onNodeWithContentDescription("关闭").performClick()
+
  }
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("手动录入").performClick()
@@ -92,6 +107,18 @@ class CoreFlowTest{
   compose.onNodeWithContentDescription("关闭").performClick()
   val result=HealthStore(context).reports().single().results.single()
   assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
+  compose.onNodeWithText("我的",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("查看 / 主动编辑为新版").performScrollTo().performClick()
+  compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑指标"))
+  compose.onNodeWithText("编辑指标").performClick()
+  compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")
+  compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("150")
+  compose.onNodeWithText("完成核对").performClick()
+  compose.onNodeWithText("主动确认新版模板").performClick()
+  val store=HealthStore(context);assertEquals(listOf(1,2),store.templates().map{it.version}.sorted())
+  assertEquals(100.0,store.latestTemplate("测试医院","血常规")!!.fields.single().referenceLow!!,0.0)
+  assertEquals(113.0,store.reports().single().results.single().referenceLowAtTest!!,0.0)
+
  }
  @Test fun realUiCreatesMedicalAndMedication(){
   compose.onNodeWithText("病历资料").performClick()
@@ -131,6 +158,9 @@ class CoreFlowTest{
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   assertSaveControlInsideSystemArea()
   compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
+  compose.onNodeWithText("症状报告").performScrollTo().performClick()
+  compose.onNodeWithText("期间共 1 次记录").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("分享症状报告").performScrollTo().assertIsDisplayed()
  }
  private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
