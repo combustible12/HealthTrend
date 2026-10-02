@@ -1,7 +1,13 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
 android {
  namespace="com.combustible12.healthtrend"; compileSdk=35
- defaultConfig { applicationId="com.combustible12.healthtrend"; minSdk=26; targetSdk=35; versionCode=(System.getenv("GITHUB_RUN_NUMBER") ?: "13").toInt(); versionName="0.2.${System.getenv("GITHUB_RUN_NUMBER") ?: "13"}"; testInstrumentationRunner="androidx.test.runner.AndroidJUnitRunner" }
+ defaultConfig { applicationId="com.combustible12.healthtrend"; minSdk=26; targetSdk=35; versionCode=(System.getenv("HEALTHTREND_VERSION_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "13").toInt(); versionName="0.2.${System.getenv("GITHUB_RUN_NUMBER") ?: "13"}"; testInstrumentationRunner="androidx.test.runner.AndroidJUnitRunner" }
+ val stableKey=System.getenv("HEALTHTREND_KEYSTORE_PATH")
+ if(!stableKey.isNullOrBlank()) {
+  signingConfigs.create("healthtrend") { storeFile=file(stableKey);storePassword=System.getenv("HEALTHTREND_STORE_PASSWORD");keyAlias=System.getenv("HEALTHTREND_KEY_ALIAS");keyPassword=System.getenv("HEALTHTREND_KEY_PASSWORD") }
+  buildTypes.getByName("debug").signingConfig=signingConfigs.getByName("healthtrend")
+  buildTypes.getByName("release").signingConfig=signingConfigs.getByName("healthtrend")
+ }
  compileOptions { sourceCompatibility=JavaVersion.VERSION_17; targetCompatibility=JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget="17" }
  buildFeatures { compose=true; buildConfig=true }

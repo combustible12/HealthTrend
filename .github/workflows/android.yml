@@ -18,8 +18,33 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Check persistent signing configuration
+        env:
+          KEY: ${{ secrets.HEALTHTREND_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.HEALTHTREND_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.HEALTHTREND_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.HEALTHTREND_KEY_PASSWORD }}
+        run: |
+          python - <<'PYTHON'
+          import os,base64,pathlib
+          names=['KEY','STORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD']
+          missing=[n for n in names if not os.environ.get(n)]
+          pathlib.Path('signing-readiness.txt').write_text('Missing signing configuration: '+', '.join(missing) if missing else 'Persistent signing configuration is present')
+          if not missing:
+              key=pathlib.Path(os.environ['RUNNER_TEMP'])/'healthtrend.jks'
+              key.write_bytes(base64.b64decode(os.environ['KEY']))
+              with open(os.environ['GITHUB_ENV'],'a') as env:
+                  env.write('HEALTHTREND_KEYSTORE_PATH='+str(key)+'\n')
+                  for source,target in [('STORE_PASSWORD','HEALTHTREND_STORE_PASSWORD'),('KEY_ALIAS','HEALTHTREND_KEY_ALIAS'),('KEY_PASSWORD','HEALTHTREND_KEY_PASSWORD')]:
+                      env.write(target+'='+os.environ[source]+'\n')
+          PYTHON
+          cat signing-readiness.txt
       - name: Unit tests and APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Build v1 baseline with the same test signing identity
+        run: |
+          git worktree add /tmp/HealthTrend-baseline 8365a97f69663c20f765cef26de1784a4eaf5de1
+          gradle -I "$GITHUB_WORKSPACE/ci/baseline-signing.gradle" -p /tmp/HealthTrend-baseline :app:assembleDebug
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -33,7 +58,18 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            gradle :app:connectedDebugAndroidTest
+            adb install /tmp/HealthTrend-baseline/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -n com.combustible12.healthtrend/.MainActivity
+            adb shell am force-stop com.combustible12.healthtrend
+            adb push app/src/androidTest/assets/v1-prefs.xml /data/local/tmp/healthtrend-v1.xml
+            adb shell run-as com.combustible12.healthtrend mkdir -p shared_prefs
+            adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/healthtrend-v1.xml shared_prefs/healthtrend_store_v1.xml
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -e class com.combustible12.healthtrend.UpgradeTest com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > upgrade-result.txt
+            cat upgrade-result.txt
+            python -c "from pathlib import Path; assert 'OK (1 test)' in Path('upgrade-result.txt').read_text(), 'Actual upgrade validation failed'"
+            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest
             adb pull /sdcard/Android/data/com.combustible12.healthtrend/files/qa-symptom.png qa-symptom.png
       - uses: actions/upload-artifact@v4
         if: always()
@@ -43,6 +79,8 @@ jobs:
             app/build/reports/
             app/build/outputs/androidTest-results/
             qa-symptom.png
+            signing-readiness.txt
+            upgrade-result.txt
       - uses: actions/upload-artifact@v4
         with:
           name: HealthTrend-debug

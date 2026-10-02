@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map><string name="reports">[{"id":"upgrade-v1","hospital":"原医院","type":"血常规","date":1000,"tv":1,"images":[],"results":[{"id":"upgrade-point","key":"HGB","raw":"血红蛋白","value":102,"unit":"g/L","low":113,"high":151,"edited":false}]}]</string><string name="templates">[{"hospital":"原医院","type":"血常规","version":1,"confirmed":true,"fields":[{"key":"HGB","name":"血红蛋白","unit":"g/L","low":113,"high":151}]}]</string></map>

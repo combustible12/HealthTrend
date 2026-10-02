@@ -1,0 +1,62 @@
+name: Publish verified HealthTrend
+on:
+  push:
+    branches: [main]
+    paths: [release/ready.json]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify acceptance points to passing CI with configured signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.HEALTHTREND_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.HEALTHTREND_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.HEALTHTREND_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.HEALTHTREND_KEY_PASSWORD }}
+        run: |
+          python - <<'PYTHON'
+          import json,subprocess,os,base64,pathlib
+          ready=json.loads(pathlib.Path('release/ready.json').read_text())
+          parent=subprocess.check_output(['git','rev-parse','HEAD^'],text=True).strip()
+          assert ready['validatedCommit']==parent, 'Release acceptance must identify the preceding tested commit'
+          changes=subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'],text=True).splitlines()
+          assert changes==['release/ready.json'], 'Source must not change after acceptance'
+          runs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs?head_sha='+parent],text=True))['workflow_runs']
+          assert any(r['path']=='.github/workflows/android.yml' and r['conclusion']=='success' for r in runs), 'Accepted commit must pass Android CI'
+          for name in ['KEY','STORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD']:
+              assert os.environ.get(name), 'Persistent signing is missing: '+name
+          key=pathlib.Path(os.environ['RUNNER_TEMP'])/'healthtrend.jks'
+          key.write_bytes(base64.b64decode(os.environ['KEY']))
+          with open(os.environ['GITHUB_ENV'],'a') as env:
+              env.write('HEALTHTREND_KEYSTORE_PATH='+str(key)+'\n')
+              env.write('HEALTHTREND_VERSION_CODE='+str(ready['versionCode'])+'\n')
+              for source,target in [('STORE_PASSWORD','HEALTHTREND_STORE_PASSWORD'),('KEY_ALIAS','HEALTHTREND_KEY_ALIAS'),('KEY_PASSWORD','HEALTHTREND_KEY_PASSWORD')]:
+                  env.write(target+'='+os.environ[source]+'\n')
+          PYTHON
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build final signed APK
+        run: gradle :app:testReleaseUnitTest :app:assembleRelease
+      - name: Publish final APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk HealthTrend.apk
+          python - <<'PYTHON'
+          import os,pathlib
+          pathlib.Path('release-notes.txt').write_text('版本代码: '+os.environ['HEALTHTREND_VERSION_CODE']+'\n\n完整检查报告、原图、医院模板版本、指标趋势、症状与病历用药时间轴。通过核心流程及升级数据保留验证。')
+          PYTHON
+          gh release create "healthtrend-$HEALTHTREND_VERSION_CODE" HealthTrend.apk --title "HealthTrend $HEALTHTREND_VERSION_CODE" --notes-file release-notes.txt --target "$GITHUB_SHA"
