@@ -75,7 +75,7 @@ jobs:
             cat upgrade-result.txt
             python -c "from pathlib import Path; assert 'OK (1 test)' in Path('upgrade-result.txt').read_text(), 'Actual upgrade validation failed'"
             gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest
-            adb pull /sdcard/Android/data/com.combustible12.healthtrend/files/qa-symptom.png qa-symptom.png
+            adb pull /sdcard/Pictures/HealthTrendQA/qa-symptom.png qa-symptom.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

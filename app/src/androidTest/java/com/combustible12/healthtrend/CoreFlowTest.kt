@@ -103,7 +103,11 @@ class CoreFlowTest{
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
   compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
-  val file=File(context.getExternalFilesDir(null),"qa-symptom.png");InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let{bitmap->file.outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}}
+  val bitmap=checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+  val values=android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"qa-symptom.png");put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/png");put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,"Pictures/HealthTrendQA/");put(android.provider.MediaStore.Images.Media.IS_PENDING,1)}
+  val uri=checkNotNull(context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values))
+  context.contentResolver.openOutputStream(uri).use{checkNotNull(it);bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}
+  context.contentResolver.update(uri,android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.IS_PENDING,0)},null,null)
   compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
  }
 }
