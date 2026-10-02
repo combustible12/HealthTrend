@@ -119,6 +119,13 @@ class CoreFlowTest{
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
   compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
+  compose.onNodeWithText("保存记录").assertIsDisplayed()
+  val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+  val button=automation.rootInActiveWindow.findAccessibilityNodeInfosByText("保存记录").firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the active window")
+  val rect=android.graphics.Rect();button.getBoundsInScreen(rect)
+  val window=compose.activity.windowManager.currentWindowMetrics
+  val system=compose.activity.window.decorView.rootWindowInsets.getInsets(android.view.WindowInsets.Type.navigationBars())
+  assertTrue("Save control overlaps system navigation: $rect / "+window.bounds+" inset "+system.bottom,rect.bottom<=window.bounds.bottom-system.bottom)
   val bitmap=checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
   val values=android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"qa-symptom.png");put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/png");put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,"Pictures/HealthTrendQA/");put(android.provider.MediaStore.Images.Media.IS_PENDING,1)}
   val uri=checkNotNull(context.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values))

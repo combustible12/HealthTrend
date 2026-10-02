@@ -43,8 +43,8 @@ data class ReportDraft(val hospital:String="",val type:String="血常规",val sy
  fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
  companion object{fun from(r:LabReport)=ReportDraft(r.hospitalKey,r.reportType,r.systemKey,dateText(r.testedAtEpochMillis),r.sourceImages.map{it.uri},r.rawOcr,r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},false,r)}
 }
-@Composable fun FullPage(title:String,onClose:()->Unit,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)){
- Surface(color=Warm,modifier=Modifier.fillMaxSize()){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
+@Composable fun FullPage(title:String,onClose:()->Unit,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){Dialog(onDismissRequest=onClose,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=true)){
+ Surface(color=Warm,modifier=Modifier.fillMaxSize()){Column(Modifier.fillMaxSize().imePadding()){
   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(Icons.Outlined.Close,"关闭")};Text(title,fontSize=21.sp,modifier=Modifier.weight(1f))}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
   Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
