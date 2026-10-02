@@ -73,6 +73,23 @@ class CoreFlowTest{
   val result=HealthStore(context).reports().single().results.single()
   assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
  }
+ @Test fun realUiCreatesMedicalAndMedication(){
+  compose.onNodeWithText("病历资料").performClick()
+  compose.onNodeWithText("病历标题").performTextInput("复诊记录")
+  compose.onNodeWithText("医院").performTextInput("测试医院")
+  compose.onNodeWithText("保存记录").performClick()
+  compose.onNodeWithText("用药记录").performClick()
+  compose.onNodeWithText("药品名称").performTextInput("测试药品")
+  compose.onNodeWithText("每次剂量（注明单位）").performScrollTo().performTextInput("1片")
+  compose.onNodeWithText("用药频率 / 时间").performScrollTo().performTextInput("每天一次")
+  compose.onNodeWithText("保存记录").performClick()
+  compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("用药记录 · 测试药品").performScrollTo().performClick()
+  compose.onNodeWithText("1片").assertExists()
+  compose.onNodeWithText("每天一次").assertExists()
+  compose.onNodeWithContentDescription("关闭").performClick()
+  assertEquals(setOf(EntryKind.MEDICAL,EntryKind.MEDICATION),HealthStore(context).entries().map{it.kind}.toSet())
+ }
  @Test fun realUiCreatesAndReopensSymptom(){
   compose.onNodeWithText("症状记录").performClick();compose.onNodeWithText("症状名称").performTextInput("小腿酸痛")
   compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")

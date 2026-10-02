@@ -43,6 +43,7 @@ jobs:
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Build v1 baseline with the same test signing identity
         run: |
+          git fetch origin 8365a97f69663c20f765cef26de1784a4eaf5de1
           git worktree add /tmp/HealthTrend-baseline 8365a97f69663c20f765cef26de1784a4eaf5de1
           gradle -I "$GITHUB_WORKSPACE/ci/baseline-signing.gradle" -p /tmp/HealthTrend-baseline :app:assembleDebug
       - name: Enable emulator acceleration
@@ -64,6 +65,10 @@ jobs:
             adb push app/src/androidTest/assets/v1-prefs.xml /data/local/tmp/healthtrend-v1.xml
             adb shell run-as com.combustible12.healthtrend mkdir -p shared_prefs
             adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/healthtrend-v1.xml shared_prefs/healthtrend_store_v1.xml
+            base64 -d ci/fixtures/v1-image.b64 > /tmp/v1-image.png
+            adb push /tmp/v1-image.png /data/local/tmp/healthtrend-v1.png
+            adb shell run-as com.combustible12.healthtrend mkdir -p files/sources
+            adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/healthtrend-v1.png files/sources/v1.png
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell am instrument -w -e class com.combustible12.healthtrend.UpgradeTest com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > upgrade-result.txt
