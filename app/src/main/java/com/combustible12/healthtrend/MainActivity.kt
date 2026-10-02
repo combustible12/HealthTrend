@@ -30,6 +30,7 @@ val Accent=Color(0xFFF28B58);val Good=Color(0xFF56A978);val Bad=Color(0xFFD9665B
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 fun dateText(n:Long)=Instant.ofEpochMilli(n).atZone(ZoneId.systemDefault()).format(stamp)
 fun parseDate(s:String):Long?=runCatching{if(s.trim().length==10)LocalDate.parse(s.trim()).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()else LocalDateTime.parse(s.trim(),stamp).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()}.getOrNull()
+fun preserveTimestamp(input:String,original:Long?):Long?=if(original!=null&&input==dateText(original))original else parseDate(input)
 fun ResultStatus.label()=when(this){ResultStatus.LOW->"偏低";ResultStatus.HIGH->"偏高";ResultStatus.NORMAL->"范围内";ResultStatus.UNKNOWN->"待判断"}
 fun rangeText(low:Double?,high:Double?)=when{low!=null&&high!=null->"$low–$high";low!=null->"≥$low";high!=null->"≤$high";else->"未录入"}
 fun statusColor(s:ResultStatus)=when(s){ResultStatus.LOW,ResultStatus.HIGH->Bad;ResultStatus.NORMAL->Good;else->Muted}
@@ -59,7 +60,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
    val t=if(d.newTemplate||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,d.newTemplate)else existing
-   val r=store.buildReport(d.hospital,d.type,parseDate(d.date)!!,d.images,d.parsed(),t,d.ocr,d.system)
+   val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
    val unchangedTemplate=d.existing!=null&&!d.newTemplate&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey
    val version=if(unchangedTemplate)d.existing?.templateVersion else t.version
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
