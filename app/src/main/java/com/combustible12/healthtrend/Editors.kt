@@ -55,6 +55,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
+ var editing by rememberSaveable{mutableStateOf<String?>(null)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
  LazyColumn(m.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -68,11 +69,18 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   }
   if(d.images.isNotEmpty())item{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
   if(d.ocr.isNotBlank())item{TextButton({showRaw=!showRaw}){Text(if(showRaw)"收起原始识别文字"else"检查原始识别文字 / 遗漏项目")};if(showRaw)androidx.compose.foundation.text.selection.SelectionContainer{Text(d.ocr,fontSize=13.sp)}}
-  itemsIndexed(d.rows,key={_,r->r.id}){i,r->LabRowEditor(r,{changed->d=d.copy(rows=d.rows.mapIndexed{j,x->if(i==j)changed else x})},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
-  item{OutlinedButton({d=d.copy(rows=d.rows+DraftRow())},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
+  itemsIndexed(d.rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
+  item{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
  }
  }
+ d.rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null})}
 }
+@Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:()->Unit){Paper{
+ Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));IconButton(remove){Icon(Icons.Outlined.Delete,"删除指标")}}
+ Text("${r.text} ${r.unit}",fontSize=22.sp);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
+ TextButton(edit){Text(if(r.valid())"编辑指标"else"编辑指标 · 尚未完成核对")}
+}}
+@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button(close,Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,close,templateOnly)}}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,remove:()->Unit,templateOnly:Boolean=false){Paper{
  Row(verticalAlignment=Alignment.CenterVertically){Text("指标",modifier=Modifier.weight(1f));IconButton(remove){Icon(Icons.Outlined.Delete,"删除指标")}}
  Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称");Field(r.key,{edit(r.copy(key=it))},"指标标识（用于关联趋势）")
@@ -95,12 +103,15 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 }
 @Composable fun DeleteConfirmation(close:()->Unit,remove:()->Unit){AlertDialog(onDismissRequest=close,title={Text("删除这条记录？")},text={Text("删除后无法在应用内恢复。")},confirmButton={TextButton({remove();close()}){Text("删除",color=Bad)}},dismissButton={TextButton(close){Text("取消")}})}
 @Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<ParsedLabResult>)->Unit){
- var rows by remember(t){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
+ val context=LocalContext.current
+ var editing by rememberSaveable{mutableStateOf<String?>(null)}
+ var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
  FullPage("医院模板 v${t.version}",close,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
  item{Text("${t.hospitalKey}\n${t.reportType} · ${t.systemKey}");Text("保存为新版本，不改写既往报告。",color=Muted)}
- itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowEditor(r,{c->rows=rows.mapIndexed{j,x->if(i==j)c else x}},{rows=rows.filterIndexed{j,_->i!=j}},true)}
- item{TextButton({rows=rows+DraftRow(text="0")}){Text("+ 添加指标")}}
+ itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}})}
+ item{TextButton({val added=DraftRow(text="0");rows=rows+added;editing=added.id}){Text("+ 添加指标")}}
  }}
+ rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->rows=rows.map{if(it.id==changed.id)changed else it}},{editing=null},true)}
 }
 @Composable fun EntryEditor(initial:HealthEntry,store:HealthStore,close:()->Unit,save:(HealthEntry)->Unit,delete:()->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current

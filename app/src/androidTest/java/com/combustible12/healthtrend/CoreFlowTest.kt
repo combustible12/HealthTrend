@@ -56,11 +56,13 @@ class CoreFlowTest{
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
+  compose.onNodeWithText("编辑指标 · 尚未完成核对").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
   compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
   compose.onNodeWithText("参考下限").performScrollTo().performTextInput("113")
   compose.onNodeWithText("参考上限").performScrollTo().performTextInput("151")
+  compose.onNodeWithText("完成核对").performClick()
   compose.onNodeWithText("确认保存 · 1 个项目").performClick()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithText("102").assertExists()
@@ -95,10 +97,10 @@ class CoreFlowTest{
   compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("小腿酸痛").assertExists()
-  compose.onNodeWithText("晚上明显").assertExists()
+  compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
-  compose.onNodeWithText("小腿酸痛").assertExists();compose.onNodeWithText("晚上明显").assertExists()
+  compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
   val file=File(context.getExternalFilesDir(null),"qa-symptom.png");InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().let{bitmap->file.outputStream().use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)}}
   compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
  }
