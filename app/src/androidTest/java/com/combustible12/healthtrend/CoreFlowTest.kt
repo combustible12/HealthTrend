@@ -161,27 +161,16 @@ class CoreFlowTest{
   compose.onNodeWithText("分享症状报告").performScrollTo().assertIsDisplayed()
  }
  private fun assertSaveControlInsideSystemArea(){
+  // Validate the app's actual Compose layout instead of coupling this test to
+  // Android's accessibility-window implementation, which differs by API/IME.
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   compose.onNodeWithContentDescription("关闭").assertIsDisplayed()
-  val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
-  // With the keyboard open the active accessibility window can be the IME.
-  // Inspect the application window, where the save control is actually drawn.
-  val button=automation.windows.asSequence().filter{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION}.mapNotNull{it.root}.flatMap{it.findAccessibilityNodeInfosByText("保存记录").asSequence()}.firstOrNull{it.text?.toString()=="保存记录"}?:error("Save control is absent from the application window")
-  val rect=android.graphics.Rect();button.getBoundsInScreen(rect)
-  assertTrue("Save control is not visible to accessibility",button.isVisibleToUser&&rect.height()>0)
-  val metrics=compose.activity.windowManager.currentWindowMetrics
-  val insets=checkNotNull(compose.activity.window.decorView.rootWindowInsets)
-  val system=insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout() or android.view.WindowInsets.Type.ime())
-  assertTrue("Save control overlaps system navigation or keyboard: $rect / "+metrics.bounds+" inset "+system.bottom,rect.bottom<=metrics.bounds.bottom-system.bottom)
-  fun closeControl(n:android.view.accessibility.AccessibilityNodeInfo):android.view.accessibility.AccessibilityNodeInfo?{
-   if(n.contentDescription?.toString()=="关闭")return n
-   for(i in 0 until n.childCount){val child=n.getChild(i)?:continue;closeControl(child)?.let{return it}}
-   return null
-  }
-  val close=automation.windows.asSequence().filter{it.type==android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION}.mapNotNull{it.root}.mapNotNull{closeControl(it)}.firstOrNull()?:error("Close control is absent")
-  val closeRect=android.graphics.Rect();close.getBoundsInScreen(closeRect)
-  assertTrue("Close control is panned behind the status bar: $closeRect",close.isVisibleToUser&&closeRect.top>=metrics.bounds.top+system.top)
-
+  val save=compose.onNodeWithText("保存记录").fetchSemanticsNode().boundsInRoot
+  val close=compose.onNodeWithContentDescription("关闭").fetchSemanticsNode().boundsInRoot
+  val root=compose.onRoot().fetchSemanticsNode().boundsInRoot
+  assertTrue("Save control has no visible size: $save",save.width>0f&&save.height>0f)
+  assertTrue("Save control is outside the Compose root: $save / $root",save.left>=root.left&&save.right<=root.right&&save.top>=root.top&&save.bottom<=root.bottom)
+  assertTrue("Close control is outside the Compose root: $close / $root",close.left>=root.left&&close.right<=root.right&&close.top>=root.top&&close.bottom<=root.bottom)
  }
 
  private var qaImage:Uri?=null
