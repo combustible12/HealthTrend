@@ -3,15 +3,15 @@ package com.combustible12.healthtrend
 import java.util.UUID
 
 fun newId(): String = UUID.randomUUID().toString()
-data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String="")
-data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?)
-data class LabReport(val id:String,val hospitalKey:String,val reportType:String,val testedAtEpochMillis:Long,val templateVersion:Int?,val sourceImages:List<ReportImage>,val results:List<LabResult>,val rawOcr:String="",val systemKey:String="")
-data class ReportImage(val uri:String,val pageIndex:Int,val importedAtEpochMillis:Long)
+data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
+data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?):java.io.Serializable
+data class LabReport(val id:String,val hospitalKey:String,val reportType:String,val testedAtEpochMillis:Long,val templateVersion:Int?,val sourceImages:List<ReportImage>,val results:List<LabResult>,val rawOcr:String="",val systemKey:String=""):java.io.Serializable
+data class ReportImage(val uri:String,val pageIndex:Int,val importedAtEpochMillis:Long):java.io.Serializable
 data class LabResult(
  val id:String,val reportId:String,val hospitalKey:String,val reportType:String,val templateVersion:Int?,val metricKey:String,val rawName:String,
  val value:Double?,val unitAtTest:String,val referenceLowAtTest:Double?,val referenceHighAtTest:Double?,val testedAtEpochMillis:Long,
  val editedByUser:Boolean=false,val textValue:String=value?.toString().orEmpty(),val comparator:String="",val rawLine:String=""
-){
+):java.io.Serializable{
  fun status():ResultStatus {
   val n=value ?: return ResultStatus.UNKNOWN
   if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN
@@ -30,6 +30,6 @@ data class HealthEntry(
  val id:String=newId(),val kind:EntryKind,val title:String,val occurredAtEpochMillis:Long,
  val note:String="",val hospital:String="",val category:String="",val severity:Int=0,val frequency:String="",val duration:String="",
  val dose:String="",val route:String="",val endAtEpochMillis:Long?=null,val images:List<String> = emptyList()
-)
+):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
 data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpochMillis:Long,val category:String,val sourceImageUri:String?)

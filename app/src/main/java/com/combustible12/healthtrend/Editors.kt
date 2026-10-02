@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
@@ -32,12 +33,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
-data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="") {
+data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String=""):java.io.Serializable {
  fun parsed()=ParsedLabResult(key.ifBlank{ReportParser.key(name)},name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})
  fun valid()=name.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
  companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine)}
 }
-data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val newTemplate:Boolean=false,val existing:LabReport?=null){
+data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
  fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
  companion object{fun from(r:LabReport)=ReportDraft(r.hospitalKey,r.reportType,r.systemKey,dateText(r.testedAtEpochMillis),r.sourceImages.map{it.uri},r.rawOcr,r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},false,r)}
@@ -52,7 +53,8 @@ data class ReportDraft(val hospital:String="",val type:String="血常规",val sy
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true)}
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
- var d by remember(initial){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
+ val context=LocalContext.current
+ var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
  LazyColumn(m.padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -101,7 +103,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }}
 }
 @Composable fun EntryEditor(initial:HealthEntry,store:HealthStore,close:()->Unit,save:(HealthEntry)->Unit,delete:()->Unit,images:(List<String>)->Unit){
- var e by remember(initial){mutableStateOf(initial)};var date by remember{mutableStateOf(dateText(initial.occurredAtEpochMillis))};var end by remember{mutableStateOf(initial.endAtEpochMillis?.let{dateText(it)}.orEmpty())};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)}
+ val context=LocalContext.current
+ var e by rememberSaveable(initial,stateSaver=diskStateSaver<HealthEntry>(context,"entry-editor")){mutableStateOf(initial)};var date by rememberSaveable{mutableStateOf(dateText(initial.occurredAtEpochMillis))};var end by rememberSaveable{mutableStateOf(initial.endAtEpochMillis?.let{dateText(it)}.orEmpty())};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()){busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};e=e.copy(images=e.images+owned)}catch(x:Exception){error="原图保存失败：${x.message}"}finally{busy=false}}}}
  val valid=e.title.isNotBlank()&&parseDate(date)!=null&&(end.isBlank()||parseDate(end)?.let{it>=parseDate(date)!!}==true)&&!busy

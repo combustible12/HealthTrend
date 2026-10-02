@@ -56,6 +56,9 @@ class CoreFlowTest{
  @Test fun realUiCreatesAndReopensSymptom(){
   compose.onNodeWithText("症状记录").performClick();compose.onNodeWithText("症状名称").performTextInput("小腿酸痛")
   compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("小腿酸痛").assertExists()
+  compose.onNodeWithText("晚上明显").assertExists()
   compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
   compose.onNodeWithText("小腿酸痛").assertExists();compose.onNodeWithText("晚上明显").assertExists()

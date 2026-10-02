@@ -39,9 +39,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
- var draft by remember{mutableStateOf<ReportDraft?>(null)};var report by remember{mutableStateOf<LabReport?>(null)}
- var entry by remember{mutableStateOf<HealthEntry?>(null)};var viewer by remember{mutableStateOf<List<String>?>(null)}
- var template by remember{mutableStateOf<HospitalLabTemplate?>(null)}
+ var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
+ var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)}
+ var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
  val reports=remember(revision){runCatching{store.reports()}.getOrElse{error="历史数据读取失败：${it.message}";emptyList()}}
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
@@ -60,7 +60,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
    val t=if(d.newTemplate||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,d.newTemplate)else existing
    val r=store.buildReport(d.hospital,d.type,parseDate(d.date)!!,d.images,d.parsed(),t,d.ocr,d.system)
-   store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,editedByUser=true)}))
+   val unchangedTemplate=d.existing!=null&&!d.newTemplate&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey
+   val version=if(unchangedTemplate)d.existing?.templateVersion else t.version
+   store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
   }},{viewer=it})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value->change{store.updateValue(current.id,result.id,value)}})}
