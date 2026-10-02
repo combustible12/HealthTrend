@@ -45,11 +45,27 @@ class CoreFlowTest{
   context.getSharedPreferences("healthtrend_store_v1",0).edit().putString("reports",json).commit()
   val store=HealthStore(context);val r=store.reports().single();assertEquals("102.0",r.results.single().textValue);store.updateValue("old","point",120.0);assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
  }
+ @Test fun largePhotosAreBoundedAndExifOrientationIsPreserved(){
+  val compressed=java.io.ByteArrayOutputStream()
+  java.util.zip.DeflaterOutputStream(compressed).use{z->val row=ByteArray(10001);repeat(6000){z.write(row)}}
+  val large=File(context.cacheDir,"large-report.png")
+  java.io.DataOutputStream(large.outputStream()).use{out->
+   out.write(byteArrayOf(137.toByte(),80,78,71,13,10,26,10))
+   fun chunk(type:String,data:ByteArray){val name=type.toByteArray(Charsets.US_ASCII);out.writeInt(data.size);out.write(name);out.write(data);val crc=java.util.zip.CRC32();crc.update(name);crc.update(data);out.writeInt(crc.value.toInt())}
+   val header=java.io.ByteArrayOutputStream();java.io.DataOutputStream(header).use{it.writeInt(10000);it.writeInt(6000);it.write(byteArrayOf(8,0,0,0,0))}
+   chunk("IHDR",header.toByteArray());chunk("IDAT",compressed.toByteArray());chunk("IEND",byteArrayOf())
+  }
+  val originalSize=large.length();val preview=decodeReportBitmap(context,Uri.fromFile(large));assertTrue(preview.width.toLong()*preview.height<=8_000_000L);assertTrue(maxOf(preview.width,preview.height)<=4096);assertEquals(originalSize,large.length());preview.recycle()
+  val photo=File(context.cacheDir,"oriented.jpg");Bitmap.createBitmap(320,160,Bitmap.Config.ARGB_8888).also{b->photo.outputStream().use{b.compress(Bitmap.CompressFormat.JPEG,95,it)};b.recycle()}
+  android.media.ExifInterface(photo.path).apply{setAttribute(android.media.ExifInterface.TAG_ORIENTATION,android.media.ExifInterface.ORIENTATION_ROTATE_90.toString());saveAttributes()}
+  val oriented=decodeReportBitmap(context,Uri.fromFile(photo));assertEquals(160,oriented.width);assertEquals(320,oriented.height);assertEquals(android.media.ExifInterface.ORIENTATION_ROTATE_90,android.media.ExifInterface(photo.path).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,0));oriented.recycle()
+ }
  @Test fun bundledOcrReadsActualBitmap(){
   val b=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888);val canvas=Canvas(b);canvas.drawColor(Color.WHITE);val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
   listOf("白细胞计数 3.75  3.5-9.5","中性粒细胞百分比 51.2 % 40-75","HGB 102  113-151","LDH 189  120-250").forEachIndexed{i,s->canvas.drawText(s,70f,120f+i*150,paint)}
   val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build());val latch=CountDownLatch(1);var raw="";var failure:Exception?=null
-  recognizer.process(InputImage.fromBitmap(b,0)).addOnSuccessListener{raw=ReportOcr.tableText(it);latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
+  val ocrSource=File(context.cacheDir,"ocr-source.png");ocrSource.outputStream().use{b.compress(Bitmap.CompressFormat.PNG,100,it)}
+  recognizer.process(InputImage.fromBitmap(decodeReportBitmap(context,Uri.fromFile(ocrSource)),0)).addOnSuccessListener{raw=ReportOcr.tableText(it);latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
   assertTrue(latch.await(60,TimeUnit.SECONDS));recognizer.close();assertNull(failure)
   val rows=ReportParser.parse(raw);assertTrue("OCR output: $raw",rows.any{it.metricKey=="WBC"&&it.value==3.75});assertTrue(rows.any{it.metricKey=="LDH"})
  }

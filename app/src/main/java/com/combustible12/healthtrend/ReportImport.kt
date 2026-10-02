@@ -29,7 +29,7 @@ private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnS
      val saved=withContext(Dispatchers.IO){store.ownImage(uri)};owned.add(saved)
      message="正在识别第 ${i+1}/${uris.size} 页…"
      try{
-      val input=withContext(Dispatchers.IO){InputImage.fromFilePath(context,Uri.parse(saved))}
+      val input=withContext(Dispatchers.IO){InputImage.fromBitmap(decodeReportBitmap(context,Uri.parse(saved),maxDimension=12000),0)}
       val t=recognizer.process(input).result()
       texts.add(ReportOcr.tableText(t))
      }catch(e:Exception){failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
