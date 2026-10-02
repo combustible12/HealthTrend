@@ -1,6 +1,13 @@
 package com.combustible12.healthtrend
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -18,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,13 +45,24 @@ class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.o
 }
 
 @Composable fun Home(m:Modifier){
+ val ctx=LocalContext.current
+ var ocrStatus by remember{mutableStateOf("")}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+  if(uri!=null){try{ctx.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){}
+   ocrStatus="正在识别报告…"
+   TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()).process(InputImage.fromFilePath(ctx,uri))
+    .addOnSuccessListener{t->ctx.getSharedPreferences("healthtrend",0).edit().putString("last_report_uri",uri.toString()).putString("last_report_ocr",t.text).apply();ocrStatus="识别完成，原报告已绑定保存"}
+    .addOnFailureListener{ocrStatus="识别失败，请重新选择清晰图片"}
+  }
+ }
  Column(m.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   Spacer(Modifier.height(8.dp));Text("HealthTrend",fontSize=28.sp,fontWeight=FontWeight.Bold,color=Ink)
   Text("把检查、症状和病历放在一条清楚的时间线上",color=Muted)
   Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp)){
    Text("今天要记录什么？",fontSize=21.sp,fontWeight=FontWeight.Bold,color=Ink);Spacer(Modifier.height(14.dp))
-   Button({},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),colors=ButtonDefaults.buttonColors(containerColor=Accent)){Icon(Icons.Outlined.DocumentScanner,null);Spacer(Modifier.width(8.dp));Text("拍照识别检查报告")}
-   TextButton({},Modifier.align(Alignment.CenterHorizontally)){Text("或从相册导入",color=Ink)}
+   Button({picker.launch(arrayOf("image/*"))},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),colors=ButtonDefaults.buttonColors(containerColor=Accent)){Icon(Icons.Outlined.DocumentScanner,null);Spacer(Modifier.width(8.dp));Text("拍照识别检查报告")}
+   TextButton({picker.launch(arrayOf("image/*"))},Modifier.align(Alignment.CenterHorizontally)){Text("或从相册导入",color=Ink)}
+   if(ocrStatus.isNotBlank()) Text(ocrStatus,color=if(ocrStatus.contains("失败"))Bad else Good,fontSize=12.sp)
   }}
   Text("健康记录",fontSize=20.sp,fontWeight=FontWeight.Bold,color=Ink)
   Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Quick("检查指标","趋势与异常",Icons.Outlined.MonitorHeart,Modifier.weight(1f));Quick("症状记录","程度与频率",Icons.Outlined.EditNote,Modifier.weight(1f))}
