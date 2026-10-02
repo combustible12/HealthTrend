@@ -145,7 +145,7 @@ class CoreFlowTest{
   captureSymptomPage()
   compose.onNodeWithText("保存记录").performScrollTo().assertIsDisplayed()
   assertSaveControlInsideSystemArea()
-  androidx.test.espresso.Espresso.closeSoftKeyboard()
+  automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
   compose.waitForIdle()
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("小腿酸痛").assertExists()
