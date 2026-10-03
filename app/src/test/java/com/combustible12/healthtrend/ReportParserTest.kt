@@ -293,6 +293,12 @@ class ReportParserTest {
   assertEquals(3.5,applied[0].referenceLow!!,0.0);assertEquals(9.5,applied[0].referenceHigh!!,0.0)
   assertEquals("g/dL",applied[1].unit);assertEquals(8.0,applied[1].referenceLow!!,0.0);assertEquals(15.0,applied[1].referenceHigh!!,0.0)
  }
+ @Test fun rememberedTemplateOnlyFillsMissingFixedFields(){
+  val current=ReportParser.parse("WBC 白细胞 7.25")
+  val template=HospitalLabTemplate("霞浦县中医院","血常规",1,true,listOf(LabFieldTemplate("WBC","白细胞","×10^9/L",3.5,9.5)))
+  val applied=applyRememberedTemplate(current,template).single()
+  assertEquals(7.25,applied.value!!,0.0);assertEquals("7.25",applied.textValue);assertEquals("×10^9/L",applied.unit);assertEquals(3.5,applied.referenceLow!!,0.0);assertEquals(9.5,applied.referenceHigh!!,0.0)
+ }
 
  @Test fun savedRangeAndCanonicalKeyRemainAvailableToDetailsAndTrends(){
   val parsed=ReportParser.parse("#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L\nWBC 白细胞 7.25 3.5-9.5 10^9/L")
@@ -386,6 +392,12 @@ class ReportParserTest {
  @Test fun numericOnlyUnitCannotBecomeDisplayedUnit(){
   val row=DraftRow(name="有核红细胞比率",key="NRBC%",text="0.00",unit="0.00",high="9999.99").parsed()
   assertEquals("0.00",row.textValue);assertEquals("",row.unit)
+ }
+
+ @Test fun confirmedXiupuReportDateWinsOverSendTime(){
+  val rows=ReportParser.parse("WBC 白细胞 7.25 3.5-9.5 10^9/L")
+  val meta=ReportMetadata.extract("霞浦县中医院检验报告单\n送检时间 2026-9-18 8:37:55\n报告日期 2026-09-18 08:23\nWBC 白细胞 7.25",rows)
+  assertEquals("2026-09-18",meta.date)
  }
 
 }
