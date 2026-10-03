@@ -81,8 +81,7 @@ object ReportParser {
   aliases.entries.firstOrNull{(label,_)->name.contains(label)}?.value?.let{k=it}
   val unit=resolvedUnit(k,ocrUnit)
   if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
-  ParsedLabResult(k,name,rawValue.trim(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
-  .let{p->if(p.value==null&&rawValue.trimStart('<','>','≤','≥').toDoubleOrNull()!=null)p.copy(value=rawValue.trimStart('<','>','≤','≥').toDoubleOrNull()) else p}
+  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
  }
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }
