@@ -113,6 +113,11 @@ class CoreFlowTest{
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
    compose.onNodeWithText("检查类型").performScrollTo().performTextReplacement("血常规")
    compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
+   // OCR rows with missing units/ranges must be explicitly reviewed before save.
+   while(compose.onAllNodes(hasText("编辑指标 · 尚未完成核对")).fetchSemanticsNodes().isNotEmpty()){
+    compose.onAllNodes(hasText("编辑指标 · 尚未完成核对"))[0].performScrollTo().performClick()
+    compose.onNodeWithText("完成核对").performClick()
+   }
    compose.onNode(hasText("确认保存",substring=true)).assertIsEnabled().performClick()
   }finally{androidx.test.espresso.intent.Intents.release()}
   val report=HealthStore(context).reports().single()
