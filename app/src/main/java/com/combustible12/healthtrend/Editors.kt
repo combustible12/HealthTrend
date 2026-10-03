@@ -66,10 +66,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={val problems=reportValidationProblems(d);Column{if(problems.isNotEmpty())Text("还不能保存：${problems.joinToString("；")}",color=Bad,fontSize=12.sp);Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("确认保存 · ${d.rows.size} 个项目")}}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted);if(d.uncertain.isNotEmpty())Text("还有 ${d.uncertain.size} 项 OCR 信息需要人工确认，确认前不能保存。",color=Bad,fontSize=12.sp)}
-  run{Field(d.hospital,{value->d=d.copy(hospital=value,uncertain=if(value.isBlank())d.uncertain+"hospital" else d.uncertain-"hospital")},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
-  run{Field(d.type,{value->d=d.copy(type=value,uncertain=if(value.isBlank())d.uncertain+"type" else d.uncertain-"type")},"检查类型");if("type" in d.uncertain)Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp)}
+  run{Field(d.hospital,{value->d=updateOcrMetadata(d,"hospital",value)},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
+  run{Field(d.type,{value->d=updateOcrMetadata(d,"type",value)},"检查类型");if("type" in d.uncertain)Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp)}
   run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")}
-  run{Field(d.date,{value->d=d.copy(date=value,uncertain=if(parseDate(value)==null)d.uncertain+"date" else d.uncertain-"date")},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
+  run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
   run{
    Paper{Text(if(template==null)"首次确认将建立医院模板"else"已确认模板 v${template.version}",color=Accent)
     if(template!=null){TextButton({d=d.copy(rows=store.applyTemplate(d.parsed(),template).mapIndexed{i,p->DraftRow.from(p).copy(id=d.rows[i].id)})}){Text("套用此医院模板的单位与参考范围")};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d.newTemplate,{d=d.copy(newTemplate=it)});Text("将本次核对保存为新版模板",modifier=Modifier.weight(1f))}}
@@ -90,6 +90,12 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
+fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(field){
+ "hospital"->d.copy(hospital=value,uncertain=if(value.isBlank())d.uncertain+"hospital" else d.uncertain-"hospital")
+ "type"->d.copy(type=value,uncertain=if(value.isBlank())d.uncertain+"type" else d.uncertain-"type")
+ "date"->d.copy(date=value,uncertain=if(parseDate(value)==null)d.uncertain+"date" else d.uncertain-"date")
+ else->d
+}
 fun reportValidationProblems(d:ReportDraft):List<String>{
  val problems=mutableListOf<String>()
  if(d.hospital.isBlank())problems.add("医院未填写");if(d.type.isBlank())problems.add("检查类型未填写");if(parseDate(d.date)==null)problems.add("检查日期无效")
