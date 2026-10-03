@@ -42,6 +42,14 @@ class ReportParserTest {
   val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",version=1,confirmed=true,fields=listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
   assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
  }
+ @Test fun trendPointPositionSeparatesFirstAndLastPointInMultiPointSeries(){
+  val points=listOf(0L to 102.0,86400000L to 120.0)
+  val first=trendPointPosition(points,0,320f,112f,100.0,151.0)
+  val last=trendPointPosition(points,1,320f,112f,100.0,151.0)
+  assertTrue(first.x<last.x);assertTrue(first!=last)
+  assertEquals(0,nearestTrendPoint(points,first,320f,112f,100.0,151.0,1f))
+  assertEquals(1,nearestTrendPoint(points,last,320f,112f,100.0,151.0,1f))
+ }
  @Test fun trendPointPositionMatchesHitTestingForEveryPoint(){
   val points=listOf(0L to 102.0,86400000L to 120.0,172800000L to 108.0)
   points.indices.forEach{index->
