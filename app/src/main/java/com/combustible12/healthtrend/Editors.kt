@@ -113,7 +113,8 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
 }
 
 fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyList() else listOf("invalid")
-@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}\n@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){Paper{
+@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
+@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){Paper{
  Text("指标")
  if(lockMetadata)Text(r.name,fontSize=18.sp) else Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
