@@ -34,6 +34,14 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
+ @Test fun trendPointHitTestingHonorsNearestPointAndRadius(){
+  val points=listOf(0L to 100.0,100L to 120.0)
+  val first=nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(8f,88f),200f,100f,100.0,120.0,20f)
+  assertEquals(0,first)
+  assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(100f,0f),200f,100f,100.0,120.0,10f))
+  assertEquals(0,nearestTrendPoint(listOf(5L to 110.0),androidx.compose.ui.geometry.Offset(100f,50f),200f,100f,100.0,120.0,50f))
+  assertNull(nearestTrendPoint(emptyList(),androidx.compose.ui.geometry.Offset.Zero,200f,100f,radius=50f))
+ }
  @Test fun uncertainMetricRowRequiresExplicitReview(){
   val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
   val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
