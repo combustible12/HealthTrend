@@ -68,6 +68,8 @@ object ReportParser {
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.trim().startsWith("<")||it.trim().startsWith("≤")}?.replace(Regex("[<=≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
+  // Keep the result token isolated from any neighboring OCR column. A second bare number
+  // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   val explicitCode=knownCode.find(name)?.value
   var k=explicitCode?.let(::normalizeCode) ?: key(name)
@@ -79,7 +81,8 @@ object ReportParser {
   aliases.entries.firstOrNull{(label,_)->name.contains(label)}?.value?.let{k=it}
   val unit=resolvedUnit(k,ocrUnit)
   if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
-  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue,rawValue.takeWhile{it in "<>≤≥"})
+  ParsedLabResult(k,name,rawValue.trim(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
+  .let{p->if(p.value==null&&rawValue.trimStart('<','>','≤','≥').toDoubleOrNull()!=null)p.copy(value=rawValue.trimStart('<','>','≤','≥').toDoubleOrNull()) else p}
  }
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }
