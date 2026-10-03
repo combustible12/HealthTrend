@@ -125,7 +125,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
-     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key,series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)})
 
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
@@ -162,7 +162,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=pos(hit);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String=""){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList()){
  val density=LocalDensity.current.density
  fun pointPosition(index:Int,width:Float,height:Float):Offset{
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
@@ -175,13 +175,21 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   if(hit!=null)onPointClick(hit)
  }}
  val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
- Canvas(Modifier.fillMaxWidth().height(112.dp).then(interaction).then(semantics)){
+ Box(Modifier.fillMaxWidth().height(112.dp)){
+  Canvas(Modifier.matchParentSize().then(interaction).then(semantics)){
   if(points.isEmpty())return@Canvas
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
   fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
   if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
   val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)}
   drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
+  }
+  if(onPointClick!=null) points.indices.forEach{i->
+   Box(Modifier.align(Alignment.BottomStart).size(1.dp).clearAndSetSemantics{
+    contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
+    onClick(label="打开该数据点"){onPointClick(i);true}
+   })
+  }
  }
 }
 
