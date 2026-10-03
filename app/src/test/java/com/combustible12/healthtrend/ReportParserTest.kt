@@ -39,7 +39,7 @@ class ReportParserTest {
   assertFalse(metricNeedsReview(complete,null))
   assertTrue(metricNeedsReview(complete.copy(unit=""),null))
   assertTrue(metricNeedsReview(complete.copy(referenceHigh=null),null))
-  val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",fields=listOf(TemplateField("HGB","g/L",113.0,151.0)))
+  val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",version=1,confirmed=true,fields=listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
   assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
  }
  @Test fun trendPointHitTestingHonorsNearestPointAndRadius(){
