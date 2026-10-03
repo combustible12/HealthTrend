@@ -125,9 +125,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
      BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
-      val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()};val half=with(density){24.dp.toPx()}
+      val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()}
       Spark(chartPoints,Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
-      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.offset(x=px-24.dp,y=py-24.dp).size(48.dp).clickable{selected=series[index]}.semantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}"})}
+      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.size(48.dp).layout{measurable,constraints->val placeable=measurable.measure(constraints);layout(placeable.width,placeable.height){placeable.placeRelative((px-24.dp).roundToPx(),(py-24.dp).roundToPx())}}.clickable{selected=series[index]}.semantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}"})}
      }
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
