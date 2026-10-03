@@ -60,9 +60,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true)}
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
- var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
+ var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
- val template=store.latestTemplate(d.hospital,d.type,d.system)
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{Field(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院")}
