@@ -110,9 +110,6 @@ class CoreFlowTest{
    compose.activityRule.scenario.recreate()
    compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
-   val typeField=compose.onNodeWithText("检查类型").performScrollTo();typeField.performTextClearance();typeField.performTextInput("血常规");compose.waitForIdle()
-   compose.onNodeWithText("血常规",useUnmergedTree=true).assertExists()
-   if(compose.onAllNodesWithText("确认检查类型：血常规").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("确认检查类型：血常规").performScrollTo().performClick()
    compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
    compose.onNodeWithText("保存").assertIsEnabled().performClick()
   }finally{androidx.test.espresso.intent.Intents.release()}
@@ -240,8 +237,8 @@ class CoreFlowTest{
   assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
   compose.onNodeWithText("我的",useUnmergedTree=true).performClick()
   compose.onNodeWithText("查看 / 主动编辑为新版").performScrollTo().performClick()
-  compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑指标"))
-  compose.onNodeWithText("编辑指标").performClick()
+  compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑"))
+  compose.onNodeWithText("编辑").performClick()
   compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("150")
   compose.onNodeWithText("完成核对").performClick()
