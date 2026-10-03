@@ -51,7 +51,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val date=meta.date
     val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
-    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)},uncertain=meta.uncertain)
+    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain)
     message=(failures+"已保留 ${owned.size} 页原图，识别 ${parsed.size} 个项目，请逐项核对。").joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
@@ -80,6 +80,16 @@ object ReportOcr {
  }
 }
 
+fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
+ if(p.metricKey.isBlank()||p.textValue.isBlank())return true
+ val field=template?.fields?.firstOrNull{it.metricKey==p.metricKey}
+ // A confirmed hospital template is authoritative for unit/range; OCR must not overwrite it.
+ if(field!=null)return false
+ // Without a confirmed template, numeric rows need a unit and a complete two-sided
+ // reference range before they can be accepted without an explicit row review.
+ if(p.value!=null&&(p.unit.isBlank()||p.referenceLow==null||p.referenceHigh==null))return true
+ return (p.referenceLow==null)!=(p.referenceHigh==null)
+}
 
 data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
 object ReportMetadata {
