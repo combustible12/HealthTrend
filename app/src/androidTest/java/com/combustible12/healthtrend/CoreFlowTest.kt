@@ -335,7 +335,6 @@ class CoreFlowTest{
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextReplacement("120")
   compose.onNodeWithText("本次报告项目或范围有变化").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextReplacement("血红蛋白")
-  compose.onNodeWithText("g/L").performScrollTo().performClick()
   compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("150")
   compose.onNodeWithText("完成核对").performClick()
