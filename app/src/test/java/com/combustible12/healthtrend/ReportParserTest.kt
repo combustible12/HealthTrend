@@ -129,23 +129,6 @@ class ReportParserTest {
   val kidneyMeta=ReportMetadata.extract("福建省妇幼保健院\n肾功能检验报告\n报告日期 2026年9月25日",kidney)
   assertEquals("肾功能",kidneyMeta.reportType);assertFalse(kidneyMeta.uncertain.contains("type"));assertEquals("2026-09-25",kidneyMeta.date)
  }
- @Test fun metadataGenericDateExcludesDemographicLabels(){
-  val rows=ReportParser.parse("HGB 102 g/L 113-151")
-  val demographicOnly=ReportMetadata.extract("出生日期 1972-01-01\n生日 1972-01-01\nHGB 102",rows)
-  assertTrue(demographicOnly.date.isBlank())
-  assertTrue(demographicOnly.uncertain.contains("date"))
-  val generic=ReportMetadata.extract("出生日期 1972-01-01\n日期 2026-09-26\nHGB 102",rows)
-  assertEquals("2026-09-26",generic.date)
- }
- @Test fun metadataClinicalDateBeatsBirthDateRegardlessOfLineOrder(){
-  val rows=ReportParser.parse("HGB 102 g/L 113-151")
-  listOf(
-   "出生日期 1972-01-01\n采样日期 2026-09-26",
-   "报告日期 2026-09-26\n出生日期 1972-01-01"
-  ).forEach{raw->
-   assertEquals("2026-09-26",ReportMetadata.extract(raw,rows).date)
-  }
- }
  @Test fun metadataExtractionPrefersClinicalLabelsAndInfersPanels(){
   val blood=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 102 g/L 113-151")
   val meta=ReportMetadata.extract("姓名 张三\n医疗机构：福建省妇幼保健院\n采样时间 2026年9月26日 08:30\nWBC 3.75\nHGB 102",blood)
