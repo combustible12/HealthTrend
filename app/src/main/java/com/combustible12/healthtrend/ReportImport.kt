@@ -144,8 +144,10 @@ object ReportMetadata {
    candidate.takeIf{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
   }
   val hospital=hospitalCandidates.minByOrNull{it.length}.orEmpty()
-  val clinicalDateLabels=listOf("采样日期","采样时间","检验日期","检验时间","检查日期","检查时间","报告日期","报告时间")
-  val clinicalDates=lines.filter{line->clinicalDateLabels.any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
+  val preferredDateLabels=listOf("检查日期","检查时间","检验日期","检验时间","报告日期","报告时间")
+  val fallbackClinicalLabels=listOf("采样日期","采样时间")
+  val preferredDates=lines.filter{line->preferredDateLabels.any{line.contains(it)}&&!line.contains("审核")&&!line.contains("送检")&&!line.contains("打印")}.mapNotNull{dateRegex.find(it)}
+  val sampledDates=lines.filter{line->fallbackClinicalLabels.any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
   // Patient identity fields and report timing are separate domains. Generic date/time labels
   // are accepted only when unambiguous and never allowed to override an explicit clinical date.
   val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&!line.contains("出生")&&!line.contains("生日")}.mapNotNull{dateRegex.find(it)}
