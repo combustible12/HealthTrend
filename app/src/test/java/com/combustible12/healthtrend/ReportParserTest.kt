@@ -356,11 +356,11 @@ class ReportParserTest {
   assertEquals(27,rows.map{it.metricKey}.distinct().size)
   fun row(k:String)=rows.single{it.metricKey==k}
   assertEquals("0.00",row("NRBC%").textValue);assertEquals(0.0,row("NRBC%").value!!,0.0)
-  assertEquals("%",row("NRBC%").unit);assertEquals(9999.99,row("NRBC%").referenceHigh!!,0.0)
-  assertEquals("0.000",row("NRBC#").textValue);assertEquals("×10^9/L",row("NRBC#").unit)
+  assertEquals("",row("NRBC%").unit);assertEquals(9999.99,row("NRBC%").referenceHigh!!,0.0)
+  assertEquals("0.000",row("NRBC#").textValue);assertEquals("",row("NRBC#").unit)
   assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals("×10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
-  assertEquals("%",row("PDW").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
+  assertEquals("%",row("PDW").unit);assertEquals("",row("P-LCR").unit);assertEquals("",row("PCT").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
  }
 
  @Test fun cbcMetricRejectsPlausibleUnitStolenFromNeighborColumn(){
