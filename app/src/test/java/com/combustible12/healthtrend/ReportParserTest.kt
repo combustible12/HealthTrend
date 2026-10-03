@@ -90,6 +90,13 @@ class ReportParserTest {
   val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
   assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
  }
+ @Test fun metadataDateRequiresDisambiguationWhenMultipleUnlabelledDatesExist(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val ambiguous=ReportMetadata.extract("2026-09-20\\n2026-09-26\\nHGB 102",rows)
+  assertTrue(ambiguous.date.isBlank());assertTrue(ambiguous.uncertain.contains("date"))
+  val labelled=ReportMetadata.extract("出生日期 1972-01-01\\n采样日期 2026-09-26\\nHGB 102",rows)
+  assertEquals("2026-09-26",labelled.date)
+ }
  @Test fun metadataDateRejectsUnrelatedNumbersAndPadsSingleDigits(){
   val rows=ReportParser.parse("HGB 102 g/L 113-151")
   assertEquals("2026-09-06",ReportMetadata.extract("报告日期：2026.9.6\\nHGB 102",rows).date)
