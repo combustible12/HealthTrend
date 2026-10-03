@@ -190,7 +190,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
   }
   if(onPointClick!=null) points.indices.forEach{i->
-   Box(Modifier.align(Alignment.BottomStart).size(1.dp).semantics{
+   Box(Modifier.align(Alignment.BottomStart).size(48.dp).semantics(mergeDescendants=false){
     contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
     onClick(label="打开该数据点"){onPointClick(i);true}
    })
