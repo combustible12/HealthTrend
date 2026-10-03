@@ -51,7 +51,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val date=meta.date
     val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
-    pendingDraft=ReportDraft(hospital,type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)})
+    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)},uncertain=meta.uncertain)
     message=(failures+"已保留 ${owned.size} 页原图，识别 ${parsed.size} 个项目，请逐项核对。").joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
