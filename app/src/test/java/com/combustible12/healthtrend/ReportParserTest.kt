@@ -84,6 +84,12 @@ class ReportParserTest {
   val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
   assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
  }
+ @Test fun metadataHospitalLabelAllowsColonWhitespaceOrNoSeparator(){
+  val rows=ReportParser.parse("WBC 4.0 ×10^9/L 3.5-9.5\\nHGB 120 g/L 113-151")
+  listOf("医疗机构：福建省妇幼保健院","医疗机构: 福建省妇幼保健院","医疗机构 福建省妇幼保健院").forEach{raw->
+   assertEquals("福建省妇幼保健院",ReportMetadata.extract(raw+"\\n2026-09-26",rows).hospital)
+  }
+ }
  @Test fun metadataExtractionDoesNotSilentlyTrustMissingIdentityOrDate(){
   val rows=ReportParser.parse("HGB 102 g/L 113-151")
   val meta=ReportMetadata.extract("HGB 102 g/L 113-151",rows)
