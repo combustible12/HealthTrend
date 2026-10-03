@@ -63,7 +63,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={val problems=reportValidationProblems(d);Column{if(problems.isNotEmpty())Text("还不能保存：${problems.joinToString("；")}",color=Bad,fontSize=12.sp);Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("确认保存 · ${d.rows.size} 个项目")}}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted);if(d.uncertain.isNotEmpty())Text("还有 ${d.uncertain.size} 项 OCR 信息需要人工确认，确认前不能保存。",color=Bad,fontSize=12.sp)}
   run{Field(d.hospital,{d=d.copy(hospital=it,uncertain=d.uncertain-"hospital")},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
@@ -90,6 +90,11 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
+fun reportValidationProblems(d:ReportDraft):List<String>=buildList{
+ if(d.hospital.isBlank())add("医院未填写");if(d.type.isBlank())add("检查类型未填写");if(parseDate(d.date)==null)add("检查日期无效")
+ if("hospital" in d.uncertain)add("医院待人工确认");if("type" in d.uncertain)add("检查类型待人工确认");if("date" in d.uncertain)add("检查日期待人工确认")
+ if(d.rows.isEmpty())add("没有可保存的检查项目");d.rows.forEachIndexed{i,r->if(!r.valid())add("第${i+1}项字段不完整");else if(r.uncertain)add("第${i+1}项尚未完成核对")}
+}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false){Paper{
  Text("指标")
  Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称");Field(r.key,{edit(r.copy(key=it))},"指标标识（用于关联趋势）")
