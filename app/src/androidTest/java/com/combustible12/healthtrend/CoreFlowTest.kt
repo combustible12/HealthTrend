@@ -233,11 +233,11 @@ class CoreFlowTest{
   compose.onNodeWithText("编辑数值").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
   compose.onNodeWithText("保存").performClick()
-  compose.onNodeWithText("120.0 g/L").assertExists()
+  compose.onNodeWithText("120 g/L").assertExists()
   compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
   compose.onNodeWithText("关闭").performClick()
   // Closing the detail must expose the refreshed trend card, not only persisted storage.
-  compose.onNodeWithText("120.0").assertExists()
+  compose.onNodeWithText("120").assertExists()
   compose.onNodeWithText("当次参考 113.0–151.0",substring=true).assertExists()
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
