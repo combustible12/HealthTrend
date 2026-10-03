@@ -370,4 +370,16 @@ class ReportParserTest {
   assertEquals("%",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 fL").single().unit)
  }
 
+ @Test fun specificChineseLabelWinsOverGenericSubstring(){
+  assertEquals("RDW-SD",ReportParser.parse("RDW-SD 红细胞分布宽度SD 40 35-56 fL").single().metricKey)
+  assertEquals("PCT",ReportParser.parse("PCT 血小板压积 0.212 >=0.108").single().metricKey)
+  assertEquals("PDW",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 %").single().metricKey)
+  assertEquals("MPV",ReportParser.parse("MPV 平均血小板体积 9.1 6.5-12 fL").single().metricKey)
+  assertEquals("P-LCR",ReportParser.parse("P-LCR 大型血小板比率 21.8 11-45").single().metricKey)
+ }
+ @Test fun prefixNrbcNormalizesToStableSuffixKeys(){
+  assertEquals("NRBC%",ReportParser.parse("%NRBC 有核红细胞比率 0.00 <=9999.99").single().metricKey)
+  assertEquals("NRBC#",ReportParser.parse("#NRBC 有核红细胞计数 0.000 <=9999.99").single().metricKey)
+ }
+
 }
