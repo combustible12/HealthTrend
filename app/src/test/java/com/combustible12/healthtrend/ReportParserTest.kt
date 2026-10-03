@@ -174,6 +174,11 @@ class ReportParserTest {
   assertEquals("肿瘤标志物",explicit.reportType);assertFalse(explicit.uncertain.contains("type"))
  }
 
+ @Test fun mergedOcrLineSplitsMetricsWithoutCrossContamination(){
+  val rows=ReportParser.parse("1 WBC 白细胞 7.25 3.5--9.5 10 9/L 22 MPV 平均血小板体积 9.1 6.5--12 fL")
+  assertEquals(2,rows.size);assertEquals("WBC",rows[0].metricKey);assertEquals(7.25,rows[0].value!!,0.0);assertEquals(3.5,rows[0].referenceLow!!,0.0);assertEquals(9.5,rows[0].referenceHigh!!,0.0);assertEquals("×10^9/L",rows[0].unit)
+  assertEquals("MPV",rows[1].metricKey);assertEquals(9.1,rows[1].value!!,0.0);assertEquals(6.5,rows[1].referenceLow!!,0.0);assertEquals(12.0,rows[1].referenceHigh!!,0.0);assertEquals("fL",rows[1].unit)
+ }
  @Test fun canonicalUnitsRepairMissingOrCorruptOcrUnits(){
   val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("×10^9/L",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
   assertEquals("fL",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
