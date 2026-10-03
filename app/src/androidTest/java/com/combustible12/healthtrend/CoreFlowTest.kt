@@ -377,6 +377,19 @@ class CoreFlowTest{
   assertTrue(preserved.rows.single().uncertain)
  }
 
+ @Test fun ambiguousRepeatedOcrMetricMustBeReviewedBeforeTemplateRetarget(){
+  val store=HealthStore(context)
+  val raw="HGB 102 g/L 90-160\nHGB 120 g/L 90-160"
+  val parsed=ReportParser.parse(raw)
+  val confirmed=store.confirmTemplate("多页报告医院","血常规",ReportParser.parse("HGB 110 g/L 100-150"),"设备B")
+  assertTrue(confirmed.confirmed)
+  val ambiguous=ReportDraft(hospital="多页报告医院",type="血常规",ocr=raw,
+   rows=listOf(DraftRow.from(parsed.first()).copy(raw="")))
+  val selected=retargetImportedDraft(ambiguous,store,system="设备B")
+  assertEquals("90.0",selected.rows.single().low)
+  assertTrue(selected.rows.single().uncertain)
+ }
+
  private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   compose.onNodeWithContentDescription("关闭").assertIsDisplayed()

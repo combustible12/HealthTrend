@@ -106,8 +106,16 @@ fun retargetImportedDraft(
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
  val rows=d.rows.map{row->
-  val source=original.firstOrNull{row.raw.isNotBlank()&&it.rawLine==row.raw}
-    ?: original.firstOrNull{it.metricKey==row.key}
+  // A repeated metric can occur on different pages. Only rebind a row when its
+  // OCR source is unique; otherwise keep the user's fields and require review.
+  val rawMatches=if(row.raw.isBlank())emptyList() else original.filter{it.rawLine==row.raw}
+  val keyMatches=original.filter{it.metricKey==row.key}
+  val source=when{
+   rawMatches.size==1->rawMatches.single()
+   rawMatches.isNotEmpty()->null
+   keyMatches.size==1->keyMatches.single()
+   else->null
+  }
   if(source==null)row.copy(uncertain=true)
   else{
    val old=previous?.fields?.firstOrNull{it.metricKey==row.key}
