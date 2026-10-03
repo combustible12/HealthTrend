@@ -34,14 +34,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
-data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String=""):java.io.Serializable {
+data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false):java.io.Serializable {
  fun parsed()=ParsedLabResult(key.ifBlank{ReportParser.key(name)},name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})
  fun valid()=name.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
- companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine)}
+ companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&uncertain.isEmpty()&&rows.isNotEmpty()&&rows.all{it.valid()}
+ fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&uncertain.isEmpty()&&rows.isNotEmpty()&&rows.all{it.valid()&&!it.uncertain}
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -82,12 +82,12 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   run{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
  }
  }
- d.rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null})}
+ d.rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{d=d.copy(rows=d.rows.map{if(it.id==editing)it.copy(uncertain=false) else it});editing=null})}
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:()->Unit,templateOnly:Boolean=false){Paper{
  Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));IconButton(remove){Icon(Icons.Outlined.Delete,"删除指标")}}
  Text(if(templateOnly)r.unit else "${r.text} ${r.unit}",fontSize=22.sp);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
- TextButton(edit){Text(if(r.valid())"编辑指标"else"编辑指标 · 尚未完成核对")}
+ if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button(close,Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false){Paper{
