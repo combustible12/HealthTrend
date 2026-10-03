@@ -154,7 +154,9 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("真实触摸医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template));compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   val chart=compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).fetchSemanticsNode()
   val point=trendPointPosition(listOf(parseDate("2026-09-26")!! to 102.0),0,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0)
-  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(androidx.compose.ui.geometry.Offset(point.x,point.y))}
+  val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
+  assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,trendPointTouchRadiusPx(context.resources.displayMetrics.density)))
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
   compose.onNodeWithText("102.0 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
