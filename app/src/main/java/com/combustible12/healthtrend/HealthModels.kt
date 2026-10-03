@@ -47,8 +47,11 @@ object UnitNormalizer {
   if(value==null)return null to unit
   val u=unit.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
-   metricKey in setOf("WBC","NEUT#","PLT","RBC","LYMPH#") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "×10^9/L"
+   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","PLT") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "×10^9/L"
+   metricKey in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","HCT","RDW","PCT") && u=="%" -> value to "%"
+   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l") -> value to "×10^12/L"
    metricKey in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
+   metricKey=="HGB" && u=="g/dl" -> value*10.0 to "g/L"
    metricKey=="ALB" && u=="g/dl" -> value*10.0 to "g/L"
    metricKey in setOf("TBIL","CREA","UA") && u in setOf("umol/l","μmol/l") -> value to "μmol/L"
    metricKey=="CREA" && u=="mg/dl" -> value*88.4 to "μmol/L"
@@ -63,4 +66,3 @@ object UnitNormalizer {
 
 fun symptomReportText(start:String,end:String,selected:List<HealthEntry>):String =
  buildString{append("症状报告 $start 至 $end\n记录 ${selected.size} 次\n");selected.groupBy{it.title}.forEach{(name,rows)->append("$name：${rows.size} 次，平均程度 ${"%.1f".format(rows.map{it.severity}.average())}/10，最高 ${rows.maxOf{it.severity}}/10\n");rows.sortedBy{it.occurredAtEpochMillis}.forEach{e->append("${dateText(e.occurredAtEpochMillis)} 程度${e.severity} ${e.frequency} ${e.duration} ${e.note}\n")}}}
-

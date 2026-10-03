@@ -240,4 +240,64 @@ class ReportParserTest {
   assertEquals(5.0,ReportParser.parse("CRP 0.5 mg/L ≤5").single().referenceHigh!!,0.0)
   assertEquals(10.0,ReportParser.parse("CRP 12 mg/L >10").single().referenceLow!!,0.0)
  }
+
+ @Test fun realSingleDigitDatesNormalizeAndSaveWithoutTime(){
+  listOf("2016-9-18","2016-09-18","2016/9/18","2016/09/18").forEach{input->
+   assertEquals("2016-09-18",normalizeDateText(input));assertNotNull(parseDate(input))
+   val draft=updateOcrMetadata(ReportDraft(hospital="医院",date=input,rows=listOf(DraftRow(name="WBC",key="WBC",text="7.25",unit="×10^9/L",low="3.5",high="9.5"))),"date",input)
+   assertEquals("2016-09-18",draft.date);assertTrue(draft.valid())
+  }
+  assertEquals("2016-09-18 09:30",normalizeDateText("2016-9-18 09:30"))
+  assertEquals("2016-09-18 09:30",normalizeDateText("2016-09-18 09:30"))
+ }
+
+ @Test fun administrativeDatesNeverBecomeTheReportDate(){
+  val rows=ReportParser.parse("WBC 7.25 3.5-9.5 10^9/L")
+  listOf("送检时间 2016-9-18 09:30","审核时间 2016-9-18 09:30","打印时间 2016-9-18 09:30","出生日期 1972-5-6").forEach{raw->
+   assertEquals(raw,"",ReportMetadata.extract("$raw\nWBC 7.25",rows).date)
+  }
+  val preferred=ReportMetadata.extract("送检时间 2016-9-17 09:30\n检查日期 2016-9-18\n打印时间 2016-9-19 09:30",rows)
+  assertEquals("2016-09-18",preferred.date)
+ }
+
+ @Test fun realWbcOcrKeepsDecimalsAndPrintedRange(){
+  val row=ReportParser.parse("WBC 白细胞 7.25 3.5--9.5 10 9/L").single()
+  assertEquals("WBC",row.metricKey);assertEquals(7.25,row.value!!,0.0);assertEquals(3.5,row.referenceLow!!,0.0);assertEquals(9.5,row.referenceHigh!!,0.0);assertEquals("×10^9/L",row.unit)
+  val spaced=ReportParser.parse("WBC 白细胞 7 . 25 3 . 5 — 9 . 5 10 9/L").single()
+  assertEquals(7.25,spaced.value!!,0.0);assertEquals(3.5,spaced.referenceLow!!,0.0);assertEquals(9.5,spaced.referenceHigh!!,0.0)
+ }
+
+ @Test fun everyPrintedRangeSeparatorKeepsBothDecimalBounds(){
+  listOf("3.5-9.5","3.5--9.5","3.5–9.5","3.5—9.5","3.5~9.5","3.5～9.5","3.5 至 9.5").forEach{range->
+   val row=ReportParser.parse("WBC 7.25 $range 10^9/L").single()
+   assertEquals(range,3.5,row.referenceLow!!,0.0);assertEquals(range,9.5,row.referenceHigh!!,0.0);assertTrue(range,row.referenceLow!!<=row.referenceHigh!!)
+  }
+ }
+
+ @Test fun differentialPrefixAndSuffixAliasesShareKeysButKeepPrintedNames(){
+  val cases=listOf(
+   "#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L" to "NEUT#","NEUT# 中性粒细胞绝对值 5.77 2.0-7.0 10^9/L" to "NEUT#","%NEUT 中性粒细胞百分比 71.2 40-75 %" to "NEUT%","NEUT% 中性粒细胞百分比 71.2 40-75 %" to "NEUT%",
+   "#LYMPH 淋巴细胞计数 1.2 0.8-4.0 10^9/L" to "LYMPH#","%LYMPH 淋巴细胞百分比 20 20-50 %" to "LYMPH%","#MONO 单核细胞计数 0.4 0.1-0.8 10^9/L" to "MONO#","%MONO 单核细胞百分比 5 3-10 %" to "MONO%",
+   "#EOS 嗜酸性粒细胞计数 0.2 0.02-0.5 10^9/L" to "EOS#","%EOS 嗜酸性粒细胞百分比 2 0.5-5 %" to "EOS%","#BASO 嗜碱性粒细胞计数 0.03 0-0.1 10^9/L" to "BASO#","%BASO 嗜碱性粒细胞百分比 0.5 0-1 %" to "BASO%"
+  )
+  cases.forEach{(raw,key)->val row=ReportParser.parse(raw).single();assertEquals(key,row.metricKey);assertTrue(row.displayName.startsWith(raw.substringBefore(' ')));assertEquals(if(key.endsWith("#"))"×10^9/L" else "%",row.unit)}
+  assertEquals("#NEUT 中性粒细胞计数",ReportParser.parse(cases.first().first).single().displayName)
+  assertEquals(1,cases.map{ReportParser.parse(it.first).single()}.filter{it.metricKey=="NEUT#"}.groupBy{it.metricKey}.size)
+ }
+
+ @Test fun rememberedTemplateNeverOverwritesThisReportsRangeOrLegalUnit(){
+  val current=ReportParser.parse("WBC 白细胞 7.25 3.5-9.5 10^9/L\nHGB 血红蛋白 10.2 g/dL 8.0-15.0")
+  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("WBC","WBC","×10^9/L",5.0,9.0),LabFieldTemplate("HGB","HGB","g/L",113.0,151.0)))
+  val applied=applyRememberedTemplate(current,template)
+  assertEquals(3.5,applied[0].referenceLow!!,0.0);assertEquals(9.5,applied[0].referenceHigh!!,0.0)
+  assertEquals("g/dL",applied[1].unit);assertEquals(8.0,applied[1].referenceLow!!,0.0);assertEquals(15.0,applied[1].referenceHigh!!,0.0)
+ }
+
+ @Test fun savedRangeAndCanonicalKeyRemainAvailableToDetailsAndTrends(){
+  val parsed=ReportParser.parse("#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L\nWBC 白细胞 7.25 3.5-9.5 10^9/L")
+  val saved=parsed.mapIndexed{i,p->LabResult("$i","r","医院","血常规",1,p.metricKey,p.displayName,p.value,p.unit,p.referenceLow,p.referenceHigh,requireNotNull(parseDate("2016-9-18")),textValue=p.textValue,normalizedValue=UnitNormalizer.normalize(p.metricKey,p.value,p.unit).first,normalizedUnit=UnitNormalizer.normalize(p.metricKey,p.value,p.unit).second)}
+  assertEquals("#NEUT 中性粒细胞计数",saved[0].rawName);assertEquals("NEUT#",saved[0].metricKey)
+  assertEquals("3.5–9.5",rangeText(saved[1].referenceLowAtTest,saved[1].referenceHighAtTest));assertEquals(3.5,saved[1].trendReferenceRange().first!!,0.0);assertEquals(9.5,saved[1].trendReferenceRange().second!!,0.0)
+  assertEquals(1,listOf(ReportParser.key("#NEUT"),ReportParser.key("NEUT#")).groupBy{it}.size)
+ }
 }

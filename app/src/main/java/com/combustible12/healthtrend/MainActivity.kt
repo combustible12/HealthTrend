@@ -40,7 +40,15 @@ val Warm=Color(0xFFFAF9F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val Good=Color(0xFF56A978);val Bad=Color(0xFFD9665B)
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 fun dateText(n:Long)=Instant.ofEpochMilli(n).atZone(ZoneId.systemDefault()).format(stamp)
-fun parseDate(s:String):Long?=runCatching{if(s.trim().length==10)LocalDate.parse(s.trim()).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()else LocalDateTime.parse(s.trim(),stamp).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()}.getOrNull()
+fun normalizeDateText(s:String):String? {
+ val m=Regex("^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})(?:\\s+(\\d{1,2}):(\\d{2}))?$").matchEntire(s.trim())?:return null
+ return runCatching{
+  val date=LocalDate.of(m.groupValues[1].toInt(),m.groupValues[2].toInt(),m.groupValues[3].toInt())
+  if(m.groupValues[4].isBlank())date.toString()
+  else LocalDateTime.of(date,LocalTime.of(m.groupValues[4].toInt(),m.groupValues[5].toInt())).format(stamp)
+ }.getOrNull()
+}
+fun parseDate(s:String):Long?=normalizeDateText(s)?.let{normalized->runCatching{if(normalized.length==10)LocalDate.parse(normalized).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()else LocalDateTime.parse(normalized,stamp).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()}.getOrNull()}
 fun preserveTimestamp(input:String,original:Long?):Long?=if(original!=null&&input==dateText(original))original else parseDate(input)
 fun ResultStatus.label()=when(this){ResultStatus.LOW->"偏低";ResultStatus.HIGH->"偏高";ResultStatus.NORMAL->"范围内";ResultStatus.UNKNOWN->"待判断"}
 fun rangeText(low:Double?,high:Double?)=when{low!=null&&high!=null->"$low–$high";low!=null->"≥$low";high!=null->"≤$high";else->"未录入"}
