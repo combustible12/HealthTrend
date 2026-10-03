@@ -116,6 +116,10 @@ class CoreFlowTest{
    // OCR rows with missing units/ranges must be explicitly reviewed before save.
    while(compose.onAllNodes(hasText("编辑指标 · 尚未完成核对")).fetchSemanticsNodes().isNotEmpty()){
     compose.onAllNodes(hasText("编辑指标 · 尚未完成核对"))[0].performScrollTo().performClick()
+    // OCR fixture intentionally omits units. Explicit review must complete missing required
+    // fields instead of bypassing production validation.
+    val unit=compose.onNodeWithText("单位").performScrollTo()
+    unit.performTextReplacement("待核对")
     compose.onNodeWithText("完成核对").performClick()
    }
    compose.onNode(hasText("确认保存",substring=true)).assertIsEnabled().performClick()
