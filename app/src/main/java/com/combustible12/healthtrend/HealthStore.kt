@@ -27,7 +27,7 @@ class HealthStore(private val context:Context) {
  fun rememberedHospitals():List<String> =
   (reports().map{it.hospitalKey}+templates().map{it.hospitalKey}+entries().map{it.hospital})
    .map{it.trim()}.filter{it.isNotBlank()}.distinct().sorted()
- @Synchronized fun updateValue(reportId:String,resultId:String,value:Double){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value)else it}))}
+ @Synchronized fun updateValue(reportId:String,resultId:String,value:Double,displayText:String?=null){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value,displayText)else it}))}
  @Synchronized fun templates()=rows(read("templates"),::templateFromJson)
  fun latestTemplate(h:String,t:String,system:String="")=templates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
  @Synchronized fun confirmTemplate(h:String,t:String,items:List<ParsedLabResult>,system:String="",newVersion:Boolean=false):HospitalLabTemplate {
