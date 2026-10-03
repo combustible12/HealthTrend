@@ -469,4 +469,22 @@ class ReportParserTest {
   assertEquals("g/L",displayLabUnit("g/L"))
  }
 
+ @Test fun mixedChemistryReportIsDetectedAsBiochemistry(){
+  val raw="霞浦县中医院检验报告单\nTP 总蛋白 75.50 65-85 g/L\nALB 白蛋白 42.90 40-55 g/L\nALT 谷丙转氨酶 23 7-40 U/L\nAST 谷草转氨酶 20 13-35 U/L\nUREA 尿素 5.2 1.43-7.14 mmol/L\nCREA 肌酐 46 35-80 umol/L\nUA 尿酸 328 90-357 umol/L"
+  val parsed=ReportParser.parse(raw)
+  assertEquals("生化",ReportMetadata.extract(raw,parsed).reportType)
+ }
+
+ @Test fun confirmedTemplateImportKeepsDisplayPrecisionAndFixedMetadata(){
+  val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(
+   LabFieldTemplate("HCT","红细胞压积","%",34.0,45.0),
+   LabFieldTemplate("NRBC%","有核红细胞比率","",null,9999.99),
+   LabFieldTemplate("NRBC#","有核红细胞计数","",null,9999.99)
+  ))
+  val parsed=ReportParser.parse("HCT 红细胞压积 32.30 34-45 %\nNRBC% 有核红细胞比率 0.00 <=9999.99\nNRBC# 有核红细胞计数 0.000 <=9999.99")
+  val rows=templateDrivenResults(parsed,template)
+  assertEquals(listOf("32.30","0.00","0.000"),rows.map{it.textValue})
+  assertEquals(listOf("%","",""),rows.map{it.unit})
+ }
+
 }
