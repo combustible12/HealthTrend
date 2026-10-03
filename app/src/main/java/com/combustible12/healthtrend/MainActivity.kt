@@ -129,7 +129,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
       val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()};val half=with(density){24.dp.toPx()}
       Spark(chartPoints,Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
-      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);Box(Modifier.offset{IntOffset((p.x-half).roundToInt(),(p.y-half).roundToInt())}.size(48.dp).clearAndSetSemantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}";onClick(label="打开该数据点"){selected=series[index];true}}.clickable{selected=series[index]})}
+      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.offset(x=px-24.dp,y=py-24.dp).size(48.dp).clearAndSetSemantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}";onClick(label="打开该数据点"){selected=series[index];true}}.clickable{selected=series[index]})}
      }
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
