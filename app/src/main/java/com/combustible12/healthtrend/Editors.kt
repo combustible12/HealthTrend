@@ -109,7 +109,6 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  item{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)}
  if(r.sourceImages.isNotEmpty())item{Button({images(r.sourceImages.map{it.uri})},Modifier.fillMaxWidth()){Text("查看原报告 · ${r.sourceImages.size} 页")}}
  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{Row{Text(x.rawName,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};Text("${x.textValue} ${x.unitAtTest}",fontSize=24.sp);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.value.toString()}){Text("编辑数据点")}}}
- if(r.rawOcr.isNotBlank())item{Paper{Text("原始识别文字");androidx.compose.foundation.text.selection.SelectionContainer{Text(r.rawOcr,fontSize=13.sp,color=Muted)}}}
  }}
  if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${point!!.rawName}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
  if(confirmDelete)DeleteConfirmation({confirmDelete=false},delete)
@@ -120,7 +119,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
  FullPage("医院模板 v${t.version}",close,hidden=editing!=null,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("主动确认新版模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
- item{Text("${t.hospitalKey}\n${t.reportType} · ${t.systemKey}");Text("保存为新版本，不改写既往报告。",color=Muted)}
+ item{Text("${t.hospitalKey}\n${t.reportType}")}
  itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}},true)}
  item{TextButton({val added=DraftRow(text="0");rows=rows+added;editing=added.id}){Text("+ 添加指标")}}
  }}
