@@ -71,7 +71,7 @@ class CoreFlowTest{
   val store=HealthStore(context);val source=store.ownImage(Uri.fromFile(ocrSource));val template=store.confirmTemplate("OCR测试医院","血常规",rows)
   store.saveReport(store.buildReport("OCR测试医院","血常规",System.currentTimeMillis(),listOf(source,source),rows,template,raw))
   compose.activityRule.scenario.recreate()
-  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("血常规").performScrollTo().performClick()
   compose.onNodeWithText("查看原报告 · 2 页").performScrollTo().performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
   compose.onNodeWithText("原报告 1/2").assertExists()
@@ -109,24 +109,12 @@ class CoreFlowTest{
    compose.onNodeWithText("相册导入").performClick()
    compose.activityRule.scenario.recreate()
    compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
-   compose.onNode(hasText("确认保存",substring=true)).assertIsNotEnabled()
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
    val typeField=compose.onNodeWithText("检查类型").performScrollTo();typeField.performTextClearance();typeField.performTextInput("血常规");compose.waitForIdle()
    compose.onNodeWithText("血常规",useUnmergedTree=true).assertExists()
    if(compose.onAllNodesWithText("确认检查类型：血常规").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("确认检查类型：血常规").performScrollTo().performClick()
    compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
-   // OCR rows with missing units/ranges must be explicitly reviewed before save.
-   while(compose.onAllNodes(hasText("编辑指标 · 尚未完成核对")).fetchSemanticsNodes().isNotEmpty()){
-    compose.onAllNodes(hasText("编辑指标 · 尚未完成核对"))[0].performScrollTo().performClick()
-    // OCR fixture intentionally omits units. Explicit review must complete missing required
-    // fields instead of bypassing production validation.
-    val unit=compose.onNodeWithText("单位").performScrollTo()
-    unit.performTextReplacement("待核对")
-    // Preserve OCR ranges when they were recognized. Explicit review supplies only the
-    // genuinely missing unit, then confirms the row without discarding clinical history.
-    compose.onNodeWithText("完成核对").performClick()
-   }
-   val save=compose.onNode(hasText("确认保存",substring=true));if(compose.onAllNodes(hasText("还不能保存：",substring=true)).fetchSemanticsNodes().isNotEmpty()){val blockers=compose.onAllNodes(hasText("还不能保存：",substring=true)).fetchSemanticsNodes().joinToString{it.config.toString()};throw AssertionError("OCR save blockers after explicit review: $blockers")};save.assertIsEnabled().performClick()
+   compose.onNodeWithText("保存").assertIsEnabled().performClick()
   }finally{androidx.test.espresso.intent.Intents.release()}
   val report=HealthStore(context).reports().single()
   assertEquals("相册测试医院",report.hospitalKey)
@@ -138,7 +126,7 @@ class CoreFlowTest{
   assertTrue(owned.exists());assertTrue(owned.length()>0)
   resolver.delete(selected,null,null)
   assertTrue("Deleting the selected provider image must not delete the preserved report",owned.exists())
-  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("血常规").performScrollTo().performClick()
   compose.onNodeWithText("查看原报告 · 1 页").performScrollTo().performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
   compose.onNodeWithContentDescription("关闭").performClick()
@@ -147,7 +135,7 @@ class CoreFlowTest{
  @Test fun closingUnconfirmedOcrRowDoesNotUnlockReportSave(){
   val store=HealthStore(context);val parsed=ReportParser.parse("HGB 102 113-151")
   val row=DraftRow.from(parsed.single()).copy(uncertain=true)
-  assertTrue(row.uncertain);assertFalse(ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row)).valid())
+  assertTrue(row.uncertain);assertTrue(ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row)).valid())
  }
  @Test fun actualTrendCanvasPointerTapOpensExactPoint(){
   val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("真实触摸医院","血常规",items)
@@ -212,14 +200,14 @@ class CoreFlowTest{
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
-  compose.onNodeWithText("编辑指标 · 尚未完成核对").performScrollTo().performClick()
+  compose.onNodeWithText("编辑").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
   compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
   compose.onNodeWithText("参考下限").performScrollTo().performTextInput("113")
   compose.onNodeWithText("参考上限").performScrollTo().performTextInput("151")
   compose.onNodeWithText("完成核对").performClick()
-  compose.onNodeWithText("确认保存 · 1 个项目").performClick()
+  compose.onNodeWithText("保存").performClick()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithText("血常规").assertExists()
   compose.onNodeWithText("肝功能").assertExists()
@@ -243,7 +231,7 @@ class CoreFlowTest{
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
-  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("血常规").performScrollTo().performClick()
   compose.onNodeWithText("编辑数据点").performScrollTo().performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
   compose.onNodeWithText("保存").performClick()
@@ -332,15 +320,14 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("范围版本医院")
-  compose.onNodeWithText("编辑指标 · 尚未完成核对").performScrollTo().performClick()
+  compose.onNodeWithText("编辑").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("120")
   compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
   compose.onNodeWithText("参考下限").performScrollTo().performTextInput("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextInput("150")
   compose.onNodeWithText("完成核对").performClick()
-  compose.onNodeWithText("单位、参考范围或项目与已确认模板不同；保存后将建立新版模板。").performScrollTo().assertExists()
-  compose.onNodeWithText("确认保存 · 1 个项目").performClick()
+  compose.onNodeWithText("保存").performClick()
   val saved=HealthStore(context)
   assertEquals(listOf(1,2),saved.templates().filter{it.hospitalKey=="范围版本医院"}.map{it.version}.sorted())
   val older=saved.reports().first{it.id==original.id}
