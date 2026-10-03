@@ -179,6 +179,16 @@ class ReportParserTest {
   assertEquals(2,rows.size);assertEquals("WBC",rows[0].metricKey);assertEquals(7.25,rows[0].value!!,0.0);assertEquals(3.5,rows[0].referenceLow!!,0.0);assertEquals(9.5,rows[0].referenceHigh!!,0.0);assertEquals("×10^9/L",rows[0].unit)
   assertEquals("MPV",rows[1].metricKey);assertEquals(9.1,rows[1].value!!,0.0);assertEquals(6.5,rows[1].referenceLow!!,0.0);assertEquals(12.0,rows[1].referenceHigh!!,0.0);assertEquals("fL",rows[1].unit)
  }
+ @Test fun reportDateBeatsSamplingAndAdministrativeDates(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val meta=ReportMetadata.extract("采样时间 2026-09-25 08:00\n送检时间 2026-09-25 09:00\n审核时间 2026-09-26 10:00\n报告日期 2026-09-27\nHGB 102",rows)
+  assertEquals("2026-09-27",meta.date)
+ }
+ @Test fun samplingDateIsOnlyClinicalFallback(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val meta=ReportMetadata.extract("采样日期 2026-09-25\n审核时间 2026-09-26\nHGB 102",rows)
+  assertEquals("2026-09-25",meta.date)
+ }
  @Test fun canonicalUnitsRepairMissingOrCorruptOcrUnits(){
   val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("×10^9/L",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
   assertEquals("fL",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
