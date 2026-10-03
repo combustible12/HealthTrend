@@ -44,6 +44,9 @@ jobs:
                       env.write(target+'='+os.environ[source]+'\n')
           PYTHON
           cat signing-readiness.txt
+      - name: Verify signing key recovery before packaging
+        if: env.HEALTHTREND_KEYSTORE_PATH != ''
+        run: java ci/VerifySigning.java
       - name: Unit tests and APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Prepare newer APKs for update signature validation

@@ -1,6 +1,7 @@
 gradle.afterProject { project ->
     def key = System.getenv('HEALTHTREND_KEYSTORE_PATH')
     if (project.name == 'app' && key) {
+        project.android.signingConfigs.debug.storeType = 'JKS'
         project.android.signingConfigs.debug.storeFile = new File(key)
         project.android.signingConfigs.debug.storePassword = System.getenv('HEALTHTREND_STORE_PASSWORD')
         project.android.signingConfigs.debug.keyAlias = System.getenv('HEALTHTREND_KEY_ALIAS')

@@ -49,6 +49,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Verify signing key recovery before packaging
+        run: java ci/VerifySigning.java
       - name: Build final signed APK
         run: |
           gradle :app:testReleaseUnitTest :app:assembleRelease
