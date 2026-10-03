@@ -192,10 +192,11 @@ class ReportParserTest {
   val meta=ReportMetadata.extract("采样日期 2026-09-25\n审核时间 2026-09-26\nHGB 102",rows)
   assertEquals("2026-09-25",meta.date)
  }
- @Test fun canonicalUnitsRepairMissingOrCorruptOcrUnits(){
-  val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("×10^9/L",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
-  assertEquals("fL",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
-  assertEquals("g/L",ReportParser.parse("HGB 102 garbage 113-151").single().unit)
+ @Test fun missingUnitsStayBlankWhileCorruptRecognizedUnitsAreRepaired(){
+  val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
+  assertEquals("",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
+  assertEquals("",ReportParser.parse("HGB 102 garbage 113-151").single().unit)
+  assertEquals("×10^9/L",ReportParser.parse("WBC 7.25 3.5-9.5 fL").single().unit)
  }
  @Test fun reportSaveGateOnlyRequiresHospitalDateAndValidMetrics(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
