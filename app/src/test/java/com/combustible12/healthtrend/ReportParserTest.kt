@@ -321,4 +321,46 @@ class ReportParserTest {
   cases.forEach{(name,key)->assertEquals(name,key,ReportParser.key(name))}
  }
 
+ @Test fun xiapuConfirmedCbcReportKeepsAllPrintedRowsSeparate(){
+  val raw=listOf(
+   "WBC 白细胞 7.25 3.5-9.5 10^9/L",
+   "#NEUT 中性粒细胞计数 5.77 2.00-7.00 10^9/L",
+   "%NEUT 中性粒细胞百分比 79.4 50.0-70.0 %",
+   "#LYMPH 淋巴细胞计数 1.31 0.80-4.00 10^9/L",
+   "%LYMPH 淋巴细胞百分比 18.1 20.0-40.0 %",
+   "#MONO 单核细胞计数 0.12 0.12-1.2 10^9/L",
+   "%MONO 单核细胞百分比 1.7 3-12 %",
+   "#EOS 嗜酸性粒细胞计数 0.05 0.02-0.5 10^9/L",
+   "%EOS 嗜酸性粒细胞百分比 0.8 0.5-5 %",
+   "#BASO 嗜碱性粒细胞计数 0.00 0.00-0.10 10^9/L",
+   "%BASO 嗜碱性粒细胞百分比 0.0 0.0-1.0 %",
+   "RBC 红细胞 3.99 3.68-5.13 10^12/L",
+   "HGB 血红蛋白 113 113-151 g/L",
+   "HCT 红细胞压积 34.20 34-45 %",
+   "MCV 红细胞平均体积 85.7 80-100 fL",
+   "MCH 平均血红蛋白量 28.3 27-34 pg",
+   "MCHC 平均血红蛋白浓度 330 320-360 g/L",
+   "RDW 红细胞分布宽度 12.8 11-16 %",
+   "RDW-SD 红细胞分布宽度SD 40 35-56 fL",
+   "PLT 血小板 232 100-300 10^9/L",
+   "PCT 血小板压积 0.212 0.108--",
+   "MPV 平均血小板体积 9.1 6.5-12 fL",
+   "PDW 血小板分布宽度 16.4 15-17 %",
+   "P-LCR 大型血小板比率 21.8 11-45",
+   "NRBC% 有核红细胞比率 0.00 <=9999.99",
+   "NRBC# 有核红细胞计数 0.000 <=9999.99",
+   "P-LCR 大血小板数目 51 30-90 10^9/L"
+  ).joinToString("\n")
+  val rows=ReportParser.parse(raw)
+  assertEquals(27,rows.size)
+  assertEquals(27,rows.map{it.metricKey}.distinct().size)
+  fun row(k:String)=rows.single{it.metricKey==k}
+  assertEquals("0.00",row("NRBC%").textValue);assertEquals(0.0,row("NRBC%").value!!,0.0)
+  assertEquals("%",row("NRBC%").unit);assertEquals(9999.99,row("NRBC%").referenceHigh!!,0.0)
+  assertEquals("0.000",row("NRBC#").textValue);assertEquals("×10^9/L",row("NRBC#").unit)
+  assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
+  assertEquals("×10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
+  assertEquals("%",row("PDW").unit);assertEquals("P-LCC",rows.last().metricKey)
+ }
+
 }
