@@ -35,6 +35,8 @@ class ReportParserTest {
   assertEquals(35.0,albumin.trendReferenceRange().first!!,0.000001)
   assertEquals(52.0,albumin.trendReferenceRange().second!!,0.000001)
   assertEquals(null to null,crea.copy(referenceLowAtTest=null,referenceHighAtTest=null).trendReferenceRange())
+  val changed=LabResult("4","r","h","血常规",null,"NRBC#","NRBC#",0.0,"",null,null,0,textValue="0.000").withEditedValue(1.234,"1.234")
+  assertEquals(1.234,changed.value!!,0.0);assertEquals("1.234",changed.textValue)
  }
  @Test fun sharedSymptomReportContainsRealLineBreaksAndEachEvent(){
   val entries=listOf(HealthEntry(kind=EntryKind.SYMPTOM,title="小腿酸痛",occurredAtEpochMillis=1000L,severity=4,note="晚上明显"))
