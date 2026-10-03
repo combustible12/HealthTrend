@@ -224,8 +224,6 @@ class ReportParserTest {
   assertFalse(isTap(8.1f,6f,10f))
   assertTrue(isTap(0f,0f,10f))
 
-}
-
 @Test fun oneSidedRangesAndValidAlternativeUnitsArePreserved(){
  val lt=ReportParser.parse("CRP 0.5 mg/L <5").single();assertEquals(5.0,lt.referenceHigh!!,0.0);assertNull(lt.referenceLow)
  val ge=ReportParser.parse("CRP 12 mg/L ≥10").single();assertEquals(10.0,ge.referenceLow!!,0.0);assertNull(ge.referenceHigh)
