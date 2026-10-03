@@ -145,7 +145,7 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("曲线点击医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势图 HGB").performClick()
+  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00").performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").assertExists()
  }
@@ -158,7 +158,7 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("多点曲线医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势图 HGB").performClick()
+  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00").performClick()
   compose.onNodeWithText("120.0 g/L").assertExists()
   compose.onNodeWithText("当次参考：113.0–151.0 · 正常").assertExists()
  }
@@ -170,7 +170,7 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("趋势原图医院","血常规",parseDate("2026-09-26")!!,listOf(owned),items,t))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势图 HGB").performClick()
+  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00").performClick()
   compose.onNodeWithText("查看原报告").performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
   compose.onNodeWithText("原报告 1/1").assertExists()
@@ -193,7 +193,7 @@ class CoreFlowTest{
   compose.onNodeWithText("肿瘤标志物").assertExists()
   compose.onNodeWithText("102").assertExists()
   // Exercise the actual chart instead of depending on an off-screen history row.
-  compose.onNodeWithContentDescription("趋势图 HGB").performClick()
+  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00").performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
