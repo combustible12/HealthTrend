@@ -360,7 +360,7 @@ class ReportParserTest {
   assertEquals("0.000",row("NRBC#").textValue);assertEquals("×10^9/L",row("NRBC#").unit)
   assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals("×10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
-  assertEquals("%",row("PDW").unit);assertEquals("P-LCC",rows.last().metricKey)
+  assertEquals("%",row("PDW").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
  }
 
 }
