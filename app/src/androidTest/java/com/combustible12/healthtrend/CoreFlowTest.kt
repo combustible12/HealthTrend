@@ -84,6 +84,52 @@ class CoreFlowTest{
   compose.onNodeWithContentDescription("关闭").performClick()
 
  }
+ @Test fun galleryEntryOwnsImageRecognizesConfirmsAndReopensReport(){
+  val bitmap=Bitmap.createBitmap(1800,800,Bitmap.Config.ARGB_8888)
+  val canvas=Canvas(bitmap);canvas.drawColor(Color.WHITE)
+  val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
+  listOf("白细胞计数 3.75  3.5-9.5","HGB 102  113-151","LDH 189  120-250").forEachIndexed{i,line->canvas.drawText(line,70f,120f+i*150,paint)}
+  val resolver=context.contentResolver
+  val values=android.content.ContentValues().apply{
+   put(android.provider.MediaStore.Images.Media.DISPLAY_NAME,"gallery-report-fixture.png")
+   put(android.provider.MediaStore.Images.Media.MIME_TYPE,"image/png")
+   put(android.provider.MediaStore.Images.Media.RELATIVE_PATH,"Pictures/HealthTrendQA/")
+   put(android.provider.MediaStore.Images.Media.IS_PENDING,1)
+  }
+  val selected=checkNotNull(resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values))
+  resolver.openOutputStream(selected).use{checkNotNull(it);assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
+  bitmap.recycle()
+  resolver.update(selected,android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.IS_PENDING,0)},null,null)
+  androidx.test.espresso.intent.Intents.init()
+  try{
+   // Only the system document picker's selection is supplied by the test.
+   // Ownership copying, bundled OCR, draft creation and confirmation run in the app.
+   val response=android.content.Intent().setData(selected).addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   androidx.test.espresso.intent.Intents.intending(androidx.test.espresso.intent.matcher.IntentMatchers.hasAction(android.content.Intent.ACTION_OPEN_DOCUMENT)).respondWith(android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,response))
+   compose.onNodeWithText("相册导入").performClick()
+   compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
+   compose.onNode(hasText("确认保存",substring=true)).assertIsNotEnabled()
+   compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
+   compose.onNodeWithText("检查类型").performScrollTo().performTextReplacement("血常规")
+   compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
+   compose.onNode(hasText("确认保存",substring=true)).assertIsEnabled().performClick()
+  }finally{androidx.test.espresso.intent.Intents.release()}
+  val report=HealthStore(context).reports().single()
+  assertEquals("相册测试医院",report.hospitalKey)
+  assertEquals(parseDate("2026-09-26 09:30"),report.testedAtEpochMillis)
+  assertTrue(report.results.any{it.metricKey=="WBC"&&it.value==3.75})
+  assertTrue(report.results.any{it.metricKey=="LDH"})
+  assertTrue(report.rawOcr.isNotBlank());assertEquals(1,report.sourceImages.size)
+  val owned=File(Uri.parse(report.sourceImages.single().uri).path!!)
+  assertTrue(owned.exists());assertTrue(owned.length()>0)
+  resolver.delete(selected,null,null)
+  assertTrue("Deleting the selected provider image must not delete the preserved report",owned.exists())
+  compose.onNodeWithText("查看指标和原报告 →").performScrollTo().performClick()
+  compose.onNodeWithText("查看原报告 · 1 页").performScrollTo().performClick()
+  compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
+  compose.onNodeWithContentDescription("关闭").performClick()
+  compose.onNodeWithContentDescription("关闭").performClick()
+ }
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
