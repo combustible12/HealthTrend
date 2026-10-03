@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "cffa0569811c9d0a49d81880c9ea054eae6e797a",
+  "sourceCommit": "0ef2f014e62d0bb772f1a147c11662a0b13c546f",
   "requestedAt": "2026-10-04",
-  "scope": "Android 16 unified metric curves, clinical purpose labels, persistence and update acceptance"
+  "scope": "Android 16 unified trend curves and stable production installer verification"
 }
