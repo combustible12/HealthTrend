@@ -5,13 +5,13 @@ data class ParsedLabResult(val metricKey:String,val displayName:String,val value
 object ReportParser {
  val primaryKeys=setOf("WBC","NEUT#","HGB","PLT","ALT","AST","TBIL","ALB","CREA","UREA","UA")
  private val differentialBases=setOf("NEUT","LYMPH","MONO","EOS","BASO")
- private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","单核细胞计数" to "MONO#","单核细胞绝对值" to "MONO#","单核细胞百分比" to "MONO%","嗜酸性粒细胞计数" to "EOS#","嗜酸性粒细胞绝对值" to "EOS#","嗜酸性粒细胞百分比" to "EOS%","嗜碱性粒细胞计数" to "BASO#","嗜碱性粒细胞绝对值" to "BASO#","嗜碱性粒细胞百分比" to "BASO%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA","红细胞" to "RBC","淋巴细胞计数" to "LYMPH#","淋巴细胞绝对值" to "LYMPH#","淋巴细胞百分比" to "LYMPH%","平均红细胞体积" to "MCV","平均红细胞血红蛋白量" to "MCH","平均红细胞血红蛋白浓度" to "MCHC","红细胞分布宽度" to "RDW","平均血小板体积" to "MPV","血小板分布宽度" to "PDW","血小板压积" to "PCT","红细胞压积" to "HCT","淋巴细胞比率" to "LYMPH%","淋巴细胞比例" to "LYMPH%","中性粒细胞比率" to "NEUT%","中性粒细胞比例" to "NEUT%","单核细胞比率" to "MONO%","单核细胞比例" to "MONO%","嗜酸性粒细胞比率" to "EOS%","嗜酸性粒细胞比例" to "EOS%","嗜碱性粒细胞比率" to "BASO%","嗜碱性粒细胞比例" to "BASO%","乳酸脱氢酶" to "LDH")
+ private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","单核细胞计数" to "MONO#","单核细胞绝对值" to "MONO#","单核细胞百分比" to "MONO%","嗜酸性粒细胞计数" to "EOS#","嗜酸性粒细胞绝对值" to "EOS#","嗜酸性粒细胞百分比" to "EOS%","嗜碱性粒细胞计数" to "BASO#","嗜碱性粒细胞绝对值" to "BASO#","嗜碱性粒细胞百分比" to "BASO%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA","红细胞" to "RBC","淋巴细胞计数" to "LYMPH#","淋巴细胞绝对值" to "LYMPH#","淋巴细胞百分比" to "LYMPH%","平均红细胞体积" to "MCV","平均红细胞血红蛋白量" to "MCH","平均红细胞血红蛋白浓度" to "MCHC","红细胞分布宽度" to "RDW","平均血小板体积" to "MPV","血小板分布宽度" to "PDW","血小板压积" to "PCT","红细胞压积" to "HCT","淋巴细胞比率" to "LYMPH%","淋巴细胞比例" to "LYMPH%","中性粒细胞比率" to "NEUT%","中性粒细胞比例" to "NEUT%","单核细胞比率" to "MONO%","单核细胞比例" to "MONO%","嗜酸性粒细胞比率" to "EOS%","嗜酸性粒细胞比例" to "EOS%","嗜碱性粒细胞比率" to "BASO%","嗜碱性粒细胞比例" to "BASO%","有核红细胞比率" to "NRBC%","有核红细胞百分比" to "NRBC%","有核红细胞计数" to "NRBC#","大型血小板比率" to "P-LCR","大血小板数目" to "P-LCC","大型血小板数目" to "P-LCC","红细胞分布宽度SD" to "RDW-SD","乳酸脱氢酶" to "LDH")
  private val numeric=Regex("(?<![A-Za-z\\d.^×])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
  private val canonicalUnits=mapOf(
   "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","MONO#" to "×10^9/L","EOS#" to "×10^9/L","BASO#" to "×10^9/L","PLT" to "×10^9/L",
   "RBC" to "×10^12/L","HGB" to "g/L","HCT" to "%","NEUT%" to "%","LYMPH%" to "%","MONO%" to "%","EOS%" to "%","BASO%" to "%",
-  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","MPV" to "fL","PDW" to "fL","PCT" to "%",
+  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","RDW-SD" to "fL","MPV" to "fL","PDW" to "%","PCT" to "%","NRBC%" to "%","NRBC#" to "×10^9/L","P-LCR" to "%","P-LCC" to "×10^9/L",
   "ALT" to "U/L","AST" to "U/L","ALB" to "g/L","TBIL" to "μmol/L",
   "CREA" to "μmol/L","UREA" to "mmol/L","UA" to "μmol/L","LDH" to "U/L"
  )
@@ -32,7 +32,7 @@ object ReportParser {
   val clean=name.trim().replace(" ","")
   aliases[clean]?.let{return it}
   aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  Regex("(?:[#%][A-Za-z]+|[A-Za-z]+[#%]?)").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
+  Regex("(?:[#%][A-Za-z]+|[A-Za-z]+[#%]?)").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
  private fun normalizeCode(raw:String):String{
@@ -45,13 +45,13 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:[#%](?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW|PLT|MPV|PDW|PCT|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:[#%](?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|NRBC[#%]|P-LCR|P-LCC|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
  }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
-  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^(WBC|NEUT[#%]|HGB|PLT|ALT|AST|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
+  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^(WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-SD|HGB|PLT|ALT|AST|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
   val textual=Regex("^(.*?)\\s+(阴性|阳性|弱阳性|未检出|正常|异常|[+-]{1,4})(.*)$").find(line)
