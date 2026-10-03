@@ -50,6 +50,13 @@ class ReportParserTest {
   assertEquals(0,nearestTrendPoint(listOf(5L to 110.0),androidx.compose.ui.geometry.Offset(100f,50f),200f,100f,100.0,120.0,50f))
   assertNull(nearestTrendPoint(emptyList(),androidx.compose.ui.geometry.Offset.Zero,200f,100f,radius=50f))
  }
+ @Test fun editingTrendValuePreservesHistoricalRangeAndRecalculatesStatus(){
+  val original=LabResult("p","r","医院","血常规",1,"HGB","血红蛋白",102.0,"g/L",113.0,151.0,1L)
+  val edited=original.withEditedValue(120.0)
+  assertEquals(120.0,edited.value!!,0.0);assertEquals(ResultStatus.NORMAL,edited.status())
+  assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0)
+  assertEquals("g/L",edited.normalizedUnit);assertEquals(120.0,edited.normalizedValue!!,0.0);assertTrue(edited.editedByUser)
+ }
  @Test fun uncertainMetricRowRequiresExplicitReview(){
   val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
   val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
