@@ -219,4 +219,12 @@ class ReportParserTest {
   assertEquals("血常规",confirmed.type)
  }
 
+ @Test fun trendPointDescriptionsRemainOneToOneWithVisits(){
+  val visits=listOf(requireNotNull(parseDate("2026-09-25 00:00")),requireNotNull(parseDate("2026-09-26 00:00")))
+  val descriptions=visits.map{trendPointContentDescription("HGB",it)}
+  assertEquals(2,descriptions.distinct().size)
+  assertEquals("趋势点 HGB 2026-09-25 00:00",descriptions[0])
+  assertEquals("趋势点 HGB 2026-09-26 00:00",descriptions[1])
+ }
+
 }
