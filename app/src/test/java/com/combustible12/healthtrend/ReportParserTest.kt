@@ -130,6 +130,12 @@ class ReportParserTest {
   val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
   val edited=x.withEditedValue(120.0);assertEquals(120.0,edited.value!!,0.0);assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0);assertEquals(ResultStatus.NORMAL,edited.status());assertTrue(edited.editedByUser)
  }
+ @Test fun ocrMetadataOnlyClearsUncertaintyAfterValidCorrection(){
+  val d=ReportDraft(hospital="",type="",date="",rows=listOf(DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151")),uncertain=setOf("hospital","type","date"))
+  val invalidDate=updateOcrMetadata(updateOcrMetadata(updateOcrMetadata(d,"hospital","医院"),"type","血常规"),"date","2026-99-99")
+  assertEquals(setOf("date"),invalidDate.uncertain);assertFalse(invalidDate.valid())
+  val confirmed=updateOcrMetadata(invalidDate,"date","2026-09-26 09:30");assertTrue(confirmed.uncertain.isEmpty());assertTrue(confirmed.valid())
+ }
  @Test fun reportValidationNamesEveryRemainingOcrBlocker(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   val d=ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("hospital"))
