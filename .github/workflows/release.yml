@@ -94,7 +94,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         with:
-          api-level: 35
+          api-level: 36
           arch: x86_64
           profile: pixel_2
           disable-animations: true

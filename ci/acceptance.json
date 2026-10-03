@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "a656e5533f782a0f6d651e155acd659f7f955ec2",
+  "sourceCommit": "9d411a49daf7868fc340b707c55f732bb2b6bb8f",
   "requestedAt": "2026-10-03",
-  "scope": "Final device core-flow acceptance after edited-value precision test fix"
+  "scope": "Android 16 template-driven OCR, migration, persistence and update acceptance"
 }
