@@ -28,14 +28,15 @@ class HealthStore(private val context:Context) {
   (reports().map{it.hospitalKey}+templates().map{it.hospitalKey}+entries().map{it.hospital})
    .map{it.trim()}.filter{it.isNotBlank()}.distinct().sorted()
  @Synchronized fun updateValue(reportId:String,resultId:String,value:Double,displayText:String?=null){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value,displayText)else it}))}
- @Synchronized fun templates()=rows(read("templates"),::templateFromJson)
- fun latestTemplate(h:String,t:String,system:String="")=templates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
+ private fun storedTemplates()=rows(read("templates"),::templateFromJson)
+ @Synchronized fun templates()=storedTemplates().filter{it.confirmed}.groupBy{Triple(it.hospitalKey,it.reportType,it.systemKey)}.values.mapNotNull{it.maxByOrNull(HospitalLabTemplate::version)}.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType})
+ fun latestTemplate(h:String,t:String,system:String="")=storedTemplates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
  @Synchronized fun confirmTemplate(h:String,t:String,items:List<ParsedLabResult>,system:String="",newVersion:Boolean=false):HospitalLabTemplate {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
   val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,sanitizeLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
-  write("templates",JSONArray().apply{templates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
+  write("templates",JSONArray().apply{storedTemplates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  /** A confirmed template fills missing unit/range fields; this report's explicit fields win. */
  fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=applyRememberedTemplate(items,template)
@@ -64,7 +65,7 @@ class HealthStore(private val context:Context) {
   },o.optString("ocr"),o.optString("system"))
  }
  private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("system",t.systemKey).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow?:JSONObject.NULL).put("high",it.referenceHigh?:JSONObject.NULL))}})
- private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(ReportParser.key(x.getString("key")),x.getString("name"),sanitizeLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"))},o.optString("system"))
+ private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(ReportParser.key(x.getString("key")),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"))},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
 }
@@ -78,5 +79,6 @@ fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemp
  )
 }
 internal fun sanitizeLabUnit(unit:String)=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty()
+internal fun displayLabUnit(unit:String)=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
 private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)
