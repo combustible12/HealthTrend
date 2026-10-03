@@ -4,7 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReportParserTest {
- @Test fun patientProfilePersistsIndependentlyFromClinicalRecords(){
+  @Test fun pastedChatReportUsesMetadataAndConfirmedTemplateSkeleton(){
+  val template=HospitalLabTemplate("霞浦县中医院","生化",1,true,listOf(
+   LabFieldTemplate("ALT","谷丙转氨酶","U/L",7.0,40.0),
+   LabFieldTemplate("CREA","肌酐","umol/L",35.0,80.0)
+  ))
+  val raw="""医院：霞浦县中医院
+检查类型：生化
+检查日期：2026-9-23
+ALT | 谷丙转氨酶 | 23 | 错误单位 | 9-50
+CREA | 肌酐 | 46 | umol/L | 35-80"""
+  val draft=pastedReportDraft(raw,template)
+  assertEquals("霞浦县中医院",draft.hospital);assertEquals("生化",draft.type);assertEquals("2026-09-23",draft.date)
+  assertEquals(listOf("ALT","CREA"),draft.rows.map{it.key});assertEquals(listOf("23","46"),draft.rows.map{it.text})
+  assertEquals("U/L",draft.rows[0].unit);assertEquals("7.0",draft.rows[0].low);assertEquals("40.0",draft.rows[0].high)
+ }
+ @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
+  val raw="医院：测试医院\n检查类型：肾功能\n报告日期：2026/9/29\nUREA 尿素 5.2 mmol/L 1.43-7.14"
+  val draft=pastedReportDraft(raw)
+  assertEquals("2026-09-29",draft.date);assertEquals("肾功能",draft.type);assertEquals("UREA",draft.rows.single().key);assertEquals("5.2",draft.rows.single().text)
+ }
+ @Test fun trendDateLabelsStaySparseOnLongSeries(){
+  assertEquals(listOf(0,1,2),trendDateLabelIndices(3));assertEquals(listOf(0,3),trendDateLabelIndices(4));assertEquals(listOf(0,9),trendDateLabelIndices(10))
+ }
+@Test fun patientProfilePersistsIndependentlyFromClinicalRecords(){
   // Model-level contract: patient identity can exist without becoming report metadata.
   val p=PatientProfile(name="患者甲",birthDate="1972-05-06",sex="女",note="")
   val raw="采样日期：2026-09-26\nHGB 102 g/L 113-151"

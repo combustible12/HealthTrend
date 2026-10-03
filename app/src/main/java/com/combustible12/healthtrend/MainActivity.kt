@@ -101,8 +101,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",content:@Composable ColumnScope.()->Unit){Column(m.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content();Spacer(Modifier.height(12.dp))}}
 @Composable fun Paper(m:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){Card(modifier=m.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
-@Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){Screen(m,"HealthTrend","把检查、症状和病历放在一条清楚的时间线上"){
- Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("今天要记录什么？",fontSize=21.sp,fontWeight=FontWeight.Bold);Button(importer.camera,Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Icon(Icons.Outlined.DocumentScanner,null);Spacer(Modifier.width(8.dp));Text("拍照识别检查报告")};Row{TextButton(importer.gallery,enabled=!importer.busy){Text("相册导入")};TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
+@Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){
+ var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
+ Screen(m,"HealthTrend","把检查、症状和病历放在一条清楚的时间线上"){
+ Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("今天要记录什么？",fontSize=21.sp,fontWeight=FontWeight.Bold);Button(importer.camera,Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Icon(Icons.Outlined.DocumentScanner,null);Spacer(Modifier.width(8.dp));Text("拍照识别检查报告")};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.gallery,enabled=!importer.busy){Text("相册导入")};TextButton({showPaste=true},enabled=!importer.busy){Text("粘贴报告数据")};TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
  Text("健康记录",fontSize=20.sp,fontWeight=FontWeight.Bold)
  Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Quick("检查指标","趋势与异常",Icons.Outlined.MonitorHeart,Modifier.weight(1f)){quick(null)};Quick("症状记录","程度与频率",Icons.Outlined.EditNote,Modifier.weight(1f)){quick(EntryKind.SYMPTOM)}}
  Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Quick("病历资料","报告与影像",Icons.Outlined.Description,Modifier.weight(1f)){quick(EntryKind.MEDICAL)};Quick("用药记录","时间与备注",Icons.Outlined.Medication,Modifier.weight(1f)){quick(EntryKind.MEDICATION)}}
@@ -110,11 +112,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(reports.isEmpty()&&entries.isEmpty())Paper{Text("还没有记录")}
  reports.take(2).forEach{r->ReportCard(r){open(r)}}
  entries.take(2).forEach{e->Paper{Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted);Text(e.note.ifBlank{listOf(e.dose,e.frequency).filter{it.isNotBlank()}.joinToString(" · ")})}}
-}}
+ }
+ if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("粘贴报告数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){Text("复制聊天整理好的医院、日期和指标数据，粘贴后进入核对。",color=Muted,fontSize=12.sp);OutlinedTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp),label={Text("报告数据")})}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
+}
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
+ val expandedHistory=remember{mutableStateMapOf<String,Boolean>()}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  val all=reports.flatMap{r->r.results.map{r to it}}.groupBy{it.second.metricKey}
@@ -140,7 +145,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key,series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)})
 
     }
-    points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text(dateText(r.testedAtEpochMillis),modifier=Modifier.weight(1f));ResultValueUnit(x.textValue,x.unitAtTest);Spacer(Modifier.width(8.dp));Text(x.status().label(),color=Muted,fontSize=12.sp);Icon(Icons.Outlined.ChevronRight,null)}}
+    val historyKey="$category|$key";val expanded=expandedHistory[historyKey]==true
+    if(expanded)points.asReversed().forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text(dateText(r.testedAtEpochMillis),modifier=Modifier.weight(1f));ResultValueUnit(x.textValue,x.unitAtTest);Spacer(Modifier.width(8.dp));Text(x.status().label(),color=Muted,fontSize=12.sp);Icon(Icons.Outlined.ChevronRight,null)}}
+    TextButton({expandedHistory[historyKey]=!expanded}){Text(if(expanded)"收起记录" else "查看全部记录（${points.size}）")}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
   }
@@ -224,9 +231,9 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
   drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
   }
-  if(points.size>1)points.indices.forEach{i->
+  if(points.size>1)trendDateLabelIndices(points.size).forEach{i->
    val at=pointPosition(i,chartWidth.toFloat(),chartHeight.toFloat())
-   Text(dateText(points[i].first).substringBefore(' '),fontSize=10.sp,color=Muted,modifier=Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-32).coerceIn(0,(chartWidth-64).coerceAtLeast(0)),chartHeight-24)}.width(64.dp),textAlign=TextAlign.Center)
+   Text(dateText(points[i].first).substring(5,10),fontSize=10.sp,color=Muted,modifier=Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-24).coerceIn(0,(chartWidth-48).coerceAtLeast(0)),chartHeight-24)}.width(48.dp),textAlign=TextAlign.Center)
   }
   if(onPointClick!=null)points.indices.forEach{i->
    val at=pointPosition(i,chartWidth.toFloat(),chartHeight.toFloat())
@@ -242,6 +249,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   }
  }
 }
+internal fun trendDateLabelIndices(count:Int):List<Int>=when{count<=0->emptyList();count<=3->(0 until count).toList();else->listOf(0,count-1)}
 
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
