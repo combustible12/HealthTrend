@@ -250,7 +250,7 @@ class CoreFlowTest{
   val result=HealthStore(context).reports().single().results.single()
   assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
   compose.onNodeWithText("我的",useUnmergedTree=true).performClick()
-  compose.onNodeWithText("查看 / 编辑模板").performScrollTo().performClick()
+  compose.onNodeWithContentDescription("编辑模板 测试医院 血常规").performScrollTo().performClick()
   compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑"))
   compose.onNodeWithText("编辑").performClick()
   compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")

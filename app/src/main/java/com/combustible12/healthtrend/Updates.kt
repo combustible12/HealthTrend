@@ -15,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -89,7 +91,7 @@ private fun URI(s:String)=java.net.URI(s)
   Paper{Text("患者资料");if(editPatient){OutlinedTextField(patient.name,{patient=patient.copy(name=it)},label={Text("姓名")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.birthDate,{patient=patient.copy(birthDate=it)},label={Text("出生日期（YYYY-MM-DD）")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.sex,{patient=patient.copy(sex=it)},label={Text("性别")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.note,{patient=patient.copy(note=it)},label={Text("备注")},modifier=Modifier.fillMaxWidth());Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料")}}}else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);Text(listOf(patient.sex,patient.birthDate).filter{it.isNotBlank()}.joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
-  templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).forEach{t->Paper{Text(t.hospitalKey);Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted);Text("${t.fields.size} 个指标");TextButton({edit(t)}){Text("查看 / 编辑模板")}}}
+  templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).forEach{t->Paper{Text(t.hospitalKey);Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted);Text("${t.fields.size} 个指标");TextButton({edit(t)},Modifier.semantics{contentDescription="编辑模板 ${t.hospitalKey} ${t.reportType}"}){Text("查看 / 编辑模板")}}}
   Paper{
    Text("应用更新");Text("仅检查正式发布版本。升级保留现有记录和原图。",color=Muted)
    OutlinedButton({busy=true;status="正在检查…";scope.launch{try{available=withContext(Dispatchers.IO){updater.check(credentials.load())};status=if(available==null)"当前没有可用的正式更新"else"发现 ${available!!.name}"}catch(e:Exception){status=e.message?:"更新检查失败"}finally{busy=false}}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("检查更新")}
