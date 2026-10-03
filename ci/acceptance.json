@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "942e89554ebf713a3604ef1109fc5bad9f0947c0",
+  "sourceCommit": "a2e9215c7fdeecff2c89022862e5cc318cd7b71a",
   "requestedAt": "2026-10-03",
-  "scope": "Final acceptance after removing obsolete report UI assertions"
+  "scope": "Real CBC OCR, date normalization, hospital ranges, unit reuse and canonical trends"
 }
