@@ -45,7 +45,7 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:[#%](?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|NRBC[#%]|P-LCR|P-LCC|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
@@ -71,6 +71,7 @@ object ReportParser {
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   val explicitCode=knownCode.find(name)?.value
   var k=explicitCode?.let(::normalizeCode) ?: key(name)
+  // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.\n  // The Chinese row label and unit disambiguate it; keep one stable internal identity.\n  if(k=="P-LCR" && (name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
   // OCR commonly confuses the leading #/% markers with Chinese strokes (e.g. 上NEUT, 红MPH, 三MONO).
   // For differential rows the Chinese label is authoritative when the Latin prefix is damaged.
   aliases.entries.firstOrNull{(label,_)->name.contains(label)}?.value?.let{k=it}
