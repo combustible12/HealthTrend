@@ -129,6 +129,14 @@ class ReportParserTest {
   val kidneyMeta=ReportMetadata.extract("福建省妇幼保健院\n肾功能检验报告\n报告日期 2026年9月25日",kidney)
   assertEquals("肾功能",kidneyMeta.reportType);assertFalse(kidneyMeta.uncertain.contains("type"));assertEquals("2026-09-25",kidneyMeta.date)
  }
+ @Test fun metadataGenericDateExcludesDemographicLabels(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val demographicOnly=ReportMetadata.extract("出生日期 1972-01-01\n生日 1972-01-01\nHGB 102",rows)
+  assertTrue(demographicOnly.date.isBlank())
+  assertTrue(demographicOnly.uncertain.contains("date"))
+  val generic=ReportMetadata.extract("出生日期 1972-01-01\n日期 2026-09-26\nHGB 102",rows)
+  assertEquals("2026-09-26",generic.date)
+ }
  @Test fun metadataClinicalDateBeatsBirthDateRegardlessOfLineOrder(){
   val rows=ReportParser.parse("HGB 102 g/L 113-151")
   listOf(
