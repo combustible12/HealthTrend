@@ -71,12 +71,27 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
 
 /** Spatial reconstruction prevents OCR block order from separating a result from its name. */
 object ReportOcr {
+ private data class Cell(val text:String,val left:Int,val right:Int,val cy:Int,val h:Int)
  fun tableText(t:com.google.mlkit.vision.text.Text):String {
-  val lines=t.textBlocks.flatMap{it.lines}.filter{it.boundingBox!=null}.sortedBy{it.boundingBox!!.centerY()}
-  val groups=mutableListOf<MutableList<com.google.mlkit.vision.text.Text.Line>>()
-  lines.forEach{line->val box=line.boundingBox!!;val group=groups.lastOrNull();val base=group?.firstOrNull()?.boundingBox
-   if(base!=null && kotlin.math.abs(box.centerY()-base.centerY())<=minOf(box.height(),base.height())*.5)group.add(line)else groups.add(mutableListOf(line))}
-  return groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){line->line.elements.joinToString(" "){it.text}}}
+  val cells=t.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{b->
+   Cell(line.elements.joinToString(" "){it.text},b.left,b.right,b.centerY(),b.height())
+  }}
+  if(cells.isEmpty())return t.text
+  // Do not merge two independent analyzer tables just because their rows share the same Y.
+  // A large horizontal gap means separate columns; reconstruct each column top-to-bottom.
+  val minX=cells.minOf{it.left};val maxX=cells.maxOf{it.right};val width=(maxX-minX).coerceAtLeast(1)
+  val ordered=cells.sortedBy{it.left}
+  val gaps=ordered.zipWithNext().mapIndexed{index,(a,b)->Triple(index,b.left-a.right,a.right)}
+  val split=gaps.maxByOrNull{it.second}?.takeIf{it.second>width*.12}?.third
+  val columns=if(split==null)listOf(cells) else listOf(cells.filter{it.left<=split},cells.filter{it.left>split}).filter{it.isNotEmpty()}
+  return columns.joinToString("\n"){column->
+   val rows=mutableListOf<MutableList<Cell>>()
+   column.sortedWith(compareBy<Cell>{it.cy}.thenBy{it.left}).forEach{cell->
+    val row=rows.lastOrNull();val base=row?.firstOrNull()
+    if(base!=null&&kotlin.math.abs(cell.cy-base.cy)<=minOf(cell.h,base.h)*.55)row.add(cell) else rows.add(mutableListOf(cell))
+   }
+   rows.joinToString("\n"){row->row.sortedBy{it.left}.joinToString("  "){it.text}}
+  }
  }
 }
 
