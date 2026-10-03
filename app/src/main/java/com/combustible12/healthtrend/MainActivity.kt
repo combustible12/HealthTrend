@@ -111,21 +111,30 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    Paper{
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp)};Text(latest.textValue,fontSize=27.sp,fontWeight=FontWeight.Bold,color=statusColor(latest.status()))}
     Text("${latest.unitAtTest} · 当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
-    // Different units are separate series, never joined as if numerically equivalent.
-    points.filter{it.second.value!=null&&it.second.comparator.isEmpty()}.groupBy{it.second.unitAtTest}.forEach{(unit,series)->Text(unit.ifBlank{"单位未录入"},color=Muted,fontSize=12.sp);Spark(series.map{it.first.testedAtEpochMillis to it.second.value!!},Accent)}
+    // Normalize only known-safe conversions; never join different hospital/reference systems.
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{listOf(it.second.normalizedUnit,it.first.hospitalKey,it.first.systemKey,it.first.templateVersion?.toString().orEmpty(),it.second.referenceLowAtTest?.toString().orEmpty(),it.second.referenceHighAtTest?.toString().orEmpty()).joinToString("|")}.forEach{(_,series)->
+     val sx=series.last().second
+     Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,sx.referenceLowAtTest,sx.referenceHighAtTest)
+    }
     points.forEach{(r,x)->TextButton({open(r)},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
   }
  }
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color){Canvas(Modifier.fillMaxWidth().height(96.dp)){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null){Canvas(Modifier.fillMaxWidth().height(112.dp)){
  if(points.isEmpty())return@Canvas
- val low=points.minOf{it.second};val high=points.maxOf{it.second};val span=(high-low).coerceAtLeast(1.0)
+ val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh)
+ val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
  val start=points.minOf{it.first};val time=(points.maxOf{it.first}-start).coerceAtLeast(1L)
- fun position(p:Pair<Long,Double>)=Offset(if(points.size==1)size.width/2 else (8.dp.toPx()+(size.width-16.dp.toPx())*(p.first-start).toDouble()/time).toFloat(),(size.height*.86-(p.second-low)/span*size.height*.72).toFloat())
- val path=Path();points.forEachIndexed{i,p->val at=position(p);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)};drawPath(path,color,style=Stroke(2.dp.toPx()));points.forEach{drawCircle(color,4.dp.toPx(),position(it))}
+ fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+ fun position(p:Pair<Long,Double>)=Offset(if(points.size==1)size.width/2 else (8.dp.toPx()+(size.width-16.dp.toPx())*(p.first-start).toDouble()/time).toFloat(),y(p.second))
+ if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+ val path=Path();points.forEachIndexed{i,p->val at=position(p);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)}
+ drawPath(path,color,style=Stroke(2.dp.toPx()));points.forEach{drawCircle(color,4.dp.toPx(),position(it))}
 }}
+
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
  if(filter=="症状报告"){SymptomReport(entries.filter{it.kind==EntryKind.SYMPTOM})}else{
