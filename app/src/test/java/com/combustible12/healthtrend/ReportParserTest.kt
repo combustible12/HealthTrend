@@ -121,7 +121,7 @@ class ReportParserTest {
   assertTrue(metricNeedsReview(unknown,template))
  }
  @Test fun trendPointAccessibilityIdentityKeepsMetricAndExactVisit(){
-  val first=parseDate("2026-09-25 00:00");val last=parseDate("2026-09-26 00:00")
+  val first=requireNotNull(parseDate("2026-09-25 00:00"));val last=requireNotNull(parseDate("2026-09-26 00:00"))
   assertEquals("趋势点 HGB 2026-09-25 00:00",trendPointContentDescription("HGB",first))
   assertEquals("趋势点 HGB 2026-09-26 00:00",trendPointContentDescription("HGB",last))
   assertNotEquals(trendPointContentDescription("HGB",first),trendPointContentDescription("HGB",last))
