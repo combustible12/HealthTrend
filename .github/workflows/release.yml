@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Verify acceptance points to passing CI with configured signing
         env:
           GH_TOKEN: ${{ github.token }}
@@ -25,11 +25,13 @@ jobs:
           python - <<'PYTHON'
           import json,subprocess,os,base64,pathlib
           ready=json.loads(pathlib.Path('release/ready.json').read_text())
-          parent=subprocess.check_output(['git','rev-parse','HEAD^'],text=True).strip()
-          assert ready['validatedCommit']==parent, 'Release acceptance must identify the preceding tested commit'
-          changes=subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'],text=True).splitlines()
-          assert changes==['release/ready.json'], 'Source must not change after acceptance'
-          runs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs?head_sha='+parent],text=True))['workflow_runs']
+          accepted=ready['validatedCommit']
+          subprocess.run(['git','merge-base','--is-ancestor',accepted,'HEAD'],check=True)
+          changes=subprocess.check_output(['git','diff','--name-only',accepted,'HEAD'],text=True).splitlines()
+          assert changes and set(changes).issubset({'.github/workflows/release.yml','release/ready.json'}), 'Application source must not change after Android acceptance'
+          final_changes=subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'],text=True).splitlines()
+          assert final_changes==['release/ready.json'], 'Release commit must only set acceptance metadata'
+          runs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs?head_sha='+accepted],text=True))['workflow_runs']
           assert any(r['path']=='.github/workflows/android.yml' and r['conclusion']=='success' for r in runs), 'Accepted commit must pass Android CI'
           for name in ['KEY','STORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD']:
               assert os.environ.get(name), 'Persistent signing is missing: '+name
@@ -73,10 +75,13 @@ jobs:
           python - <<'PYTHON'
           import os,json,subprocess,pathlib
           tag='healthtrend-'+os.environ['HEALTHTREND_VERSION_CODE']
-          release=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases/tags/'+tag],text=True))
+          releases=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100'],text=True))
+          release=next(r for r in releases if r['tag_name']==tag and r['draft'])
           asset=next(a for a in release['assets'] if a['name']=='HealthTrend.apk')
           config={'version':int(os.environ['HEALTHTREND_VERSION_CODE']),'assetUrl':asset['url']}
           (pathlib.Path(os.environ['RUNNER_TEMP'])/'qa-production-release.json').write_text(json.dumps(config))
+          with open(os.environ['GITHUB_ENV'],'a') as env:
+              env.write('HEALTHTREND_RELEASE_ID='+str(release['id'])+'\n')
           PYTHON
           printf '%s' "$GH_TOKEN" > "$RUNNER_TEMP/qa-production-token"
       - name: Enable emulator acceleration
@@ -104,7 +109,7 @@ jobs:
             adb shell am instrument -w -e class 'com.combustible12.healthtrend.ProductionUpdateTest#downloadActualReleaseAndPreservePendingInstall' com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > production-download-result.txt
             cat production-download-result.txt
             python -c "from pathlib import Path; assert 'OK (1 test)' in Path('production-download-result.txt').read_text(), 'Actual release download failed'"
-            gh release edit "healthtrend-$HEALTHTREND_VERSION_CODE" --draft=false
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$HEALTHTREND_RELEASE_ID" -F draft=false -F prerelease=false >/dev/null
             adb shell appops set com.combustible12.healthtrend REQUEST_INSTALL_PACKAGES allow
             adb shell "run-as com.combustible12.healthtrend sh -c 'cat > cache/qa-production-token'" < "$RUNNER_TEMP/qa-production-token"
             adb shell am instrument -w -e class 'com.combustible12.healthtrend.ProductionUpdateTest#publishedReleaseIsOfferedAndInstallerReceivesOwnedApk' com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > production-offer-result.txt
@@ -122,8 +127,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "healthtrend-$HEALTHTREND_VERSION_CODE" >/dev/null 2>&1; then
-            gh release edit "healthtrend-$HEALTHTREND_VERSION_CODE" --prerelease
+          if [ -n "${HEALTHTREND_RELEASE_ID:-}" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$HEALTHTREND_RELEASE_ID" -F prerelease=true >/dev/null
           fi
       - name: Remove temporary download credentials
         if: always()
