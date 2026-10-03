@@ -80,9 +80,12 @@ object ReportOcr {
   // Do not merge two independent analyzer tables just because their rows share the same Y.
   // A large horizontal gap means separate columns; reconstruct each column top-to-bottom.
   val minX=cells.minOf{it.left};val maxX=cells.maxOf{it.right};val width=(maxX-minX).coerceAtLeast(1)
-  val ordered=cells.sortedBy{it.left}
-  val gaps=ordered.zipWithNext().mapIndexed{index,(a,b)->Triple(index,b.left-a.right,a.right)}
-  val split=gaps.maxByOrNull{it.second}?.takeIf{it.second>width*.12}?.third
+  // Search occupied X intervals, not adjacent line boxes: rows overlap in X heavily, so a
+  // naive left-sorted gap can miss the true divider between the two printed tables.
+  val intervals=cells.map{it.left to it.right}.sortedBy{it.first}
+  val gaps=mutableListOf<Pair<Int,Int>>();var covered=intervals.first().second
+  intervals.drop(1).forEach{(left,right)->if(left>covered)gaps.add((left-covered) to covered);covered=maxOf(covered,right)}
+  val split=gaps.maxByOrNull{it.first}?.takeIf{it.first>width*.08}?.second
   val columns=if(split==null)listOf(cells) else listOf(cells.filter{it.left<=split},cells.filter{it.left>split}).filter{it.isNotEmpty()}
   return columns.joinToString("\n"){column->
    val rows=mutableListOf<MutableList<Cell>>()
