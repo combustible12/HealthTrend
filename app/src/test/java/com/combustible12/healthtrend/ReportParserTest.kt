@@ -366,7 +366,8 @@ class ReportParserTest {
   fun row(k:String)=rows.single{it.metricKey==k}
   assertEquals("0.00",row("NRBC%").textValue);assertEquals(0.0,row("NRBC%").value!!,0.0)
   assertEquals("",row("NRBC%").unit);assertEquals(9999.99,row("NRBC%").referenceHigh!!,0.0)
-  assertEquals("0.000",row("NRBC#").textValue);assertEquals("",row("NRBC#").unit)
+  assertEquals("0.000",row("NRBC#").textValue);assertEquals("",row("NRBC#").unit);assertEquals(9999.99,row("NRBC#").referenceHigh!!,0.0)
+  assertEquals("0.00",row("BASO#").textValue);assertEquals("0.0",row("BASO%").textValue);assertEquals("34.20",row("HCT").textValue)
   assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals("×10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
   assertEquals("%",row("PDW").unit);assertEquals("",row("P-LCR").unit);assertEquals("",row("PCT").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
@@ -429,6 +430,13 @@ class ReportParserTest {
   assertTrue(lines.any{it.contains("MPV")&&!it.contains("%NEUT")})
   assertEquals(79.4,ReportParser.parse(text).first{it.metricKey=="NEUT%"}.value!!,0.0)
   assertEquals(9.1,ReportParser.parse(text).first{it.metricKey=="MPV"}.value!!,0.0)
+ }
+
+ @Test fun suffixNrbcNotationAlsoKeepsPrecisionAndOneSidedRange(){
+  val rows=ReportParser.parse("NRBC% 有核红细胞比率 0.00 <=9999.99\nNRBC# 有核红细胞计数 0.000 <=9999.99")
+  val pct=rows.single{it.metricKey=="NRBC%"};val count=rows.single{it.metricKey=="NRBC#"}
+  assertEquals("0.00",pct.textValue);assertEquals("",pct.unit);assertNull(pct.referenceLow);assertEquals(9999.99,pct.referenceHigh!!,0.0)
+  assertEquals("0.000",count.textValue);assertEquals("",count.unit);assertNull(count.referenceLow);assertEquals(9999.99,count.referenceHigh!!,0.0)
  }
 
 }
