@@ -3,6 +3,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReportParserTest {
+ @Test fun patientProfilePersistsIndependentlyFromClinicalRecords(){
+  // Model-level contract: patient identity can exist without becoming report metadata.
+  val p=PatientProfile(name="患者甲",birthDate="1972-05-06",sex="女",note="")
+  val raw="采样日期：2026-09-26\nHGB 102 g/L 113-151"
+  val meta=ReportMetadata.extract(raw,ReportParser.parse(raw))
+  assertEquals("1972-05-06",p.birthDate);assertEquals("2026-09-26",meta.date);assertNotEquals(p.birthDate,meta.date)
+ }
  @Test fun allMetricsAndPrintedRangesAreRetained(){
   val rows=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nNEUT% 51.2 % 40-75\nNEUT# 1.92 ×10^9/L 2-7\nLDH 189 U/L 120-250\nHGB 102 g/L 113-151")
   assertEquals(5,rows.size);assertEquals("LDH",rows[3].metricKey);assertEquals(120.0,rows[3].referenceLow!!,0.0);assertEquals(51.2,rows[1].value!!,0.0);assertFalse(rows[1].primary);assertEquals("NEUT#",rows[2].metricKey)
