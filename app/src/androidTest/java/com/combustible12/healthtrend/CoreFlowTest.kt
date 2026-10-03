@@ -194,7 +194,7 @@ class CoreFlowTest{
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
   compose.onNodeWithText("120 g/L").assertExists()
-  compose.onNodeWithText("当次参考：113.0–151.0 · 正常").assertExists()
+  compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
  }
  @Test fun trendDetailOpensItsOriginalReport(){
   val store=HealthStore(context)
@@ -205,7 +205,6 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
-  assertTrue("Trend selection did not expose its original report:\n"+compose.onRoot(useUnmergedTree=true).printToString(),compose.onAllNodesWithText("查看原报告").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("查看原报告").performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
   compose.onNodeWithText("原报告 1/1").assertExists()
@@ -236,11 +235,11 @@ class CoreFlowTest{
   compose.onNodeWithText("结果").performTextReplacement("120")
   compose.onNodeWithText("保存").performClick()
   compose.onNodeWithText("120.0 g/L").assertExists()
-  compose.onNodeWithText("当次参考：113.0–151.0 · 正常").assertExists()
+  compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
   compose.onNodeWithText("关闭").performClick()
   // Closing the detail must expose the refreshed trend card, not only persisted storage.
   compose.onNodeWithText("120.0").assertExists()
-  compose.onNodeWithText("参考 113.0–151.0").assertExists()
+  compose.onNodeWithText("当次参考 113.0–151.0",substring=true).assertExists()
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
@@ -321,6 +320,36 @@ class CoreFlowTest{
   compose.onNodeWithText("重点指标").performClick()
   assertTrue(compose.onAllNodesWithText("TSH").fetchSemanticsNodes().isNotEmpty())
   assertTrue(HealthStore(context).isPrimary("TSH"))
+ }
+
+
+ @Test fun changedHistoricalRangeCreatesNewTemplateVersion(){
+  val store=HealthStore(context)
+  val before=ReportParser.parse("HGB 102 g/L 113-151")
+  val first=store.confirmTemplate("范围版本医院","血常规",before)
+  val original=store.buildReport("范围版本医院","血常规",parseDate("2026-09-26")!!,emptyList(),before,first)
+  store.saveReport(original)
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("手动录入").performClick()
+  compose.onNodeWithText("医院").performTextInput("范围版本医院")
+  compose.onNodeWithText("编辑指标 · 尚未完成核对").performScrollTo().performClick()
+  compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
+  compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("120")
+  compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
+  compose.onNodeWithText("参考下限").performScrollTo().performTextInput("100")
+  compose.onNodeWithText("参考上限").performScrollTo().performTextInput("150")
+  compose.onNodeWithText("完成核对").performClick()
+  compose.onNodeWithText("单位、参考范围或项目与已确认模板不同；保存后将建立新版模板。").performScrollTo().assertExists()
+  compose.onNodeWithText("确认保存 · 1 个项目").performClick()
+  val saved=HealthStore(context)
+  assertEquals(listOf(1,2),saved.templates().filter{it.hospitalKey=="范围版本医院"}.map{it.version}.sorted())
+  val older=saved.reports().first{it.id==original.id}
+  assertEquals(1,older.templateVersion)
+  assertEquals(113.0,older.results.single().referenceLowAtTest!!,0.0)
+  val newer=saved.reports().first{it.id!=original.id}
+  assertEquals(2,newer.templateVersion)
+  assertEquals(100.0,newer.results.single().referenceLowAtTest!!,0.0)
+  assertEquals(150.0,newer.results.single().referenceHighAtTest!!,0.0)
  }
 
  private fun assertSaveControlInsideSystemArea(){

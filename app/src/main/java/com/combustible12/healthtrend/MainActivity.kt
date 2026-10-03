@@ -65,7 +65,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val m=Modifier.padding(padding)
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2;recordsFilter="全部"})
-   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{report=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
+   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
    2->Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())})
    3->Mine(m,templates,{template=it},store,{error=it})
   }
@@ -74,9 +74,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
-   val t=if(d.newTemplate||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,d.newTemplate)else existing
+   val newVersion=d.newTemplate||templateNeedsNewVersion(existing,d.parsed())
+   val t=if(newVersion||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,newVersion)else existing
    val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
-   val unchangedTemplate=d.existing!=null&&!d.newTemplate&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey
+   val unchangedTemplate=d.existing!=null&&!newVersion&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey
    val version=if(unchangedTemplate)d.existing?.templateVersion else t.version
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
@@ -103,7 +104,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }}
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");Text("查看指标和原报告 →",color=Accent)}}
-@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,open:(LabReport)->Unit,edit:(LabReport,LabResult,Double)->Unit){
+@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
@@ -145,7 +146,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
    else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
   },dismissButton={Row{
-   if(r.sourceImages.isNotEmpty())TextButton({selected=null;open(r)}){Text("查看原报告")}
+   if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")}
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }

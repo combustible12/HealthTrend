@@ -72,6 +72,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
   run{
    Paper{Text(if(template==null)"首次确认将建立医院模板"else"已确认模板 v${template.version}",color=Accent)
+    if(templateNeedsNewVersion(template,d.parsed()))Text("单位、参考范围或项目与已确认模板不同；保存后将建立新版模板。",color=Accent)
     if(template!=null){TextButton({d=d.copy(rows=store.applyTemplate(d.parsed(),template).mapIndexed{i,p->DraftRow.from(p).copy(id=d.rows[i].id)})}){Text("套用此医院模板的单位与参考范围")};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d.newTemplate,{d=d.copy(newTemplate=it)});Text("将本次核对保存为新版模板",modifier=Modifier.weight(1f))}}
     Text("原有报告的历史参考范围保持原样。",fontSize=12.sp,color=Muted)
    }
@@ -96,6 +97,16 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  "date"->d.copy(date=value,uncertain=if(parseDate(value)==null)d.uncertain+"date" else d.uncertain-"date")
  else->d
 }
+/** A confirmed template is immutable; a changed or newly confirmed field needs a new version. */
+fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabResult>):Boolean{
+ if(template==null)return false
+ return rows.any{row->
+  val old=template.fields.firstOrNull{it.metricKey==row.metricKey}
+  old==null || old.unit.trim()!=row.unit.trim() ||
+   old.referenceLow!=row.referenceLow || old.referenceHigh!=row.referenceHigh
+ }
+}
+
 fun reportValidationProblems(d:ReportDraft):List<String>{
  val problems=mutableListOf<String>()
  if(d.hospital.isBlank())problems.add("医院未填写");if(d.type.isBlank())problems.add("检查类型未填写");if(parseDate(d.date)==null)problems.add("检查日期无效")
