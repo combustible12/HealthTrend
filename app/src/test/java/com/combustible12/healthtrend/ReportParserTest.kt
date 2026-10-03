@@ -210,4 +210,13 @@ class ReportParserTest {
   val explicit=ReportMetadata.extract("福建省肿瘤医院\n肿瘤标志物检验报告\n报告日期：2026/09/29",emptyList())
   assertEquals("肿瘤标志物",explicit.reportType);assertFalse(explicit.uncertain.contains("type"))
  }
+ @Test fun explicitInferredTypeConfirmationClearsOnlyTypeBlocker(){
+  val base=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26 09:30",uncertain=setOf("type"),rows=listOf(DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=false)))
+  assertTrue(reportValidationProblems(base).contains("检查类型待人工确认"))
+  val confirmed=updateOcrMetadata(base,"type",base.type)
+  assertFalse("type" in confirmed.uncertain)
+  assertTrue(reportValidationProblems(confirmed).isEmpty())
+  assertEquals("血常规",confirmed.type)
+ }
+
 }
