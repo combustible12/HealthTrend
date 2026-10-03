@@ -92,6 +92,37 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  return (p.referenceLow==null)!=(p.referenceHigh==null)
 }
 
+/** Rebind OCR fields when the hospital, panel or laboratory system changes. */
+fun retargetImportedDraft(
+ d:ReportDraft,store:HealthStore,
+ hospital:String=d.hospital,type:String=d.type,system:String=d.system
+):ReportDraft{
+ val next=d.copy(hospital=hospital,type=type,system=system)
+ if(d.existing!=null||d.ocr.isBlank()||
+   (hospital==d.hospital&&type==d.type&&system==d.system))return next
+ val original=ReportParser.parse(d.ocr)
+ val previous=store.latestTemplate(d.hospital,d.type,d.system)
+ val target=store.latestTemplate(hospital,type,system)
+ fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
+  r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
+ val rows=d.rows.map{row->
+  val source=original.firstOrNull{row.raw.isNotBlank()&&it.rawLine==row.raw}
+    ?: original.firstOrNull{it.metricKey==row.key}
+  if(source==null)row.copy(uncertain=true)
+  else{
+   val old=previous?.fields?.firstOrNull{it.metricKey==row.key}
+   val inherited=old!=null&&same(row,old.unit,old.referenceLow,old.referenceHigh)
+   if(inherited||same(row,source.unit,source.referenceLow,source.referenceHigh)){
+    val resolved=store.applyTemplate(listOf(source),target).single()
+    row.copy(unit=resolved.unit,low=resolved.referenceLow?.toString().orEmpty(),
+     high=resolved.referenceHigh?.toString().orEmpty(),
+     uncertain=metricNeedsReview(resolved,target))
+   }else row.copy(uncertain=true)
+  }
+ }
+ return next.copy(rows=rows)
+}
+
 data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
 object ReportMetadata {
  private val dateRegex=Regex("(20\\d{2})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})(?:\\s*[日号]?)")
