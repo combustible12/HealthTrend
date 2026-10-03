@@ -28,7 +28,7 @@ object ReportParser {
   Regex("[A-Za-z]+[#%]?").findAll(clean).map{it.value.uppercase()}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
- fun parse(text:String):List<ParsedLabResult> = text.lines().mapNotNull { source ->
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(WBC|NEUT[#%]|LYMPH[#%]|RBC|HGB|HCT|MCV|MCHC|MCH|RDW|PLT|MPV|PDW|PCT|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")\n private fun segments(text:String)=text.lines().flatMap{raw->\n  val hits=knownCode.findAll(raw).toList()\n  if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}\n }\n fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("^(WBC|NEUT[#%]|HGB|PLT|ALT|AST|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本","科室","诊断","医生","审核","送检","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
@@ -40,7 +40,7 @@ object ReportParser {
   if(name.isBlank() || !name.any{it.isLetter()} || name.length>55) return@mapNotNull null
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
-  val limits=Regex("(\\d+(?:\\.\\d+)?)\\s*[-–—~～至]\\s*(\\d+(?:\\.\\d+)?)").find(suffix)
+  val limits=Regex("(\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*(\\d+(?:\\.\\d+)?)").find(suffix)
   val one=if(limits==null)Regex("[<>≤≥]\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix)else null
   val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith(">")||it.startsWith("≥")}?.replace(Regex("[>≥\\s]"),"")?.toDoubleOrNull()
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
