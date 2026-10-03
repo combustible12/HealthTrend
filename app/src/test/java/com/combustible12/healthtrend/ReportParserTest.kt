@@ -34,6 +34,11 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
+ @Test fun uncertainMetadataBlocksSaveUntilConfirmed(){
+  val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151")
+  val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
+  assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
+ }
  @Test fun metadataExtractionPrefersClinicalLabelsAndInfersPanels(){
   val blood=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 102 g/L 113-151")
   val meta=ReportMetadata.extract("姓名 张三\n医疗机构：福建省妇幼保健院\n采样时间 2026年9月26日 08:30\nWBC 3.75\nHGB 102",blood)
