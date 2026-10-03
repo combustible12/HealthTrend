@@ -50,6 +50,18 @@ class UpdateGuardTest {
   rejects("APK 应用标识不匹配") { updater.validate(testPackageApk) }
  }
 
+ @Test fun newerApkWithTheInstalledSignerPassesValidation() {
+  val fixture = File(context.cacheDir, "qa-update-same-signer.apk")
+  assertTrue("CI must supply the real newer signed APK", fixture.exists())
+  assertEquals(BuildConfig.VERSION_CODE.toLong() + 100000L, AppUpdater(context).validate(fixture))
+ }
+
+ @Test fun newerApkWithAnotherSignerCannotReplaceInstalledData() {
+  val fixture = File(context.cacheDir, "qa-update-wrong-signer.apk")
+  assertTrue("CI must supply the real APK with a different signing key", fixture.exists())
+  rejects("新版签名与当前安装版不一致") { AppUpdater(context).validate(fixture) }
+ }
+
  @Test fun damagedDownloadCannotOpenInstaller() {
   val damaged = File(context.cacheDir, "qa-invalid-update.apk")
   try {

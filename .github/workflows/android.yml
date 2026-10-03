@@ -46,6 +46,14 @@ jobs:
           cat signing-readiness.txt
       - name: Unit tests and APK
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Prepare newer APKs for update signature validation
+        run: |
+          HEALTHTREND_VERSION_CODE="$((GITHUB_RUN_NUMBER + 100000))" gradle :app:assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/qa-update-same-signer.apk"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/qa-different-signer.jks" -storepass qa-test-password -keypass qa-test-password -alias qa -dname "CN=HealthTrend QA" -keyalg RSA -validity 30
+          qa_apksigner="$(python -c "import os,pathlib; print(sorted(pathlib.Path(os.environ['ANDROID_HOME']).glob('build-tools/*/apksigner'))[-1])")"
+          "$qa_apksigner" sign --ks "$RUNNER_TEMP/qa-different-signer.jks" --ks-pass pass:qa-test-password --key-pass pass:qa-test-password --out "$RUNNER_TEMP/qa-update-wrong-signer.apk" "$RUNNER_TEMP/qa-update-same-signer.apk"
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Build v1 baseline with the same test signing identity
         run: |
           git fetch origin 8365a97f69663c20f765cef26de1784a4eaf5de1
@@ -79,6 +87,11 @@ jobs:
             adb shell am instrument -w -e class com.combustible12.healthtrend.UpgradeTest com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > upgrade-result.txt
             cat upgrade-result.txt
             python -c "from pathlib import Path; assert 'OK (1 test)' in Path('upgrade-result.txt').read_text(), 'Actual upgrade validation failed'"
+            adb shell run-as com.combustible12.healthtrend mkdir -p cache
+            adb push "$RUNNER_TEMP/qa-update-same-signer.apk" /data/local/tmp/qa-update-same-signer.apk
+            adb push "$RUNNER_TEMP/qa-update-wrong-signer.apk" /data/local/tmp/qa-update-wrong-signer.apk
+            adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/qa-update-same-signer.apk cache/qa-update-same-signer.apk
+            adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/qa-update-wrong-signer.apk cache/qa-update-wrong-signer.apk
             gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest && test_status=0 || test_status=$?; adb pull /sdcard/Pictures/HealthTrendQA/qa-symptom.png qa-symptom.png; python -c "import base64,pathlib; data=base64.b64encode(pathlib.Path('qa-symptom.png').read_bytes()).decode(); [print('QA_PNG:'+data[i:i+4096]) for i in range(0,len(data),4096)]"; exit "$test_status"
       - uses: actions/upload-artifact@v4
         if: always()
