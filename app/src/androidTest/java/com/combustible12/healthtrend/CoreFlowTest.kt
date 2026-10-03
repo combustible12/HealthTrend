@@ -120,9 +120,8 @@ class CoreFlowTest{
     // fields instead of bypassing production validation.
     val unit=compose.onNodeWithText("单位").performScrollTo()
     unit.performTextReplacement("待核对")
-    // Synthetic OCR has no reliable ranges; clear both fields during explicit review.
-    compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("")
-    compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("")
+    // Preserve OCR ranges when they were recognized. Explicit review supplies only the
+    // genuinely missing unit, then confirms the row without discarding clinical history.
     compose.onNodeWithText("完成核对").performClick()
    }
    compose.onNode(hasText("确认保存",substring=true)).assertIsEnabled().performClick()
