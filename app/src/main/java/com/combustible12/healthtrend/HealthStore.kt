@@ -34,7 +34,7 @@ class HealthStore(private val context:Context) {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
-  val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,it.unit,it.referenceLow,it.referenceHigh)},system.trim())
+  val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,sanitizeLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
   write("templates",JSONArray().apply{templates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  /** A confirmed template fills missing unit/range fields; this report's explicit fields win. */
@@ -42,7 +42,7 @@ class HealthStore(private val context:Context) {
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
   // The editor has applied the selected version. Snapshot exactly what the user confirmed.
-  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val n=UnitNormalizer.normalize(p.metricKey,p.value,p.unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,p.unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)},raw,system.trim())
+  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=sanitizeLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)},raw,system.trim())
  }
  @Synchronized fun entries()=rows(read("entries"),::entryFromJson).sortedByDescending{it.occurredAtEpochMillis}
  @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
@@ -59,12 +59,12 @@ class HealthStore(private val context:Context) {
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
   return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->
-   val key=ReportParser.key(x.getString("key"));val value=x.doubleOrNull("value");val unit=x.getString("unit");val normalized=UnitNormalizer.normalize(key,value,unit)
+   val key=ReportParser.key(x.getString("key"));val value=x.doubleOrNull("value");val unit=sanitizeLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
    LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
   },o.optString("ocr"),o.optString("system"))
  }
  private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("system",t.systemKey).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow?:JSONObject.NULL).put("high",it.referenceHigh?:JSONObject.NULL))}})
- private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(ReportParser.key(x.getString("key")),x.getString("name"),x.getString("unit"),x.doubleOrNull("low"),x.doubleOrNull("high"))},o.optString("system"))
+ private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(ReportParser.key(x.getString("key")),x.getString("name"),sanitizeLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"))},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
 }
@@ -72,10 +72,11 @@ class HealthStore(private val context:Context) {
 fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=items.map{p->
  val field=template?.fields?.firstOrNull{ReportParser.key(it.metricKey)==p.metricKey}
  if(field==null)p else p.copy(
-  unit=p.unit.ifBlank{field.unit},
+  unit=sanitizeLabUnit(p.unit).ifBlank{sanitizeLabUnit(field.unit)},
   referenceLow=p.referenceLow?:field.referenceLow,
   referenceHigh=p.referenceHigh?:field.referenceHigh
  )
 }
+internal fun sanitizeLabUnit(unit:String)=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty()
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
 private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)
