@@ -110,30 +110,9 @@ object ReportOcr {
  * code therefore cannot create a second row or overwrite confirmed unit/range/name.
  */
 internal fun templateDrivenResults(items:List<ParsedLabResult>,template:HospitalLabTemplate):List<ParsedLabResult>{
- val unused=items.toMutableList()
- fun chinese(s:String)=s.filter{it.code in 0x4E00..0x9FFF}
- fun take(field:LabFieldTemplate):ParsedLabResult?{
-  val key=ReportParser.key(field.metricKey)
-  unused.firstOrNull{it.metricKey==key}?.let{unused.remove(it);return it}
-  val target=chinese(field.displayName)
-  if(target.length>=2){
-   unused.maxByOrNull{candidate->
-    val got=chinese(candidate.displayName)
-    when{
-     got.isBlank()->0
-     got==target->1000
-     got.contains(target)||target.contains(got)->500+minOf(got.length,target.length)
-     else->got.zip(target).count{it.first==it.second}
-    }
-   }?.takeIf{candidate->
-    val got=chinese(candidate.displayName)
-    got==target||got.contains(target)||target.contains(got)
-   }?.let{unused.remove(it);return it}
-  }
-  return null
- }
- return template.fields.map{field->
-  val source=take(field)
+ val matches=matchTemplateRows(template.fields,items)
+ return template.fields.mapIndexed{index,field->
+  val source=matches[index]
   val reliable=source?.let{templateResultIsIndependent(it,field)}==true
   ParsedLabResult(
    metricKey=ReportParser.key(field.metricKey),
@@ -146,8 +125,38 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
    primary=ReportParser.key(field.metricKey) in ReportParser.primaryKeys,
    textValue=source?.textValue?.takeIf{reliable}.orEmpty(),
    comparator=source?.comparator?.takeIf{reliable}.orEmpty()
-  )
+ )
  }
+}
+
+/**
+ * Matches the whole OCR panel to the confirmed template in one pass.  Fixed fields are
+ * never copied from OCR; matching only identifies which visit value belongs to each
+ * template row.  A candidate can be consumed once, so one damaged OCR row cannot fill
+ * several similarly named template fields.
+ */
+internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLabResult>):Map<Int,ParsedLabResult>{
+ fun chinese(s:String)=s.filter{it.code in 0x4E00..0x9FFF}.replace(Regex("^(上|下|三|红|丨|I)+"),"")
+ fun score(fieldIndex:Int,itemIndex:Int):Int{
+  val field=fields[fieldIndex];val item=items[itemIndex]
+  val keyMatch=ReportParser.key(field.metricKey)==ReportParser.key(item.metricKey)
+  val expected=chinese(field.displayName);val actual=chinese(item.displayName)
+  val nameScore=when{
+   expected.length<2||actual.length<2->0
+   expected==actual->90
+   expected.contains(actual)||actual.contains(expected)->70
+   else->0
+  }
+  if(!keyMatch&&nameScore==0)return Int.MIN_VALUE
+  val orderDistance=kotlin.math.abs(fieldIndex-itemIndex)
+  return (if(keyMatch)120 else 0)+nameScore+(20-orderDistance.coerceAtMost(20))
+ }
+ data class Candidate(val field:Int,val item:Int,val score:Int)
+ val candidates=fields.indices.flatMap{fi->items.indices.mapNotNull{ii->score(fi,ii).takeIf{it>0}?.let{Candidate(fi,ii,it)}}}
+  .sortedWith(compareByDescending<Candidate>{it.score}.thenBy{it.field}.thenBy{it.item})
+ val usedFields=mutableSetOf<Int>();val usedItems=mutableSetOf<Int>();val result=mutableMapOf<Int,ParsedLabResult>()
+ candidates.forEach{candidate->if(candidate.field !in usedFields&&candidate.item !in usedItems){usedFields+=candidate.field;usedItems+=candidate.item;result[candidate.field]=items[candidate.item]}}
+ return result
 }
 
 /**
@@ -159,13 +168,14 @@ internal fun templateResultIsIndependent(source:ParsedLabResult,field:LabFieldTe
  val cleaned=source.rawLine
   .replace(Regex("(?i)[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]")," ")
   .replace(Regex("^\\s*\\d+[.、]?\\s+(?=[A-Za-z#%\\p{IsHan}])"),"")
-  .replace(Regex("(?<=\\d)\\s*(?:-{1,2}|–|—|~|～|至)\\s*(?=\\d)")," ")
- val numbers=Regex("(?<![A-Za-z\\d.^])[-+]?\\d+(?:\\.\\d+)?").findAll(cleaned).mapNotNull{it.value.toDoubleOrNull()}.toList()
- fun same(a:Double,b:Double?)=b!=null&&kotlin.math.abs(a-b)<=1e-9
- if(field.referenceLow!=null&&field.referenceHigh!=null&&numbers.size==2&&same(numbers[0],field.referenceLow)&&same(numbers[1],field.referenceHigh))return false
- if(field.referenceLow==null&&field.referenceHigh!=null&&numbers.size==1&&same(numbers[0],field.referenceHigh))return false
- if(field.referenceLow!=null&&field.referenceHigh==null&&numbers.size==1&&same(numbers[0],field.referenceLow))return false
- return true
+ val number=Regex("(?<![A-Za-z\\d.^])(?:[<>≤≥]\\s*)?[-+]?\\d+(?:\\.\\d+)?")
+ val first=number.find(cleaned)?:return false
+ val twoSided=Regex("[-+]?\\d+(?:\\.\\d+)?\\s*(?:-{1,2}|–|—|~|～|至)\\s*[-+]?\\d+(?:\\.\\d+)?").find(cleaned)
+ val oneSided=Regex("(?:<=|>=|[<>≤≥])\\s*[-+]?\\d+(?:\\.\\d+)?|[-+]?\\d+(?:\\.\\d+)?\\s*--(?:\\s|$)").find(cleaned)
+ val printedRange=twoSided?:oneSided
+ // A result is a separate token before the printed range. If the first number is the
+ // range itself, leave the visit value empty rather than copying a boundary.
+ return printedRange==null||first.range.last<printedRange.range.first
 }
 
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{

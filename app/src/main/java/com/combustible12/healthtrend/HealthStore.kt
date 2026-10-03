@@ -14,9 +14,9 @@ class HealthStore(private val context:Context) {
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
  private fun migrateCurrentTemplates(){
-  val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
+ val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
-   versions.maxWithOrNull(compareBy<HospitalLabTemplate>{templateMigrationScore(it)}.thenBy{it.version})
+   versions.maxWithOrNull(compareBy<HospitalLabTemplate>{templateMigrationTier(it)}.thenBy{it.version}.thenBy{templateCompleteness(it)})
   }.toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
@@ -92,11 +92,19 @@ fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemp
   referenceHigh=p.referenceHigh?:field.referenceHigh
  )
 }
-private fun templateMigrationScore(t:HospitalLabTemplate):Int{
+private fun templateCompleteness(t:HospitalLabTemplate):Int{
  val unique=t.fields.map{ReportParser.key(it.metricKey)}.distinct().size
  val sane=t.fields.count{f->f.displayName.isNotBlank()&&sanitizeLabUnit(f.unit)==f.unit.trim()&&(f.referenceLow==null||f.referenceHigh==null||f.referenceLow<=f.referenceHigh)}
- val exactXiacuCbc=if(t.hospitalKey.trim()=="霞浦县中医院"&&t.reportType.trim()=="血常规"&&unique==27)100000 else 0
- return exactXiacuCbc+unique*100+sane
+ return unique*100+sane
+}
+private fun templateMigrationTier(t:HospitalLabTemplate):Int{
+ val unique=t.fields.map{ReportParser.key(it.metricKey)}.distinct().size
+ return when{
+  t.hospitalKey.trim()=="霞浦县中医院"&&t.reportType.trim()=="血常规"&&unique==27->3
+  t.confirmed&&unique>0->2
+  unique>0->1
+  else->0
+ }
 }
 internal fun xiapuBiochemistryTemplate()=HospitalLabTemplate("霞浦县中医院","生化",1,true,listOf(
  LabFieldTemplate("TP","TP 总蛋白","g/L",65.0,85.0),

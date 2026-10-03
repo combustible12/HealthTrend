@@ -543,6 +543,7 @@ P-LCR 大型血小板比率 21.8 11-45
 #NRBC 有核红细胞计数 0.000 <=9999.99
 P-LCR 大小血小板数目 51 30-90 10^9/L"""
   val templateRows=ReportParser.parse(fixed)
+  assertEquals("confirmed template parser keys=${templateRows.map{it.metricKey}}",27,templateRows.size)
   val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,templateRows.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)})
   val current="""WBC 白细胞 4.35 5.0-9.0 109/L
 上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L
@@ -573,7 +574,9 @@ P-LCR 大型血小板比率 20.8 11-45
 P-LCR 大小血小板数目 59 30-90 10^9/L
 乱码项目 999 1-2"""
   val rows=templateDrivenResults(ReportParser.parse(current),template)
-  assertEquals(27,rows.size);assertEquals(template.fields.map{it.metricKey},rows.map{it.metricKey});assertEquals(template.fields.map{it.displayName},rows.map{it.displayName})
+  assertEquals("template-driven keys=${rows.map{it.metricKey}}",27,rows.size)
+  assertEquals("fixed key order",template.fields.map{it.metricKey},rows.map{it.metricKey})
+  assertEquals("fixed display names",template.fields.map{it.displayName},rows.map{it.displayName})
   fun row(k:String)=rows.single{it.metricKey==k}
   assertEquals(4.35,row("WBC").value!!,0.0);assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals(2.57,row("NEUT#").value!!,0.0);assertEquals(1.50,row("LYMPH#").value!!,0.0);assertEquals(0.04,row("EOS#").value!!,0.0)
