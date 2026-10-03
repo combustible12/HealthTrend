@@ -142,6 +142,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }})
  }
 }
+fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null,radius:Float):Int?{
+ if(points.isEmpty()||width<=0f||height<=0f||radius<0f)return null
+ val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:return null;val high=values.maxOrNull()?:return null;val span=(high-low).coerceAtLeast(1.0)
+ val start=points.minOf{it.first};val time=(points.maxOf{it.first}-start).coerceAtLeast(1L)
+ fun pos(i:Int):Offset{val p=points[i];val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat();val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)}
+ val hit=points.indices.minByOrNull{i->val p=pos(i);val dx=p.x-tap.x;val dy=p.y-tap.y;dx*dx+dy*dy}?:return null
+ val p=pos(hit);val dx=p.x-tap.x;val dy=p.y-tap.y
+ return hit.takeIf{dx*dx+dy*dy<=radius*radius}
+}
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null){
  fun pointPosition(index:Int,width:Float,height:Float):Offset{
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
@@ -150,9 +159,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
  }
  val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points){detectTapGestures{tap->
-  if(points.isNotEmpty()){val hit=points.indices.minByOrNull{i->val p=pointPosition(i,size.width.toFloat(),size.height.toFloat());(p.x-tap.x)*(p.x-tap.x)+(p.y-tap.y)*(p.y-tap.y)}
-   if(hit!=null){val p=pointPosition(hit,size.width.toFloat(),size.height.toFloat());val dx=p.x-tap.x;val dy=p.y-tap.y;if(dx*dx+dy*dy<=48.dp.toPx()*48.dp.toPx())onPointClick(hit)}
-  }
+  val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,48.dp.toPx())
+  if(hit!=null)onPointClick(hit)
  }}
  Canvas(Modifier.fillMaxWidth().height(112.dp).then(interaction)){
   if(points.isEmpty())return@Canvas
