@@ -42,6 +42,13 @@ class ReportParserTest {
   val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",version=1,confirmed=true,fields=listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
   assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
  }
+ @Test fun trendPointPositionMatchesHitTestingForEveryPoint(){
+  val points=listOf(0L to 102.0,86400000L to 120.0,172800000L to 108.0)
+  points.indices.forEach{index->
+   val p=trendPointPosition(points,index,320f,112f,100.0,151.0)
+   assertEquals(index,nearestTrendPoint(points,p,320f,112f,100.0,151.0,1f))
+  }
+ }
  @Test fun trendPointHitTestingCoversEdgesAndInvalidGeometry(){
   val points=listOf(0L to 100.0,100L to 120.0)
   // First point is at x=8, y=88 for this geometry; radius boundary is inclusive.
