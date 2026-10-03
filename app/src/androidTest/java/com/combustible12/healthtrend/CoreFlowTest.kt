@@ -150,7 +150,9 @@ class CoreFlowTest{
  @Test fun actualTrendCanvasPointerTapOpensExactPoint(){
   val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("真实触摸医院","血常规",items)
   store.saveReport(store.buildReport("真实触摸医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template));compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(center)}
+  val chart=compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).fetchSemanticsNode()
+  val point=trendPointPosition(listOf(parseDate("2026-09-26")!! to 102.0),0,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0)
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(androidx.compose.ui.geometry.Offset(point.x,point.y))}
   compose.onNodeWithText("102.0 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
