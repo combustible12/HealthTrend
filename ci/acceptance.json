@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "eb47f87f19dff9928ccf79d1ab2a2a6b8c28c9bf",
+  "sourceCommit": "942e89554ebf713a3604ef1109fc5bad9f0947c0",
   "requestedAt": "2026-10-03",
-  "scope": "Final acceptance after UI test alignment"
+  "scope": "Final acceptance after removing obsolete report UI assertions"
 }
