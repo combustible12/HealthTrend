@@ -34,6 +34,14 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
+ @Test fun metricReviewRuleTrustsConfirmedTemplateButFlagsIncompleteNewRows(){
+  val complete=ParsedLabResult("HGB","血红蛋白",102.0,"g/L",113.0,151.0,"HGB 102",true)
+  assertFalse(metricNeedsReview(complete,null))
+  assertTrue(metricNeedsReview(complete.copy(unit=""),null))
+  assertTrue(metricNeedsReview(complete.copy(referenceHigh=null),null))
+  val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",fields=listOf(TemplateField("HGB","g/L",113.0,151.0)))
+  assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
+ }
  @Test fun trendPointHitTestingHonorsNearestPointAndRadius(){
   val points=listOf(0L to 100.0,100L to 120.0)
   val first=nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(8f,88f),200f,100f,100.0,120.0,20f)
