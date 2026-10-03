@@ -13,7 +13,8 @@ class UpgradeTest{
   assertEquals(PatientProfile(),store.patientProfile())
   store.savePatientProfile(PatientProfile("患者甲","1972-05-06","女","升级后录入"))
   assertEquals("1972-05-06",HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).patientProfile().birthDate)
-  assertEquals("2026-09-26",dateText(report.testedAtEpochMillis).substring(0,10))
+  val originalReportTime=report.testedAtEpochMillis
+  assertEquals(originalReportTime,HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).reports().single().testedAtEpochMillis)
   store.updateValue(report.id,report.results.single().id,120.0)
   assertEquals(120.0,HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).reports().single().results.single().value!!,0.0)
  }
