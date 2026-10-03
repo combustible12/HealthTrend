@@ -66,6 +66,13 @@ class ReportParserTest {
   assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0)
   assertEquals("g/L",edited.normalizedUnit);assertEquals(120.0,edited.normalizedValue!!,0.0);assertTrue(edited.editedByUser)
  }
+ @Test fun templateReviewDoesNotTrustUnknownMetricJustBecauseTemplateExists(){
+  val known=ParsedLabResult("HGB","血红蛋白",102.0,"g/L",113.0,151.0,"HGB 102",true)
+  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
+  val unknown=ParsedLabResult("NEW","新指标",1.2,"",null,null,"NEW 1.2",false)
+  assertFalse(metricNeedsReview(known.copy(unit="",referenceLow=null,referenceHigh=null),template))
+  assertTrue(metricNeedsReview(unknown,template))
+ }
  @Test fun uncertainMetricRowRequiresExplicitReview(){
   val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
   val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
