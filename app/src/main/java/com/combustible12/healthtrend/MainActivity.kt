@@ -113,10 +113,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp)};Text(latest.textValue,fontSize=27.sp,fontWeight=FontWeight.Bold,color=statusColor(latest.status()))}
     Text("${latest.unitAtTest} · 当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
     // Normalize only known-safe conversions; never join different hospital/reference systems.
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{listOf(it.second.normalizedUnit,it.first.hospitalKey,it.first.systemKey,it.first.templateVersion?.toString().orEmpty(),it.second.referenceLowAtTest?.toString().orEmpty(),it.second.referenceHighAtTest?.toString().orEmpty()).joinToString("|")}.forEach{(_,series)->
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{val bounds=it.second.trendReferenceRange();listOf(it.second.normalizedUnit,it.first.hospitalKey,it.first.systemKey,it.first.templateVersion,bounds.first,bounds.second)}.forEach{(_,series)->
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
-     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,sx.referenceLowAtTest,sx.referenceHighAtTest)
+     val bounds=sx.trendReferenceRange()
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second)
     }
     points.forEach{(r,x)->TextButton({open(r)},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
@@ -151,7 +152,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val from=parseDate(start);val until=parseDate(end)?.let{Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).plusDays(1).toInstant().toEpochMilli()}
  if(from==null||until==null||from>=until){Text("请填写有效日期范围",color=Bad);return}
  val selected=entries.filter{it.occurredAtEpochMillis>=from&&it.occurredAtEpochMillis<until}
- val text=buildString{append("症状报告 $start 至 $end\\n记录 ${selected.size} 次\\n");selected.groupBy{it.title}.forEach{(name,rows)->append("$name：${rows.size} 次，平均程度 ${"%.1f".format(rows.map{it.severity}.average())}/10，最高 ${rows.maxOf{it.severity}}/10\\n");rows.sortedBy{it.occurredAtEpochMillis}.forEach{e->append("${dateText(e.occurredAtEpochMillis)} 程度${e.severity} ${e.frequency} ${e.duration} ${e.note}\\n")}}}
+ val text=symptomReportText(start,end,selected)
  val ctx=LocalContext.current
  Paper{Text("期间共 ${selected.size} 次记录",fontWeight=FontWeight.Bold);selected.groupBy{it.title}.forEach{(name,rows)->Text("$name · ${rows.size} 次 · 最高 ${rows.maxOf{it.severity}}/10");Spark(rows.sortedBy{it.occurredAtEpochMillis}.map{it.occurredAtEpochMillis to it.severity.toDouble()},Accent)}}
  Button({shareText(ctx,"症状报告",text)},Modifier.fillMaxWidth()){Text("分享症状报告")}

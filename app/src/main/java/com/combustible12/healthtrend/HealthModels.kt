@@ -23,6 +23,10 @@ data class LabResult(
    else -> ResultStatus.NORMAL
   }
  }
+ /** Normalize chart bounds using the same conversion as its values; keep stored history unchanged. */
+ fun trendReferenceRange():Pair<Double?,Double?> =
+  UnitNormalizer.normalize(metricKey,referenceLowAtTest,unitAtTest).first to
+  UnitNormalizer.normalize(metricKey,referenceHighAtTest,unitAtTest).first
  fun withEditedValue(newValue:Double)=copy(value=newValue,textValue=newValue.toString(),comparator="",editedByUser=true,normalizedValue=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).first,normalizedUnit=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).second)
 }
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
@@ -55,3 +59,7 @@ object UnitNormalizer {
   }
  }
 }
+
+fun symptomReportText(start:String,end:String,selected:List<HealthEntry>):String =
+ buildString{append("症状报告 $start 至 $end\n记录 ${selected.size} 次\n");selected.groupBy{it.title}.forEach{(name,rows)->append("$name：${rows.size} 次，平均程度 ${"%.1f".format(rows.map{it.severity}.average())}/10，最高 ${rows.maxOf{it.severity}}/10\n");rows.sortedBy{it.occurredAtEpochMillis}.forEach{e->append("${dateText(e.occurredAtEpochMillis)} 程度${e.severity} ${e.frequency} ${e.duration} ${e.note}\n")}}}
+
