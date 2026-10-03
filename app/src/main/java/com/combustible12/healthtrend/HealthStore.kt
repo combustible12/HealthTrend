@@ -35,15 +35,18 @@ class HealthStore(private val context:Context) {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
-  val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,sanitizeLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
-  write("templates",JSONArray().apply{storedTemplates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
+  val template=HospitalLabTemplate(h.trim(),t.trim(),old?.version?:1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
+  // One current template per hospital/panel/system. Re-confirming replaces only that
+  // template record; historical reports keep their own unit/range/name snapshots.
+  val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey}
+  write("templates",JSONArray().apply{keep.forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  /** A confirmed template fills missing unit/range fields; this report's explicit fields win. */
  fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=applyRememberedTemplate(items,template)
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
   // The editor has applied the selected version. Snapshot exactly what the user confirmed.
-  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=sanitizeLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)},raw,system.trim())
+  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)},raw,system.trim())
  }
  @Synchronized fun entries()=rows(read("entries"),::entryFromJson).sortedByDescending{it.occurredAtEpochMillis}
  @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
@@ -60,7 +63,7 @@ class HealthStore(private val context:Context) {
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
   return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->
-   val key=ReportParser.key(x.getString("key"));val value=x.doubleOrNull("value");val unit=sanitizeLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
+   val key=ReportParser.key(x.getString("key"));val value=x.doubleOrNull("value");val unit=displayLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
    LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
   },o.optString("ocr"),o.optString("system"))
  }
