@@ -4,7 +4,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 concurrency:
-  group: healthtrend-main-verification
+  group: healthtrend-main-verification-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
