@@ -227,4 +227,14 @@ class ReportParserTest {
   assertEquals("趋势点 HGB 2026-09-26 00:00",descriptions[1])
  }
 
+ @Test fun trendHitTestingRejectsTapBetweenSeparatedVisits(){
+  val points=listOf(requireNotNull(parseDate("2026-09-25 00:00")) to 102.0,requireNotNull(parseDate("2026-09-26 00:00")) to 120.0)
+  val width=900f;val height=112f;val radius=24f
+  val first=trendPointPosition(points,0,width,height,113.0,151.0);val last=trendPointPosition(points,1,width,height,113.0,151.0)
+  val middle=Offset((first.x+last.x)/2f,(first.y+last.y)/2f)
+  assertNull(nearestTrendPoint(points,middle,width,height,113.0,151.0,radius))
+  assertEquals(0,nearestTrendPoint(points,first,width,height,113.0,151.0,radius))
+  assertEquals(1,nearestTrendPoint(points,last,width,height,113.0,151.0,radius))
+ }
+
 }
