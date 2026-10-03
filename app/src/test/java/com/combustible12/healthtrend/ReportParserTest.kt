@@ -34,6 +34,12 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
+ @Test fun uncertainMetricRowRequiresExplicitReview(){
+  val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
+  val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
+  assertFalse(draft.valid())
+  assertTrue(draft.copy(rows=listOf(row.copy(key="UNKNOWN",uncertain=false))).valid())
+ }
  @Test fun uncertainMetadataBlocksSaveUntilConfirmed(){
   val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151")
   val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
