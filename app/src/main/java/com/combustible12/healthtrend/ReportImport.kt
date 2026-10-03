@@ -181,7 +181,11 @@ fun retargetImportedDraft(
  val previous=store.latestTemplate(d.hospital,d.type,d.system)
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
+ if(target!=null){
+  return next.copy(rows=templateDrivenResults(original,target).map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,target))})
+ }
  val rows=d.rows.map{row->
+  // No confirmed target template: preserve user edits while retargeting OCR fields.
   // A repeated metric can occur on different pages. Only rebind a row when its
   // OCR source is unique; otherwise keep the user's fields and require review.
   val rawMatches=if(row.raw.isBlank())emptyList() else original.filter{it.rawLine==row.raw}
@@ -241,6 +245,9 @@ object ReportMetadata {
   val keys=items.map{it.metricKey}.toSet()
   val inferred=when{
    keys.intersect(setOf("WBC","NEUT#","HGB","PLT","RBC")).size>=2->"血常规"
+   // A mixed chemistry panel must stay one panel instead of being split into
+   // liver/kidney templates merely because it contains ALT or CREA.
+   keys.intersect(setOf("TP","ALB","GLOB","TBIL","ALT","AST","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA")).size>=5->"生化"
    keys.intersect(setOf("ALT","AST","TBIL","ALB")).size>=2->"肝功能"
    keys.intersect(setOf("CREA","UREA","UA")).size>=2->"肾功能"
    else->"检查报告"
