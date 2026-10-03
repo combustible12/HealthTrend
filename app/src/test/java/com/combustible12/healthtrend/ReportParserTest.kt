@@ -108,6 +108,10 @@ class ReportParserTest {
   assertFalse(metricNeedsReview(known.copy(unit="",referenceLow=null,referenceHigh=null),template))
   assertTrue(metricNeedsReview(unknown,template))
  }
+ @Test fun reviewedValidMetricCanClearUncertaintyWithoutChangingItsData(){
+  val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
+  assertTrue(row.valid());val reviewed=row.copy(uncertain=false);assertFalse(reviewed.uncertain);assertEquals(row.parsed(),reviewed.parsed())
+ }
  @Test fun uncertainMetricRowRequiresExplicitReview(){
   val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
   val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
