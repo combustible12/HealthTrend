@@ -162,18 +162,23 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 fun trendSeriesKey(result:LabResult)=result.normalizedUnit
 fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
- "WBC"->"免疫状态、感染风险"
- "NEUT#"->"中性粒细胞、骨髓抑制与感染风险"
+ "WBC"->"免疫力、感染风险"
+ "NEUT#"->"免疫力、骨髓抑制与感染风险"
  "NEUT%"->"中性粒细胞比例与感染变化"
  "LYMPH#","LYMPH%"->"淋巴细胞与免疫状态"
  "MONO#","MONO%"->"单核细胞与感染、炎症"
  "EOS#","EOS%"->"过敏及寄生虫相关变化"
  "BASO#","BASO%"->"过敏及炎症相关变化"
  "RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD"->"贫血及红细胞状态"
- "PLT","PCT","MPV","PDW","P-LCR"->"血小板、凝血与出血风险"
- "ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA"->"肝功能与肝胆损伤"
- "TP","ALB","GLOB","A/G","PA"->"营养及肝脏合成功能"
- "CREA","UREA","UA"->"肾功能与代谢"
+ "PLT","PCT","MPV","PDW","P-LCR"->"凝血与出血风险"
+ "ALT","AST","GGT","ALP"->"肝损伤"
+ "TBIL","DBIL","IBIL"->"胆红素与黄疸"
+ "TBA"->"肝胆代谢"
+ "TP","GLOB","A/G","PA"->"营养及肝脏合成功能"
+ "ALB"->"营养状态、肝脏合成功能"
+ "CREA"->"肾功能核心指标"
+ "UREA"->"肾功能"
+ "UA"->"尿酸代谢，化疗后常见升高"
  else->null
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"

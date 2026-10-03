@@ -116,11 +116,15 @@ class ReportParserTest {
   assertEquals(1,listOf(old,current).groupBy(::trendSeriesKey).size)
  }
  @Test fun trendCardsExplainWhatCoreValuesAreUsedFor(){
-  assertEquals("免疫状态、感染风险",metricPurpose("WBC"))
+  assertEquals("免疫力、感染风险",metricPurpose("WBC"))
   assertTrue(requireNotNull(metricPurpose("#NEUT")).contains("骨髓抑制"))
   assertTrue(requireNotNull(metricPurpose("HGB")).contains("贫血"))
   assertTrue(requireNotNull(metricPurpose("PLT")).contains("出血风险"))
   assertTrue(requireNotNull(metricPurpose("ALT")).contains("肝"))
+  assertEquals("胆红素与黄疸",metricPurpose("TBIL"))
+  assertTrue(requireNotNull(metricPurpose("ALB")).contains("营养状态"))
+  assertEquals("肾功能核心指标",metricPurpose("CREA"))
+  assertTrue(requireNotNull(metricPurpose("UA")).contains("化疗后常见升高"))
  }
  @Test fun editedTrendValueRecomputesStatusButKeepsHistoricalRange(){
   val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
