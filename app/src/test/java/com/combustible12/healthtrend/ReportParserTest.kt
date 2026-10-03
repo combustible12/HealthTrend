@@ -68,6 +68,14 @@ class ReportParserTest {
   val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
   assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
  }
+ @Test fun metadataExtractionCoversLiverKidneyAndExplicitDateFormats(){
+  val liver=ReportParser.parse("ALT 23 U/L 7-40\\nAST 20 U/L 13-35\\nALB 42.9 g/L 40-55")
+  val liverMeta=ReportMetadata.extract("医疗机构 福建省肿瘤医院\\n采样日期：2026/09/23\\nALT 23\\nAST 20\\nALB 42.9",liver)
+  assertEquals("福建省肿瘤医院",liverMeta.hospital);assertEquals("2026-09-23",liverMeta.date);assertEquals("肝功能",liverMeta.reportType);assertTrue(liverMeta.uncertain.contains("type"))
+  val kidney=ReportParser.parse("CREA 46 umol/L 35-80\\nUREA 5.2 mmol/L 1.43-7.14\\nUA 328 umol/L 90-357")
+  val kidneyMeta=ReportMetadata.extract("福建省妇幼保健院\\n肾功能检验报告\\n报告日期 2026年9月25日",kidney)
+  assertEquals("肾功能",kidneyMeta.reportType);assertFalse(kidneyMeta.uncertain.contains("type"));assertEquals("2026-09-25",kidneyMeta.date)
+ }
  @Test fun metadataExtractionPrefersClinicalLabelsAndInfersPanels(){
   val blood=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 102 g/L 113-151")
   val meta=ReportMetadata.extract("姓名 张三\n医疗机构：福建省妇幼保健院\n采样时间 2026年9月26日 08:30\nWBC 3.75\nHGB 102",blood)
