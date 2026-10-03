@@ -46,7 +46,7 @@ class ProductionUpdateTest {
   try {
    Intents.intending(hasAction(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)).respondWith(android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_CANCELED,null))
    updater.install(downloaded)
-   Intents.intended(hasAction(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
+   assertTrue("Unknown-source permission handoff was not requested",Intents.getIntents().any{it.action==android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES})
    assertTrue("Pending APK survives installer permission handoff",downloaded.exists())
    assertEquals(downloaded.absolutePath,updater.resumableDownloadedApk()?.absolutePath)
   } finally { Intents.release() }
@@ -65,8 +65,7 @@ class ProductionUpdateTest {
   try {
    Intents.intending(hasAction(Intent.ACTION_VIEW)).respondWith(android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,null))
    updater.install(file)
-   Intents.intended(org.hamcrest.Matchers.allOf(hasAction(Intent.ACTION_VIEW),hasType("application/vnd.android.package-archive")))
-   val sent=Intents.getIntents().last{it.action==Intent.ACTION_VIEW}
+   val sent=requireNotNull(Intents.getIntents().lastOrNull{it.action==Intent.ACTION_VIEW&&it.type=="application/vnd.android.package-archive"}){"APK installer handoff was not requested"}
    assertEquals("content",sent.data!!.scheme)
    assertEquals(context.packageName+".files",sent.data!!.authority)
    assertTrue((sent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0)
