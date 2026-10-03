@@ -120,7 +120,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
-     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second){index->selected=series[index]}
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
@@ -151,7 +151,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=pos(hit);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String=""){
  fun pointPosition(index:Int,width:Float,height:Float):Offset{
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
   val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index]
@@ -162,7 +162,8 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,48.dp.toPx())
   if(hit!=null)onPointClick(hit)
  }}
- Canvas(Modifier.fillMaxWidth().height(112.dp).then(interaction)){
+ val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
+ Canvas(Modifier.fillMaxWidth().height(112.dp).then(semantics).then(interaction)){
   if(points.isEmpty())return@Canvas
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
   fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
