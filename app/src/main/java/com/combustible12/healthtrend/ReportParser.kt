@@ -24,7 +24,15 @@ object ReportParser {
   if(ocr.isBlank())return expected
   val got=normalizedUnit(ocr);val want=normalizedUnit(expected)
   if(got.equals(want,true))return expected
-  // Keep valid alternative units unless value and reference range are converted too.
+  // Known CBC families are dimension-specific. A valid-looking unit from the neighboring
+  // OCR column (for example %NEUT receiving MPV's fL) is still invalid for this metric.
+  val countKeys=setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC")
+  val percentKeys=setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR")
+  if(metricKey in countKeys)return expected
+  if(metricKey in percentKeys)return expected
+  if(metricKey in setOf("MCV","RDW-SD","MPV","MCH","MCHC","RBC"))return expected
+  // Chemistry can legitimately arrive in convertible alternatives; preserve those until
+  // value and reference range are normalized together.
   val validAlternative=Regex("(?i)^(?:[×]?10\\^-?\\d+/L|[a-zA-Zμ]+/[a-zA-Z]+|[a-zA-Zμ]+|%)$").matches(got)
   return if(validAlternative) ocr else expected
  }
