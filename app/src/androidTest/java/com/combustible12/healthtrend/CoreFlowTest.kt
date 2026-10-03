@@ -22,6 +22,20 @@ class CoreFlowTest{
  @get:Rule val compose=createAndroidComposeRule<MainActivity>()
  private val context:Context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit();compose.activityRule.scenario.recreate()}
+ @Test fun rememberedHospitalReusesConfirmedProjectsUnitsAndMissingRanges(){
+  val store=HealthStore(context)
+  val confirmed=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L")
+  store.confirmTemplate("霞浦县中医院","血常规",confirmed)
+  store.saveEntry(HealthEntry(kind=EntryKind.MEDICAL,title="既往病历",occurredAtEpochMillis=1L,hospital="另一家医院"))
+  assertTrue(store.rememberedHospitals().containsAll(listOf("霞浦县中医院","另一家医院")))
+  val imported=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 2.00")
+  val resolved=store.applyTemplate(imported,store.latestTemplate("霞浦县中医院","血常规"))
+  val neut=resolved.first{it.metricKey=="NEUT#"}
+  assertEquals("×10^9/L",neut.unit);assertEquals(2.0,neut.referenceLow!!,0.0);assertEquals(7.0,neut.referenceHigh!!,0.0)
+  val manual=retargetImportedDraft(ReportDraft(hospital="",type="血常规",rows=emptyList()),store,hospital="霞浦县中医院")
+  assertEquals(listOf("WBC","NEUT#"),manual.rows.map{it.key})
+  assertTrue(manual.rows.all{it.text.isBlank()})
+ }
  @Test fun persistenceTemplatesImagesAndHistoricalReferences(){
   val store=HealthStore(context);val items=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nLDH 189 U/L 120-250")
   val t=store.confirmTemplate("测试医院","血常规",items)

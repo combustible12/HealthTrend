@@ -24,6 +24,9 @@ class HealthStore(private val context:Context) {
   val templateUnits=templates().flatMap{it.fields}.filter{canonical==null||ReportParser.key(it.metricKey)==canonical}.map{it.unit}
   return (reportUnits+templateUnits).map{it.trim()}.filter{it.isNotBlank()}.distinct()
  }
+ fun rememberedHospitals():List<String> =
+  (reports().map{it.hospitalKey}+templates().map{it.hospitalKey}+entries().map{it.hospital})
+   .map{it.trim()}.filter{it.isNotBlank()}.distinct().sorted()
  @Synchronized fun updateValue(reportId:String,resultId:String,value:Double){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value)else it}))}
  @Synchronized fun templates()=rows(read("templates"),::templateFromJson)
  fun latestTemplate(h:String,t:String,system:String="")=templates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
@@ -34,7 +37,7 @@ class HealthStore(private val context:Context) {
   val template=HospitalLabTemplate(h.trim(),t.trim(),(old?.version?:0)+1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,it.unit,it.referenceLow,it.referenceHigh)},system.trim())
   write("templates",JSONArray().apply{templates().forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
- /** A remembered template may identify a missing unit, but this report's printed ranges win. */
+ /** A confirmed template fills missing unit/range fields; this report's explicit fields win. */
  fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=applyRememberedTemplate(items,template)
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
@@ -65,10 +68,14 @@ class HealthStore(private val context:Context) {
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
 }
-/** Templates remember layout; they never replace values or reference ranges printed this time. */
+/** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */
 fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=items.map{p->
  val field=template?.fields?.firstOrNull{ReportParser.key(it.metricKey)==p.metricKey}
- if(p.unit.isBlank()&&!field?.unit.isNullOrBlank())p.copy(unit=field!!.unit) else p
+ if(field==null)p else p.copy(
+  unit=p.unit.ifBlank{field.unit},
+  referenceLow=p.referenceLow?:field.referenceLow,
+  referenceHigh=p.referenceHigh?:field.referenceHigh
+ )
 }
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
 private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)

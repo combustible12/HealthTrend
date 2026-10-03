@@ -98,11 +98,18 @@ fun retargetImportedDraft(
  hospital:String=d.hospital,type:String=d.type,system:String=d.system
 ):ReportDraft{
  val next=d.copy(hospital=hospital,type=type,system=system)
- if(d.existing!=null||d.ocr.isBlank()||
-   (hospital==d.hospital&&type==d.type&&system==d.system))return next
+ if(d.existing!=null||(hospital==d.hospital&&type==d.type&&system==d.system))return next
+ val target=store.latestTemplate(hospital,type,system)
+ if(d.ocr.isBlank()){
+  if(target==null)return next
+  val current=d.rows.associateBy{ReportParser.key(it.key.ifBlank{it.name})}
+  return next.copy(rows=target.fields.map{field->
+   current[ReportParser.key(field.metricKey)]?:DraftRow(name=field.displayName,key=ReportParser.key(field.metricKey),unit=field.unit,
+    low=field.referenceLow?.toString().orEmpty(),high=field.referenceHigh?.toString().orEmpty())
+  })
+ }
  val original=ReportParser.parse(d.ocr)
  val previous=store.latestTemplate(d.hospital,d.type,d.system)
- val target=store.latestTemplate(hospital,type,system)
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
  val rows=d.rows.map{row->

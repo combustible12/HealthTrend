@@ -58,13 +58,20 @@ val LocalPageVisible=staticCompositionLocalOf{true}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true)}
+@Composable fun RememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,m:Modifier=Modifier){
+ val saved=options.map{it.trim()}.filter{it.isNotBlank()}.distinct()
+ Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)){
+  if(saved.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){saved.forEach{option->FilterChip(selected=value.trim()==option,onClick={onChange(option)},label={Text(option)},modifier=Modifier.padding(end=8.dp))}}
+  Field(value,onChange,label)
+ }
+}
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  run{Field(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院")}
+  run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   if(d.images.isNotEmpty())run{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
   d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
@@ -73,7 +80,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->
   val units=remember(row.key,d.rows){(store.rememberedUnits(row.key)+d.rows.filter{it.key==row.key}.map{it.unit}).map{it.trim()}.filter{it.isNotBlank()}.distinct()}
-  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units)
+  val fixed=store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{ReportParser.key(it.metricKey)==ReportParser.key(row.key)}==true
+  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed)
  }
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:()->Unit,templateOnly:Boolean=false){Paper{
@@ -81,7 +89,13 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  Text(if(templateOnly)r.unit else "${r.text} ${r.unit}",fontSize=22.sp);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  TextButton(edit){Text("编辑")}
 }}
-@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList()){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly,unitOptions)}}}
+@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){
+ var unlock by rememberSaveable(row.id){mutableStateOf(false)}
+ FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){
+  LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock)
+  if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
+ }}
+}
 fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(field){
  "hospital"->d.copy(hospital=value,uncertain=if(value.isBlank())d.uncertain+"hospital" else d.uncertain-"hospital")
  "type"->d.copy(type=value,uncertain=if(value.isBlank())d.uncertain+"type" else d.uncertain-"type")
@@ -99,13 +113,15 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
 }
 
 fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyList() else listOf("invalid")
-@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList()){Paper{
+@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){Paper{
  Text("指标")
- Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
+ if(lockMetadata)Text(r.name,fontSize=18.sp) else Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
- if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp))}}
- Field(r.unit,{edit(r.copy(unit=it))},"单位")
- Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
+ if(lockMetadata){Text("${r.unit.ifBlank{"单位未录入"}} · 参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)}else{
+  if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp))}}
+  Field(r.unit,{edit(r.copy(unit=it))},"单位")
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
+ }
 }}
 @Composable fun ReportDetail(r:LabReport,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double)->Unit){
  var point by remember{mutableStateOf<LabResult?>(null)};var value by remember{mutableStateOf("")};var confirmDelete by remember{mutableStateOf(false)}
@@ -139,7 +155,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  Field(e.title,{e=e.copy(title=it)},when(e.kind){EntryKind.SYMPTOM->"症状名称";EntryKind.MEDICAL->"病历标题";EntryKind.MEDICATION->"药品名称"});Field(date,{date=it},if(e.kind==EntryKind.MEDICATION)"开始时间 YYYY-MM-DD HH:mm"else"发生时间 YYYY-MM-DD HH:mm")
  when(e.kind){
   EntryKind.SYMPTOM->{Text("程度 ${e.severity}/10");Slider(e.severity.toFloat(),{e=e.copy(severity=it.toInt())},valueRange=0f..10f,steps=9);Field(e.frequency,{e=e.copy(frequency=it)},"频率 / 次数");Field(e.duration,{e=e.copy(duration=it)},"持续时间")}
-  EntryKind.MEDICAL->{Field(e.hospital,{e=e.copy(hospital=it)},"医院");Field(e.category,{e=e.copy(category=it)},"分类（诊断、影像、出院等）")}
+  EntryKind.MEDICAL->{RememberedField(e.hospital,{e=e.copy(hospital=it)},"医院",remember(store){store.rememberedHospitals()});Field(e.category,{e=e.copy(category=it)},"分类（诊断、影像、出院等）")}
   EntryKind.MEDICATION->{Field(e.dose,{e=e.copy(dose=it)},"每次剂量（注明单位）");Field(e.frequency,{e=e.copy(frequency=it)},"用药频率 / 时间");Field(e.route,{e=e.copy(route=it)},"使用方式");Field(end,{end=it},"结束时间（选填）YYYY-MM-DD HH:mm")}
  }
  OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3)
