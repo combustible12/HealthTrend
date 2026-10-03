@@ -394,7 +394,9 @@ class ReportParserTest {
   assertEquals("0.00",row.textValue);assertEquals("",row.unit)
  }
 
- @Test fun printedMetricCodePrecedence(){assertEquals("RDW-SD",ReportParser.parse("RDW-SD 红细胞分布宽度SD 40 35-56 fL").single().metricKey);assertEquals("PCT",ReportParser.parse("PCT 血小板压积 0.212 >=0.108").single().metricKey)}\n\n @Test fun confirmedXiupuReportDateWinsOverSendTime(){
+ @Test fun printedMetricCodePrecedence(){assertEquals("RDW-SD",ReportParser.parse("RDW-SD 红细胞分布宽度SD 40 35-56 fL").single().metricKey);assertEquals("PCT",ReportParser.parse("PCT 血小板压积 0.212 >=0.108").single().metricKey)}
+
+ @Test fun confirmedXiupuReportDateWinsOverSendTime(){
   val rows=ReportParser.parse("WBC 白细胞 7.25 3.5-9.5 10^9/L")
   val meta=ReportMetadata.extract("霞浦县中医院检验报告单\n送检时间 2026-9-18 8:37:55\n报告日期 2026-09-18 08:23\nWBC 白细胞 7.25",rows)
   assertEquals("2026-09-18",meta.date)
