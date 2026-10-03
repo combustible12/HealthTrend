@@ -67,7 +67,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted);if(d.uncertain.isNotEmpty())Text("还有 ${d.uncertain.size} 项 OCR 信息需要人工确认，确认前不能保存。",color=Bad,fontSize=12.sp)}
   run{Field(d.hospital,{value->d=updateOcrMetadata(d,"hospital",value)},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
-  run{Field(d.type,{value->d=updateOcrMetadata(d,"type",value)},"检查类型");if("type" in d.uncertain)Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp)}
+  run{Field(d.type,{value->d=updateOcrMetadata(d,"type",value)},"检查类型");if("type" in d.uncertain){Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp);if(d.type.isNotBlank())TextButton({d=updateOcrMetadata(d,"type",d.type)}){Text("确认检查类型：${d.type}")}}}
   run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
   run{
