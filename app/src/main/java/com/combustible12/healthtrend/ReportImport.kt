@@ -70,31 +70,36 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
 }
 
 /** Spatial reconstruction prevents OCR block order from separating a result from its name. */
-object ReportOcr {
- private data class Cell(val text:String,val left:Int,val right:Int,val cy:Int,val h:Int)
- fun tableText(t:com.google.mlkit.vision.text.Text):String {
-  val cells=t.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{b->
-   Cell(line.elements.joinToString(" "){it.text},b.left,b.right,b.centerY(),b.height())
-  }}
-  if(cells.isEmpty())return t.text
-  // Do not merge two independent analyzer tables just because their rows share the same Y.
-  // A large horizontal gap means separate columns; reconstruct each column top-to-bottom.
-  val minX=cells.minOf{it.left};val maxX=cells.maxOf{it.right};val width=(maxX-minX).coerceAtLeast(1)
-  // Search occupied X intervals, not adjacent line boxes: rows overlap in X heavily, so a
-  // naive left-sorted gap can miss the true divider between the two printed tables.
-  val intervals=cells.map{it.left to it.right}.sortedBy{it.first}
-  val gaps=mutableListOf<Pair<Int,Int>>();var covered=intervals.first().second
-  intervals.drop(1).forEach{(left,right)->if(left>covered)gaps.add((left-covered) to covered);covered=maxOf(covered,right)}
-  val split=gaps.maxByOrNull{it.first}?.takeIf{it.first>width*.08}?.second
-  val columns=if(split==null)listOf(cells) else listOf(cells.filter{it.left<=split},cells.filter{it.left>split}).filter{it.isNotEmpty()}
-  return columns.joinToString("\n"){column->
-   val rows=mutableListOf<MutableList<Cell>>()
-   column.sortedWith(compareBy<Cell>{it.cy}.thenBy{it.left}).forEach{cell->
-    val row=rows.lastOrNull();val base=row?.firstOrNull()
-    if(base!=null&&kotlin.math.abs(cell.cy-base.cy)<=minOf(cell.h,base.h)*.55)row.add(cell) else rows.add(mutableListOf(cell))
-   }
-   rows.joinToString("\n"){row->row.sortedBy{it.left}.joinToString("  "){it.text}}
+internal data class OcrCell(val text:String,val left:Int,val right:Int,val cy:Int,val h:Int)
+internal fun reconstructOcrTable(cells:List<OcrCell>):String{
+ if(cells.isEmpty())return ""
+ val minX=cells.minOf{it.left};val maxX=cells.maxOf{it.right};val width=(maxX-minX).coerceAtLeast(1)
+ // Infer a divider from row-local gaps. Full-width headers do not contribute, so they cannot
+ // bridge the two analyzer tables and accidentally merge NEUT with MPV on the same line.
+ val candidates=cells.groupBy{cell->
+  val tolerance=(cell.h.coerceAtLeast(1)*.7).toInt().coerceAtLeast(1)
+  cell.cy/tolerance
+ }.values.mapNotNull{row->
+  val sorted=row.sortedBy{it.left};if(sorted.size<2)null else sorted.zipWithNext()
+   .map{(a,b)->(b.left-a.right) to ((a.right+b.left)/2)}
+   .filter{it.first>width*.08}.maxByOrNull{it.first}
+ }
+ val center=(minX+maxX)/2
+ val split=candidates.filter{kotlin.math.abs(it.second-center)<width*.3}.map{it.second}.sorted().let{if(it.isEmpty())null else it[it.size/2]}
+ val columns=if(split==null)listOf(cells) else listOf(cells.filter{(it.left+it.right)/2<split},cells.filter{(it.left+it.right)/2>=split}).filter{it.isNotEmpty()}
+ return columns.joinToString("\n"){column->
+  val rows=mutableListOf<MutableList<OcrCell>>()
+  column.sortedWith(compareBy<OcrCell>{it.cy}.thenBy{it.left}).forEach{cell->
+   val row=rows.lastOrNull();val base=row?.firstOrNull()
+   if(base!=null&&kotlin.math.abs(cell.cy-base.cy)<=minOf(cell.h,base.h)*.55)row.add(cell) else rows.add(mutableListOf(cell))
   }
+  rows.joinToString("\n"){row->row.sortedBy{it.left}.joinToString("  "){it.text}}
+ }
+}
+object ReportOcr {
+ fun tableText(t:com.google.mlkit.vision.text.Text):String {
+  val cells=t.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{b->OcrCell(line.elements.joinToString(" "){it.text},b.left,b.right,b.centerY(),b.height())}}
+  return reconstructOcrTable(cells).ifBlank{t.text}
  }
 }
 
