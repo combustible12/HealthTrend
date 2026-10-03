@@ -131,6 +131,15 @@ class CoreFlowTest{
   compose.onNodeWithContentDescription("关闭").performClick()
   compose.onNodeWithContentDescription("关闭").performClick()
  }
+ @Test fun tappingActualTrendChartPointOpensHistoricalDetail(){
+  val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("曲线点击医院","血常规",items)
+  store.saveReport(store.buildReport("曲线点击医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template))
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB").performTouchInput{click(center)}
+  compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.onNodeWithText("编辑数值").assertExists()
+ }
  @Test fun trendDetailOpensItsOriginalReport(){
   val store=HealthStore(context)
   val source=File(context.cacheDir,"trend-source.png");val b=Bitmap.createBitmap(80,80,Bitmap.Config.ARGB_8888);b.eraseColor(Color.WHITE);source.outputStream().use{b.compress(Bitmap.CompressFormat.PNG,100,it)};b.recycle()
