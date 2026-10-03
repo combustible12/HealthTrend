@@ -253,9 +253,8 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      (at.x.toInt()-24.dp.roundToPx()).coerceIn(0,(chartWidth-48.dp.roundToPx()).coerceAtLeast(0)),
      (at.y.toInt()-24.dp.roundToPx()).coerceIn(0,(plotHeightPx-48.dp.roundToPx()).coerceAtLeast(0))
     )
-   }.size(48.dp).semantics(mergeDescendants=false){
+   }.size(48.dp).clickable(onClick={onPointClick(i)}).semantics(mergeDescendants=false){
     contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
-    onClick(label="打开该数据点"){onPointClick(i);true}
    })
   }
  }
