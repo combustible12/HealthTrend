@@ -41,7 +41,7 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
+ fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&uncertain.isEmpty()&&rows.isNotEmpty()&&rows.all{it.valid()}
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -65,7 +65,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  val template=store.latestTemplate(d.hospital,d.type,d.system)
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted)}
+  run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted);if(d.uncertain.isNotEmpty())Text("还有 ${d.uncertain.size} 项 OCR 信息需要人工确认，确认前不能保存。",color=Bad,fontSize=12.sp)}
   run{Field(d.hospital,{d=d.copy(hospital=it,uncertain=d.uncertain-"hospital")},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
   run{Field(d.type,{d=d.copy(type=it,uncertain=d.uncertain-"type")},"检查类型");if("type" in d.uncertain)Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp)}
   run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")}
