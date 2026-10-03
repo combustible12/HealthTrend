@@ -110,7 +110,7 @@ class CoreFlowTest{
    compose.activityRule.scenario.recreate()
    compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
-   compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
+   compose.onNodeWithText("检查日期/时间").performScrollTo().performTextReplacement("2026-09-26 09:30")
    compose.onNodeWithText("保存").assertIsEnabled().performClick()
   }finally{androidx.test.espresso.intent.Intents.release()}
   val report=HealthStore(context).reports().single()
@@ -198,9 +198,9 @@ class CoreFlowTest{
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
-  compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
-  compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
-  compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
+ compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
+ compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
+ compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
   compose.onNodeWithText("参考下限").performScrollTo().performTextInput("113")
   compose.onNodeWithText("参考上限").performScrollTo().performTextInput("151")
   compose.onNodeWithText("完成核对").performClick()
@@ -320,7 +320,7 @@ class CoreFlowTest{
   compose.onNodeWithText("编辑").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("120")
-  compose.onNodeWithText("单位").performScrollTo().performTextInput("g/L")
+  compose.onNodeWithText("g/L").performScrollTo().performClick()
   compose.onNodeWithText("参考下限").performScrollTo().performTextInput("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextInput("150")
   compose.onNodeWithText("完成核对").performClick()
@@ -337,7 +337,7 @@ class CoreFlowTest{
  }
 
 
- @Test fun importedSystemSwitchUsesExactTemplateAndNeverCarriesOtherRanges(){
+ @Test fun importedSystemSwitchNeverOverwritesTheCurrentReportsRanges(){
   val store=HealthStore(context)
   val initial=ReportParser.parse("HGB 102 g/L 113-151")
   val target=ReportParser.parse("HGB 120 g/L 100-150")
@@ -348,10 +348,10 @@ class CoreFlowTest{
    hospital="体系验证医院",type="血常规",ocr="HGB 120 g/L 90-160",
    rows=store.applyTemplate(original,blank).map{DraftRow.from(it)}
   )
-  assertEquals(113.0,draft.rows.single().low.toDouble(),0.0)
+  assertEquals(90.0,draft.rows.single().low.toDouble(),0.0)
   val selected=retargetImportedDraft(draft,store,system="设备B")
-  assertEquals(100.0,selected.rows.single().low.toDouble(),0.0)
-  assertEquals(150.0,selected.rows.single().high.toDouble(),0.0)
+  assertEquals(90.0,selected.rows.single().low.toDouble(),0.0)
+  assertEquals(160.0,selected.rows.single().high.toDouble(),0.0)
   val unrecognized=retargetImportedDraft(draft,store,system="设备C")
   assertEquals(90.0,unrecognized.rows.single().low.toDouble(),0.0)
   assertEquals(160.0,unrecognized.rows.single().high.toDouble(),0.0)
