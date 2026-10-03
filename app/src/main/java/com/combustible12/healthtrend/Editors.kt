@@ -90,10 +90,12 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
-fun reportValidationProblems(d:ReportDraft):List<String>=buildList{
- if(d.hospital.isBlank())add("医院未填写");if(d.type.isBlank())add("检查类型未填写");if(parseDate(d.date)==null)add("检查日期无效")
- if("hospital" in d.uncertain)add("医院待人工确认");if("type" in d.uncertain)add("检查类型待人工确认");if("date" in d.uncertain)add("检查日期待人工确认")
- if(d.rows.isEmpty())add("没有可保存的检查项目");d.rows.forEachIndexed{i,r->if(!r.valid())add("第${i+1}项字段不完整");else if(r.uncertain)add("第${i+1}项尚未完成核对")}
+fun reportValidationProblems(d:ReportDraft):List<String>{
+ val problems=mutableListOf<String>()
+ if(d.hospital.isBlank())problems.add("医院未填写");if(d.type.isBlank())problems.add("检查类型未填写");if(parseDate(d.date)==null)problems.add("检查日期无效")
+ if("hospital" in d.uncertain)problems.add("医院待人工确认");if("type" in d.uncertain)problems.add("检查类型待人工确认");if("date" in d.uncertain)problems.add("检查日期待人工确认")
+ if(d.rows.isEmpty())problems.add("没有可保存的检查项目");d.rows.forEachIndexed{i,r->if(!r.valid())problems.add("第${i+1}项字段不完整") else if(r.uncertain)problems.add("第${i+1}项尚未完成核对")}
+ return problems
 }
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false){Paper{
  Text("指标")
