@@ -230,4 +230,14 @@ class ReportParserTest {
  val ge=ReportParser.parse("CRP 12 mg/L ≥10").single();assertEquals(10.0,ge.referenceLow!!,0.0);assertNull(ge.referenceHigh)
  val hgb=ReportParser.parse("HGB 10.2 g/dL 8.0-15.0").single();assertEquals("g/dL",hgb.unit);assertEquals(10.2,hgb.value!!,0.0)
 }
+
+ @Test fun administrativeMetadataNeverBecomesLabMetrics(){
+  val raw="姓名 张三\n年龄 54\n性别 女\n样本号 12345\n标本号 A889\n条码号 998877\n病历号 M123\n住院号 Z456\n门诊号 O789\n床号 12\n科室 肿瘤科\n诊断 随访\n医生 李医生\n审核人 王医生\n送检时间 2026-09-25 09:00\n打印时间 2026-09-26 10:00\nWBC 7.25 ×10^9/L 3.5-9.5\nHGB 102 g/L 113-151"
+  val rows=ReportParser.parse(raw)
+  assertEquals(listOf("WBC","HGB"),rows.map{it.metricKey})
+ }
+ @Test fun allOneSidedReferenceOperatorsAreParsed(){
+  assertEquals(5.0,ReportParser.parse("CRP 0.5 mg/L ≤5").single().referenceHigh!!,0.0)
+  assertEquals(10.0,ReportParser.parse("CRP 12 mg/L >10").single().referenceLow!!,0.0)
+ }
 }
