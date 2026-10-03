@@ -152,6 +152,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
+fun trendPointTouchRadiusPx(density:Float)=24f*density
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index];val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat();val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
 }
@@ -165,6 +166,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String=""){
+ val density=LocalDensity.current.density
  fun pointPosition(index:Int,width:Float,height:Float):Offset{
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
   val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index]
@@ -172,7 +174,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
  }
  val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points){detectTapGestures{tap->
-  val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,48.dp.toPx())
+  val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density))
   if(hit!=null)onPointClick(hit)
  }}
  val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
