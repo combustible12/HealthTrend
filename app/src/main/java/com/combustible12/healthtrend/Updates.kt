@@ -82,7 +82,7 @@ class AppUpdater(private val context:Context){
 private fun URI(s:String)=java.net.URI(s)
 @Composable fun Mine(m:Modifier,templates:List<HospitalLabTemplate>,edit:(HospitalLabTemplate)->Unit,store:HealthStore,error:(String)->Unit){
  val ctx=LocalContext.current;val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
- var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloaded by rememberSaveable{mutableStateOf<File?>(null)}
+ var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf("")};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
@@ -92,7 +92,7 @@ private fun URI(s:String)=java.net.URI(s)
    OutlinedButton({busy=true;status="正在检查…";scope.launch{try{available=withContext(Dispatchers.IO){updater.check(credentials.load())};status=if(available==null)"当前没有可用的正式更新"else"发现 ${available!!.name}"}catch(e:Exception){status=e.message?:"更新检查失败"}finally{busy=false}}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("检查更新")}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(status.isNotBlank())Text(status,color=Muted)
-   available?.let{update->Text(update.notes);Button({busy=true;scope.launch{try{val f=withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->scope.launch{status=if(total>0)"正在下载 ${(n*100/total)}%"else"已下载 ${n/1024} KB"}}};downloaded=f;status="下载校验通过，请确认安装";updater.install(f)}catch(e:Exception){status=e.message?:"更新失败"}finally{busy=false}}},enabled=!busy){Text("下载并安装")}}
+   available?.let{update->Text(update.notes);Button({busy=true;scope.launch{try{val f=withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->scope.launch{status=if(total>0)"正在下载 ${(n*100/total)}%"else"已下载 ${n/1024} KB"}}};downloadedPath=f.absolutePath;status="下载校验通过，请确认安装";updater.install(f)}catch(e:Exception){status=e.message?:"更新失败"}finally{busy=false}}},enabled=!busy){Text("下载并安装")}}
    downloaded?.let{f->TextButton({try{updater.install(f)}catch(e:Exception){error(e.message?:"安装失败")}}){Text("继续安装已下载版本")}}
    TextButton({showAuth=!showAuth}){Text("私有仓库访问设置")}
    if(showAuth){OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true);Text("仅用于读取此私有仓库的正式版本，加密保存在本机。",color=Muted);TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}}
