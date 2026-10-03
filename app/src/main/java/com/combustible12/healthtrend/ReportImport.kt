@@ -82,8 +82,9 @@ object ReportOcr {
 
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.textValue.isBlank())return true
- val field=template?.fields?.firstOrNull{it.metricKey==p.metricKey}
- // A confirmed hospital template is authoritative for unit/range; OCR must not overwrite it.
+ val field=template?.takeIf{it.confirmed}?.fields?.firstOrNull{it.metricKey==p.metricKey}
+ // Only a confirmed hospital template is authoritative for unit/range; drafts/unconfirmed
+ // templates must never suppress explicit OCR review.
  if(field!=null)return false
  // Without a confirmed template, numeric rows need a unit and a complete two-sided
  // reference range before they can be accepted without an explicit row review.
