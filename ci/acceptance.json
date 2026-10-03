@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "a2e9215c7fdeecff2c89022862e5cc318cd7b71a",
+  "sourceCommit": "b0aee1f560ded3aa7fcfbbd85c29414ed78599c5",
   "requestedAt": "2026-10-03",
-  "scope": "Real CBC OCR, date normalization, hospital ranges, unit reuse and canonical trends"
+  "scope": "Final Android 35 and 36 acceptance for real CBC import and reusable units"
 }
