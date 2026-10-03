@@ -111,7 +111,8 @@ class CoreFlowTest{
    compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
    compose.onNode(hasText("确认保存",substring=true)).assertIsNotEnabled()
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
-   val typeField=compose.onNodeWithText("检查类型").performScrollTo();typeField.performTextClearance();typeField.performTextInput("血常规")
+   val typeField=compose.onNodeWithText("检查类型").performScrollTo();typeField.performTextClearance();typeField.performTextInput("血常规");compose.waitForIdle()
+   compose.onNodeWithText("血常规",useUnmergedTree=true).assertExists()
    compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
    // OCR rows with missing units/ranges must be explicitly reviewed before save.
    while(compose.onAllNodes(hasText("编辑指标 · 尚未完成核对")).fetchSemanticsNodes().isNotEmpty()){
