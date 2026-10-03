@@ -146,7 +146,7 @@ class CoreFlowTest{
   compose.onNodeWithText("102").assertExists()
   // Trend history rows and graph points share the same point-detail flow. Exercise the
   // visible row deterministically here; gesture hit-testing is implemented by Spark.
-  compose.onNodeWithText("102.0 g/L   偏低",substring=true).performScrollTo().performClick()
+  compose.onNodeWithText("102.0 g/L   偏低",substring=true).performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
