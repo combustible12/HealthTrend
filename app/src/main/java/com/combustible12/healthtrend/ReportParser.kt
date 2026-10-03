@@ -7,6 +7,20 @@ object ReportParser {
  private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA")
  private val numeric=Regex("(?<![A-Za-z\\d.^×])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
+ private val canonicalUnits=mapOf(
+  "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","PLT" to "×10^9/L",
+  "RBC" to "×10^12/L","HGB" to "g/L","HCT" to "%","NEUT%" to "%","LYMPH%" to "%",
+  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","MPV" to "fL",
+  "ALT" to "U/L","AST" to "U/L","ALB" to "g/L","TBIL" to "μmol/L",
+  "CREA" to "μmol/L","UREA" to "mmol/L","UA" to "μmol/L","LDH" to "U/L"
+ )
+ private fun normalizedUnit(raw:String)=raw.replace(" ","").replace("x","×",true).replace("µ","μ").replace("10⁹","10^9").replace("10¹²","10^12")
+ private fun resolvedUnit(metricKey:String,ocr:String):String{
+  val expected=canonicalUnits[metricKey]?:return ocr
+  if(ocr.isBlank())return expected
+  val got=normalizedUnit(ocr);val want=normalizedUnit(expected)
+  return if(got.equals(want,true)) expected else expected
+ }
  fun key(name:String):String {
   val clean=name.trim().replace(" ","")
   aliases[clean]?.let{return it}
