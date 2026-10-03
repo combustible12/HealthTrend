@@ -27,7 +27,13 @@ data class LabResult(
  fun trendReferenceRange():Pair<Double?,Double?> =
   UnitNormalizer.normalize(metricKey,referenceLowAtTest,unitAtTest).first to
   UnitNormalizer.normalize(metricKey,referenceHighAtTest,unitAtTest).first
- fun withEditedValue(newValue:Double)=copy(value=newValue,textValue=newValue.toString(),comparator="",editedByUser=true,normalizedValue=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).first,normalizedUnit=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).second)
+ fun withEditedValue(newValue:Double)=copy(value=newValue,textValue=formatEditedValue(newValue,textValue),comparator="",editedByUser=true,normalizedValue=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).first,normalizedUnit=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).second)
+ private fun formatEditedValue(v:Double,previous:String):String{
+  val decimals=previous.substringAfter('.', "").takeWhile{it.isDigit()}.length
+  return if(decimals>0)"%.${decimals}f".format(java.util.Locale.US,v) else {
+   val whole=v.toLong();if(v==whole.toDouble())whole.toString() else v.toString()
+  }
+ }
 }
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
