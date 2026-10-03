@@ -127,8 +127,8 @@ class ReportParserTest {
  @Test fun reportValidationNamesEveryRemainingOcrBlocker(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   val d=ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("hospital"))
-  val p=reportValidationProblems(d);assertTrue("医院待人工确认" in p);assertTrue("第1项尚未完成核对" in p)
-  assertEquals(emptyList<String>(),reportValidationProblems(d.copy(uncertain=emptySet(),rows=listOf(row.copy(uncertain=false)))))
+  val p=reportValidationProblems(d);assertTrue("医院待人工确认" in p);assertTrue("第1项尚未完成核对" in p);assertFalse(d.valid())
+  val reviewed=d.copy(uncertain=emptySet(),rows=listOf(row.copy(uncertain=false)));assertEquals(emptyList<String>(),reportValidationProblems(reviewed));assertTrue(reviewed.valid())
  }
  @Test fun reviewedValidMetricCanClearUncertaintyWithoutChangingItsData(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
