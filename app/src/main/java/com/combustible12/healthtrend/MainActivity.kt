@@ -246,7 +246,10 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
    }
   }
- }\n}\n}\ninternal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
+ }
+}
+}
+internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
 internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
  val years=points.map{dateText(it.first).substring(0,4)}.distinct()
  return when(years.size){0->"";1->"${years.single()}年";else->"${years.first()}–${years.last()}年"}
