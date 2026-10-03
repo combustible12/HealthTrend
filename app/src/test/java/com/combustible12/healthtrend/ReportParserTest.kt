@@ -77,6 +77,12 @@ class ReportParserTest {
   val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
   assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
  }
+ @Test fun metadataExtractionDoesNotSilentlyTrustMissingIdentityOrDate(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val meta=ReportMetadata.extract("HGB 102 g/L 113-151",rows)
+  assertTrue(meta.uncertain.contains("hospital"));assertTrue(meta.uncertain.contains("date"));assertTrue(meta.uncertain.contains("type"))
+  assertTrue(meta.hospital.isBlank());assertTrue(meta.date.isBlank())
+ }
  @Test fun metadataExtractionCoversLiverKidneyAndExplicitDateFormats(){
   val liver=ReportParser.parse("ALT 23 U/L 7-40\\nAST 20 U/L 13-35\\nALB 42.9 g/L 40-55")
   val liverMeta=ReportMetadata.extract("医疗机构 福建省肿瘤医院\\n采样日期：2026/09/23\\nALT 23\\nAST 20\\nALB 42.9",liver)
