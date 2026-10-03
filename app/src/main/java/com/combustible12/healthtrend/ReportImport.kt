@@ -110,7 +110,7 @@ object ReportMetadata {
   // Patient identity fields and report timing are separate domains. Generic date/time labels
   // are accepted only when unambiguous and never allowed to override an explicit clinical date.
   val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&!line.contains("出生")&&!line.contains("生日")}.mapNotNull{dateRegex.find(it)}
-  val fallbackDates=dateRegex.findAll(raw).toList()
+  val fallbackDates=lines.filterNot{line->line.contains("出生")||line.contains("生日")}.flatMap{line->dateRegex.findAll(line).toList()}
   val dates=when{clinicalDates.isNotEmpty()->clinicalDates;genericDates.size==1->genericDates;fallbackDates.size==1->fallbackDates;else->emptyList()}
   val date=dates.firstOrNull()?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
   val explicit=when{
