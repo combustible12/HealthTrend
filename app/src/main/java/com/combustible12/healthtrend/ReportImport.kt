@@ -113,7 +113,9 @@ object ReportMetadata {
   }.mapNotNull{dateRegex.find(it)}
   // Clinical report timestamps outrank generic dates. Demographic dates must never become
   // the test date; use an unlabelled calendar date only when exactly one exists.
-  val fallbackDates=dateRegex.findAll(raw).toList()
+  val fallbackDates=lines.filter{line->
+   !line.contains("出生") && !line.contains("生日")
+  }.flatMap{line->dateRegex.findAll(line).toList()}
   val dates=when{
    clinicalDates.isNotEmpty()->clinicalDates
    genericDates.isNotEmpty()->genericDates
