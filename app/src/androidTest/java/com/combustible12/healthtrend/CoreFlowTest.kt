@@ -183,6 +183,8 @@ class CoreFlowTest{
   compose.onNodeWithText("保存").performClick()
   compose.onNodeWithText("120.0 g/L").assertExists()
   compose.onNodeWithText("关闭").performClick()
+  // Closing the detail must expose the refreshed trend card, not only persisted storage.
+  compose.onNodeWithText("120.0").assertExists()
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
