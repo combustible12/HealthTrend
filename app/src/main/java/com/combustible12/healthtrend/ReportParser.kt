@@ -71,7 +71,9 @@ object ReportParser {
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   val explicitCode=knownCode.find(name)?.value
   var k=explicitCode?.let(::normalizeCode) ?: key(name)
-  // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.\n  // The Chinese row label and unit disambiguate it; keep one stable internal identity.\n  if(k=="P-LCR" && (name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
+  // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
+  // The Chinese row label and unit disambiguate it; keep one stable internal identity.
+  if(k=="P-LCR" && (name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
   // OCR commonly confuses the leading #/% markers with Chinese strokes (e.g. 上NEUT, 红MPH, 三MONO).
   // For differential rows the Chinese label is authoritative when the Latin prefix is damaged.
   aliases.entries.firstOrNull{(label,_)->name.contains(label)}?.value?.let{k=it}
