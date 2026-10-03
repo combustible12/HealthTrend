@@ -240,7 +240,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   points.indices.forEach{i->
    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
    Column(
-    Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp),
+        Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.semantics(mergeDescendants=true){contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}";onClick(label="打开该数据点"){onPointClick(i);true}}),
     horizontalAlignment=Alignment.CenterHorizontally
    ){
     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
@@ -255,7 +255,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      (at.y.toInt()-targetPx/2).coerceIn(0,(plotHeightPx-targetPx).coerceAtLeast(0))
     )
    }.requiredSize(48.dp).semantics(mergeDescendants=false){
-    contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
+        contentDescription="曲线辅助触摸区"
     onClick(label="打开该数据点"){onPointClick(i);true}
       }.clickable{onPointClick(i)}){Spacer(Modifier.fillMaxSize())}
   }
