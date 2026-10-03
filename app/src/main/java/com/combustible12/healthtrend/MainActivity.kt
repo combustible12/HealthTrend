@@ -82,11 +82,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
-   val newVersion=d.newTemplate||templateNeedsNewVersion(existing,d.parsed())
-   val t=if(newVersion||existing==null)store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,newVersion)else existing
+   // Importing a report against an existing confirmed template never mutates that
+   // template. Template changes happen only in the explicit TemplateEditor flow.
+   val t=existing?:store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
    val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
-   val unchangedTemplate=d.existing!=null&&!newVersion&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey
-   val version=if(unchangedTemplate)d.existing?.templateVersion else t.version
+   val version=if(d.existing!=null&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey)d.existing.templateVersion else t.version
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
   }},{viewer=it})
