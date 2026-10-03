@@ -142,7 +142,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)} · ${x.status().label()}",color=Muted)
    if(editing)OutlinedTextField(editValue,{editValue=it},label={Text("结果")},singleLine=true)
   }},confirmButton={
-   if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);selected=r to x.withEditedValue(v);editing=false}}){Text("保存")}
+   if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
    else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
   },dismissButton={Row{
    if(r.sourceImages.isNotEmpty())TextButton({selected=null;open(r)}){Text("查看原报告")}
