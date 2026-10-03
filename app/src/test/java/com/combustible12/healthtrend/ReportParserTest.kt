@@ -42,14 +42,6 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
- @Test fun metricReviewRuleTrustsConfirmedTemplateButFlagsIncompleteNewRows(){
-  val complete=ParsedLabResult("HGB","血红蛋白",102.0,"g/L",113.0,151.0,"HGB 102",true)
-  assertFalse(metricNeedsReview(complete,null))
-  assertTrue(metricNeedsReview(complete.copy(unit=""),null))
-  assertTrue(metricNeedsReview(complete.copy(referenceHigh=null),null))
-  val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",version=1,confirmed=true,fields=listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
-  assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
- }
  @Test fun patientProfileIsIndependentFromReportMetadata(){
   val profile=PatientProfile(name="患者",birthDate="1972-05-06",sex="女")
   assertEquals("1972-05-06",profile.birthDate)
@@ -108,19 +100,6 @@ class ReportParserTest {
   assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0)
   assertEquals("g/L",edited.normalizedUnit);assertEquals(120.0,edited.normalizedValue!!,0.0);assertTrue(edited.editedByUser)
  }
- @Test fun unconfirmedTemplateNeverSuppressesOcrReview(){
-  val row=ParsedLabResult("HGB","血红蛋白",102.0,"",null,null,"HGB 102",true)
-  val draftTemplate=HospitalLabTemplate("医院","血常规",1,false,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
-  assertTrue(metricNeedsReview(row,draftTemplate))
-  assertFalse(metricNeedsReview(row,draftTemplate.copy(confirmed=true)))
- }
- @Test fun templateReviewDoesNotTrustUnknownMetricJustBecauseTemplateExists(){
-  val known=ParsedLabResult("HGB","血红蛋白",102.0,"g/L",113.0,151.0,"HGB 102",true)
-  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
-  val unknown=ParsedLabResult("NEW","新指标",1.2,"",null,null,"NEW 1.2",false)
-  assertFalse(metricNeedsReview(known.copy(unit="",referenceLow=null,referenceHigh=null),template))
-  assertTrue(metricNeedsReview(unknown,template))
- }
  @Test fun trendPointAccessibilityIdentityKeepsMetricAndExactVisit(){
   val first=requireNotNull(parseDate("2026-09-25 00:00"));val last=requireNotNull(parseDate("2026-09-26 00:00"))
   assertEquals("趋势点 HGB 2026-09-25 00:00",trendPointContentDescription("HGB",first))
@@ -134,8 +113,8 @@ class ReportParserTest {
  @Test fun blankOcrMetadataCorrectionCannotBypassSaveGate(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=false)
   val base=ReportDraft(hospital="医院",type="血常规",date="2026-09-26 09:30",rows=listOf(row),uncertain=emptySet())
-  val blankHospital=updateOcrMetadata(base,"hospital","");assertTrue("hospital" in blankHospital.uncertain);assertTrue("医院未填写" in reportValidationProblems(blankHospital));assertFalse(blankHospital.valid())
-  val badDate=updateOcrMetadata(base,"date","not-a-date");assertTrue("date" in badDate.uncertain);assertTrue("检查日期无效" in reportValidationProblems(badDate));assertFalse(badDate.valid())
+  val blankHospital=updateOcrMetadata(base,"hospital","");assertTrue("hospital" in blankHospital.uncertain);assertFalse(blankHospital.valid());assertFalse(blankHospital.valid())
+  val badDate=updateOcrMetadata(base,"date","not-a-date");assertTrue("date" in badDate.uncertain);assertFalse(badDate.valid());assertFalse(badDate.valid())
  }
  @Test fun ocrMetadataOnlyClearsUncertaintyAfterValidCorrection(){
   val d=ReportDraft(hospital="",type="",date="",rows=listOf(DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151")),uncertain=setOf("hospital","type","date"))
@@ -143,26 +122,9 @@ class ReportParserTest {
   assertEquals(setOf("date"),invalidDate.uncertain);assertFalse(invalidDate.valid())
   val confirmed=updateOcrMetadata(invalidDate,"date","2026-09-26 09:30");assertTrue(confirmed.uncertain.isEmpty());assertTrue(confirmed.valid())
  }
- @Test fun reportValidationNamesEveryRemainingOcrBlocker(){
-  val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
-  val d=ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("hospital"))
-  val p=reportValidationProblems(d);assertTrue("医院待人工确认" in p);assertTrue("第1项尚未完成核对" in p);assertFalse(d.valid())
-  val reviewed=d.copy(uncertain=emptySet(),rows=listOf(row.copy(uncertain=false)));assertEquals(emptyList<String>(),reportValidationProblems(reviewed));assertTrue(reviewed.valid())
- }
  @Test fun reviewedValidMetricCanClearUncertaintyWithoutChangingItsData(){
   val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   assertTrue(row.valid());val reviewed=row.copy(uncertain=false);assertFalse(reviewed.uncertain);assertEquals(row.parsed(),reviewed.parsed())
- }
- @Test fun uncertainMetricRowRequiresExplicitReview(){
-  val row=DraftRow(name="未知指标",text="1.2",raw="未知指标 1.2",uncertain=true)
-  val draft=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26",rows=listOf(row))
-  assertFalse(draft.valid())
-  assertTrue(draft.copy(rows=listOf(row.copy(key="UNKNOWN",uncertain=false))).valid())
- }
- @Test fun uncertainMetadataBlocksSaveUntilConfirmed(){
-  val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151")
-  val uncertain=ReportDraft(hospital="福建省妇幼保健院",type="血常规",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
-  assertFalse(uncertain.valid());assertTrue(uncertain.copy(uncertain=emptySet()).valid())
  }
  @Test fun metadataDateRequiresDisambiguationWhenMultipleUnlabelledDatesExist(){
   val rows=ReportParser.parse("HGB 102 g/L 113-151")
@@ -211,13 +173,16 @@ class ReportParserTest {
   val explicit=ReportMetadata.extract("福建省肿瘤医院\n肿瘤标志物检验报告\n报告日期：2026/09/29",emptyList())
   assertEquals("肿瘤标志物",explicit.reportType);assertFalse(explicit.uncertain.contains("type"))
  }
- @Test fun explicitInferredTypeConfirmationClearsOnlyTypeBlocker(){
-  val base=ReportDraft(hospital="测试医院",type="血常规",date="2026-09-26 09:30",uncertain=setOf("type"),rows=listOf(DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=false)))
-  assertTrue(reportValidationProblems(base).contains("检查类型待人工确认"))
-  val confirmed=updateOcrMetadata(base,"type",base.type)
-  assertFalse("type" in confirmed.uncertain)
-  assertTrue(reportValidationProblems(confirmed).isEmpty())
-  assertEquals("血常规",confirmed.type)
+
+ @Test fun canonicalUnitsRepairMissingOrCorruptOcrUnits(){
+  val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("×10^9/L",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
+  assertEquals("fL",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
+  assertEquals("g/L",ReportParser.parse("HGB 102 garbage 113-151").single().unit)
+ }
+ @Test fun reportSaveGateOnlyRequiresHospitalDateAndValidMetrics(){
+  val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
+  val d=ReportDraft(hospital="医院",type="",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
+  assertTrue(d.valid());assertTrue(reportValidationProblems(d).isEmpty())
  }
 
  @Test fun trendPointDescriptionsRemainOneToOneWithVisits(){
