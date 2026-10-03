@@ -21,7 +21,9 @@ object ReportParser {
  }
  private fun resolvedUnit(metricKey:String,ocr:String):String{
   val expected=canonicalUnits[metricKey]?:return ocr
-  if(ocr.isBlank())return expected
+  // Blank on the printed report stays blank. Hospital templates may fill a previously
+  // confirmed fixed unit later, but the generic parser must not invent source data.
+  if(ocr.isBlank())return ""
   val got=normalizedUnit(ocr);val want=normalizedUnit(expected)
   if(got.equals(want,true))return expected
   // Known CBC families are dimension-specific. A valid-looking unit from the neighboring
