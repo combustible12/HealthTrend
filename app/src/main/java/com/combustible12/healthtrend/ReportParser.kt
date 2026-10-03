@@ -19,7 +19,10 @@ object ReportParser {
   val expected=canonicalUnits[metricKey]?:return ocr
   if(ocr.isBlank())return expected
   val got=normalizedUnit(ocr);val want=normalizedUnit(expected)
-  return if(got.equals(want,true)) expected else expected
+  if(got.equals(want,true))return expected
+  // Keep valid alternative units unless value and reference range are converted too.
+  val validAlternative=Regex("(?i)^(?:[×]?10\\^-?\\d+/L|[a-zA-Zμ]+/[a-zA-Z]+|[a-zA-Zμ]+|%)$").matches(got)
+  return if(validAlternative) ocr else expected
  }
  fun key(name:String):String {
   val clean=name.trim().replace(" ","")
