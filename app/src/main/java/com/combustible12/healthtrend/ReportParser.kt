@@ -28,7 +28,12 @@ object ReportParser {
   Regex("[A-Za-z]+[#%]?").findAll(clean).map{it.value.uppercase()}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(WBC|NEUT[#%]|LYMPH[#%]|RBC|HGB|HCT|MCV|MCHC|MCH|RDW|PLT|MPV|PDW|PCT|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")\n private fun segments(text:String)=text.lines().flatMap{raw->\n  val hits=knownCode.findAll(raw).toList()\n  if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}\n }\n fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(WBC|NEUT[#%]|LYMPH[#%]|RBC|HGB|HCT|MCV|MCHC|MCH|RDW|PLT|MPV|PDW|PCT|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private fun segments(text:String)=text.lines().flatMap{raw->
+  val hits=knownCode.findAll(raw).toList()
+  if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
+ }
+ fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("^(WBC|NEUT[#%]|HGB|PLT|ALT|AST|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本","科室","诊断","医生","审核","送检","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
