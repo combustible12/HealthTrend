@@ -349,7 +349,7 @@ class ReportParserTest {
    "P-LCR 大型血小板比率 21.8 11-45",
    "%NRBC 有核红细胞比率 0.00 <=9999.99",
    "#NRBC 有核红细胞计数 0.000 <=9999.99",
-   "P-LCR 大血小板数目 51 30-90 10^9/L"
+   "P-LCR 大小血小板数目 51 30-90 10^9/L"
   ).joinToString("\n")
   val rows=ReportParser.parse(raw)
   assertEquals(27,rows.size)
