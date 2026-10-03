@@ -52,6 +52,11 @@ class ReportParserTest {
   val raw="出生日期：1972-05-06\n采样时间：2026-09-26 09:30\nHGB 102 g/L 113-151"
   val meta=ReportMetadata.extract(raw,ReportParser.parse(raw));assertEquals("2026-09-26",meta.date)
  }
+ @Test fun demographicDateDoesNotBlockSingleUnlabelledReportDateFallback(){
+  val raw="出生日期：1972-05-06\n2026-09-26\nHGB 102 g/L 113-151"
+  val meta=ReportMetadata.extract(raw,ReportParser.parse(raw))
+  assertEquals("2026-09-26",meta.date)
+ }
  @Test fun patientBirthDateAloneIsNotAcceptedAsReportDate(){
   val raw="出生日期：1972-05-06\nHGB 102 g/L 113-151"
   val meta=ReportMetadata.extract(raw,ReportParser.parse(raw));assertEquals("",meta.date);assertTrue("date" in meta.uncertain)
