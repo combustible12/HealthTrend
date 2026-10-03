@@ -143,6 +143,10 @@ class CoreFlowTest{
   compose.onNodeWithText("完成核对").performClick()
   compose.onNodeWithText("确认保存 · 1 个项目").performClick()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("血常规").assertExists()
+  compose.onNodeWithText("肝功能").assertExists()
+  compose.onNodeWithText("肾功能").assertExists()
+  compose.onNodeWithText("肿瘤标志物").assertExists()
   compose.onNodeWithText("102").assertExists()
   // Trend history rows and graph points share the same point-detail flow. Exercise the
   // visible row deterministically here; gesture hit-testing is implemented by Spark.
