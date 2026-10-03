@@ -53,8 +53,8 @@ object ReportParser {
   val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith(">")||it.startsWith("≥")}?.replace(Regex("[>≥\\s]"),"")?.toDoubleOrNull()
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
-  val unitSource=(if(limitMatch!=null)suffix.substring(limitMatch.range.last+1)else suffix).trim().trim('↑','↓','*',' ','|')
-  val ocrUnit=Regex("(?i)^(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").find(unitSource)?.value?.replace(" ","").orEmpty()
+  val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
+  val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").find(unitText)?.value?.replace(" ","").orEmpty()
   val explicitCode=knownCode.find(name)?.value?.uppercase()
   val k=explicitCode?.let{if(it=="CRE")"CREA" else it} ?: key(name)
   val unit=resolvedUnit(k,ocrUnit)
