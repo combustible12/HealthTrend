@@ -52,7 +52,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
     pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain)
-    message=(failures+"已保留 ${owned.size} 页原图，识别 ${parsed.size} 个项目，请逐项核对。").joinToString("\n")
+    message=failures.joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
  }
@@ -88,8 +88,8 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(field!=null)return false
  // Without a confirmed template, numeric rows need a unit and a complete two-sided
  // reference range before they can be accepted without an explicit row review.
- if(p.value!=null&&(p.unit.isBlank()||p.referenceLow==null||p.referenceHigh==null))return true
- return (p.referenceLow==null)!=(p.referenceHigh==null)
+ if(p.referenceLow!=null&&p.referenceHigh!=null&&p.referenceLow>p.referenceHigh)return true
+ return false
 }
 
 /** Rebind OCR fields when the hospital, panel or laboratory system changes. */
