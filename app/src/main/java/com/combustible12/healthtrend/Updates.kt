@@ -78,11 +78,12 @@ class AppUpdater(private val context:Context){
   try{var count=0L;var lastProgress=0L;c.inputStream.use{input->temp.outputStream().use{out->val buffer=ByteArray(32768);while(true){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n);count+=n;require(count<250_000_000L){"更新文件过大"};val now=System.currentTimeMillis();if(now-lastProgress>200){onProgress(count,c.contentLengthLong);lastProgress=now}}}};val version=validate(temp);require(version==update.version){"发布信息与 APK 版本不匹配"};check(temp.renameTo(dest));return dest}catch(e:Exception){temp.delete();throw e}finally{c.disconnect()}
  }
  fun install(file:File){validate(file);if(Build.VERSION.SDK_INT>=26&&!context.packageManager.canRequestPackageInstalls()){context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));return};val uri=FileProvider.getUriForFile(context,context.packageName+".files",file);context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))}
+ fun resumableDownloadedApk():File?=File(context.cacheDir,"updates/healthtrend.apk").takeIf{it.isFile&&runCatching{validate(it);true}.getOrDefault(false)}
 }
 private fun URI(s:String)=java.net.URI(s)
 @Composable fun Mine(m:Modifier,templates:List<HospitalLabTemplate>,edit:(HospitalLabTemplate)->Unit,store:HealthStore,error:(String)->Unit){
  val ctx=LocalContext.current;val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
- var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf("")};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
+ var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
