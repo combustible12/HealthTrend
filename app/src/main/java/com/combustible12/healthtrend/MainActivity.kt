@@ -222,7 +222,6 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val chartHeight=206.dp
  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){
  BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
-  val targetPx=with(LocalDensity.current){48.dp.roundToPx()}
   val chartWidth=constraints.maxWidth
   val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
   Canvas(Modifier.fillMaxWidth().height(plotHeight).then(interaction).then(semantics)){
@@ -247,22 +246,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
    }
   }
-  if(onPointClick!=null)points.indices.forEach{i->
-   val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
-   Box(Modifier.offset {
-    androidx.compose.ui.unit.IntOffset(
-     (at.x.toInt()-targetPx/2).coerceIn(0,(chartWidth-targetPx).coerceAtLeast(0)),
-     (at.y.toInt()-targetPx/2).coerceIn(0,(plotHeightPx-targetPx).coerceAtLeast(0))
-    )
-   }.requiredSize(48.dp).semantics(mergeDescendants=false){
-        contentDescription="曲线辅助触摸区"
-    onClick(label="打开该数据点"){onPointClick(i);true}
-      }.clickable{onPointClick(i)}){Spacer(Modifier.fillMaxSize())}
-  }
- }
-}
-}
-internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
+ }\n}\n}\ninternal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
 internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
  val years=points.map{dateText(it.first).substring(0,4)}.distinct()
  return when(years.size){0->"";1->"${years.single()}年";else->"${years.first()}–${years.last()}年"}
