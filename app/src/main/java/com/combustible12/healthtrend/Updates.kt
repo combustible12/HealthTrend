@@ -74,7 +74,7 @@ class AppUpdater(private val context:Context){
   return next
  }
  fun download(update:AvailableUpdate,token:String,onProgress:(Long,Long)->Unit):File {
-  val dir=File(context.cacheDir,"updates").apply{mkdirs()};val temp=File(dir,"healthtrend.tmp");val dest=File(dir,"healthtrend.apk")
+  val dir=File(context.cacheDir,"updates").apply{mkdirs()};val temp=File(dir,"healthtrend.pending.apk");val dest=File(dir,"healthtrend.apk")
   val c=connect(update.assetUrl,token,"application/octet-stream")
   try{var count=0L;var lastProgress=0L;c.inputStream.use{input->temp.outputStream().use{out->val buffer=ByteArray(32768);while(true){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n);count+=n;require(count<250_000_000L){"更新文件过大"};val now=System.currentTimeMillis();if(now-lastProgress>200){onProgress(count,c.contentLengthLong);lastProgress=now}}}};val version=validate(temp);require(version==update.version){"发布信息与 APK 版本不匹配"};check(temp.renameTo(dest));return dest}catch(e:Exception){temp.delete();throw e}finally{c.disconnect()}
  }

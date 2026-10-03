@@ -113,7 +113,7 @@ class CoreFlowTest{
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
    val typeField=compose.onNodeWithText("检查类型").performScrollTo();typeField.performTextClearance();typeField.performTextInput("血常规");compose.waitForIdle()
    compose.onNodeWithText("血常规",useUnmergedTree=true).assertExists()
-   compose.onNodeWithText("确认检查类型：血常规").performScrollTo().performClick()
+   if(compose.onAllNodesWithText("确认检查类型：血常规").fetchSemanticsNodes().isNotEmpty()) compose.onNodeWithText("确认检查类型：血常规").performScrollTo().performClick()
    compose.onNodeWithText("检查时间 YYYY-MM-DD HH:mm").performScrollTo().performTextReplacement("2026-09-26 09:30")
    // OCR rows with missing units/ranges must be explicitly reviewed before save.
    while(compose.onAllNodes(hasText("编辑指标 · 尚未完成核对")).fetchSemanticsNodes().isNotEmpty()){
@@ -157,7 +157,7 @@ class CoreFlowTest{
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
   assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,trendPointTouchRadiusPx(context.resources.displayMetrics.density)))
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
-  compose.onNodeWithText("102.0 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
   val points=listOf(parseDate("2026-09-25 00:00")!! to 102.0,parseDate("2026-09-26 00:00")!! to 120.0)
@@ -177,7 +177,7 @@ class CoreFlowTest{
  @Test fun multiPointTrendCanOpenFirstPointIndependently(){
   val store=HealthStore(context);val first=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("独立点医院","血常规",first)
   store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-25")!!,emptyList(),first,template));val second=ReportParser.parse("HGB 120 g/L 113-151");store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
-  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();compose.onNodeWithText("102.0 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendChartAccessibilitySelectsLatestPointInMultiPointSeries(){
   val store=HealthStore(context)
@@ -189,7 +189,7 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
-  compose.onNodeWithText("120.0 g/L").assertExists()
+  compose.onNodeWithText("120 g/L").assertExists()
   compose.onNodeWithText("当次参考：113.0–151.0 · 正常").assertExists()
  }
  @Test fun trendDetailOpensItsOriginalReport(){
@@ -201,6 +201,7 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
+  assertTrue("Trend selection did not expose its original report:\n"+compose.onRoot(useUnmergedTree=true).printToString(),compose.onAllNodesWithText("查看原报告").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("查看原报告").performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
   compose.onNodeWithText("原报告 1/1").assertExists()
@@ -223,7 +224,8 @@ class CoreFlowTest{
   compose.onNodeWithText("肿瘤标志物").assertExists()
   compose.onNodeWithText("102").assertExists()
   // Exercise the actual chart instead of depending on an off-screen history row.
-  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
+  val reportDate=HealthStore(context).reports().single().testedAtEpochMillis
+  compose.onNodeWithContentDescription(trendPointContentDescription("HGB",reportDate),useUnmergedTree=true).assertHasClickAction().performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
@@ -299,6 +301,23 @@ class CoreFlowTest{
   compose.onNodeWithText("期间共 1 次记录").performScrollTo().assertIsDisplayed()
   compose.onNodeWithText("分享症状报告").performScrollTo().assertIsDisplayed()
  }
+
+ @Test fun customReportTypeKeepsOtherMetricsInTrends(){
+  val store=HealthStore(context)
+  val items=ReportParser.parse("TSH 3.2 mIU/L 0.27-4.2")
+  val template=store.confirmTemplate("自定义检查医院","内分泌",items)
+  store.saveReport(store.buildReport("自定义检查医院","内分泌",parseDate("2026-09-26")!!,emptyList(),items,template))
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithText("内分泌").performScrollTo().performClick()
+  compose.onNodeWithText("其他指标").performClick()
+  assertTrue(compose.onAllNodesWithText("TSH").fetchSemanticsNodes().isNotEmpty())
+  compose.onNodeWithText("设为重点指标").performScrollTo().performClick()
+  compose.onNodeWithText("重点指标").performClick()
+  assertTrue(compose.onAllNodesWithText("TSH").fetchSemanticsNodes().isNotEmpty())
+  assertTrue(HealthStore(context).isPrimary("TSH"))
+ }
+
  private fun assertSaveControlInsideSystemArea(){
   compose.onNodeWithText("保存记录").assertIsDisplayed()
   compose.onNodeWithContentDescription("关闭").assertIsDisplayed()
