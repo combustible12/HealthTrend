@@ -54,6 +54,11 @@ jobs:
           qa_apksigner="$(python -c "import os,pathlib; print(sorted(pathlib.Path(os.environ['ANDROID_HOME']).glob('build-tools/*/apksigner'))[-1])")"
           "$qa_apksigner" sign --ks "$RUNNER_TEMP/qa-different-signer.jks" --ks-pass pass:qa-test-password --key-pass pass:qa-test-password --out "$RUNNER_TEMP/qa-update-wrong-signer.apk" "$RUNNER_TEMP/qa-update-same-signer.apk"
           gradle :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Record APK signing certificate
+        run: |
+          set -o pipefail
+          qa_apksigner="$(python -c "import os,pathlib; print(sorted(pathlib.Path(os.environ['ANDROID_HOME']).glob('build-tools/*/apksigner'))[-1])")"
+          "$qa_apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee apk-signing-certificate.txt
       - name: Build v1 baseline with the same test signing identity
         run: |
           git fetch origin 8365a97f69663c20f765cef26de1784a4eaf5de1
@@ -102,6 +107,7 @@ jobs:
             app/build/outputs/androidTest-results/
             qa-symptom.png
             signing-readiness.txt
+            apk-signing-certificate.txt
             upgrade-result.txt
       - uses: actions/upload-artifact@v4
         with:

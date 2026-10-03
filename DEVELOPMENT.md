@@ -2,7 +2,7 @@
 
 Only this repository is modified. Existing v1 preference keys, application id and historical range fields are retained. Imported images are copied into app files; credentials are excluded from Android backups.
 
-CI runs parser tests, an Android 35 emulator, bundled ML Kit OCR against a real bitmap, report/template/history persistence, symptom UI creation/reopening/activity recreation, and an actual v1-to-current `adb install -r` data-retention check. The baseline and new test APK are built on the same runner with the same test signing identity. That verifies upgrade behavior; it does not recover signing keys from previous workflow runners.
+CI runs parser and report-format unit tests, Android 35 and 36 emulators, bundled ML Kit OCR and the gallery import/confirmation flow, report/template/history persistence, symptom UI creation/reopening/activity recreation, and an actual v1-to-current `adb install -r` data-retention check. Update tests exercise encrypted token storage, invalid/foreign/non-newer APK rejection, acceptance of a real newer APK with the installed signer, and rejection of a real newer APK with a different signer. Verification artifacts record the public APK signing certificate fingerprint; no private key or password is exported. The baseline and new test APK are built on the same runner with the same test signing identity. That verifies upgrade behavior; it does not recover signing keys from previous workflow runners.
 
 Production updates must use a persistent signing identity. GitHub Actions configuration:
 
