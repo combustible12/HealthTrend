@@ -120,6 +120,12 @@ class ReportParserTest {
   assertFalse(metricNeedsReview(known.copy(unit="",referenceLow=null,referenceHigh=null),template))
   assertTrue(metricNeedsReview(unknown,template))
  }
+ @Test fun trendPointAccessibilityIdentityKeepsMetricAndExactVisit(){
+  val first=parseDate("2026-09-25 00:00");val last=parseDate("2026-09-26 00:00")
+  assertEquals("趋势点 HGB 2026-09-25 00:00",trendPointContentDescription("HGB",first))
+  assertEquals("趋势点 HGB 2026-09-26 00:00",trendPointContentDescription("HGB",last))
+  assertNotEquals(trendPointContentDescription("HGB",first),trendPointContentDescription("HGB",last))
+ }
  @Test fun editedTrendValueRecomputesStatusButKeepsHistoricalRange(){
   val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
   val edited=x.withEditedValue(120.0);assertEquals(120.0,edited.value!!,0.0);assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0);assertEquals(ResultStatus.NORMAL,edited.status());assertTrue(edited.editedByUser)
