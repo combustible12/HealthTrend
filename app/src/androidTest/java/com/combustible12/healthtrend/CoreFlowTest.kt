@@ -147,6 +147,12 @@ class CoreFlowTest{
   val row=DraftRow.from(parsed.single()).copy(uncertain=true)
   assertTrue(row.uncertain);assertFalse(ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row)).valid())
  }
+ @Test fun actualTrendCanvasPointerTapOpensExactPoint(){
+  val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("真实触摸医院","血常规",items)
+  store.saveReport(store.buildReport("真实触摸医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template));compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(center)}
+  compose.onNodeWithText("102.0 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+ }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
   val points=listOf(parseDate("2026-09-25 00:00")!! to 102.0,parseDate("2026-09-26 00:00")!! to 120.0)
   val first=trendPointPosition(points,0,900f,112f,113.0,151.0);val last=trendPointPosition(points,1,900f,112f,113.0,151.0)
