@@ -383,4 +383,9 @@ class ReportParserTest {
   assertEquals("NRBC#",ReportParser.parse("#NRBC 有核红细胞计数 0.000 <=9999.99").single().metricKey)
  }
 
+ @Test fun numericOnlyUnitCannotBecomeDisplayedUnit(){
+  val row=DraftRow(name="有核红细胞比率",key="NRBC%",text="0.00",unit="0.00",high="9999.99").parsed()
+  assertEquals("0.00",row.textValue);assertEquals("",row.unit)
+ }
+
 }
