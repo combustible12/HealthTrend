@@ -439,4 +439,12 @@ class ReportParserTest {
   assertEquals("0.000",count.textValue);assertEquals("",count.unit);assertNull(count.referenceLow);assertEquals(9999.99,count.referenceHigh!!,0.0)
  }
 
+ @Test fun numericOnlyUnitsAreRejectedButDigitBearingRealUnitsSurvive(){
+  assertEquals("",sanitizeLabUnit("0.00"));assertEquals("",sanitizeLabUnit("109"));assertEquals("",sanitizeLabUnit(" 51 "))
+  assertEquals("10^9/L",sanitizeLabUnit("10^9/L"));assertEquals("10^12/L",sanitizeLabUnit("10^12/L"));assertEquals("mg/dL",sanitizeLabUnit("mg/dL"))
+  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("NRBC%","有核红细胞比率","0.00",null,9999.99)))
+  val applied=applyRememberedTemplate(ReportParser.parse("NRBC% 有核红细胞比率 0.00 <=9999.99"),template).single()
+  assertEquals("",applied.unit);assertEquals("0.00",applied.textValue);assertEquals(9999.99,applied.referenceHigh!!,0.0)
+ }
+
 }
