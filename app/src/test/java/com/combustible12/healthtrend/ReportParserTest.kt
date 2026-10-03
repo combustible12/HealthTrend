@@ -34,4 +34,12 @@ class ReportParserTest {
   assertTrue(text.contains("小腿酸痛：1 次"))
   assertTrue(text.contains("晚上明显\n"));assertFalse(text.contains("\\n"))
  }
+ @Test fun metadataExtractionPrefersClinicalLabelsAndInfersPanels(){
+  val blood=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 102 g/L 113-151")
+  val meta=ReportMetadata.extract("姓名 张三\n医疗机构：福建省妇幼保健院\n采样时间 2026年9月26日 08:30\nWBC 3.75\nHGB 102",blood)
+  assertEquals("福建省妇幼保健院",meta.hospital);assertEquals("2026-09-26",meta.date);assertEquals("血常规",meta.reportType)
+  assertTrue("inferred type must be confirmed",meta.uncertain.contains("type"))
+  val explicit=ReportMetadata.extract("福建省肿瘤医院\n肿瘤标志物检验报告\n报告日期：2026/09/29",emptyList())
+  assertEquals("肿瘤标志物",explicit.reportType);assertFalse(explicit.uncertain.contains("type"))
+ }
 }
