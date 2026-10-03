@@ -81,10 +81,10 @@ object ReportOcr {
 }
 
 
-data class ReportMetadata(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
+data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
 object ReportMetadata {
  private val dateRegex=Regex("(20\\d{2})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})(?:\\s*[日号]?)")
- fun extract(raw:String,items:List<ParsedLabResult>):ReportMetadata{
+ fun extract(raw:String,items:List<ParsedLabResult>):ReportMetadataResult{
   val lines=raw.lines().map{it.trim()}.filter{it.isNotBlank()}
   val hospitalCandidates=lines.map{line->line.replace(Regex("^(医院名称|送检医院|医疗机构|机构名称)\\s*[:：]\\s*"),"").trim()}
    .filter{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
@@ -108,6 +108,6 @@ object ReportMetadata {
   }
   val type=explicit.ifBlank{inferred}
   val uncertain=buildSet{if(hospital.isBlank())add("hospital");if(date.isBlank())add("date");if(explicit.isBlank())add("type")}
-  return ReportMetadata(hospital,type,date,uncertain)
+  return ReportMetadataResult(hospital,type,date,uncertain)
  }
 }
