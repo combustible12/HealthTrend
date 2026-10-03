@@ -41,7 +41,7 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&uncertain.isEmpty()&&rows.isNotEmpty()&&rows.all{it.valid()&&!it.uncertain}
+ fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -63,22 +63,11 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)};var showRaw by remember{mutableStateOf(false)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  val template=store.latestTemplate(d.hospital,d.type,d.system)
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={val problems=reportValidationProblems(d);Column{if(problems.isNotEmpty())Text("还不能保存：${problems.joinToString("；")}",color=Bad,fontSize=12.sp);Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("确认保存 · ${d.rows.size} 个项目")}}}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted);if(d.uncertain.isNotEmpty())Text("还有 ${d.uncertain.size} 项 OCR 信息需要人工确认，确认前不能保存。",color=Bad,fontSize=12.sp)}
-  run{Field(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
-  run{Field(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型");if("type" in d.uncertain){Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp);if(d.type.isNotBlank())TextButton({d=updateOcrMetadata(d,"type",d.type)}){Text("确认检查类型：${d.type}")}}}
-  run{Field(d.system,{d=retargetImportedDraft(d,store,system=it)},"设备 / 检验体系（选填）")}
-  run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
-  run{
-   Paper{Text(if(template==null)"首次确认将建立医院模板"else"已确认模板 v${template.version}",color=Accent)
-    if(templateNeedsNewVersion(template,d.parsed()))Text("单位、参考范围或项目与已确认模板不同；保存后将建立新版模板。",color=Accent)
-    if(template!=null){TextButton({d=d.copy(rows=store.applyTemplate(d.parsed(),template).mapIndexed{i,p->DraftRow.from(p).copy(id=d.rows[i].id)})}){Text("套用此医院模板的单位与参考范围")};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d.newTemplate,{d=d.copy(newTemplate=it)});Text("将本次核对保存为新版模板",modifier=Modifier.weight(1f))}}
-    Text("原有报告的历史参考范围保持原样。",fontSize=12.sp,color=Muted)
-   }
-  }
+  run{Field(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院")}
+  run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查时间 YYYY-MM-DD HH:mm")}
   if(d.images.isNotEmpty())run{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
-  if(d.ocr.isNotBlank())run{TextButton({showRaw=!showRaw}){Text(if(showRaw)"收起原始识别文字"else"检查原始识别文字 / 遗漏项目")};if(showRaw)androidx.compose.foundation.text.selection.SelectionContainer{Text(d.ocr,fontSize=13.sp)}}
   d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
   run{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
  }
@@ -88,7 +77,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:()->Unit,templateOnly:Boolean=false){Paper{
  Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));IconButton(remove){Icon(Icons.Outlined.Delete,"删除指标")}}
  Text(if(templateOnly)r.unit else "${r.text} ${r.unit}",fontSize=22.sp);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
- if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
+ TextButton(edit){Text("编辑")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
 fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(field){
@@ -107,21 +96,13 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
  }
 }
 
-fun reportValidationProblems(d:ReportDraft):List<String>{
- val problems=mutableListOf<String>()
- if(d.hospital.isBlank())problems.add("医院未填写");if(d.type.isBlank())problems.add("检查类型未填写");if(parseDate(d.date)==null)problems.add("检查日期无效")
- if("hospital" in d.uncertain)problems.add("医院待人工确认");if("type" in d.uncertain)problems.add("检查类型待人工确认");if("date" in d.uncertain)problems.add("检查日期待人工确认")
- if(d.rows.isEmpty())problems.add("没有可保存的检查项目");d.rows.forEachIndexed{i,r->if(!r.valid())problems.add("第${i+1}项字段不完整") else if(r.uncertain)problems.add("第${i+1}项尚未完成核对")}
- return problems
-}
+fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyList() else listOf("invalid")
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false){Paper{
  Text("指标")
- Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称");Field(r.key,{edit(r.copy(key=it))},"指标标识（用于关联趋势）")
+ Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
  Field(r.unit,{edit(r.copy(unit=it))},"单位")
  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
- if(r.raw.isNotBlank())Text("原文：${r.raw}",color=Muted,fontSize=12.sp)
- if(!r.valid())Text("核对项目名称、结果及参考范围；无范围可留空。",color=Bad,fontSize=12.sp)
 }}
 @Composable fun ReportDetail(r:LabReport,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double)->Unit){
  var point by remember{mutableStateOf<LabResult?>(null)};var value by remember{mutableStateOf("")};var confirmDelete by remember{mutableStateOf(false)}
