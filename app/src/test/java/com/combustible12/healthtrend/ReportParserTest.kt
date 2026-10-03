@@ -109,6 +109,19 @@ class ReportParserTest {
   assertEquals("趋势点 HGB 2026-09-26 00:00",trendPointContentDescription("HGB",last))
   assertNotEquals(trendPointContentDescription("HGB",first),trendPointContentDescription("HGB",last))
  }
+ @Test fun trendSeriesIgnoresHospitalTemplateVersionAndHistoricalRange(){
+  val old=LabResult("1","r1","霞浦县中医院","血常规",3,"WBC","白细胞",7.25,"10^9/L",5.0,9.0,1L,normalizedValue=7.25,normalizedUnit="×10^9/L")
+  val current=old.copy(id="2",reportId="r2",templateVersion=5,value=4.35,textValue="4.35",referenceLowAtTest=3.5,referenceHighAtTest=9.5,testedAtEpochMillis=2L,normalizedValue=4.35)
+  assertEquals(trendSeriesKey(old),trendSeriesKey(current))
+  assertEquals(1,listOf(old,current).groupBy(::trendSeriesKey).size)
+ }
+ @Test fun trendCardsExplainWhatCoreValuesAreUsedFor(){
+  assertEquals("免疫状态、感染风险",metricPurpose("WBC"))
+  assertTrue(requireNotNull(metricPurpose("#NEUT")).contains("骨髓抑制"))
+  assertTrue(requireNotNull(metricPurpose("HGB")).contains("贫血"))
+  assertTrue(requireNotNull(metricPurpose("PLT")).contains("出血风险"))
+  assertTrue(requireNotNull(metricPurpose("ALT")).contains("肝"))
+ }
  @Test fun editedTrendValueRecomputesStatusButKeepsHistoricalRange(){
   val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
   val edited=x.withEditedValue(120.0);assertEquals(120.0,edited.value!!,0.0);assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0);assertEquals(ResultStatus.NORMAL,edited.status());assertTrue(edited.editedByUser)
