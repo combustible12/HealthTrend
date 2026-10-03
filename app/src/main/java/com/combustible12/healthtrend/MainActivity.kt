@@ -174,8 +174,9 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  }
  val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points,referenceLow,referenceHigh,density){
   awaitEachGesture{
-   val down=awaitFirstDown(requireUnconsumed=false);val up=waitForUpOrCancellation()
-   if(up!=null){val hit=nearestTrendPoint(points,up.position,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density));if(hit!=null)onPointClick(hit)}
+   val down=awaitFirstDown(requireUnconsumed=false);val start=down.position;val up=waitForUpOrCancellation()
+   if(up!=null){val dx=up.position.x-start.x;val dy=up.position.y-start.y;val slop=viewConfiguration.touchSlop
+    if(dx*dx+dy*dy<=slop*slop){val hit=nearestTrendPoint(points,up.position,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density));if(hit!=null)onPointClick(hit)}}
   }
  }
  val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
