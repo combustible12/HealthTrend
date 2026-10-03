@@ -48,6 +48,7 @@ class ProductionUpdateTest {
    updater.install(downloaded)
    Intents.intended(hasAction(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
    assertTrue("Pending APK survives installer permission handoff",downloaded.exists())
+   assertEquals(downloaded.absolutePath,updater.resumableDownloadedApk()?.absolutePath)
   } finally { Intents.release() }
  }
 
