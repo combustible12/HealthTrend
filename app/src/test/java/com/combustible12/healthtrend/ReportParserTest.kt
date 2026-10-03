@@ -121,7 +121,7 @@ class ReportParserTest {
   assertTrue(metricNeedsReview(unknown,template))
  }
  @Test fun editedTrendValueRecomputesStatusButKeepsHistoricalRange(){
-  val x=LabResult(rawName="HGB",metricKey="HGB",textValue="102",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0)
+  val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
   val edited=x.withEditedValue(120.0);assertEquals(120.0,edited.value!!,0.0);assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0);assertEquals(ResultStatus.NORMAL,edited.status());assertTrue(edited.editedByUser)
  }
  @Test fun reportValidationNamesEveryRemainingOcrBlocker(){
