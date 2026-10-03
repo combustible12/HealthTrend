@@ -29,6 +29,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.roundToInt
 import java.time.*
 import java.time.format.DateTimeFormatter
 
@@ -123,7 +126,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
-     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
+     BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
+      val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()};val half=with(density){24.dp.toPx()}
+      Spark(chartPoints,Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
+      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);Box(Modifier.offset{IntOffset((p.x-half).roundToInt(),(p.y-half).roundToInt())}.size(48.dp).clearAndSetSemantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}";onClick(label="打开该数据点"){selected=series[index];true}}.clickable{selected=series[index]})}
+     }
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
@@ -144,6 +151,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }
+}
+fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
+ val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index];val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat();val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
 }
 fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null,radius:Float):Int?{
  if(points.isEmpty()||width<=0f||height<=0f||radius<0f)return null
