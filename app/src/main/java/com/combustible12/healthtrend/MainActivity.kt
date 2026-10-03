@@ -127,7 +127,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
       val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()}
       Spark(chartPoints,Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
-      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.size(48.dp).layout{measurable,constraints->val placeable=measurable.measure(constraints);layout(placeable.width,placeable.height){placeable.placeRelative((px-24.dp).roundToPx(),(py-24.dp).roundToPx())}}.clickable{selected=series[index]}.semantics{contentDescription="趋势点 $key ${dateText(series[index].first.testedAtEpochMillis)}"})}
+      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.size(48.dp).layout{measurable,constraints->val placeable=measurable.measure(constraints);layout(placeable.width,placeable.height){placeable.placeRelative((px-24.dp).roundToPx(),(py-24.dp).roundToPx())}}.clickable{selected=series[index]}.semantics{contentDescription=trendPointContentDescription(key,series[index].first.testedAtEpochMillis)})}
      }
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
@@ -150,6 +150,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }})
  }
 }
+fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index];val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat();val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
 }
