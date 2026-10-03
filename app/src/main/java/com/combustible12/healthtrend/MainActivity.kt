@@ -170,10 +170,12 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat()
   val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
  }
- val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points){detectTapGestures{tap->
-  val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density))
-  if(hit!=null)onPointClick(hit)
- }}
+ val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points,referenceLow,referenceHigh,density){
+  awaitEachGesture{
+   val down=awaitFirstDown(requireUnconsumed=false);val up=waitForUpOrCancellation()
+   if(up!=null){val hit=nearestTrendPoint(points,up.position,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density));if(hit!=null)onPointClick(hit)}
+  }
+ }
  val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
  Box(Modifier.fillMaxWidth().height(112.dp)){
   Canvas(Modifier.matchParentSize().then(interaction).then(semantics)){
