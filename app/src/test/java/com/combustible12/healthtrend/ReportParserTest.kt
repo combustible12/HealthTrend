@@ -24,8 +24,11 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   val draft=pastedReportDraft(raw)
   assertEquals("2026-09-29",draft.date);assertEquals("肾功能",draft.type);assertEquals("UREA",draft.rows.single().key);assertEquals("5.2",draft.rows.single().text)
  }
- @Test fun trendDateLabelsStaySparseOnLongSeries(){
-  assertEquals(listOf(0,1,2),trendDateLabelIndices(3));assertEquals(listOf(0,3),trendDateLabelIndices(4));assertEquals(listOf(0,9),trendDateLabelIndices(10))
+ @Test fun trendLabelsKeepCompactDatesValuesAndYearContext(){
+  val first=parseDate("2026-09-18")!!;val last=parseDate("2026-09-26")!!
+  assertEquals("09-18",trendShortDate(first));assertEquals("2026年",trendYearLabel(listOf(first to 7.25,last to 3.75)))
+  assertEquals("2025–2026年",trendYearLabel(listOf(parseDate("2025-12-31")!! to 1.0,last to 2.0)))
+  assertEquals("7.25",formatTrendValue(7.25));assertEquals("3",formatTrendValue(3.0))
  }
 @Test fun patientProfilePersistsIndependentlyFromClinicalRecords(){
   // Model-level contract: patient identity can exist without becoming report metadata.
@@ -101,6 +104,11 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
    val p=trendPointPosition(points,index,320f,112f,100.0,151.0)
    assertEquals(index,nearestTrendPoint(points,p,320f,112f,100.0,151.0,1f))
   }
+ }
+ @Test fun trendPointsUseEvenHorizontalSlotsSoValueAndDateLabelsCannotCollide(){
+  val points=listOf(0L to 7.25,5L to 4.35,6L to 2.36,7L to 3.75)
+  val positions=points.indices.map{trendPointPosition(points,it,256f,150f)}
+  assertTrue(positions.zipWithNext().all{(a,b)->b.x-a.x>=60f})
  }
  @Test fun trendPointHitTestingCoversEdgesAndInvalidGeometry(){
   val points=listOf(0L to 100.0,100L to 120.0)
