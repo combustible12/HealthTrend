@@ -124,7 +124,7 @@ class CoreFlowTest{
     // genuinely missing unit, then confirms the row without discarding clinical history.
     compose.onNodeWithText("完成核对").performClick()
    }
-   compose.onNode(hasText("确认保存",substring=true)).assertIsEnabled().performClick()
+   val save=compose.onNode(hasText("确认保存",substring=true));if(compose.onAllNodes(hasText("还不能保存：",substring=true)).fetchSemanticsNodes().isNotEmpty()){val blockers=compose.onAllNodes(hasText("还不能保存：",substring=true)).fetchSemanticsNodes().joinToString{it.config.toString()};throw AssertionError("OCR save blockers after explicit review: $blockers")};save.assertIsEnabled().performClick()
   }finally{androidx.test.espresso.intent.Intents.release()}
   val report=HealthStore(context).reports().single()
   assertEquals("相册测试医院",report.hospitalKey)
