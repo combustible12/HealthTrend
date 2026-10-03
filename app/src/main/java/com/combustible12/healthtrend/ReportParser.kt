@@ -51,8 +51,10 @@ object ReportParser {
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
   val unitSource=(if(limitMatch!=null)suffix.substring(limitMatch.range.last+1)else suffix).trim().trim('↑','↓','*',' ','|')
-  val unit=Regex("(?i)^(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").find(unitSource)?.value?.replace(" ","").orEmpty()
-  val k=key(name)
+  val ocrUnit=Regex("(?i)^(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").find(unitSource)?.value?.replace(" ","").orEmpty()
+  val explicitCode=knownCode.find(name)?.value?.uppercase()
+  val k=explicitCode?.let{if(it=="CRE")"CREA" else it} ?: key(name)
+  val unit=resolvedUnit(k,ocrUnit)
   if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue,rawValue.takeWhile{it in "<>≤≥"})
  }
