@@ -1,6 +1,10 @@
 package com.combustible12.healthtrend
 
 import android.net.Uri
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -18,10 +22,17 @@ import kotlin.coroutines.resumeWithException
 
 class ImportActions(val camera:()->Unit,val gallery:()->Unit,val manual:()->Unit,val busy:Boolean,val message:String)
 private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnSuccessListener{if(c.isActive)c.resume(it)}.addOnFailureListener{if(c.isActive)c.resumeWithException(it)}.addOnCanceledListener{c.cancel()}}
-@Composable fun rememberReportImport(store:HealthStore,ready:(ReportDraft)->Unit,error:(String)->Unit):ImportActions {
- val context=LocalContext.current;val scope=rememberCoroutineScope();var busy by remember{mutableStateOf(false)};var message by remember{mutableStateOf("")};var cameraUri by rememberSaveable{mutableStateOf<Uri?>(null)}
+class ReportImportViewModel(application:Application):AndroidViewModel(application){
+ private val context=application.applicationContext
+ private val store=HealthStore(context)
+ var busy by mutableStateOf(false);private set
+ var message by mutableStateOf("");private set
+ var pendingDraft by mutableStateOf<ReportDraft?>(null);private set
+ var pendingError by mutableStateOf<String?>(null);private set
+ fun consumeDraft(){pendingDraft=null}
+ fun consumeError(){pendingError=null}
  fun recognize(uris:List<Uri>){if(uris.isEmpty()||busy)return;busy=true;message="正在保存原图和识别报告…"
-  scope.launch{
+  viewModelScope.launch{
    val owned=mutableListOf<String>();val texts=mutableListOf<String>();val failures=mutableListOf<String>()
    try{
     val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
@@ -32,21 +43,29 @@ private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnS
       val input=withContext(Dispatchers.IO){InputImage.fromBitmap(decodeReportBitmap(context,Uri.parse(saved),maxDimension=12000),0)}
       val t=recognizer.process(input).result()
       texts.add(ReportOcr.tableText(t))
-     }catch(e:Exception){failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
+     }catch(e:Exception){if(e is CancellationException)throw e;failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
     }}finally{recognizer.close()}
     val raw=texts.joinToString("\n\n");val parsed=ReportParser.parse(raw)
     val hospital=raw.lines().firstOrNull{it.length<70&&(it.contains("医院")||it.contains("保健院"))}.orEmpty()
     val date=Regex("(20\\d{2})[-/年.](\\d{1,2})[-/月.](\\d{1,2})").find(raw)?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
     val type=when{raw.contains("肝功能")->"肝功能";raw.contains("肾功能")->"肾功能";raw.contains("血常规")->"血常规";else->"检查报告"}
     val template=store.latestTemplate(hospital,type)
-    ready(ReportDraft(hospital,type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)}))
+    pendingDraft=ReportDraft(hospital,type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)})
     message=(failures+"已保留 ${owned.size} 页原图，识别 ${parsed.size} 个项目，请逐项核对。").joinToString("\n")
-   }catch(e:Exception){error("报告导入未完成：${e.message}")}finally{busy=false}
+   }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
  }
- val gallery=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){recognize(it)}
- val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()){success->val uri=cameraUri;if(success&&uri!=null)recognize(listOf(uri));cameraUri=null}
- return ImportActions(camera={if(!busy)try{val dir=File(context.cacheDir,"capture").apply{mkdirs()};val file=File.createTempFile("report-",".jpg",dir);val uri=FileProvider.getUriForFile(context,context.packageName+".files",file);cameraUri=uri;camera.launch(uri)}catch(e:Exception){error("无法启动相机：${e.message}")}},gallery={if(!busy)gallery.launch(arrayOf("image/*"))},manual={ready(ReportDraft(rows=listOf(DraftRow())))},busy=busy,message=message)
+
+}
+@Composable fun rememberReportImport(store:HealthStore,ready:(ReportDraft)->Unit,error:(String)->Unit,deliver:Boolean=true):ImportActions {
+ val context=LocalContext.current
+ val model:ReportImportViewModel=viewModel()
+ var cameraUri by rememberSaveable{mutableStateOf<Uri?>(null)}
+ LaunchedEffect(model.pendingDraft,deliver){if(deliver)model.pendingDraft?.let{ready(it);model.consumeDraft()}}
+ LaunchedEffect(model.pendingError){model.pendingError?.let{error(it);model.consumeError()}}
+ val gallery=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){model.recognize(it)}
+ val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()){success->val uri=cameraUri;if(success&&uri!=null)model.recognize(listOf(uri));cameraUri=null}
+ return ImportActions(camera={if(!model.busy)try{val dir=File(context.cacheDir,"capture").apply{mkdirs()};val file=File.createTempFile("report-",".jpg",dir);val uri=FileProvider.getUriForFile(context,context.packageName+".files",file);cameraUri=uri;camera.launch(uri)}catch(e:Exception){error("无法启动相机：${e.message}")}},gallery={if(!model.busy)gallery.launch(arrayOf("image/*"))},manual={if(!model.busy)ready(ReportDraft(rows=listOf(DraftRow())))},busy=model.busy,message=model.message)
 }
 
 /** Spatial reconstruction prevents OCR block order from separating a result from its name. */

@@ -107,6 +107,7 @@ class CoreFlowTest{
    val response=android.content.Intent().setData(selected).addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
    androidx.test.espresso.intent.Intents.intending(androidx.test.espresso.intent.matcher.IntentMatchers.hasAction(android.content.Intent.ACTION_OPEN_DOCUMENT)).respondWith(android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,response))
    compose.onNodeWithText("相册导入").performClick()
+   compose.activityRule.scenario.recreate()
    compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
    compose.onNode(hasText("确认保存",substring=true)).assertIsNotEnabled()
    compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
