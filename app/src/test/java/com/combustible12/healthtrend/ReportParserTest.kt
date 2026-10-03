@@ -237,4 +237,11 @@ class ReportParserTest {
   assertEquals(1,nearestTrendPoint(points,last,width,height,113.0,151.0,radius))
  }
 
+ @Test fun trendTapMovementAtTouchSlopBoundaryIsDeterministic(){
+  fun isTap(dx:Float,dy:Float,slop:Float)=dx*dx+dy*dy<=slop*slop
+  assertTrue(isTap(8f,6f,10f))
+  assertFalse(isTap(8.1f,6f,10f))
+  assertTrue(isTap(0f,0f,10f))
+ }
+
 }
