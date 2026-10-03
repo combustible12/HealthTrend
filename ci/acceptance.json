@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "c28174ccc79ba4a08d5dffc4cef28f88ae255486",
-  "requestedAt": "2026-10-03",
-  "scope": "Android 16 template-driven OCR, migration, persistence and update acceptance"
+  "sourceCommit": "cffa0569811c9d0a49d81880c9ea054eae6e797a",
+  "requestedAt": "2026-10-04",
+  "scope": "Android 16 unified metric curves, clinical purpose labels, persistence and update acceptance"
 }
