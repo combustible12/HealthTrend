@@ -254,7 +254,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      (at.x.toInt()-targetPx/2).coerceIn(0,(chartWidth-targetPx).coerceAtLeast(0)),
      (at.y.toInt()-targetPx/2).coerceIn(0,(plotHeightPx-targetPx).coerceAtLeast(0))
     )
-   }.size(48.dp).semantics(mergeDescendants=false){
+   }.requiredSize(48.dp).semantics(mergeDescendants=false){
     contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
     onClick(label="打开该数据点"){onPointClick(i);true}
    })
