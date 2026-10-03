@@ -125,11 +125,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
-     BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
-      val chartPoints=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!};val density=LocalDensity.current;val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()}
-      Spark(chartPoints,Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
-      series.indices.forEach{index->val p=trendPointPosition(chartPoints,index,w,h,bounds.first,bounds.second);val px=with(density){p.x.toDp()};val py=with(density){p.y.toDp()};Box(Modifier.size(48.dp).layout{measurable,constraints->val placeable=measurable.measure(constraints);layout(constraints.maxWidth,constraints.maxHeight){placeable.placeRelative((px-24.dp).roundToPx(),(py-24.dp).roundToPx())}}.clearAndSetSemantics{contentDescription=trendPointContentDescription(key,series[index].first.testedAtEpochMillis);onClick(label="打开该数据点"){selected=series[index];true}}.clickable{selected=series[index]})}
-     }
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key)
+
     }
     points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
