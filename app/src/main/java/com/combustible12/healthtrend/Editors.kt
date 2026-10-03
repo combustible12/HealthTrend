@@ -39,10 +39,10 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
  fun valid()=name.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
  companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine)}
 }
-data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
+data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
  fun valid()=hospital.isNotBlank()&&type.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
- companion object{fun from(r:LabReport)=ReportDraft(r.hospitalKey,r.reportType,r.systemKey,dateText(r.testedAtEpochMillis),r.sourceImages.map{it.uri},r.rawOcr,r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},false,r)}
+ companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
 @Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
@@ -66,7 +66,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("确认保存 · ${d.rows.size} 个项目")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{Text("逐项核对名称、结果、单位、参考范围和检查日期。未识别项目可手动添加。",color=Muted)}
-  run{Field(d.hospital,{d=d.copy(hospital=it)},"医院")};run{Field(d.type,{d=d.copy(type=it)},"检查类型")};run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")};run{Field(d.date,{d=d.copy(date=it)},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null)Text("请核对并填写实际检查日期",color=Bad)}
+  run{Field(d.hospital,{d=d.copy(hospital=it,uncertain=d.uncertain-"hospital")},"医院");if("hospital" in d.uncertain)Text("OCR 未能可靠确认医院，请人工核对。",color=Bad,fontSize=12.sp)}
+  run{Field(d.type,{d=d.copy(type=it,uncertain=d.uncertain-"type")},"检查类型");if("type" in d.uncertain)Text("检查类型由指标推断或未明确识别，请人工确认。",color=Bad,fontSize=12.sp)}
+  run{Field(d.system,{d=d.copy(system=it)},"设备 / 检验体系（选填）")}
+  run{Field(d.date,{d=d.copy(date=it,uncertain=d.uncertain-"date")},"检查时间 YYYY-MM-DD HH:mm");if(parseDate(d.date)==null||"date" in d.uncertain)Text("OCR 未能可靠确认检查日期，请人工核对并填写实际日期。",color=Bad,fontSize=12.sp)}
   run{
    Paper{Text(if(template==null)"首次确认将建立医院模板"else"已确认模板 v${template.version}",color=Accent)
     if(template!=null){TextButton({d=d.copy(rows=store.applyTemplate(d.parsed(),template).mapIndexed{i,p->DraftRow.from(p).copy(id=d.rows[i].id)})}){Text("套用此医院模板的单位与参考范围")};Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d.newTemplate,{d=d.copy(newTemplate=it)});Text("将本次核对保存为新版模板",modifier=Modifier.weight(1f))}}
