@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,7 +58,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val m=Modifier.padding(padding)
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2;recordsFilter="全部"})
-   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{report=it})
+   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{report=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
    2->Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())})
    3->Mine(m,templates,{template=it},store,{error=it})
   }
@@ -94,10 +96,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }}
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");Text("查看指标和原报告 →",color=Accent)}}
-@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,open:(LabReport)->Unit){
+@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,open:(LabReport)->Unit,edit:(LabReport,LabResult,Double)->Unit){
  var category by rememberSaveable{mutableStateOf("全部")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
+ var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
+ var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  val all=reports.flatMap{r->r.results.map{r to it}}.groupBy{it.second.metricKey}
- Screen(m,"指标趋势","每个数据点保留当次检查的单位与参考范围"){
+ Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部")+reports.map{it.reportType}.distinct()).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
@@ -112,30 +116,53 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    Paper{
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp)};Text(latest.textValue,fontSize=27.sp,fontWeight=FontWeight.Bold,color=statusColor(latest.status()))}
     Text("${latest.unitAtTest} · 当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
-    // Normalize only known-safe conversions; never join different hospital/reference systems.
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{val bounds=it.second.trendReferenceRange();listOf(it.second.normalizedUnit,it.first.hospitalKey,it.first.systemKey,it.first.templateVersion,bounds.first,bounds.second)}.forEach{(_,series)->
      val sx=series.last().second
      Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
-     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second)
+     Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second){index->selected=series[index]}
     }
-    points.forEach{(r,x)->TextButton({open(r)},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
+    points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${x.unitAtTest}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
   }
  }
+ selected?.let{(r,x)->
+  AlertDialog(onDismissRequest={selected=null;editing=false},title={Text(x.rawName)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
+   Text("${x.textValue} ${x.unitAtTest}",fontSize=24.sp,fontWeight=FontWeight.Bold,color=statusColor(x.status()))
+   Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)} · ${x.status().label()}",color=Muted)
+   if(editing)OutlinedTextField(editValue,{editValue=it},label={Text("结果")},singleLine=true)
+  }},confirmButton={
+   if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);selected=r to x.withEditedValue(v);editing=false}}){Text("保存")}
+   else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
+  },dismissButton={Row{
+   if(r.sourceImages.isNotEmpty())TextButton({selected=null;open(r)}){Text("查看原报告")}
+   TextButton({selected=null;editing=false}){Text("关闭")}
+  }})
+ }
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null){Canvas(Modifier.fillMaxWidth().height(112.dp)){
- if(points.isEmpty())return@Canvas
- val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh)
- val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
- val start=points.minOf{it.first};val time=(points.maxOf{it.first}-start).coerceAtLeast(1L)
- fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
- fun position(p:Pair<Long,Double>)=Offset(if(points.size==1)size.width/2 else (8.dp.toPx()+(size.width-16.dp.toPx())*(p.first-start).toDouble()/time).toFloat(),y(p.second))
- if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
- val path=Path();points.forEachIndexed{i,p->val at=position(p);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)}
- drawPath(path,color,style=Stroke(2.dp.toPx()));points.forEach{drawCircle(color,4.dp.toPx(),position(it))}
-}}
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null){
+ fun pointPosition(index:Int,width:Float,height:Float):Offset{
+  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+  val start=points.minOfOrNull{it.first}?:0L;val time=((points.maxOfOrNull{it.first}?:start)-start).coerceAtLeast(1L);val p=points[index]
+  val x=if(points.size==1)width/2 else (8f+(width-16f)*(p.first-start).toDouble()/time).toFloat()
+  val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
+ }
+ val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points){detectTapGestures{tap->
+  if(points.isNotEmpty()){val hit=points.indices.minByOrNull{i->val p=pointPosition(i,size.width.toFloat(),size.height.toFloat());(p.x-tap.x)*(p.x-tap.x)+(p.y-tap.y)*(p.y-tap.y)}
+   if(hit!=null){val p=pointPosition(hit,size.width.toFloat(),size.height.toFloat());val dx=p.x-tap.x;val dy=p.y-tap.y;if(dx*dx+dy*dy<=48.dp.toPx()*48.dp.toPx())onPointClick(hit)}
+  }
+ }}
+ Canvas(Modifier.fillMaxWidth().height(112.dp).then(interaction)){
+  if(points.isEmpty())return@Canvas
+  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+  fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+  if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+  val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)}
+  drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
+ }
+}
 
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
