@@ -152,8 +152,12 @@ class CoreFlowTest{
  @Test fun actualTrendCanvasPointerTapOpensExactPoint(){
   val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("真实触摸医院","血常规",items)
   store.saveReport(store.buildReport("真实触摸医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template));compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo()
   val chart=compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).fetchSemanticsNode()
   val point=trendPointPosition(listOf(parseDate("2026-09-26")!! to 102.0),0,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0)
+  val target=compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue("Trend accessibility target is too small: $target",target.width>=44f*context.resources.displayMetrics.density)
+  assertTrue("Trend accessibility target misses the plotted point: $target",kotlin.math.abs(target.center.x-chart.boundsInRoot.left-point.x)<=24f*context.resources.displayMetrics.density)
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
   assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,trendPointTouchRadiusPx(context.resources.displayMetrics.density)))
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
@@ -170,14 +174,14 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("曲线点击医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").assertExists()
  }
  @Test fun multiPointTrendCanOpenFirstPointIndependently(){
   val store=HealthStore(context);val first=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("独立点医院","血常规",first)
   store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-25")!!,emptyList(),first,template));val second=ReportParser.parse("HGB 120 g/L 113-151");store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
-  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendChartAccessibilitySelectsLatestPointInMultiPointSeries(){
   val store=HealthStore(context)
@@ -188,7 +192,7 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("多点曲线医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
   compose.onNodeWithText("120 g/L").assertExists()
   compose.onNodeWithText("当次参考：113.0–151.0 · 正常").assertExists()
  }
@@ -200,7 +204,7 @@ class CoreFlowTest{
   store.saveReport(store.buildReport("趋势原图医院","血常规",parseDate("2026-09-26")!!,listOf(owned),items,t))
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
   assertTrue("Trend selection did not expose its original report:\n"+compose.onRoot(useUnmergedTree=true).printToString(),compose.onAllNodesWithText("查看原报告").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("查看原报告").performClick()
   compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
@@ -225,6 +229,7 @@ class CoreFlowTest{
   compose.onNodeWithText("102").assertExists()
   // Exercise the actual chart instead of depending on an off-screen history row.
   val reportDate=HealthStore(context).reports().single().testedAtEpochMillis
+  compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo()
   compose.onNodeWithContentDescription(trendPointContentDescription("HGB",reportDate),useUnmergedTree=true).assertHasClickAction().performClick()
   compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
   compose.onNodeWithText("编辑数值").performClick()

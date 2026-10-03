@@ -180,7 +180,10 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   }
  }
  val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
- Box(Modifier.fillMaxWidth().height(112.dp)){
+ BoxWithConstraints(Modifier.fillMaxWidth().height(112.dp)){
+  val targetPx=with(LocalDensity.current){48.dp.roundToPx()}
+  val chartWidth=constraints.maxWidth
+  val chartHeight=constraints.maxHeight
   Canvas(Modifier.matchParentSize().then(interaction).then(semantics)){
   if(points.isEmpty())return@Canvas
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
@@ -189,12 +192,18 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else path.lineTo(at.x,at.y)}
   drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
   }
-  if(onPointClick!=null) Column(Modifier.align(Alignment.BottomStart).width(1.dp)){points.indices.forEach{i->
-   Box(Modifier.size(1.dp).semantics(mergeDescendants=false){
+  if(onPointClick!=null)points.indices.forEach{i->
+   val at=pointPosition(i,chartWidth.toFloat(),chartHeight.toFloat())
+   Box(Modifier.offset {
+    androidx.compose.ui.unit.IntOffset(
+     (at.x.toInt()-targetPx/2).coerceIn(0,(chartWidth-targetPx).coerceAtLeast(0)),
+     (at.y.toInt()-targetPx/2).coerceIn(0,(chartHeight-targetPx).coerceAtLeast(0))
+    )
+   }.size(48.dp).semantics(mergeDescendants=false){
     contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"
     onClick(label="打开该数据点"){onPointClick(i);true}
    })
-  }}
+  }
  }
 }
 
