@@ -66,6 +66,12 @@ class ReportParserTest {
   assertEquals(113.0,edited.referenceLowAtTest!!,0.0);assertEquals(151.0,edited.referenceHighAtTest!!,0.0)
   assertEquals("g/L",edited.normalizedUnit);assertEquals(120.0,edited.normalizedValue!!,0.0);assertTrue(edited.editedByUser)
  }
+ @Test fun unconfirmedTemplateNeverSuppressesOcrReview(){
+  val row=ParsedLabResult("HGB","血红蛋白",102.0,"",null,null,"HGB 102",true)
+  val draftTemplate=HospitalLabTemplate("医院","血常规",1,false,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
+  assertTrue(metricNeedsReview(row,draftTemplate))
+  assertFalse(metricNeedsReview(row,draftTemplate.copy(confirmed=true)))
+ }
  @Test fun templateReviewDoesNotTrustUnknownMetricJustBecauseTemplateExists(){
   val known=ParsedLabResult("HGB","血红蛋白",102.0,"g/L",113.0,151.0,"HGB 102",true)
   val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
