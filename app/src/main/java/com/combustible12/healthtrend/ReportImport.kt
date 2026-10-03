@@ -46,9 +46,10 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
      }catch(e:Exception){if(e is CancellationException)throw e;failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
     }}finally{recognizer.close()}
     val raw=texts.joinToString("\n\n");val parsed=ReportParser.parse(raw)
-    val hospital=raw.lines().firstOrNull{it.length<70&&(it.contains("医院")||it.contains("保健院"))}.orEmpty()
-    val date=Regex("(20\\d{2})[-/年.](\\d{1,2})[-/月.](\\d{1,2})").find(raw)?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
-    val type=when{raw.contains("肝功能")->"肝功能";raw.contains("肾功能")->"肾功能";raw.contains("血常规")->"血常规";else->"检查报告"}
+    val meta=ReportMetadata.extract(raw,parsed)
+    val hospital=meta.hospital
+    val date=meta.date
+    val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
     pendingDraft=ReportDraft(hospital,type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{DraftRow.from(it)})
     message=(failures+"已保留 ${owned.size} 页原图，识别 ${parsed.size} 个项目，请逐项核对。").joinToString("\n")
@@ -76,5 +77,37 @@ object ReportOcr {
   lines.forEach{line->val box=line.boundingBox!!;val group=groups.lastOrNull();val base=group?.firstOrNull()?.boundingBox
    if(base!=null && kotlin.math.abs(box.centerY()-base.centerY())<=minOf(box.height(),base.height())*.5)group.add(line)else groups.add(mutableListOf(line))}
   return groups.joinToString("\n"){row->row.sortedBy{it.boundingBox!!.left}.joinToString("  "){line->line.elements.joinToString(" "){it.text}}}
+ }
+}
+
+
+data class ReportMetadata(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
+object ReportMetadata {
+ private val dateRegex=Regex("(20\\d{2})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})(?:\\s*[日号]?)")
+ fun extract(raw:String,items:List<ParsedLabResult>):ReportMetadata{
+  val lines=raw.lines().map{it.trim()}.filter{it.isNotBlank()}
+  val hospitalCandidates=lines.map{line->line.replace(Regex("^(医院名称|送检医院|医疗机构|机构名称)\\s*[:：]\\s*"),"").trim()}
+   .filter{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
+  val hospital=hospitalCandidates.minByOrNull{it.length}.orEmpty()
+  val dates=lines.filter{line->listOf("检验","检查","采样","报告","日期","时间").any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
+   .ifEmpty{dateRegex.findAll(raw).toList()}
+  val date=dates.firstOrNull()?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
+  val explicit=when{
+   raw.contains("血常规")||raw.contains("血细胞分析")->"血常规"
+   raw.contains("肝功能")->"肝功能"
+   raw.contains("肾功能")->"肾功能"
+   raw.contains("肿瘤标志")||raw.contains("肿瘤标记")->"肿瘤标志物"
+   else->""
+  }
+  val keys=items.map{it.metricKey}.toSet()
+  val inferred=when{
+   keys.intersect(setOf("WBC","NEUT#","HGB","PLT","RBC")).size>=2->"血常规"
+   keys.intersect(setOf("ALT","AST","TBIL","ALB")).size>=2->"肝功能"
+   keys.intersect(setOf("CREA","UREA","UA")).size>=2->"肾功能"
+   else->"检查报告"
+  }
+  val type=explicit.ifBlank{inferred}
+  val uncertain=buildSet{if(hospital.isBlank())add("hospital");if(date.isBlank())add("date");if(explicit.isBlank())add("type")}
+  return ReportMetadata(hospital,type,date,uncertain)
  }
 }
