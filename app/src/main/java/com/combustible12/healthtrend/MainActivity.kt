@@ -175,7 +175,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   val hit=nearestTrendPoint(points,tap,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,48.dp.toPx())
   if(hit!=null)onPointClick(hit)
  }}
- val semantics=if(onPointClick==null)Modifier else Modifier.semantics(mergeDescendants=true){contentDescription="趋势图 $metricKey";onClick(label="打开最近数据点"){if(points.isEmpty())false else {onPointClick(points.lastIndex);true}}}
+ val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
  Canvas(Modifier.fillMaxWidth().height(112.dp).then(interaction).then(semantics)){
   if(points.isEmpty())return@Canvas
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
