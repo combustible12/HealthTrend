@@ -105,11 +105,13 @@ object ReportMetadata {
    candidate.takeIf{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
   }
   val hospital=hospitalCandidates.minByOrNull{it.length}.orEmpty()
-  val labelledDates=lines.filter{line->listOf("检验","检查","采样","报告","日期","时间").any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
-  // Prefer explicitly labelled clinical dates. Fall back only when the document contains
-  // exactly one separated calendar date, avoiding unrelated IDs or multiple ambiguous dates.
+  val clinicalDateLabels=listOf("采样日期","采样时间","检验日期","检验时间","检查日期","检查时间","报告日期","报告时间")
+  val clinicalDates=lines.filter{line->clinicalDateLabels.any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
+  // Patient identity fields and report timing are separate domains. Generic date/time labels
+  // are accepted only when unambiguous and never allowed to override an explicit clinical date.
+  val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&!line.contains("出生")&&!line.contains("生日")}.mapNotNull{dateRegex.find(it)}
   val fallbackDates=dateRegex.findAll(raw).toList()
-  val dates=if(labelledDates.isNotEmpty())labelledDates else if(fallbackDates.size==1)fallbackDates else emptyList()
+  val dates=when{clinicalDates.isNotEmpty()->clinicalDates;genericDates.size==1->genericDates;fallbackDates.size==1->fallbackDates;else->emptyList()}
   val date=dates.firstOrNull()?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
   val explicit=when{
    raw.contains("血常规")||raw.contains("血细胞分析")->"血常规"
