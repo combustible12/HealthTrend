@@ -70,13 +70,20 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  val context=LocalContext.current
  var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
+ var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
  Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
+  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   if(d.images.isNotEmpty())run{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
-  d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})}
-  run{OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")};Spacer(Modifier.height(12.dp))}
+  val activeTemplate=store.latestTemplate(d.hospital,d.type,d.system)
+  d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)}
+  run{
+   if(activeTemplate==null||structureUnlocked)OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")}
+   else TextButton({structureUnlocked=true}){Text("本次报告项目有变化")}
+   Spacer(Modifier.height(12.dp))
+  }
  }
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->
@@ -85,8 +92,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed)
  }
 }
-@Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:()->Unit,templateOnly:Boolean=false){Paper{
- Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));IconButton(remove){Icon(Icons.Outlined.Delete,"删除指标")}}
+@Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Paper{
+ Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
  if(templateOnly)Text(displayLabUnit(r.unit),fontSize=22.sp) else ResultValueUnit(r.text,r.unit);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  TextButton(edit){Text("编辑")}
 }}

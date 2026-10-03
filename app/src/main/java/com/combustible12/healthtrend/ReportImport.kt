@@ -134,19 +134,38 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
  }
  return template.fields.map{field->
   val source=take(field)
+  val reliable=source?.let{templateResultIsIndependent(it,field)}==true
   ParsedLabResult(
    metricKey=ReportParser.key(field.metricKey),
    displayName=field.displayName,
-   value=source?.value,
+   value=source?.value?.takeIf{reliable},
    unit=displayLabUnit(field.unit),
    referenceLow=field.referenceLow,
    referenceHigh=field.referenceHigh,
    rawLine=source?.rawLine.orEmpty(),
    primary=ReportParser.key(field.metricKey) in ReportParser.primaryKeys,
-   textValue=source?.textValue.orEmpty(),
-   comparator=source?.comparator.orEmpty()
+   textValue=source?.textValue?.takeIf{reliable}.orEmpty(),
+   comparator=source?.comparator?.takeIf{reliable}.orEmpty()
   )
  }
+}
+
+/**
+ * A template range printed without a readable result must never be promoted to the
+ * visit value.  This is the dangerous OCR shape behind "2.00" replacing "2.57".
+ */
+internal fun templateResultIsIndependent(source:ParsedLabResult,field:LabFieldTemplate):Boolean{
+ if(source.textValue.isBlank())return false
+ val cleaned=source.rawLine
+  .replace(Regex("(?i)[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]")," ")
+  .replace(Regex("^\\s*\\d+[.、]?\\s+(?=[A-Za-z#%\\p{IsHan}])"),"")
+  .replace(Regex("(?<=\\d)\\s*(?:-{1,2}|–|—|~|～|至)\\s*(?=\\d)")," ")
+ val numbers=Regex("(?<![A-Za-z\\d.^])[-+]?\\d+(?:\\.\\d+)?").findAll(cleaned).mapNotNull{it.value.toDoubleOrNull()}.toList()
+ fun same(a:Double,b:Double?)=b!=null&&kotlin.math.abs(a-b)<=1e-9
+ if(field.referenceLow!=null&&field.referenceHigh!=null&&numbers.size==2&&same(numbers[0],field.referenceLow)&&same(numbers[1],field.referenceHigh))return false
+ if(field.referenceLow==null&&field.referenceHigh!=null&&numbers.size==1&&same(numbers[0],field.referenceHigh))return false
+ if(field.referenceLow!=null&&field.referenceHigh==null&&numbers.size==1&&same(numbers[0],field.referenceLow))return false
+ return true
 }
 
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
@@ -234,7 +253,14 @@ object ReportMetadata {
   val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&excludedDateLabels.none{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
   val fallbackDates=lines.filter{line->excludedDateLabels.none{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).toList()}
   val dates=when{preferredDates.isNotEmpty()->preferredDates;sampledDates.isNotEmpty()->sampledDates;genericDates.size==1->genericDates;fallbackDates.size==1->fallbackDates;else->emptyList()}
-  val date=dates.firstOrNull()?.let{m->"${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"}.orEmpty()
+  fun normalized(m:MatchResult)="${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"
+  val distinct=dates.map(::normalized).distinct()
+  val administrativeDates=lines.filter{line->excludedDateLabels.any{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).map(::normalized).toList()}
+  val candidate=distinct.singleOrNull().orEmpty()
+  // An administrative timestamp never supplies the report date, but a same-month/day
+  // year conflict is strong evidence that OCR changed 2026 into 2016. Require review.
+  val yearConflict=candidate.isNotBlank()&&administrativeDates.any{it.substring(5)==candidate.substring(5)&&it.substring(0,4)!=candidate.substring(0,4)}
+  val date=candidate.takeUnless{yearConflict}.orEmpty()
   val explicit=when{
    raw.contains("血常规")||raw.contains("血细胞分析")->"血常规"
    raw.contains("肝功能")->"肝功能"

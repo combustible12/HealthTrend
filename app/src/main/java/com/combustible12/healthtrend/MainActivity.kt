@@ -130,16 +130,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    Paper{
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp)};Text(latest.textValue,fontSize=27.sp,fontWeight=FontWeight.Bold,color=statusColor(latest.status()))}
-    Text("${displayLabUnit(latest.unitAtTest)} · 当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp)};ResultValueUnit(latest.textValue,latest.unitAtTest,true)}
+    Text("当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{val bounds=it.second.trendReferenceRange();listOf(it.second.normalizedUnit,it.first.hospitalKey,it.first.systemKey,it.first.templateVersion,bounds.first,bounds.second)}.forEach{(_,series)->
      val sx=series.last().second
-     Text(listOf(sx.normalizedUnit.ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
+     Text(listOf(displayLabUnit(sx.unitAtTest).ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
      Spark(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,{index->selected=series[index]},key,series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)})
 
     }
-    points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text("${dateText(r.testedAtEpochMillis)}   ${x.textValue} ${displayLabUnit(x.unitAtTest)}   ${x.status().label()}",modifier=Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null)}}
+    points.forEach{(r,x)->TextButton({selected=r to x},Modifier.fillMaxWidth()){Text(dateText(r.testedAtEpochMillis),modifier=Modifier.weight(1f));ResultValueUnit(x.textValue,x.unitAtTest);Spacer(Modifier.width(8.dp));Text(x.status().label(),color=Muted,fontSize=12.sp);Icon(Icons.Outlined.ChevronRight,null)}}
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
   }

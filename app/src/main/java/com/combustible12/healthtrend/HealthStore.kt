@@ -9,9 +9,19 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+ init { migrateCurrentTemplates() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
+ private fun migrateCurrentTemplates(){
+  val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
+  val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
+   versions.maxWithOrNull(compareBy<HospitalLabTemplate>{templateMigrationScore(it)}.thenBy{it.version})
+  }.toMutableList()
+  if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
+  val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
+  if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
+ }
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports()=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
@@ -35,13 +45,14 @@ class HealthStore(private val context:Context) {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
-  val template=HospitalLabTemplate(h.trim(),t.trim(),old?.version?:1,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
+  val version=if(old==null)1 else old.version+1
+  val template=HospitalLabTemplate(h.trim(),t.trim(),version,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
   // One current template per hospital/panel/system. Re-confirming replaces only that
   // template record; historical reports keep their own unit/range/name snapshots.
   val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey}
   write("templates",JSONArray().apply{keep.forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
- /** A confirmed template fills missing unit/range fields; this report's explicit fields win. */
+ /** Without a confirmed template this remains a conservative fill helper. */
  fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=applyRememberedTemplate(items,template)
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
@@ -81,6 +92,32 @@ fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemp
   referenceHigh=p.referenceHigh?:field.referenceHigh
  )
 }
+private fun templateMigrationScore(t:HospitalLabTemplate):Int{
+ val unique=t.fields.map{ReportParser.key(it.metricKey)}.distinct().size
+ val sane=t.fields.count{f->f.displayName.isNotBlank()&&sanitizeLabUnit(f.unit)==f.unit.trim()&&(f.referenceLow==null||f.referenceHigh==null||f.referenceLow<=f.referenceHigh)}
+ val exactXiacuCbc=if(t.hospitalKey.trim()=="霞浦县中医院"&&t.reportType.trim()=="血常规"&&unique==27)100000 else 0
+ return exactXiacuCbc+unique*100+sane
+}
+internal fun xiapuBiochemistryTemplate()=HospitalLabTemplate("霞浦县中医院","生化",1,true,listOf(
+ LabFieldTemplate("TP","TP 总蛋白","g/L",65.0,85.0),
+ LabFieldTemplate("ALB","ALB 白蛋白","g/L",40.0,55.0),
+ LabFieldTemplate("GLOB","GLOB 球蛋白","g/L",20.0,40.0),
+ LabFieldTemplate("A/G","A/G 白球比","",1.5,2.5),
+ LabFieldTemplate("TBIL","TBIL 总胆红素","umol/L",3.4,20.6),
+ LabFieldTemplate("DBIL","DBIL 直接胆红素","umol/L",null,6.84),
+ LabFieldTemplate("IBIL","IBIL 间接胆红素","umol/L",2.0,15.22),
+ LabFieldTemplate("ALT","ALT 谷丙转氨酶","U/L",7.0,40.0),
+ LabFieldTemplate("AST","AST 谷草转氨酶","U/L",13.0,35.0),
+ LabFieldTemplate("GGT","GGT 谷氨酰转肽酶","U/L",7.0,45.0),
+ LabFieldTemplate("AST/ALT","AST/ALT 谷草/谷丙","",null,null),
+ LabFieldTemplate("ALP","ALP 碱性磷酸酶","U/L",50.0,130.0),
+ LabFieldTemplate("CHE","CHE 胆碱酯酶","U/L",5000.0,null),
+ LabFieldTemplate("TBA","TBA 总胆汁酸","umol/L",null,10.0),
+ LabFieldTemplate("PA","PA 前白蛋白","mg/L",170.0,420.0),
+ LabFieldTemplate("UREA","UREA 尿素","mmol/L",1.43,7.14),
+ LabFieldTemplate("CREA","CREA 肌酐","umol/L",35.0,80.0),
+ LabFieldTemplate("UA","UA 尿酸","umol/L",90.0,357.0)
+))
 internal fun sanitizeLabUnit(unit:String)=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty()
 internal fun displayLabUnit(unit:String)=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)

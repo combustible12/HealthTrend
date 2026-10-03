@@ -192,7 +192,7 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
-  compose.onNodeWithText("120 g/L").assertExists()
+  compose.onNodeWithText("120").assertExists();compose.onNodeWithText("g/L").assertExists()
   compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
  }
  @Test fun trendDetailOpensItsOriginalReport(){
@@ -250,14 +250,14 @@ class CoreFlowTest{
   val result=HealthStore(context).reports().single().results.single()
   assertEquals(120.0,result.value!!,0.0);assertEquals(113.0,result.referenceLowAtTest!!,0.0)
   compose.onNodeWithText("我的",useUnmergedTree=true).performClick()
-  compose.onNodeWithText("查看 / 主动编辑为新版").performScrollTo().performClick()
+  compose.onNodeWithText("查看 / 编辑模板").performScrollTo().performClick()
   compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("编辑"))
   compose.onNodeWithText("编辑").performClick()
   compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("150")
   compose.onNodeWithText("完成核对").performClick()
-  compose.onNodeWithText("主动确认新版模板").performClick()
-  val store=HealthStore(context);assertEquals(listOf(1,2),store.templates().map{it.version}.sorted())
+  compose.onNodeWithText("保存模板").performClick()
+  val store=HealthStore(context);assertEquals(listOf(2),store.templates().filter{it.hospitalKey=="测试医院"}.map{it.version})
   assertEquals(100.0,store.latestTemplate("测试医院","血常规")!!.fields.single().referenceLow!!,0.0)
   assertEquals(113.0,store.reports().single().results.single().referenceLowAtTest!!,0.0)
 
@@ -322,7 +322,7 @@ class CoreFlowTest{
  }
 
 
- @Test fun changedHistoricalRangeCreatesNewTemplateVersion(){
+ @Test fun reportOverrideKeepsCurrentTemplateAndHistoricalSnapshotSeparate(){
   val store=HealthStore(context)
   val before=ReportParser.parse("HGB 102 g/L 113-151")
   val first=store.confirmTemplate("范围版本医院","血常规",before)
@@ -340,14 +340,26 @@ class CoreFlowTest{
   compose.onNodeWithText("完成核对").performClick()
   compose.onNodeWithText("保存").performClick()
   val saved=HealthStore(context)
-  assertEquals(listOf(1,2),saved.templates().filter{it.hospitalKey=="范围版本医院"}.map{it.version}.sorted())
+  assertEquals(listOf(1),saved.templates().filter{it.hospitalKey=="范围版本医院"}.map{it.version})
   val older=saved.reports().first{it.id==original.id}
   assertEquals(1,older.templateVersion)
   assertEquals(113.0,older.results.single().referenceLowAtTest!!,0.0)
   val newer=saved.reports().first{it.id!=original.id}
-  assertEquals(2,newer.templateVersion)
+  assertEquals(1,newer.templateVersion)
   assertEquals(100.0,newer.results.single().referenceLowAtTest!!,0.0)
   assertEquals(150.0,newer.results.single().referenceHighAtTest!!,0.0)
+ }
+
+ @Test fun legacyTemplateVersionsMigrateToOneCompleteCurrentTemplate(){
+  fun version(v:Int,count:Int,label:String):org.json.JSONObject=org.json.JSONObject().put("hospital","霞浦县中医院").put("type","血常规").put("system","").put("version",v).put("confirmed",true).put("fields",org.json.JSONArray().apply{
+   repeat(count){i->put(org.json.JSONObject().put("key","K$i").put("name",if(i==0)label else "指标$i").put("unit",if(i==0)"10^9/L" else "").put("low",if(i==0)3.5 else org.json.JSONObject.NULL).put("high",if(i==0)9.5 else org.json.JSONObject.NULL))}
+  })
+  val legacy=org.json.JSONArray().put(version(3,27,"旧完整模板")).put(version(4,27,"最后完整人工模板")).put(version(5,26,"不完整模板"))
+  context.getSharedPreferences("healthtrend_store_v1",0).edit().putString("templates",legacy.toString()).commit()
+  val store=HealthStore(context)
+  val blood=store.templates().filter{it.hospitalKey=="霞浦县中医院"&&it.reportType=="血常规"}
+  assertEquals(1,blood.size);assertEquals(4,blood.single().version);assertEquals(27,blood.single().fields.size);assertEquals("最后完整人工模板",blood.single().fields.first().displayName)
+  assertEquals(18,store.latestTemplate("霞浦县中医院","生化")!!.fields.size)
  }
 
 

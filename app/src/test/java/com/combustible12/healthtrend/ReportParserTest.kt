@@ -487,4 +487,98 @@ class ReportParserTest {
   assertEquals(listOf("%","",""),rows.map{it.unit})
  }
 
+ @Test fun templateRangeAloneCanNeverBecomeTheVisitResult(){
+  val field=LabFieldTemplate("NEUT#","#NEUT 中性粒细胞计数","10^9/L",2.0,7.0)
+  val missing=ReportParser.parse("上NEUT 中性粒细胞计数 2.00-7.00").single()
+  assertFalse(templateResultIsIndependent(missing,field))
+  val blank=templateDrivenResults(listOf(missing),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field))).single()
+  assertNull(blank.value);assertEquals("",blank.textValue);assertEquals("10^9/L",blank.unit)
+  val real=ReportParser.parse("上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L").single()
+  assertTrue(templateResultIsIndependent(real,field));assertEquals(2.57,templateDrivenResults(listOf(real),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field))).single().value!!,0.0)
+ }
+
+ @Test fun suppliedXiacuBiochemistryTemplateIsSeparateAndEditable(){
+  val template=xiapuBiochemistryTemplate()
+  assertEquals("霞浦县中医院",template.hospitalKey);assertEquals("生化",template.reportType);assertEquals(18,template.fields.size)
+  assertEquals(listOf("TP","ALB","GLOB","A/G"),template.fields.take(4).map{it.metricKey})
+  assertEquals(6.84,template.fields.single{it.metricKey=="DBIL"}.referenceHigh!!,0.0)
+  assertNull(template.fields.single{it.metricKey=="DBIL"}.referenceLow)
+  assertNotEquals("血常规",template.reportType)
+  val edited=template.copy(fields=template.fields.map{if(it.metricKey=="TP")it.copy(referenceLow=64.0)else it})
+  assertEquals(64.0,edited.fields.first().referenceLow!!,0.0)
+ }
+
+ @Test fun conflictingYearOnSameAdministrativeDayRequiresDateReview(){
+  val raw="报告日期 2016-09-18\n打印时间 2026-09-18 10:00\nWBC 白细胞 4.35 3.5-9.5 10^9/L"
+  val meta=ReportMetadata.extract(raw,ReportParser.parse(raw))
+  assertEquals("",meta.date);assertTrue("date" in meta.uncertain)
+ }
+
+ @Test fun realTwentySevenRowCbcUsesTemplateSkeletonAndOnlyNewValues(){
+  val fixed="""WBC 白细胞 7.25 3.5-9.5 10^9/L
+#NEUT 中性粒细胞计数 5.77 2.00-7.00 10^9/L
+%NEUT 中性粒细胞百分比 79.4 50.0-70.0 %
+#LYMPH 淋巴细胞计数 1.31 0.80-4.00 10^9/L
+%LYMPH 淋巴细胞百分比 18.1 20.0-40.0 %
+#MONO 单核细胞计数 0.12 0.12-1.2 10^9/L
+%MONO 单核细胞百分比 1.7 3-12 %
+#EOS 嗜酸性粒细胞计数 0.05 0.02-0.5 10^9/L
+%EOS 嗜酸性粒细胞百分比 0.8 0.5-5 %
+#BASO 嗜碱性粒细胞计数 0.00 0.00-0.10 10^9/L
+%BASO 嗜碱性粒细胞百分比 0.0 0.0-1.0 %
+RBC 红细胞 3.99 3.68-5.13 10^12/L
+HGB 血红蛋白 113 113-151 g/L
+HCT 红细胞压积 34.20 34-45 %
+MCV 红细胞平均体积 85.7 80-100 fL
+MCH 平均红细胞血红蛋白量 28.3 27-34 pg
+MCHC 平均血红蛋白浓度 330 320-360 g/L
+RDW 红细胞分布宽度 12.8 11-16 %
+RDW-SD 红细胞分布宽度SD 40 35-56 fL
+PLT 血小板 232 100-300 10^9/L
+PCT 血小板压积 0.212 0.108--
+MPV 平均血小板体积 9.1 6.5-12 fL
+PDW 血小板分布宽度 16.4 15-17 %
+P-LCR 大型血小板比率 21.8 11-45
+%NRBC 有核红细胞比率 0.00 <=9999.99
+#NRBC 有核红细胞计数 0.000 <=9999.99
+P-LCR 大小血小板数目 51 30-90 10^9/L"""
+  val templateRows=ReportParser.parse(fixed)
+  val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,templateRows.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)})
+  val current="""WBC 白细胞 4.35 5.0-9.0 109/L
+上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L
+%NEUT 中性粒细胞百分比 59.2 50.0-70.0 fL
+FLYMPH 淋巴细胞计数 1.50 0.80-4.00 109/L
+%LYMPH 淋巴细胞百分比 34.4 20.0-40.0 %
+#MONO 单核细胞计数 0.23 0.12-1.2 10^9/L
+%MONO 单核细胞百分比 5.2 3-12 %
+I嗜酸性粒细胞计数 0.04 0.02-0.5 109/L
+%EOS 嗜酸性粒细胞百分比 0.9 0.5-5 %
+#BASO 嗜碱性粒细胞计数 0.01 0.00-0.10 10^9/L
+%BASO 嗜碱性粒细胞百分比 0.3 0.0-1.0 %
+RBC 红细胞 3.76 3.68-5.13 10^12/L
+HGB 血红蛋白 106 113-151 g/L
+HCT 红细胞压积 32.30 34-45 %
+MCV 红细胞平均体积 86.0 80-100 fL
+MCH 平均红细胞血红蛋白量 28.2 27-34 pg
+MCHC 平均血红蛋白浓度 328 320-360 g/L
+RDW 红细胞分布宽度 13.0 11-16 %
+RDW-SD 红细胞分布宽度SD 41 35-56 fL
+PLT 血小板 282 100-300 10^9/L
+PCT 血小板压积 0.255 0.108--
+MPV 平均血小板体积 9.0 6.5-12 fL
+PDW 血小板分布宽度 16.4 15-17 %
+P-LCR 大型血小板比率 20.8 11-45
+%NRBC 有核红细胞比率 0.00 <=9999.99
+#NRBC 有核红细胞计数 0.000 <=9999.99
+P-LCR 大小血小板数目 59 30-90 10^9/L
+乱码项目 999 1-2"""
+  val rows=templateDrivenResults(ReportParser.parse(current),template)
+  assertEquals(27,rows.size);assertEquals(template.fields.map{it.metricKey},rows.map{it.metricKey});assertEquals(template.fields.map{it.displayName},rows.map{it.displayName})
+  fun row(k:String)=rows.single{it.metricKey==k}
+  assertEquals(4.35,row("WBC").value!!,0.0);assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
+  assertEquals(2.57,row("NEUT#").value!!,0.0);assertEquals(1.50,row("LYMPH#").value!!,0.0);assertEquals(0.04,row("EOS#").value!!,0.0)
+  assertEquals("32.30",row("HCT").textValue);assertEquals("86.0",row("MCV").textValue);assertEquals("0.00",row("NRBC%").textValue);assertEquals("0.000",row("NRBC#").textValue)
+  assertEquals("10^9/L",row("WBC").unit);assertTrue(rows.none{it.displayName.contains("上NEUT")||it.displayName.contains("FLYMPH")||it.displayName.contains("I嗜酸")||it.unit=="109/L"})
+ }
+
 }
