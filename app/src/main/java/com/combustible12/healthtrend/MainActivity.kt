@@ -97,20 +97,20 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");Text("查看指标和原报告 →",color=Accent)}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,open:(LabReport)->Unit,edit:(LabReport,LabResult,Double)->Unit){
- var category by rememberSaveable{mutableStateOf("全部")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
+ var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  val all=reports.flatMap{r->r.results.map{r to it}}.groupBy{it.second.metricKey}
  Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
-  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部")+reports.map{it.reportType}.distinct()).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
+  Row(Modifier.horizontalScroll(rememberScrollState())){listOf("血常规","肝功能","肾功能","肿瘤标志物").forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   OutlinedTextField(query,{query=it},label={Text("查找指标")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-  val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->(category=="全部"||r.reportType==category)&&(x.rawName.contains(query,true)||key.contains(query,true))}}
+  val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->r.reportType==category&&(x.rawName.contains(query,true)||key.contains(query,true))}}
   if(filtered.isEmpty())Paper{Text("暂无符合条件的指标");Text("导入并核对报告后，这里显示真实历史数据。",color=Muted)}
   filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
-   val points=list.filter{(category=="全部"||it.first.reportType==category)&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
+   val points=list.filter{it.first.reportType==category&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    Paper{
