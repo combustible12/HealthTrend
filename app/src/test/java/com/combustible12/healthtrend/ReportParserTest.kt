@@ -448,4 +448,25 @@ class ReportParserTest {
   assertEquals("",applied.unit);assertEquals("0.00",applied.textValue);assertEquals(9999.99,applied.referenceHigh!!,0.0)
  }
 
+ @Test fun confirmedTemplateOwnsFixedFieldsAndRejectsOcrGarbageRows(){
+  val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(
+   LabFieldTemplate("NEUT#","#NEUT 中性粒细胞计数","10^9/L",2.0,7.0),
+   LabFieldTemplate("LYMPH#","#LYMPH 淋巴细胞计数","10^9/L",0.8,4.0),
+   LabFieldTemplate("EOS#","#EOS 嗜酸性粒细胞计数","10^9/L",0.02,0.5)
+  ))
+  val ocr=ReportParser.parse("上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L\nFLYMPH 淋巴细胞计数 1.50 0.80-4.00 fL\nI嗜酸性粒细胞计数 0.04 0.02-0.5 %\n乱码项目 999 1-2")
+  val rows=templateDrivenResults(ocr,template)
+  assertEquals(listOf("NEUT#","LYMPH#","EOS#"),rows.map{it.metricKey})
+  assertEquals(listOf(2.57,1.50,0.04),rows.map{it.value})
+  assertTrue(rows.all{it.unit=="10^9/L"})
+  assertEquals(listOf(2.0,0.8,0.02),rows.map{it.referenceLow})
+  assertEquals(listOf("#NEUT 中性粒细胞计数","#LYMPH 淋巴细胞计数","#EOS 嗜酸性粒细胞计数"),rows.map{it.displayName})
+ }
+
+ @Test fun displayUnitNeverAddsMultiplicationSign(){
+  assertEquals("10^9/L",displayLabUnit("×10^9/L"))
+  assertEquals("10^12/L",displayLabUnit("x10^12/L"))
+  assertEquals("g/L",displayLabUnit("g/L"))
+ }
+
 }
