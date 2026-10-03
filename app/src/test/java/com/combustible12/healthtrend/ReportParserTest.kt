@@ -300,4 +300,25 @@ class ReportParserTest {
   assertEquals("3.5–9.5",rangeText(saved[1].referenceLowAtTest,saved[1].referenceHighAtTest));assertEquals(3.5,saved[1].trendReferenceRange().first!!,0.0);assertEquals(9.5,saved[1].trendReferenceRange().second!!,0.0)
   assertEquals(1,listOf(ReportParser.key("#NEUT"),ReportParser.key("NEUT#")).groupBy{it}.size)
  }
+ @Test fun damagedDifferentialPrefixesRecoverFromChineseLabels(){
+  val cases=listOf(
+   "上NEUT 中性粒细胞计数 2.00 2.0-7.0 10^9/L" to "NEUT#",
+   "红MPH 淋巴细胞百分比 20 20-50 %" to "LYMPH%",
+   "三MONO 单核细胞计数 0.4 0.1-0.8 10^9/L" to "MONO#",
+   "红EOS 嗜酸性粒细胞百分比 2 0.5-5 %" to "EOS%",
+   "上BASO 嗜碱性粒细胞计数 0.03 0-0.1 10^9/L" to "BASO#"
+  )
+  cases.forEach{(raw,key)->assertEquals(raw,key,ReportParser.parse(raw).single().metricKey)}
+ }
+ @Test fun differentialChineseLabelsCoverCountAndPercentFamilies(){
+  val cases=listOf(
+   "中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","中性粒细胞比率" to "NEUT%",
+   "淋巴细胞计数" to "LYMPH#","淋巴细胞绝对值" to "LYMPH#","淋巴细胞百分比" to "LYMPH%","淋巴细胞比例" to "LYMPH%",
+   "单核细胞计数" to "MONO#","单核细胞绝对值" to "MONO#","单核细胞百分比" to "MONO%","单核细胞比率" to "MONO%",
+   "嗜酸性粒细胞计数" to "EOS#","嗜酸性粒细胞绝对值" to "EOS#","嗜酸性粒细胞百分比" to "EOS%","嗜酸性粒细胞比例" to "EOS%",
+   "嗜碱性粒细胞计数" to "BASO#","嗜碱性粒细胞绝对值" to "BASO#","嗜碱性粒细胞百分比" to "BASO%","嗜碱性粒细胞比率" to "BASO%"
+  )
+  cases.forEach{(name,key)->assertEquals(name,key,ReportParser.key(name))}
+ }
+
 }
