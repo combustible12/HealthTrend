@@ -42,6 +42,12 @@ class ReportParserTest {
   val template=HospitalLabTemplate(hospitalKey="医院",reportType="血常规",version=1,confirmed=true,fields=listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
   assertFalse(metricNeedsReview(complete.copy(unit="",referenceLow=null,referenceHigh=null),template))
  }
+ @Test fun patientProfileIsIndependentFromReportMetadata(){
+  val profile=PatientProfile(name="患者",birthDate="1972-05-06",sex="女")
+  assertEquals("1972-05-06",profile.birthDate)
+  val meta=ReportMetadata.extract("采样时间：2026-09-26\nHGB 102 g/L 113-151",ReportParser.parse("HGB 102 g/L 113-151"))
+  assertEquals("2026-09-26",meta.date);assertFalse(meta.date==profile.birthDate)
+ }
  @Test fun reportDateIgnoresPatientBirthDateWhenClinicalDateExists(){
   val raw="出生日期：1972-05-06\n采样时间：2026-09-26 09:30\nHGB 102 g/L 113-151"
   val meta=ReportMetadata.extract(raw,ReportParser.parse(raw));assertEquals("2026-09-26",meta.date)
