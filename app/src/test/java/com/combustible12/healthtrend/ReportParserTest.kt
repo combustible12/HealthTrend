@@ -103,6 +103,12 @@ class ReportParserTest {
   val missing=ReportMetadata.extract("患者号 20260926\\nHGB 102",rows)
   assertTrue(missing.date.isBlank());assertTrue(missing.uncertain.contains("date"))
  }
+ @Test fun metadataHospitalParsingNeverConsumesFollowingDateLine(){
+  val rows=ReportParser.parse("HGB 102 g/L 113-151")
+  val meta=ReportMetadata.extract("医疗机构：福建省妇幼保健院\n2026-09-26\nHGB 102",rows)
+  assertEquals("福建省妇幼保健院",meta.hospital)
+  assertEquals("2026-09-26",meta.date)
+ }
  @Test fun metadataHospitalLabelAllowsColonWhitespaceOrNoSeparator(){
   val rows=ReportParser.parse("WBC 4.0 ×10^9/L 3.5-9.5\\nHGB 120 g/L 113-151")
   listOf("医疗机构：福建省妇幼保健院","医疗机构: 福建省妇幼保健院","医疗机构 福建省妇幼保健院").forEach{raw->
