@@ -63,9 +63,9 @@ object ReportParser {
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("(\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*(\\d+(?:\\.\\d+)?)").find(suffix)
-  val one=if(limits==null)Regex("[<>≤≥]\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix)else null
-  val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith(">")||it.startsWith("≥")}?.replace(Regex("[>≥\\s]"),"")?.toDoubleOrNull()
-  val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.startsWith("<")||it.startsWith("≤")}?.replace(Regex("[<≤\\s]"),"")?.toDoubleOrNull()
+  val one=if(limits==null)Regex("(?:<=|>=|[<>≤≥])\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix) ?: Regex("[-+]?\\d+(?:\\.\\d+)?\\s*--(?:\\s|$)").find(suffix) else null
+  val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.let{v->when{v.trim().startsWith(">")||v.trim().startsWith("≥")->v.replace(Regex("[>=≥\\s]"),"").toDoubleOrNull();v.trim().endsWith("--")->v.replace("--","").trim().toDoubleOrNull();else->null}}
+  val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.trim().startsWith("<")||it.trim().startsWith("≤")}?.replace(Regex("[<=≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
