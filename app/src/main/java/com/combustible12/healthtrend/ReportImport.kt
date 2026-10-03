@@ -115,14 +115,14 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
   val source=matches[index]
   val reliable=source?.let{templateResultIsIndependent(it,field)}==true
   ParsedLabResult(
-   metricKey=ReportParser.key(field.metricKey),
+   metricKey=field.metricKey,
    displayName=field.displayName,
    value=source?.value?.takeIf{reliable},
    unit=displayLabUnit(field.unit),
    referenceLow=field.referenceLow,
    referenceHigh=field.referenceHigh,
    rawLine=source?.rawLine.orEmpty(),
-   primary=ReportParser.key(field.metricKey) in ReportParser.primaryKeys,
+   primary=field.metricKey in ReportParser.primaryKeys,
    textValue=source?.textValue?.takeIf{reliable}.orEmpty(),
    comparator=source?.comparator?.takeIf{reliable}.orEmpty()
  )
