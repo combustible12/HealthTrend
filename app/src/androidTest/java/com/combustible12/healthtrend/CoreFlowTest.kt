@@ -143,6 +143,11 @@ class CoreFlowTest{
   compose.onNodeWithContentDescription("关闭").performClick()
   compose.onNodeWithContentDescription("关闭").performClick()
  }
+ @Test fun closingUnconfirmedOcrRowDoesNotUnlockReportSave(){
+  val store=HealthStore(context);val parsed=ReportParser.parse("HGB 102 113-151")
+  val row=DraftRow.from(parsed.single()).copy(uncertain=true)
+  assertTrue(row.uncertain);assertFalse(ReportDraft(hospital="医院",type="血常规",date="2026-09-26",rows=listOf(row)).valid())
+ }
  @Test fun tappingActualTrendChartPointOpensHistoricalDetail(){
   val store=HealthStore(context);val items=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("曲线点击医院","血常规",items)
   store.saveReport(store.buildReport("曲线点击医院","血常规",parseDate("2026-09-26")!!,emptyList(),items,template))
