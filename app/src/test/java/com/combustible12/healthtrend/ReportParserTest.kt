@@ -363,4 +363,11 @@ class ReportParserTest {
   assertEquals("%",row("PDW").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
  }
 
+ @Test fun cbcMetricRejectsPlausibleUnitStolenFromNeighborColumn(){
+  assertEquals("%",ReportParser.parse("%NEUT 中性粒细胞百分比 79.4 50-70 fL").single().unit)
+  assertEquals("×10^9/L",ReportParser.parse("#LYMPH 淋巴细胞计数 1.31 0.8-4.0 %").single().unit)
+  assertEquals("fL",ReportParser.parse("MPV 平均血小板体积 9.1 6.5-12 %").single().unit)
+  assertEquals("%",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 fL").single().unit)
+ }
+
 }
