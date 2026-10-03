@@ -89,7 +89,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  Text(if(templateOnly)r.unit else "${r.text} ${r.unit}",fontSize=22.sp);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  if(r.uncertain)Text("OCR 结果存在不确定项，请逐项核对。",color=Bad,fontSize=12.sp);TextButton(edit){Text(if(r.valid()&&!r.uncertain)"编辑指标"else"编辑指标 · 尚未完成核对")}
 }}
-@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button(close,Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
+@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false){FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){LabRowEditor(row,edit,templateOnly)}}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false){Paper{
  Text("指标")
  Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称");Field(r.key,{edit(r.copy(key=it))},"指标标识（用于关联趋势）")
