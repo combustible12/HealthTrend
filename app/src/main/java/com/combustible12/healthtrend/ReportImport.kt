@@ -97,7 +97,8 @@ object ReportMetadata {
  private val dateRegex=Regex("(20\\d{2})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})(?:\\s*[日号]?)")
  fun extract(raw:String,items:List<ParsedLabResult>):ReportMetadataResult{
   val lines=raw.lines().map{it.trim()}.filter{it.isNotBlank()}
-  val hospitalCandidates=lines.map{line->line.replace(Regex("^(医院名称|送检医院|医疗机构|机构名称)\\s*[:：]?\\s*"),"").trim()}
+  val hospitalLabel=Regex("^(医院名称|送检医院|医疗机构|机构名称)\\s*[:：]?\\s*")
+  val hospitalCandidates=lines.map{line->line.replace(hospitalLabel,"").trim()}
    .filter{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
   val hospital=hospitalCandidates.minByOrNull{it.length}.orEmpty()
   val labelledDates=lines.filter{line->listOf("检验","检查","采样","报告","日期","时间").any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
