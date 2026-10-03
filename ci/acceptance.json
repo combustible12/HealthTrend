@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "f53bebaf1b705471eab7e4528f8e471c946de930",
+  "sourceCommit": "6ebb4bc515e10c031bbf831b496e4f010120b54f",
   "requestedAt": "2026-10-03",
-  "scope": "Android 35 and 36 core flows, OCR review, upgrade and update guards"
+  "scope": "Launcher icon plus Android 35 and 36 full acceptance"
 }
