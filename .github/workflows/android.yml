@@ -97,7 +97,7 @@ jobs:
             adb push "$RUNNER_TEMP/qa-update-wrong-signer.apk" /data/local/tmp/qa-update-wrong-signer.apk
             adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/qa-update-same-signer.apk cache/qa-update-same-signer.apk
             adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/qa-update-wrong-signer.apk cache/qa-update-wrong-signer.apk
-            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest && test_status=0 || test_status=$?; adb pull /sdcard/Pictures/HealthTrendQA/qa-symptom.png qa-symptom.png; python -c "import base64,pathlib; data=base64.b64encode(pathlib.Path('qa-symptom.png').read_bytes()).decode(); [print('QA_PNG:'+data[i:i+4096]) for i in range(0,len(data),4096)]"; exit "$test_status"
+            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.combustible12.healthtrend.UpgradeTest,com.combustible12.healthtrend.ProductionUpdateTest,com.combustible12.healthtrend.ProductionUpgradeTest && test_status=0 || test_status=$?; adb pull /sdcard/Pictures/HealthTrendQA/qa-symptom.png qa-symptom.png; python -c "import base64,pathlib; data=base64.b64encode(pathlib.Path('qa-symptom.png').read_bytes()).decode(); [print('QA_PNG:'+data[i:i+4096]) for i in range(0,len(data),4096)]"; exit "$test_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
