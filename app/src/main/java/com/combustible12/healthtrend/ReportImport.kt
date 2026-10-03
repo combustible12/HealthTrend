@@ -51,7 +51,8 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val date=meta.date
     val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
-    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=store.applyTemplate(parsed,template).map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain)
+    val resolved=if(template!=null)templateDrivenResults(parsed,template) else parsed
+    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain)
     message=failures.joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
@@ -100,6 +101,51 @@ object ReportOcr {
  fun tableText(t:com.google.mlkit.vision.text.Text):String {
   val cells=t.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{b->OcrCell(line.elements.joinToString(" "){it.text},b.left,b.right,b.centerY(),b.height())}}
   return reconstructOcrTable(cells).ifBlank{t.text}
+ }
+}
+
+/**
+ * Once a hospital/panel template is confirmed it owns the fixed row structure.
+ * OCR contributes only this visit's value/text/comparator/raw source. A damaged OCR
+ * code therefore cannot create a second row or overwrite confirmed unit/range/name.
+ */
+internal fun templateDrivenResults(items:List<ParsedLabResult>,template:HospitalLabTemplate):List<ParsedLabResult>{
+ val unused=items.toMutableList()
+ fun chinese(s:String)=s.filter{it.code in 0x4E00..0x9FFF}
+ fun take(field:LabFieldTemplate):ParsedLabResult?{
+  val key=ReportParser.key(field.metricKey)
+  unused.firstOrNull{it.metricKey==key}?.let{unused.remove(it);return it}
+  val target=chinese(field.displayName)
+  if(target.length>=2){
+   unused.maxByOrNull{candidate->
+    val got=chinese(candidate.displayName)
+    when{
+     got.isBlank()->0
+     got==target->1000
+     got.contains(target)||target.contains(got)->500+minOf(got.length,target.length)
+     else->got.zip(target).count{it.first==it.second}
+    }
+   }?.takeIf{candidate->
+    val got=chinese(candidate.displayName)
+    got==target||got.contains(target)||target.contains(got)
+   }?.let{unused.remove(it);return it}
+  }
+  return null
+ }
+ return template.fields.map{field->
+  val source=take(field)
+  ParsedLabResult(
+   metricKey=ReportParser.key(field.metricKey),
+   displayName=field.displayName,
+   value=source?.value,
+   unit=displayLabUnit(field.unit),
+   referenceLow=field.referenceLow,
+   referenceHigh=field.referenceHigh,
+   rawLine=source?.rawLine.orEmpty(),
+   primary=ReportParser.key(field.metricKey) in ReportParser.primaryKeys,
+   textValue=source?.textValue.orEmpty(),
+   comparator=source?.comparator.orEmpty()
+  )
  }
 }
 
