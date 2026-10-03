@@ -497,6 +497,14 @@ class ReportParserTest {
   assertTrue(templateResultIsIndependent(real,field));assertEquals(2.57,templateDrivenResults(listOf(real),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field))).single().value!!,0.0)
  }
 
+ @Test fun duplicateSameIdentityOcrRowsRemainBlankInsteadOfChoosingByPosition(){
+  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","HGB 血红蛋白","g/L",113.0,151.0)))
+  val rows=ReportParser.parse("HGB 血红蛋白 102 113-151 g/L\nHGB 血红蛋白 120 113-151 g/L")
+  val resolved=templateDrivenResults(rows,template).single()
+  assertNull(resolved.value);assertEquals("",resolved.textValue)
+  assertEquals(113.0,resolved.referenceLow!!,0.0);assertEquals(151.0,resolved.referenceHigh!!,0.0)
+ }
+
  @Test fun suppliedXiacuBiochemistryTemplateIsSeparateAndEditable(){
   val template=xiapuBiochemistryTemplate()
   assertEquals("霞浦县中医院",template.hospitalKey);assertEquals("生化",template.reportType);assertEquals(18,template.fields.size)

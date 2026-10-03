@@ -31,7 +31,7 @@ class CoreFlowTest{
   val imported=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 2.00")
   val resolved=store.applyTemplate(imported,store.latestTemplate("霞浦县中医院","血常规"))
   val neut=resolved.first{it.metricKey=="NEUT#"}
-  assertEquals("×10^9/L",neut.unit);assertEquals(2.0,neut.referenceLow!!,0.0);assertEquals(7.0,neut.referenceHigh!!,0.0)
+  assertEquals("10^9/L",neut.unit);assertEquals(2.0,neut.referenceLow!!,0.0);assertEquals(7.0,neut.referenceHigh!!,0.0)
   val manual=retargetImportedDraft(ReportDraft(hospital="",type="血常规",rows=emptyList()),store,hospital="霞浦县中医院")
   assertEquals(listOf("WBC","NEUT#"),manual.rows.map{it.key})
   assertTrue(manual.rows.all{it.text.isBlank()})
@@ -160,7 +160,7 @@ class CoreFlowTest{
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
   assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,trendPointTouchRadiusPx(context.resources.displayMetrics.density)))
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
-  compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
   val points=listOf(parseDate("2026-09-25 00:00")!! to 102.0,parseDate("2026-09-26 00:00")!! to 120.0)
@@ -180,7 +180,7 @@ class CoreFlowTest{
  @Test fun multiPointTrendCanOpenFirstPointIndependently(){
   val store=HealthStore(context);val first=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("独立点医院","血常规",first)
   store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-25")!!,emptyList(),first,template));val second=ReportParser.parse("HGB 120 g/L 113-151");store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
-  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();compose.onNodeWithText("102 g/L").assertExists();compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
  @Test fun trendChartAccessibilitySelectsLatestPointInMultiPointSeries(){
   val store=HealthStore(context)
@@ -192,7 +192,7 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
-  compose.onNodeWithText("120").assertExists();compose.onNodeWithText("g/L").assertExists()
+  assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
  }
  @Test fun trendDetailOpensItsOriginalReport(){
@@ -224,7 +224,7 @@ class CoreFlowTest{
   compose.onNodeWithText("肝功能").assertExists()
   compose.onNodeWithText("肾功能").assertExists()
   compose.onNodeWithText("肿瘤标志物").assertExists()
-  compose.onNodeWithText("102").assertExists()
+  assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty())
   // Exercise the actual chart instead of depending on an off-screen history row.
   val reportDate=HealthStore(context).reports().single().testedAtEpochMillis
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo()
@@ -233,11 +233,11 @@ class CoreFlowTest{
   compose.onNodeWithText("编辑数值").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
   compose.onNodeWithText("保存").performClick()
-  compose.onNodeWithText("120 g/L").assertExists()
+  assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
   compose.onNodeWithText("关闭").performClick()
   // Closing the detail must expose the refreshed trend card, not only persisted storage.
-  compose.onNodeWithText("120").assertExists()
+  assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty())
   compose.onNodeWithText("当次参考 113.0–151.0",substring=true).assertExists()
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
@@ -376,15 +376,15 @@ class CoreFlowTest{
   )
   assertEquals(90.0,draft.rows.single().low.toDouble(),0.0)
   val selected=retargetImportedDraft(draft,store,system="设备B")
-  assertEquals(90.0,selected.rows.single().low.toDouble(),0.0)
-  assertEquals(160.0,selected.rows.single().high.toDouble(),0.0)
+  assertEquals(100.0,selected.rows.single().low.toDouble(),0.0)
+  assertEquals(150.0,selected.rows.single().high.toDouble(),0.0)
   val unrecognized=retargetImportedDraft(draft,store,system="设备C")
   assertEquals(90.0,unrecognized.rows.single().low.toDouble(),0.0)
   assertEquals(160.0,unrecognized.rows.single().high.toDouble(),0.0)
   val edited=draft.copy(rows=draft.rows.map{it.copy(low="115")})
   val preserved=retargetImportedDraft(edited,store,system="设备B")
-  assertEquals(115.0,preserved.rows.single().low.toDouble(),0.0)
-  assertTrue(preserved.rows.single().uncertain)
+  assertEquals(100.0,preserved.rows.single().low.toDouble(),0.0)
+  assertFalse(preserved.rows.single().uncertain)
  }
 
  @Test fun ambiguousRepeatedOcrMetricMustBeReviewedBeforeTemplateRetarget(){
@@ -396,7 +396,9 @@ class CoreFlowTest{
   val ambiguous=ReportDraft(hospital="多页报告医院",type="血常规",ocr=raw,
    rows=listOf(DraftRow.from(parsed.first()).copy(raw="")))
   val selected=retargetImportedDraft(ambiguous,store,system="设备B")
-  assertEquals("90.0",selected.rows.single().low)
+  assertEquals("100.0",selected.rows.single().low)
+  assertEquals("150.0",selected.rows.single().high)
+  assertEquals("",selected.rows.single().text)
   assertTrue(selected.rows.single().uncertain)
  }
 

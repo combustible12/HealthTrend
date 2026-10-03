@@ -137,7 +137,7 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
  */
 internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLabResult>):Map<Int,ParsedLabResult>{
  fun chinese(s:String)=s.filter{it.code in 0x4E00..0x9FFF}.replace(Regex("^(上|下|三|红|丨|I)+"),"")
- fun score(fieldIndex:Int,itemIndex:Int):Int{
+ fun identityScore(fieldIndex:Int,itemIndex:Int):Int{
   val field=fields[fieldIndex];val item=items[itemIndex]
   val keyMatch=ReportParser.key(field.metricKey)==ReportParser.key(item.metricKey)
   val expected=chinese(field.displayName);val actual=chinese(item.displayName)
@@ -148,11 +148,18 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
    else->0
   }
   if(!keyMatch&&nameScore==0)return Int.MIN_VALUE
-  val orderDistance=kotlin.math.abs(fieldIndex-itemIndex)
-  return (if(keyMatch)120 else 0)+nameScore+(20-orderDistance.coerceAtMost(20))
+  return (if(keyMatch)120 else 0)+nameScore
  }
+ fun score(fieldIndex:Int,itemIndex:Int)=identityScore(fieldIndex,itemIndex)+(20-kotlin.math.abs(fieldIndex-itemIndex).coerceAtMost(20))
  data class Candidate(val field:Int,val item:Int,val score:Int)
- val candidates=fields.indices.flatMap{fi->items.indices.mapNotNull{ii->score(fi,ii).takeIf{it>0}?.let{Candidate(fi,ii,it)}}}
+ // If several OCR rows have the same strongest identity evidence, position alone is not
+ // enough to choose a medical result. Leave that template value empty for user review.
+ val ambiguous=fields.indices.filter{fi->
+  val evidence=items.indices.map{ii->identityScore(fi,ii)}.filter{it>0}
+  val strongest=evidence.maxOrNull()?:return@filter false
+  evidence.count{it==strongest}>1
+ }.toSet()
+ val candidates=fields.indices.filterNot{it in ambiguous}.flatMap{fi->items.indices.mapNotNull{ii->score(fi,ii).takeIf{it>0}?.let{Candidate(fi,ii,it)}}}
   .sortedWith(compareByDescending<Candidate>{it.score}.thenBy{it.field}.thenBy{it.item})
  val usedFields=mutableSetOf<Int>();val usedItems=mutableSetOf<Int>();val result=mutableMapOf<Int,ParsedLabResult>()
  candidates.forEach{candidate->if(candidate.field !in usedFields&&candidate.item !in usedItems){usedFields+=candidate.field;usedItems+=candidate.item;result[candidate.field]=items[candidate.item]}}
