@@ -158,7 +158,7 @@ class CoreFlowTest{
   compose.onNodeWithText("09-26",useUnmergedTree=true).assertExists()
   compose.onNodeWithText("102",useUnmergedTree=true).assertExists()
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
-  assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,trendPointTouchRadiusPx(context.resources.displayMetrics.density)))
+  assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,24f*context.resources.displayMetrics.density))
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
   assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
  }
