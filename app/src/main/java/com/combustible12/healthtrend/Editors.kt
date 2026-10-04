@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
-data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false):java.io.Serializable {
+data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String=""):java.io.Serializable {
  fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();val metric=key.ifBlank{ReportParser.key(name)};return ParsedLabResult(metric,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,metric in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})}
  fun valid()=name.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
  companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
@@ -94,7 +94,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Paper{
  Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
- if(templateOnly)Text(displayLabUnit(r.unit),fontSize=22.sp) else ResultValueUnit(r.text,r.unit);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
+ if(templateOnly){Text(displayLabUnit(r.unit),fontSize=22.sp);if(r.trendMeaning.isNotBlank())Text(r.trendMeaning,color=Accent,fontSize=12.sp)} else ResultValueUnit(r.text,r.unit);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  TextButton(edit){Text("编辑")}
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){
@@ -125,6 +125,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){Paper{
  Text("指标")
  if(lockMetadata)Text(r.name,fontSize=18.sp) else Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
+ if(templateOnly)Field(r.trendMeaning,{edit(r.copy(trendMeaning=it))},"趋势说明（箭头在前）")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
  if(lockMetadata){Text("${r.unit.ifBlank{"单位未录入"}} · 参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)}else{
   if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp))}}
@@ -149,11 +150,11 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 @Composable fun DeleteConfirmation(close:()->Unit,remove:()->Unit){AlertDialog(onDismissRequest=close,title={Text("删除这条记录？")},text={Text("删除后无法在应用内恢复。")},confirmButton={TextButton({remove();close()}){Text("删除",color=Bad)}},dismissButton={TextButton(close){Text("取消")}})}
-@Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<ParsedLabResult>)->Unit){
+@Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<LabFieldTemplate>)->Unit){
  val context=LocalContext.current
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
- var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty())})}
- FullPage("医院模板",close,hidden=editing!=null,bottom={Button({save(rows.map{it.parsed()})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("保存模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty(),trendMeaning=it.trendMeaning.ifBlank{metricPurpose(it.metricKey).orEmpty()})})}
+ FullPage("医院模板",close,hidden=editing!=null,bottom={Button({save(rows.map{LabFieldTemplate(it.key.ifBlank{ReportParser.key(it.name)},it.name,displayLabUnit(it.unit),it.low.toDoubleOrNull(),it.high.toDoubleOrNull(),it.trendMeaning.trim())})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()&&it.trendMeaning.isNotBlank()}){Text("保存模板")}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
  item{Text("${t.hospitalKey}\n${t.reportType}")}
  itemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}},true)}
  item{TextButton({val added=DraftRow(text="0");rows=rows+added;editing=added.id}){Text("+ 添加指标")}}
