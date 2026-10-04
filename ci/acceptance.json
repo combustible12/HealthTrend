@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "5d7ac1ffa879ce31004108ae9ffad788ee79c870",
+  "sourceCommit": "441bd2eb18e257e531d130d85018cbd7c2a2f96f",
   "requestedAt": "2026-10-04",
-  "scope": "Android 16 final acceptance for trend chart labels, point details, template-driven import and preserved data"
+  "scope": "Android 16 final acceptance for visible trend labels, point details, template-driven import and preserved data"
 }
