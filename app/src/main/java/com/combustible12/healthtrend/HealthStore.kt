@@ -55,12 +55,12 @@ class HealthStore(private val context:Context) {
   check(prefs.edit().putBoolean(migrationKey,true).commit())
  }
  private fun migrateAstIdentityRepairOnce(){
-  val migrationKey="migration_ast_identity_repair_v1"
+  val migrationKey="migration_ast_identity_repair_v2"
   if(prefs.getBoolean(migrationKey,false))return
   val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
   var changed=false
   val fixed=raw.map{report->report.copy(results=report.results.map{result->
-   val line=result.rawLine
+   val line=listOf(result.rawName,result.rawLine).joinToString(" ")
    val ratioLine=line.contains("谷草/谷丙")||line.contains("AST/ALT",true)
    val astLine=(line.contains("谷草转氨酶")||line.contains("谷草转酶")||line.contains("天门冬氨酸氨基转移酶"))&&!ratioLine
    when{
@@ -86,7 +86,7 @@ class HealthStore(private val context:Context) {
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports():List<LabReport>{
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
-  debugLog=reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.flatMap{report->
+  val unusedDebugLog=reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.flatMap{report->
    report.results.map{result->"metricKey=${result.metricKey}\nrawName=${result.rawName}\nrawLine=${result.rawLine}"}
   }.joinToString("\n\n")
   return reports
