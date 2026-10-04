@@ -93,6 +93,15 @@ class HealthStore(private val context:Context) {
  }
  @Synchronized fun saveReport(r:LabReport){ require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank());write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}}) }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
+ @Synchronized fun addReportImages(reportId:String,uris:List<Uri>){
+  if(uris.isEmpty())return
+  val r=reports().first{it.id==reportId}
+  val now=System.currentTimeMillis()
+  val start=r.sourceImages.size
+  val owned=uris.mapIndexed{i,uri->ReportImage(ownImage(uri),start+i,now)}
+  saveReport(r.copy(sourceImages=r.sourceImages+owned))
+ }
+
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}?.let(ReportParser::key)
