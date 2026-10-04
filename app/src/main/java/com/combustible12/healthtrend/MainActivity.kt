@@ -291,7 +291,7 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  "CHE"->"↓肝合成功能"
  "UREA"->"↑肾排泄异常"
  "CREA"->"↑肾功能下降"
- "UA"->"↑高尿酸"
+ "UA"->"↑痛风 / 肾脏负担"
  else->null
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
