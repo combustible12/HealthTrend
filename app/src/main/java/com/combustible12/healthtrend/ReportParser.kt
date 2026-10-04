@@ -42,7 +42,7 @@ object ReportParser {
   val clean=name.trim().replace(" ","")
   aliases[clean]?.let{return it}
   aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  Regex("(?i)AST/ALT|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
+  Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])|(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
  private fun normalizeCode(raw:String):String{
@@ -55,7 +55,7 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|AST(?!/ALT)|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
@@ -85,8 +85,10 @@ object ReportParser {
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
+  val ratioLine=line.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(line)
+  val astLine=line.contains("谷草转氨酶")&&!line.contains("谷草/谷丙")&&!line.contains("/")
   val explicitCode=knownCode.find(name)?.value
-  var k=explicitCode?.let(::normalizeCode) ?: key(name)
+  var k=when{ratioLine->"AST/ALT";astLine->"AST";else->explicitCode?.let(::normalizeCode) ?: key(name)}
   // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
   // The Chinese row label and unit disambiguate it; keep one stable internal identity.
   if(k=="P-LCR" && (name.contains("大小血小板数目")||name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
