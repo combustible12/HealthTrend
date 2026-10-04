@@ -90,6 +90,7 @@ private fun URI(s:String)=java.net.URI(s)
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
   templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).forEach{t->Paper{Text(t.hospitalKey);Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted);Text("${t.fields.size} 个指标");TextButton({edit(t)},Modifier.semantics{contentDescription="编辑模板 ${t.hospitalKey} ${t.reportType}"}){Text("查看 / 编辑模板")}}}
+  if(debugLog.isNotBlank())Paper{Text("09/23 调试数据",fontWeight=FontWeight.Bold);Text(debugLog,fontSize=12.sp)}
   Paper{
    Text("应用更新");Text("仅检查正式发布版本。升级保留现有记录和原图。",color=Muted)
    OutlinedButton({busy=true;status="正在检查…";scope.launch{try{available=withContext(Dispatchers.IO){updater.check(credentials.load())};status=if(available==null)"当前没有可用的正式更新"else"发现 ${available!!.name}"}catch(e:Exception){status=e.message?:"更新检查失败"}finally{busy=false}}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("检查更新")}
