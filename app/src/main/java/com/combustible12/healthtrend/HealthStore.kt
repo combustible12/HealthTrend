@@ -11,7 +11,7 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateAstAltIdentityOnce() }
+ init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
@@ -37,6 +37,20 @@ class HealthStore(private val context:Context) {
     }else result
    })
   }
+  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
+  check(prefs.edit().putBoolean(migrationKey,true).commit())
+ }
+ private fun migrateAstRawNameOnce(){
+  val migrationKey="migration_ast_raw_name_v1"
+  if(prefs.getBoolean(migrationKey,false))return
+  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
+  var changed=false
+  val fixed=raw.map{report->report.copy(results=report.results.map{result->
+   if(result.metricKey=="AST" && (result.rawName.contains("AST/ALT",true)||result.rawName.contains("谷草/谷丙")) && result.rawLine.contains(Regex("(?i)(^|\\s)AST(?:\\s|$)")) && !result.rawLine.contains("AST/ALT",true)){
+    changed=true
+    result.copy(rawName="AST 谷草转氨酶")
+   }else result
+  })}
   if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
   check(prefs.edit().putBoolean(migrationKey,true).commit())
  }
