@@ -147,17 +147,23 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "TBA"->"总胆汁酸 TBA";"PA"->"前白蛋白 PA";"UREA"->"尿素 UREA";"CREA"->"肌酐 CREA";"UA"->"尿酸 UA"
   else->null
  }
- fun resolvedMetricKey(result:LabResult):String{
+ fun resolvedMetricKey(report:LabReport,result:LabResult):String{
   val raw=result.rawName.trim()
   val stored=result.metricKey.trim()
+  val currentField=store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{field->
+   field.displayName.trim().equals(raw,true) ||
+    raw.contains(field.displayName.trim(),true) ||
+    field.displayName.trim().contains(raw,true)
+  }
   return when{
+   currentField!=null->currentField.metricKey.trim()
    raw.contains("红细胞分布宽度SD",true)||Regex("(?i)(?<![A-Za-z])RDW-SD(?![A-Za-z])").containsMatchIn(raw)->"RDW-SD"
    raw.contains("红细胞分布宽度",true)||Regex("(?i)(?<![A-Za-z])RDW(?!-SD)(?![A-Za-z])").containsMatchIn(raw)->"RDW"
    else->stored
   }
  }
  val all=reports.flatMap{r->r.results.map{x->r to x}}
-  .groupBy{(_,result)->resolvedMetricKey(result)}
+  .groupBy{(report,result)->resolvedMetricKey(report,result)}
  Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
@@ -194,7 +200,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->resolvedMetricKey(result)}.forEach{(_,series)->
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->resolvedMetricKey(series.last().first,result)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
