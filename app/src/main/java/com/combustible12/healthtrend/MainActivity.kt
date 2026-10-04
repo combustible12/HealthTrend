@@ -139,8 +139,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val raw=latest.rawName.trim()
-      val codeToken=Regex("^(A/G|AST/ALT|#?[A-Za-z]+(?:/[A-Za-z]+)?[#%]?)\\s*",RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1).orEmpty()
-      val cnName=if(codeToken.isNotBlank())raw.removePrefix(codeToken).trim() else raw
+      val codeToken=key.trim()
+      val codeMatch=Regex(Regex.escape(codeToken),RegexOption.IGNORE_CASE).find(raw)
+      val cnName=if(codeToken.isNotBlank()&&codeMatch!=null)(raw.removeRange(codeMatch.range).trim().replace(Regex("\\s+")," ")) else raw
       Row(verticalAlignment=Alignment.Bottom){
        Text(cnName.ifBlank{raw},fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
        if(codeToken.isNotBlank()){
@@ -180,7 +181,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onShowPreview={previewSeries=series}
      )
     }
-    TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
+    TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=28.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
@@ -255,7 +256,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
  val plotHeight=125.dp
- val chartHeight=175.dp
+ val chartHeight=160.dp
  Box(Modifier.fillMaxWidth()){
   BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)){
    val chartWidth=constraints.maxWidth
@@ -264,12 +265,24 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     if(points.isEmpty())return@Canvas
     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-    if(referenceLow!=null&&referenceHigh!=null){
-     val top=y(referenceHigh);val bottom=y(referenceLow)
-     drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
-     val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
-     drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
-     drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
+    val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
+    when{
+     referenceLow!=null&&referenceHigh!=null->{
+      val top=y(referenceHigh);val bottom=y(referenceLow)
+      drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
+      drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
+      drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
+     }
+     referenceHigh!=null->{
+      val top=y(referenceHigh)
+      drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(size.height-top).coerceAtLeast(1f)))
+      drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
+     }
+     referenceLow!=null->{
+      val bottom=y(referenceLow)
+      drawRect(Good.copy(alpha=.08f),Offset.Zero,Size(size.width,bottom.coerceAtLeast(1f)))
+      drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
+     }
     }
     val path=Path()
     if(points.isNotEmpty()){
@@ -300,8 +313,8 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-40.dp.roundToPx(),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
      horizontalAlignment=Alignment.CenterHorizontally
     ){
-     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+     Text(trendShortDate(points[i].first),fontSize=10.sp,lineHeight=11.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
     }
    }
   }
