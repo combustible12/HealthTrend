@@ -120,10 +120,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  val all=reports.flatMap{r->r.results.map{x->
-  val raw=x.rawName
-  val looksLikeAstOnly=(x.metricKey=="AST/ALT") && !raw.contains("/") && !raw.contains("谷草/谷丙") && !raw.contains("谷草谷丙")
-  val corrected=if(looksLikeAstOnly) x.copy(metricKey="AST") else x
-  r to corrected
+  val raw=(x.rawName+" "+x.rawLine).trim()
+  val isAstAlt=raw.contains("AST/ALT",true)||raw.contains("谷草/谷丙")||raw.contains("谷草谷丙")
+  val isAst=raw.contains("谷草转氨酶")||raw.contains("天门冬氨酸氨基转移酶")||Regex("(?i)(^|\\s)AST(?:\\s|$)").containsMatchIn(raw)
+  val trendKey=if(x.metricKey=="AST/ALT"&&isAst&&!isAstAlt)"AST" else x.metricKey
+  r to (if(trendKey==x.metricKey)x else x.copy(metricKey=trendKey))
  }}.groupBy{it.second.metricKey}
  Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
