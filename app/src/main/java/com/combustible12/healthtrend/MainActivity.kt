@@ -28,8 +28,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.semantics.clearAndSetSemantics
+
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -240,7 +240,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   points.indices.forEach{i->
    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
    Column(
-        Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.semantics(mergeDescendants=true){contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"}),
+                Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.clearAndSetSemantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}";onClick(label="打开该数据点"){onPointClick(i);true}}),
     horizontalAlignment=Alignment.CenterHorizontally
    ){
     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
