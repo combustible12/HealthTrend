@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "55f51d96f24dabdf28d431a2c8bb85160d78519a",
+  "sourceCommit": "5d7ac1ffa879ce31004108ae9ffad788ee79c870",
   "requestedAt": "2026-10-04",
-  "scope": "Android 16 final acceptance for visible trend touch targets, template-driven import, pasted reports and preserved data"
+  "scope": "Android 16 final acceptance for trend chart labels, point details, template-driven import and preserved data"
 }
