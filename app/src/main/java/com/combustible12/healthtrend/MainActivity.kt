@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Dialog
 import java.time.*
 import java.time.format.DateTimeFormatter
 
@@ -213,44 +214,80 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
 }
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList()){
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
+ val pointSlot=80.dp
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
- val contentWidth=maxOf(viewportWidth,(64*points.size.coerceAtLeast(1)).dp)
+ val contentWidth=maxOf(viewportWidth,(pointSlot*points.size.coerceAtLeast(1)).dp)
  val plotHeight=150.dp
  val chartHeight=206.dp
- Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){
-  BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
-   val chartWidth=constraints.maxWidth
-   val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
-   Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
-    if(points.isEmpty())return@Canvas
-    val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
-    fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-    repeat(5){i->val gy=size.height*(.12f+i*.19f);drawLine(Muted.copy(alpha=.18f),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx())}
-    if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
-    val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
-    drawPath(path,color,style=Stroke(2.dp.toPx()))
-   }
-   if(points.isNotEmpty())Text(trendYearLabel(points),fontSize=10.sp,color=Muted,modifier=Modifier.align(Alignment.TopStart).padding(start=4.dp))
-   points.indices.forEach{i->
-    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
-    Box(
-     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
-      .size(24.dp)
-      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
-      .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
-     contentAlignment=Alignment.Center
-    ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
-   }
-   if(points.isNotEmpty()){
-    val lastIndex=points.lastIndex
-    val at=pointPosition(lastIndex,chartWidth.toFloat(),plotHeightPx.toFloat())
-    Column(
-     Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30.dp.roundToPx()).coerceIn(0,(chartWidth-60.dp.roundToPx()).coerceAtLeast(0)),plotHeightPx+4.dp.roundToPx())}.width(60.dp),
-     horizontalAlignment=Alignment.CenterHorizontally
-    ){
-     Text(trendShortDate(points[lastIndex].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-     Text(valueLabels.getOrNull(lastIndex).orEmpty().ifBlank{formatTrendValue(points[lastIndex].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+ var showPreview by remember{mutableStateOf(false)}
+ Box(Modifier.fillMaxWidth()){
+  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){
+   BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
+    val chartWidth=constraints.maxWidth
+    val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
+    Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
+     if(points.isEmpty())return@Canvas
+     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+     repeat(5){i->val gy=size.height*(.12f+i*.19f);drawLine(Muted.copy(alpha=.18f),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx())}
+     if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+     val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
+     drawPath(path,color,style=Stroke(2.dp.toPx()))
     }
+    if(points.isNotEmpty())Text(trendYearLabel(points),fontSize=10.sp,color=Muted,modifier=Modifier.align(Alignment.TopStart).padding(start=4.dp))
+    points.indices.forEach{i->
+     val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
+     Box(
+      Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
+       .size(24.dp)
+       .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
+       .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
+      contentAlignment=Alignment.Center
+     ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
+     Column(
+      Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-40.dp.roundToPx()).coerceIn(0,(chartWidth-80.dp.roundToPx()).coerceAtLeast(0)),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
+      horizontalAlignment=Alignment.CenterHorizontally
+     ){
+      Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+      Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+     }
+    }
+   }
+  }
+  TextButton(
+   onClick={showPreview=true},
+   modifier=Modifier.align(Alignment.TopEnd).padding(top=2.dp)
+  ){Text("整体",fontSize=12.sp,color=Accent)}
+ }
+ if(showPreview){
+  TrendPreviewDialog(points,color,referenceLow,referenceHigh,metricKey,onDismiss={showPreview=false})
+ }
+}
+
+@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?,referenceHigh:Double?,metricKey:String,onDismiss:()->Unit){
+ Dialog(onDismissRequest=onDismiss){
+  Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Column(Modifier.padding(20.dp).fillMaxWidth(0.8f),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
+    if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
+     Canvas(Modifier.fillMaxWidth().height(160.dp)){
+      val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+      fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+      if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+      val path=Path()
+      points.indices.forEach{i->
+       val x=if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)
+       val yy=y(points[i].second)
+       if(i==0)path.moveTo(x,yy)else{val px=if(points.size==1)size.width/2 else 8f+(size.width-16f)*(i-1)/(points.size-1);val py=y(points[i-1].second);val middle=(px+x)/2f;path.cubicTo(middle,py,middle,yy,x,yy)}
+      }
+      drawPath(path,color,style=Stroke(2.dp.toPx()))
+     }
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+      Text(trendShortDate(points.first().first),fontSize=10.sp,color=Muted)
+      Text(trendShortDate(points.last().first),fontSize=10.sp,color=Muted)
+     }
+    }
+    TextButton({onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
    }
   }
  }
