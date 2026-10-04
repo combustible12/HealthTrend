@@ -55,7 +55,7 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|AST/ALT|A/G|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|AST|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|AST(?!/ALT)|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
