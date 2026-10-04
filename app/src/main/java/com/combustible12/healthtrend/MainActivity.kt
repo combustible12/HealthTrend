@@ -197,9 +197,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->resolvedMetricKey(result)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
+     val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
+     val trendColor=if(hasHistoricalAbnormal) Bad else Color(0xFF5B8DEF)
      Spark(
       points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
-      color=Accent,
+      color=trendColor,
       referenceLow=bounds.first,
       referenceHigh=bounds.second,
       onPointClick={index->selected=series[index]},
