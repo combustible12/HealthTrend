@@ -25,11 +25,11 @@ jobs:
       - name: Unit tests
         run: gradle :app:testDebugUnitTest
       - name: Build debug APK
-        run: gradle :app:assembleDebug
+        run: HEALTHTREND_VERSION_CODE=2026100404 gradle :app:assembleDebug
       - name: Set version
         id: ver
         run: |
-          echo "code=100000" >> "$GITHUB_OUTPUT"
+          echo "code=2026100404" >> "$GITHUB_OUTPUT"
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk HealthTrend.apk
       - name: Create Release
