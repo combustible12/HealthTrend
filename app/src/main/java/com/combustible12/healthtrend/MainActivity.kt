@@ -165,8 +165,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.padding(0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{trendSeriesKey(it.second)}.forEach{(_,series)->
-     if(series.map{it.second.metricKey}.distinct().size>1) return@forEach
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{it.second.metricKey}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      Spark(
