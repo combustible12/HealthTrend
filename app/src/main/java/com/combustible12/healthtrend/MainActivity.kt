@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.awaitPointerEvent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,8 +32,6 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-
-
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,8 +86,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
-   // Importing a report against an existing confirmed template never mutates that
-   // template. Template changes happen only in the explicit TemplateEditor flow.
    val t=existing?:store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
    val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
    val version=if(d.existing!=null&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey)d.existing.templateVersion else t.version
@@ -154,7 +152,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=series.map{it.second.textValue}
      )
-
     }
     TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
@@ -177,9 +174,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
  val key=ReportParser.key(result.metricKey.ifBlank{result.rawName})
- val liver=key in setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
- val kidney=key in setOf("CREA","UREA","BUN","UA")
- return when(category){"肝功能"->liver;"肾功能"->kidney;"血常规"->report.reportType=="血常规";"肿瘤标志物"->report.reportType=="肿瘤标志物";else->report.reportType==category}
+ val liver=setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
+ val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
+ val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#")
+ return when(category){
+  "肝功能"->key in liver
+  "肾功能"->key in kidney
+  "血常规"->key in cbc||report.reportType=="血常规"
+  "肿瘤标志物"->report.reportType=="肿瘤标志物"
+  else->report.reportType==category
+ }
 }
 fun trendSeriesKey(result:LabResult)=result.normalizedUnit
 fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
@@ -191,7 +195,6 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  "EOS#","EOS%"->"过敏及寄生虫相关变化"
  "BASO#","BASO%"->"过敏及炎症相关变化"
  "RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD"->"贫血及红细胞状态"
-        
  "ALT","AST","GGT","ALP"->"肝损伤"
  "TBIL","DBIL","IBIL"->"胆红素与黄疸"
  "TBA"->"肝胆代谢"
@@ -203,7 +206,6 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  else->null
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
-fun trendPointTouchRadiusPx(density:Float)=24f*density
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index];val x=if(points.size==1)width/2 else 8f+(width-16f)*index/(points.size-1);val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
 }
@@ -238,16 +240,34 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     Box(
      Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
       .size(24.dp)
-      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
+      .then(if(onPointClick==null)Modifier else Modifier.pointerInput(i){
+       awaitEachGesture{
+        val down=awaitFirstDown(requireUnconsumed=false)
+        var dragged=false
+        var pointer=down
+        while(true){
+         val event=awaitPointerEvent()
+         val change=event.changes.firstOrNull{it.id==pointer.id}?:break
+         if(change.positionChange().getDistance()>viewConfiguration.touchSlop){dragged=true;break}
+         if(!change.pressed)break
+         pointer=change
+        }
+        if(!dragged&&pointer.pressed)onPointClick(i)
+       }
+      })
       .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
      contentAlignment=Alignment.Center
     ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
+   }
+   if(points.isNotEmpty()){
+    val lastIndex=points.lastIndex
+    val at=pointPosition(lastIndex,chartWidth.toFloat(),plotHeightPx.toFloat())
     Column(
      Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30.dp.roundToPx()).coerceIn(0,(chartWidth-60.dp.roundToPx()).coerceAtLeast(0)),plotHeightPx+4.dp.roundToPx())}.width(60.dp),
      horizontalAlignment=Alignment.CenterHorizontally
     ){
-     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+     Text(trendShortDate(points[lastIndex].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+     Text(valueLabels.getOrNull(lastIndex).orEmpty().ifBlank{formatTrendValue(points[lastIndex].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
     }
    }
   }
