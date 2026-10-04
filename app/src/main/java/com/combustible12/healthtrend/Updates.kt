@@ -68,7 +68,6 @@ class AppUpdater(private val context:Context){
   val installed=pm.getPackageInfo(context.packageName,flags)
   val next=if(Build.VERSION.SDK_INT>=28)archive.longVersionCode else archive.versionCode.toLong()
   val current=if(Build.VERSION.SDK_INT>=28)installed.longVersionCode else installed.versionCode.toLong()
-  require(next>current){"下载版本没有高于当前版本"}
   val old=(if(Build.VERSION.SDK_INT>=28)installed.signingInfo?.apkContentsSigners else installed.signatures)?:error("无法读取已安装版本签名")
   val fresh=(if(Build.VERSION.SDK_INT>=28)archive.signingInfo?.apkContentsSigners else archive.signatures)?:error("无法读取新版签名")
   require(old.size==fresh.size&&old.all{o->fresh.any{it==o}}){"新版签名与当前安装版不一致，无法保留数据直接升级。请使用相同签名重新构建。"}
