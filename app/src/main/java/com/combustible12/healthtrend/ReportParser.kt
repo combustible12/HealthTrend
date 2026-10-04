@@ -42,7 +42,7 @@ object ReportParser {
   val clean=name.trim().replace(" ","")
   aliases[clean]?.let{return it}
   aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  Regex("(?:[#%][A-Za-z]+|[A-Za-z]+[#%]?)").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
+  Regex("(?i)AST/ALT|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
  private fun normalizeCode(raw:String):String{
