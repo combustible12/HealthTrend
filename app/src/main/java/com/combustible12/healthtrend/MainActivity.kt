@@ -153,7 +153,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     var previewSeries by remember{mutableStateOf<List<Pair<Report,LabResult>>?>(null)}
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
-     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}} ,modifier=Modifier.padding(0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.padding(0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{trendSeriesKey(it.second)}.forEach{(_,series)->
      val sx=series.last().second
@@ -167,7 +167,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=latest.rawName,
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=series.map{it.second.textValue},
-      onShowPreview={}
+      onShowPreview={previewSeries=series}
      )
     }
     previewSeries?.let{series->
