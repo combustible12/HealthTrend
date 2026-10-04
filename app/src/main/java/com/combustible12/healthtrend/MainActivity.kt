@@ -300,6 +300,10 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   }
  }
 }
+internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
+ val years=points.map{dateText(it.first).substring(0,4)}.distinct()
+ return when(years.size){0->"";1->"${years.single()}年";else->"${years.first()}–${years.last()}年"}
+}
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
