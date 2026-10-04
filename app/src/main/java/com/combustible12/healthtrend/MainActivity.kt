@@ -138,15 +138,19 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       Text(latest.rawName,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
       metricPurpose(key)?.let{Text("主要看：$it",color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
      Column(horizontalAlignment=Alignment.End){
-      Text(latest.textValue+" "+displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Bold,fontSize=22.sp,color=valueColor,maxLines=1)
-      Text(latestStatus.label(),color=valueColor,fontSize=12.sp)
+      Row(verticalAlignment=Alignment.Bottom){
+       Text(latest.textValue,fontWeight=FontWeight.Bold,fontSize=20.sp,color=valueColor,maxLines=1)
+       Spacer(Modifier.width(4.dp))
+       Text(displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Normal,fontSize=11.sp,color=Muted,maxLines=1,modifier=Modifier.padding(bottom=2.dp))
+      }
+      Text(latestStatus.label(),color=valueColor,fontSize=11.sp)
      }
     }
-    Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{trendSeriesKey(it.second)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
@@ -156,7 +160,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       referenceLow=bounds.first,
       referenceHigh=bounds.second,
       onPointClick={index->selected=series[index]},
-      metricKey=key,
+      metricKey=latest.rawName,
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=series.map{it.second.textValue}
      )
@@ -240,7 +244,13 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     if(points.isEmpty())return@Canvas
     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-    if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.14f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+    if(referenceLow!=null&&referenceHigh!=null){
+ val top=y(referenceHigh);val bottom=y(referenceLow)
+ drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
+ val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
+ drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
+ drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
+}
     val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
     drawPath(path,color,style=Stroke(2.dp.toPx()))
    }
@@ -281,7 +291,13 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      Canvas(Modifier.fillMaxWidth().height(160.dp)){
       val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
       fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-      if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.14f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+      if(referenceLow!=null&&referenceHigh!=null){
+ val top=y(referenceHigh);val bottom=y(referenceLow)
+ drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
+ val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
+ drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
+ drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
+}
       val path=Path()
       points.indices.forEach{i->
        val x=if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)
