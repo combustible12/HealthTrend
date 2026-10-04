@@ -58,7 +58,6 @@ class AppUpdater(private val context:Context){
   val json=try{c.inputStream.bufferedReader().use{JSONObject(it.readText())}}finally{c.disconnect()}
   if(json.optBoolean("draft")||json.optBoolean("prerelease"))return null
   val version=Regex("版本代码[:： ]+(\\d+)").find(json.optString("body"))?.groupValues?.get(1)?.toLongOrNull()?:return null
-  if(version<=BuildConfig.VERSION_CODE)return null
   val a=json.getJSONArray("assets");val apk=(0 until a.length()).map{a.getJSONObject(it)}.firstOrNull{it.getString("name").endsWith(".apk") }?:return null
   return AvailableUpdate(json.optString("name",json.getString("tag_name")),version,apk.getString("url"),json.optString("body"))
  }
