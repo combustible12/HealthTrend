@@ -183,7 +183,8 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  "EOS#","EOS%"->"过敏及寄生虫相关变化"
  "BASO#","BASO%"->"过敏及炎症相关变化"
  "RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD"->"贫血及红细胞状态"
- "PLT","PCT","MPV","PDW","P-LCR"->"凝血与出血风险"
+242
+        Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.clearAndSetSemantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}";onClick(label="打开该数据点"){onPointClick(i);true}}),
  "ALT","AST","GGT","ALP"->"肝损伤"
  "TBIL","DBIL","IBIL"->"胆红素与黄疸"
  "TBA"->"肝胆代谢"
