@@ -68,8 +68,12 @@ object ReportParser {
   if(match==null && textual==null) return@mapNotNull null
   val isText=textual!=null && (match==null || textual.groupValues[1].length<match.range.first)
   val prefix=if(isText)textual!!.groupValues[1] else line.substring(0,match!!.range.first)
-  val name=prefix.replace(Regex("(?<=[\\p{IsHan}])\\s+(?=[\\p{IsHan}])"),"").trim().trimEnd(':','↑','↓','*').replace(Regex("^\\d+[.、]\\s*"),"")
-  if(name.isBlank() || !name.any{it.isLetter()} || name.length>55) return@mapNotNull null
+  val parsedName=prefix.replace(Regex("(?<=[\\p{IsHan}])\\s+(?=[\\p{IsHan}])"),"").trim().trimEnd(':','↑','↓','*').replace(Regex("^\\d+[.、]\\s*"),"")
+  if(parsedName.isBlank() || !parsedName.any{it.isLetter()} || parsedName.length>55) return@mapNotNull null
+  val name=when{
+   Regex("(?i)^AST(?:\\s|$)").containsMatchIn(parsedName) && !parsedName.contains("AST/ALT",true) && (parsedName.contains("谷草转酶")||parsedName.contains("谷草转氨酶")||parsedName.contains("天门冬氨酸氨基转移酶"))->"AST 谷草转氨酶"
+   else->parsedName
+  }
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("(\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*(\\d+(?:\\.\\d+)?)").find(suffix)
