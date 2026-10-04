@@ -132,15 +132,21 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
  }
 }}
-@Composable fun ReportDetail(r:LabReport,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit){
+@Composable fun ReportDetail(r:LabReport,store:HealthStore,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit,onImagesChanged:()->Unit){
  var point by remember{mutableStateOf<LabResult?>(null)};var value by remember{mutableStateOf("")};var confirmDelete by remember{mutableStateOf(false)}
+ var imageError by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)}
+ val scope=rememberCoroutineScope()
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->
+  if(uris.isNotEmpty()){busy=true;scope.launch{try{withContext(Dispatchers.IO){store.addReportImages(r.id,uris)};onImagesChanged()}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{busy=false}}}
+ }
  FullPage(r.reportType,close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
- item{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)}
- if(r.sourceImages.isNotEmpty())item{Button({images(r.sourceImages.map{it.uri})},Modifier.fillMaxWidth()){Text("查看原报告 · ${r.sourceImages.size} 页")}}
- itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{Row{Text(x.rawName,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};ResultValueUnit(x.textValue,x.unitAtTest);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}}}
+  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else picker.launch(arrayOf("image/*"))},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
+  if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
+  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{Row{Text(x.rawName,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};ResultValueUnit(x.textValue,x.unitAtTest);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}}}
  }}
  if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${point!!.rawName}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble(),value.trim());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
  if(confirmDelete)DeleteConfirmation({confirmDelete=false},delete)
+ if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 @Composable fun DeleteConfirmation(close:()->Unit,remove:()->Unit){AlertDialog(onDismissRequest=close,title={Text("删除这条记录？")},text={Text("删除后无法在应用内恢复。")},confirmButton={TextButton({remove();close()}){Text("删除",color=Bad)}},dismissButton={TextButton(close){Text("取消")}})}
 @Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<ParsedLabResult>)->Unit){
