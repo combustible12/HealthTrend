@@ -5,12 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.awaitPointerEvent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -240,21 +235,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     Box(
      Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
       .size(24.dp)
-      .then(if(onPointClick==null)Modifier else Modifier.pointerInput(i){
-       awaitEachGesture{
-        val down=awaitFirstDown(requireUnconsumed=false)
-        var dragged=false
-        var pointer=down
-        while(true){
-         val event=awaitPointerEvent()
-         val change=event.changes.firstOrNull{it.id==pointer.id}?:break
-         if(change.positionChange().getDistance()>viewConfiguration.touchSlop){dragged=true;break}
-         if(!change.pressed)break
-         pointer=change
-        }
-        if(!dragged&&pointer.pressed)onPointClick(i)
-       }
-      })
+      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
       .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
      contentAlignment=Alignment.Center
     ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
