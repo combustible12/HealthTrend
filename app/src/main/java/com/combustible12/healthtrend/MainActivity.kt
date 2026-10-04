@@ -138,7 +138,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       Text(latest.rawName,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
       metricPurpose(key)?.let{Text("主要看：$it",color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
@@ -151,6 +150,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       Text(latestStatus.label(),color=valueColor,fontSize=11.sp)
      }
     }
+    var previewSeries by remember{mutableStateOf<List<Pair<Report,LabResult>>?>(null)}
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+     Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
+     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}} ,modifier=Modifier.padding(0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+    }
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{trendSeriesKey(it.second)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
@@ -162,8 +166,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onPointClick={index->selected=series[index]},
       metricKey=latest.rawName,
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
-      valueLabels=series.map{it.second.textValue}
+      valueLabels=series.map{it.second.textValue},
+      onShowPreview={}
      )
+    }
+    previewSeries?.let{series->
+     val sx=series.last().second
+     val bounds=sx.trendReferenceRange()
+     TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,latest.rawName,onDismiss={previewSeries=null})
     }
    }
   }
@@ -230,12 +240,11 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=trendPointPosition(points,hit,width,height,referenceLow,referenceHigh);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList()){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),onShowPreview:()->Unit={}){
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
  val plotHeight=150.dp
  val chartHeight=206.dp
- var showPreview by remember{mutableStateOf(false)}
  Box(Modifier.fillMaxWidth()){
   BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)){
    val chartWidth=constraints.maxWidth
@@ -272,13 +281,6 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     }
    }
   }
-  TextButton(
-   onClick={showPreview=true},
-   modifier=Modifier.align(Alignment.TopEnd).padding(top=2.dp)
-  ){Text("整体",fontSize=12.sp,color=Accent)}
- }
- if(showPreview){
-  TrendPreviewDialog(points,color,referenceLow,referenceHigh,metricKey,onDismiss={showPreview=false})
  }
 }
 
