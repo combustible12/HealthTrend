@@ -216,7 +216,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
  val pointSlot=80.dp
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
- val contentWidth=maxOf(viewportWidth,(pointSlot*points.size.coerceAtLeast(1)).dp)
+ val contentWidth=maxOf(viewportWidth,pointSlot*points.size.coerceAtLeast(1))
  val plotHeight=150.dp
  val chartHeight=206.dp
  var showPreview by remember{mutableStateOf(false)}
