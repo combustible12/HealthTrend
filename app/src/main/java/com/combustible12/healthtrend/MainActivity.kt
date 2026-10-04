@@ -212,49 +212,44 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList()){
- val density=LocalDensity.current.density
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
- val interaction=if(onPointClick==null)Modifier else Modifier.pointerInput(points,referenceLow,referenceHigh,density){
-  awaitEachGesture{
-   val down=awaitFirstDown(requireUnconsumed=false);val start=down.position;val up=waitForUpOrCancellation()
-   if(up!=null){val dx=up.position.x-start.x;val dy=up.position.y-start.y;val slop=viewConfiguration.touchSlop
-    if(dx*dx+dy*dy<=slop*slop){val hit=nearestTrendPoint(points,up.position,size.width.toFloat(),size.height.toFloat(),referenceLow,referenceHigh,trendPointTouchRadiusPx(density));if(hit!=null)onPointClick(hit)}}
-  }
- }
- val semantics=if(onPointClick==null)Modifier else Modifier.semantics{contentDescription="趋势图 $metricKey"}
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
  val contentWidth=maxOf(viewportWidth,(64*points.size.coerceAtLeast(1)).dp)
  val plotHeight=150.dp
  val chartHeight=206.dp
  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){
- BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
-  val chartWidth=constraints.maxWidth
-  val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
-  Canvas(Modifier.fillMaxWidth().height(plotHeight).then(interaction).then(semantics)){
-  if(points.isEmpty())return@Canvas
-  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
-  fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-  repeat(5){i->val gy=size.height*(.12f+i*.19f);drawLine(Muted.copy(alpha=.18f),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx())}
-  if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
-  val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
-  drawPath(path,color,style=Stroke(2.dp.toPx()));points.indices.forEach{i->drawCircle(color,4.dp.toPx(),pointPosition(i,size.width,size.height))}
-  }
-  if(points.isNotEmpty()){
-   Text(trendYearLabel(points),fontSize=10.sp,color=Muted,modifier=Modifier.align(Alignment.TopStart).padding(start=4.dp))
-  }
-  points.indices.forEach{i->
-   val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
-   Column(
-                Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.clearAndSetSemantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}";onClick(label="打开该数据点"){onPointClick(i);true}}),
-    horizontalAlignment=Alignment.CenterHorizontally
-   ){
-    Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-    Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+  BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
+   val chartWidth=constraints.maxWidth
+   val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
+   Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
+    if(points.isEmpty())return@Canvas
+    val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+    fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+    repeat(5){i->val gy=size.height*(.12f+i*.19f);drawLine(Muted.copy(alpha=.18f),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx())}
+    if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+    val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
+    drawPath(path,color,style=Stroke(2.dp.toPx()))
+   }
+   if(points.isNotEmpty())Text(trendYearLabel(points),fontSize=10.sp,color=Muted,modifier=Modifier.align(Alignment.TopStart).padding(start=4.dp))
+   points.indices.forEach{i->
+    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
+    Box(
+     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
+      .size(24.dp)
+      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
+      .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
+     contentAlignment=Alignment.Center
+    ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
+    Column(
+     Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30.dp.roundToPx()).coerceIn(0,(chartWidth-60.dp.roundToPx()).coerceAtLeast(0)),plotHeightPx+4.dp.roundToPx())}.width(60.dp),
+     horizontalAlignment=Alignment.CenterHorizontally
+    ){
+     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+    }
    }
   }
-  
-}
-}
+ }
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
 internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
