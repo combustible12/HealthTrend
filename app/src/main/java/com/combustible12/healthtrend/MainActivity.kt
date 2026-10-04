@@ -187,7 +187,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->trendSeriesKey(result)}.forEach{(_,series)->
+    listOf(points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}).forEach{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
@@ -242,7 +242,6 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   else->report.reportType==category
  }
 }
-fun trendSeriesKey(result:LabResult)=ReportParser.key(result.metricKey)+"|"+result.normalizedUnit.trim().lowercase()
 fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  "WBC"->"↑感染/炎症 / ↓感染防御不足"
  "NEUT#"->"↑细菌感染/炎症 / ↓感染防御不足"
