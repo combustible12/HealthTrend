@@ -42,7 +42,7 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFFAF9F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
-val Accent=Color(0xFFF28B58);val Good=Color(0xFF56A978);val Bad=Color(0xFFD9665B)
+val Accent=Color(0xFFF28B58);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8)
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 fun dateText(n:Long)=Instant.ofEpochMilli(n).atZone(ZoneId.systemDefault()).format(stamp)
 fun normalizeDateText(s:String):String? {
@@ -198,7 +198,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
-     val trendColor=if(hasHistoricalAbnormal) Bad else Color(0xFF5B8DEF)
+     val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
      Spark(
       points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
       color=trendColor,
