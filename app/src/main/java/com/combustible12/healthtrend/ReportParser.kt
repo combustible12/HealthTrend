@@ -40,12 +40,20 @@ object ReportParser {
  }
  fun key(name:String):String {
   val clean=name.trim().replace(" ","")
+  val astAlt=clean.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(clean)
+  if(astAlt)return "AST/ALT"
+  val ast=clean.contains("谷草转氨酶")&&!clean.contains("谷草/谷丙")&&!clean.contains("/")||
+   Regex("(?i)(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])").containsMatchIn(clean)
+  if(ast)return "AST"
   aliases[clean]?.let{return it}
   aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  if(clean.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(clean))return "AST/ALT"
-  if(clean.contains("谷草转氨酶")&&!clean.contains("谷草/谷丙")&&!clean.contains("/"))return "AST"
   Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])|(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
+ }
+ private val astKeySelfCheck by lazy {
+  check(key("AST 谷草转氨酶")=="AST")
+  check(key("AST/ALT 谷草/谷丙")=="AST/ALT")
+  true
  }
  private fun normalizeCode(raw:String):String{
   val c=raw.uppercase().replace("％","%").trim()
