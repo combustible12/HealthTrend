@@ -60,7 +60,7 @@ jobs:
           keytool -genkeypair -keystore "$RUNNER_TEMP/qa-different-signer.jks" -storepass qa-test-password -keypass qa-test-password -alias qa -dname "CN=HealthTrend QA" -keyalg RSA -validity 30
           qa_apksigner="$(python -c "import os,pathlib; print(sorted(pathlib.Path(os.environ['ANDROID_HOME']).glob('build-tools/*/apksigner'))[-1])")"
           "$qa_apksigner" sign --ks "$RUNNER_TEMP/qa-different-signer.jks" --ks-pass pass:qa-test-password --key-pass pass:qa-test-password --out "$RUNNER_TEMP/qa-update-wrong-signer.apk" "$RUNNER_TEMP/qa-update-same-signer.apk"
-          gradle :app:assembleDebug :app:assembleDebugAndroidTest
+          gradle :app:clean :app:assembleDebug :app:assembleDebugAndroidTest
       - name: Record APK signing certificate
         run: |
           set -o pipefail

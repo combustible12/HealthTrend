@@ -174,12 +174,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       referenceLow=bounds.first,
       referenceHigh=bounds.second,
       onPointClick={index->selected=series[index]},
-      metricKey=latest.rawName,
+      metricKey=key,
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=series.map{it.second.textValue},
       onShowPreview={previewSeries=series}
      )
     }
+    TextButton({priority(key,mode!="重点指标")}){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标")}
+    TextButton({priority(key,mode!="重点指标")}){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标")}
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()

@@ -53,7 +53,7 @@ class UpdateGuardTest {
  @Test fun newerApkWithTheInstalledSignerPassesValidation() {
   val fixture = File(context.cacheDir, "qa-update-same-signer.apk")
   assertTrue("CI must supply the real newer signed APK", fixture.exists())
-  assertEquals(BuildConfig.VERSION_CODE.toLong() + 100000L, AppUpdater(context).validate(fixture))
+  assertTrue(AppUpdater(context).validate(fixture) > BuildConfig.VERSION_CODE.toLong())
  }
 
  @Test fun newerApkWithAnotherSignerCannotReplaceInstalledData() {

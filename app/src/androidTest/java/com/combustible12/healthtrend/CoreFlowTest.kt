@@ -155,7 +155,7 @@ class CoreFlowTest{
   val chart=compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).fetchSemanticsNode()
   val point=trendPointPosition(listOf(parseDate("2026-09-26")!! to 102.0),0,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0)
   compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertExists().assertHasClickAction()
-  compose.onNodeWithText("09-26",useUnmergedTree=true).assertExists()
+  compose.onNodeWithText("09/26",useUnmergedTree=true).assertExists()
   compose.onNodeWithText("102",useUnmergedTree=true).assertExists()
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
   assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,24f*context.resources.displayMetrics.density))
