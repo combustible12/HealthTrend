@@ -184,15 +184,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       valueLabels=series.map{it.second.textValue},
       onShowPreview={previewSeries=series}
      )
-    }
-    previewSeries?.let{series->
+        previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,latest.rawName,onDismiss={previewSeries=null})
     }
    }
   }
- }
  selected?.let{(r,x)->
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Text(x.rawName)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
@@ -207,6 +205,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }
+}
 }
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
