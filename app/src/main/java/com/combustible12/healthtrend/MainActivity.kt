@@ -260,7 +260,20 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
  drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
 }
-    val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
+    val path=Path()
+    if(points.isNotEmpty()){
+     val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
+     path.moveTo(plotted[0].x,plotted[0].y)
+     for(i in 0 until plotted.lastIndex){
+      val p0=plotted.getOrElse(i-1){plotted[i]}
+      val p1=plotted[i]
+      val p2=plotted[i+1]
+      val p3=plotted.getOrElse(i+2){p2}
+      val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
+      val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
+      path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
+     }
+    }
     drawPath(path,color,style=Stroke(2.dp.toPx()))
    }
    points.indices.forEach{i->
@@ -301,10 +314,21 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
 }
       val path=Path()
-      points.indices.forEach{i->
+      val plotted=points.indices.map{i->
        val x=if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)
-       val yy=y(points[i].second)
-       if(i==0)path.moveTo(x,yy)else{val px=if(points.size==1)size.width/2 else 8f+(size.width-16f)*(i-1)/(points.size-1);val py=y(points[i-1].second);val middle=(px+x)/2f;path.cubicTo(middle,py,middle,yy,x,yy)}
+       Offset(x,y(points[i].second))
+      }
+      if(plotted.isNotEmpty()){
+       path.moveTo(plotted[0].x,plotted[0].y)
+       for(i in 0 until plotted.lastIndex){
+        val p0=plotted.getOrElse(i-1){plotted[i]}
+        val p1=plotted[i]
+        val p2=plotted[i+1]
+        val p3=plotted.getOrElse(i+2){p2}
+        val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
+        val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
+        path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
+       }
       }
       drawPath(path,color,style=Stroke(2.dp.toPx()))
      }
