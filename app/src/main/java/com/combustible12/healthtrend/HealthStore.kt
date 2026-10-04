@@ -23,18 +23,16 @@ class HealthStore(private val context:Context) {
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
  private fun migrateAstAltIdentityOnce(){
-  val migrationKey="migration_ast_alt_identity_v1"
+  val migrationKey="migration_ast_alt_identity_v2"
   if(prefs.getBoolean(migrationKey,false))return
   val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
   var changed=false
   val fixed=raw.map{report->
    report.copy(results=report.results.map{result->
-    if(result.metricKey!="AST/ALT")result else{
-     val source=(result.rawName+" "+result.rawLine).trim()
-     val isRatio=Regex("(?i)AST\\s*/\\s*ALT").containsMatchIn(source)||source.contains("谷草/谷丙")
-     val isAst=!isRatio&&(Regex("(?i)(^|\\s)AST(?:\\s|$)").containsMatchIn(source)||source.contains("谷草转氨酶")||source.contains("天门冬氨酸氨基转移酶"))
-     if(isAst){changed=true;result.copy(metricKey="AST")}else result
-    }
+    if(result.metricKey=="AST/ALT" && !result.rawName.contains("/") && !result.rawName.contains("谷草/谷丙")){
+     changed=true
+     result.copy(metricKey="AST")
+    }else result
    })
   }
   if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
