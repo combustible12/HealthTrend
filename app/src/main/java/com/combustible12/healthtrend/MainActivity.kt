@@ -137,8 +137,17 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    Paper{
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      Text(latest.rawName,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-      metricPurpose(key)?.let{Text("主要看：$it",color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
+      val raw=latest.rawName.trim()
+      val codeToken=Regex("^(#?[A-Za-z]+[#%]?)\\s*").find(raw)?.groupValues?.get(1).orEmpty()
+      val cnName=if(codeToken.isNotBlank())raw.removePrefix(codeToken).trim() else raw
+      Row(verticalAlignment=Alignment.Bottom){
+       Text(cnName.ifBlank{raw},fontWeight=FontWeight.Bold,fontSize=18.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
+       if(codeToken.isNotBlank()){
+        Spacer(Modifier.width(4.dp))
+        Text(codeToken,fontWeight=FontWeight.Normal,fontSize=18.sp,color=Muted,maxLines=1)
+       }
+      }
+      metricPurpose(key)?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
      Column(horizontalAlignment=Alignment.End){
