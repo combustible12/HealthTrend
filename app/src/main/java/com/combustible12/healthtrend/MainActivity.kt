@@ -190,6 +190,7 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
  "EOS#","EOS%"->"过敏及寄生虫相关变化"
  "BASO#","BASO%"->"过敏及炎症相关变化"
  "RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD"->"贫血及红细胞状态"
+ "PLT"->"血小板与出血风险"
  "ALT","AST","GGT","ALP"->"肝损伤"
  "TBIL","DBIL","IBIL"->"胆红素与黄疸"
  "TBA"->"肝胆代谢"
