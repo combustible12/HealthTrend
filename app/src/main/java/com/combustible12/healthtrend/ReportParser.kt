@@ -97,7 +97,7 @@ object ReportParser {
   val aliasKey=aliases.entries.filter{(label,_)->name.contains(label)&&!(label=="球蛋白"&&name.contains("白蛋白"))}.maxByOrNull{it.key.length}?.value
   // A valid printed code is authoritative. Chinese text only replaces it when the OCR code
   // is absent/damaged, except the known P-LCR duplicate-token count row handled above.
-  if(explicitCode==null)aliasKey?.let{k=it}
+  if(explicitCode==null && !ratioLine && !astLine)aliasKey?.let{k=it}
   val unit=resolvedUnit(k,ocrUnit)
   if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
