@@ -139,7 +139,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val raw=latest.rawName.trim()
-      val codeToken=Regex("^(#?[A-Za-z]+[#%]?)\\s*").find(raw)?.groupValues?.get(1).orEmpty()
+      val codeToken=Regex("^(A/G|AST/ALT|#?[A-Za-z]+(?:/[A-Za-z]+)?[#%]?)\\s*",RegexOption.IGNORE_CASE).find(raw)?.groupValues?.get(1).orEmpty()
       val cnName=if(codeToken.isNotBlank())raw.removePrefix(codeToken).trim() else raw
       Row(verticalAlignment=Alignment.Bottom){
        Text(cnName.ifBlank{raw},fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -155,7 +155,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       Row(verticalAlignment=Alignment.Bottom){
        Text(latest.textValue,fontWeight=FontWeight.Bold,fontSize=20.sp,color=valueColor,maxLines=1)
        Spacer(Modifier.width(4.dp))
-       Text(displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Normal,fontSize=11.sp,color=Muted,maxLines=1,modifier=Modifier.padding(bottom=2.dp))
+       Text(displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Normal,fontSize=11.sp,color=valueColor,maxLines=1,modifier=Modifier.padding(bottom=2.dp))
       }
       Text(latestStatus.label(),color=valueColor,fontSize=11.sp)
      }
@@ -163,7 +163,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
-     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.padding(0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{it.second.metricKey}.forEach{(_,series)->
      val sx=series.last().second
@@ -180,7 +180,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onShowPreview={previewSeries=series}
      )
     }
-    TextButton({priority(key,mode!="重点指标")}){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标")}
+    TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
@@ -254,8 +254,8 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),onShowPreview:()->Unit={}){
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
- val plotHeight=150.dp
- val chartHeight=206.dp
+ val plotHeight=125.dp
+ val chartHeight=175.dp
  Box(Modifier.fillMaxWidth()){
   BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)){
    val chartWidth=constraints.maxWidth
