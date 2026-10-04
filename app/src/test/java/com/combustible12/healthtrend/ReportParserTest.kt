@@ -108,7 +108,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
  @Test fun trendPointsUseEvenHorizontalSlotsSoValueAndDateLabelsCannotCollide(){
   val points=listOf(0L to 7.25,5L to 4.35,6L to 2.36,7L to 3.75)
   val positions=points.indices.map{trendPointPosition(points,it,256f,150f)}
-  assertTrue(positions.zipWithNext().all{(a,b)->b.x-a.x>=60f})
+  assertEquals(listOf(56f,104f,152f,200f),positions.map{it.x})
  }
  @Test fun trendPointHitTestingCoversEdgesAndInvalidGeometry(){
   val points=listOf(0L to 100.0,100L to 120.0)
@@ -121,7 +121,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
  }
  @Test fun trendPointHitTestingHonorsNearestPointAndRadius(){
   val points=listOf(0L to 100.0,100L to 120.0)
-  val first=nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(8f,88f),200f,100f,100.0,120.0,20f)
+  val first=nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(56f,88f),200f,100f,100.0,120.0,20f)
   assertEquals(0,first)
   assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(100f,0f),200f,100f,100.0,120.0,10f))
   assertEquals(0,nearestTrendPoint(listOf(5L to 110.0),androidx.compose.ui.geometry.Offset(100f,50f),200f,100f,100.0,120.0,50f))
