@@ -120,17 +120,33 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
- fun templateFieldFor(report:LabReport,result:LabResult):LabFieldTemplate?{
-  val template=store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey) ?: return null
-  val raw=result.rawName.trim()
-  return template.fields
-   .filter{field->field.displayName.isNotBlank()&&raw.contains(field.displayName,true)}
-   .maxByOrNull{it.displayName.length}
-   ?: template.fields.firstOrNull{it.metricKey==result.metricKey}
+ fun fixedTrendTitle(metricKey:String):String?=when(metricKey.trim().uppercase()){
+  "WBC"->"白细胞 WBC";"#NEUT","NEUT#"->"中性粒细胞计数 #NEUT";"%NEUT","NEUT%"->"中性粒细胞百分比 %NEUT"
+  "#LYMPH","LYMPH#"->"淋巴细胞计数 #LYMPH";"%LYMPH","LYMPH%"->"淋巴细胞百分比 %LYMPH"
+  "#MONO","MONO#"->"单核细胞计数 #MONO";"%MONO","MONO%"->"单核细胞百分比 %MONO"
+  "#EOS","EOS#"->"嗜酸性粒细胞计数 #EOS";"%EOS","EOS%"->"嗜酸性粒细胞百分比 %EOS"
+  "#BASO","BASO#"->"嗜碱性粒细胞计数 #BASO";"%BASO","BASO%"->"嗜碱性粒细胞百分比 %BASO"
+  "RBC"->"红细胞 RBC";"HGB"->"血红蛋白 HGB";"HCT"->"红细胞压积 HCT";"MCV"->"红细胞平均体积 MCV"
+  "MCH"->"平均红细胞血红蛋白量 MCH";"MCHC"->"平均血红蛋白浓度 MCHC";"RDW"->"红细胞分布宽度 RDW";"RDW-SD"->"红细胞分布宽度SD RDW-SD"
+  "PLT"->"血小板 PLT";"PCT"->"血小板压积 PCT";"MPV"->"平均血小板体积 MPV";"PDW"->"血小板分布宽度 PDW"
+  "P-LCR"->"大型血小板比率 P-LCR";"NRBC%"->"有核红细胞比率 NRBC%";"NRBC#"->"有核红细胞计数 NRBC#";"P-LCC"->"大血小板数目 P-LCC"
+  "TP"->"总蛋白 TP";"ALB"->"白蛋白 ALB";"GLOB"->"球蛋白 GLOB";"A/G"->"白球比 A/G";"TBIL"->"总胆红素 TBIL"
+  "DBIL"->"直接胆红素 DBIL";"IBIL"->"间接胆红素 IBIL";"ALT"->"谷丙转氨酶 ALT";"AST"->"谷草转氨酶 AST"
+  "GGT"->"谷氨酰转肽酶 GGT";"AST/ALT"->"谷草/谷丙 AST/ALT";"ALP"->"碱性磷酸酶 ALP";"CHE"->"胆碱酯酶 CHE"
+  "TBA"->"总胆汁酸 TBA";"PA"->"前白蛋白 PA";"UREA"->"尿素 UREA";"CREA"->"肌酐 CREA";"UA"->"尿酸 UA"
+  else->null
  }
- fun resolvedMetricKey(report:LabReport,result:LabResult)=templateFieldFor(report,result)?.metricKey ?: result.metricKey
+ fun resolvedMetricKey(result:LabResult):String{
+  val raw=result.rawName.trim()
+  val stored=result.metricKey.trim()
+  return when{
+   raw.contains("红细胞分布宽度SD",true)||Regex("(?i)(?<![A-Za-z])RDW-SD(?![A-Za-z])").containsMatchIn(raw)->"RDW-SD"
+   raw.contains("红细胞分布宽度",true)||Regex("(?i)(?<![A-Za-z])RDW(?!-SD)(?![A-Za-z])").containsMatchIn(raw)->"RDW"
+   else->stored
+  }
+ }
  val all=reports.flatMap{r->r.results.map{x->r to x}}
-  .groupBy{(report,result)->resolvedMetricKey(report,result)}
+  .groupBy{(_,result)->resolvedMetricKey(result)}
  Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
@@ -148,17 +164,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TrendPaper{
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      val latestReport=points.last().first
-      val titleField=templateFieldFor(latestReport,latest)
-      val titleName=titleField?.displayName?.trim().orEmpty().ifBlank{latest.rawName.trim()}
-      val titleCode=titleField?.metricKey?.trim().orEmpty().ifBlank{key.trim()}
-      Row(verticalAlignment=Alignment.Bottom){
-       Text(titleName,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
-       if(titleCode.isNotBlank()){
-        Spacer(Modifier.width(4.dp))
-        Text(titleCode,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1)
-       }
-      }
+      val fixedTitle=fixedTrendTitle(key) ?: latest.rawName.trim()
+      Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
       metricPurpose(key)?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
@@ -176,7 +183,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(report,result)->resolvedMetricKey(report,result)}.forEach{(_,series)->
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->resolvedMetricKey(result)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      Spark(
