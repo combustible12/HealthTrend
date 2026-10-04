@@ -1,7 +1,7 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
 android {
  namespace="com.combustible12.healthtrend"; compileSdk=35
- defaultConfig { applicationId="com.combustible12.healthtrend"; minSdk=26; targetSdk=35; versionCode=200; versionName="1.0.7"; testInstrumentationRunner="androidx.test.runner.AndroidJUnitRunner" }
+ defaultConfig { applicationId="com.combustible12.healthtrend"; minSdk=26; targetSdk=35; versionCode=(System.getenv("HEALTHTREND_VERSION_CODE")?.toIntOrNull()?:200); versionName=System.getenv("HEALTHTREND_VERSION_NAME")?:"1.0.7"; testInstrumentationRunner="androidx.test.runner.AndroidJUnitRunner" }
  val stableKey=System.getenv("HEALTHTREND_KEYSTORE_PATH")
  if(!stableKey.isNullOrBlank()) {
   signingConfigs.create("healthtrend") { storeType="JKS";storeFile=file(stableKey);storePassword=System.getenv("HEALTHTREND_STORE_PASSWORD");keyAlias=System.getenv("HEALTHTREND_KEY_ALIAS");keyPassword=System.getenv("HEALTHTREND_KEY_PASSWORD") }
