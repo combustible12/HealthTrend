@@ -6,6 +6,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+var debugLog by androidx.compose.runtime.mutableStateOf("")
+
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
@@ -42,9 +44,9 @@ class HealthStore(private val context:Context) {
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports():List<LabReport>{
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
-  reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.forEach{report->
-   android.util.Log.d("HealthTrendReports","09/23 report id=${report.id}: "+report.results.joinToString(" || "){"metricKey=${it.metricKey}, rawName=${it.rawName}, rawLine=${it.rawLine}"})
-  }
+  debugLog=reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.flatMap{report->
+   report.results.map{result->"metricKey=${result.metricKey}\nrawName=${result.rawName}\nrawLine=${result.rawLine}"}
+  }.joinToString("\n\n")
   return reports
  }
  @Synchronized fun saveReport(r:LabReport){ require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank());write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}}) }
