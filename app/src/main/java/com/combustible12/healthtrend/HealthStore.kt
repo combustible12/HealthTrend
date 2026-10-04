@@ -11,7 +11,7 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce() }
+ init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce(); migrateAstIdentityRepairOnce() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
@@ -50,6 +50,34 @@ class HealthStore(private val context:Context) {
     changed=true
     result.copy(rawName="AST 谷草转氨酶")
    }else result
+  })}
+  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
+  check(prefs.edit().putBoolean(migrationKey,true).commit())
+ }
+ private fun migrateAstIdentityRepairOnce(){
+  val migrationKey="migration_ast_identity_repair_v1"
+  if(prefs.getBoolean(migrationKey,false))return
+  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
+  var changed=false
+  val fixed=raw.map{report->report.copy(results=report.results.map{result->
+   val line=result.rawLine
+   val ratioLine=line.contains("谷草/谷丙")||line.contains("AST/ALT",true)
+   val astLine=(line.contains("谷草转氨酶")||line.contains("谷草转酶")||line.contains("天门冬氨酸氨基转移酶"))&&!ratioLine
+   when{
+    ratioLine && result.value!=null && result.value in 0.0..5.0 && (result.metricKey!="AST/ALT"||result.rawName!="AST/ALT 谷草/谷丙")->{
+     changed=true
+     result.copy(metricKey="AST/ALT",rawName="AST/ALT 谷草/谷丙")
+    }
+    astLine && result.value!=null && result.value !in 0.0..5.0 && (result.metricKey!="AST"||result.rawName!="AST 谷草转氨酶")->{
+     changed=true
+     result.copy(metricKey="AST",rawName="AST 谷草转氨酶")
+    }
+    result.metricKey=="AST" && result.value!=null && result.value in 0.0..5.0 && result.rawName=="AST 谷草转氨酶"->{
+     changed=true
+     result.copy(metricKey="AST/ALT",rawName="AST/ALT 谷草/谷丙")
+    }
+    else->result
+   }
   })}
   if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
   check(prefs.edit().putBoolean(migrationKey,true).commit())
