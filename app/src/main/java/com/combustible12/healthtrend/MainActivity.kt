@@ -128,11 +128,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   OutlinedTextField(query,{query=it},label={Text("查找指标")},modifier=Modifier.fillMaxWidth(),singleLine=true)
-  val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->r.reportType==category&&(x.rawName.contains(query,true)||key.contains(query,true))}}
+  val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)&&(x.rawName.contains(query,true)||key.contains(query,true))}}
   if(filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
-   val points=list.filter{it.first.reportType==category&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
+   val points=list.filter{trendCategoryMatches(category,it.first,it.second)&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    Paper{
@@ -172,6 +172,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }
+}
+fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
+ val key=ReportParser.key(result.metricKey.ifBlank{result.rawName})
+ val liver=key in setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
+ val kidney=key in setOf("CREA","UREA","BUN","UA")
+ return when(category){"肝功能"->liver;"肾功能"->kidney;"血常规"->report.reportType=="血常规";"肿瘤标志物"->report.reportType=="肿瘤标志物";else->report.reportType==category}
 }
 fun trendSeriesKey(result:LabResult)=result.normalizedUnit
 fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
