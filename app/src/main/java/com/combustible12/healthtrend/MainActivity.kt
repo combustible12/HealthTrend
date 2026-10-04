@@ -181,7 +181,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      )
     }
     TextButton({priority(key,mode!="重点指标")}){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标")}
-    TextButton({priority(key,mode!="重点指标")}){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标")}
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
