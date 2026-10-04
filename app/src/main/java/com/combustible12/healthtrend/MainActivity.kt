@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
@@ -131,12 +132,23 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val points=list.filter{trendCategoryMatches(category,it.first,it.second)&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
+   val latestStatus=latest.status()
+   val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    Paper{
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Column(Modifier.weight(1f)){Text(latest.rawName,fontWeight=FontWeight.Bold);Text(key,color=Muted,fontSize=12.sp);metricPurpose(key)?.let{Text("主要看：$it",color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium)}};ResultValueUnit(latest.textValue,latest.unitAtTest,true)}
-    Text("当次参考 ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} · ${latest.status().label()}",color=Muted,fontSize=12.sp)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
+     Column(Modifier.weight(1f)){
+      Text(latest.rawName,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+      metricPurpose(key)?.let{Text("主要看：$it",color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
+      Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     }
+     Column(horizontalAlignment=Alignment.End){
+      Text(latest.textValue+" "+displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Bold,fontSize=22.sp,color=valueColor,maxLines=1)
+      Text(latestStatus.label(),color=valueColor,fontSize=12.sp)
+     }
+    }
+    Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
     points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{trendSeriesKey(it.second)}.forEach{(_,series)->
      val sx=series.last().second
-     Text(listOf(displayLabUnit(sx.unitAtTest).ifBlank{"单位未录入"},series.last().first.hospitalKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=12.sp)
      val bounds=sx.trendReferenceRange()
      Spark(
       points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
@@ -149,7 +161,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       valueLabels=series.map{it.second.textValue}
      )
     }
-    TextButton({priority(key,!store.isPrimary(key))}){Text(if(store.isPrimary(key))"移到其他指标"else"设为重点指标")}
    }
   }
  }
@@ -204,7 +215,10 @@ fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
- val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index];val x=if(points.size==1)width/2 else 8f+(width-16f)*index/(points.size-1);val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
+ val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index]
+ val pad=56f
+ val x=if(points.size==1)width/2 else pad+(width-2*pad)*index/(points.size-1)
+ val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
 }
 fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null,radius:Float):Int?{
  if(points.isEmpty()||width<=0f||height<=0f||radius<0f)return null
@@ -214,43 +228,37 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
 }
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList()){
  fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
- val pointSlot=80.dp
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
- val contentWidth=maxOf(viewportWidth,pointSlot*points.size.coerceAtLeast(1))
  val plotHeight=150.dp
  val chartHeight=206.dp
  var showPreview by remember{mutableStateOf(false)}
  Box(Modifier.fillMaxWidth()){
-  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){
-   BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
-    val chartWidth=constraints.maxWidth
-    val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
-    Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
-     if(points.isEmpty())return@Canvas
-     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
-     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-     repeat(5){i->val gy=size.height*(.12f+i*.19f);drawLine(Muted.copy(alpha=.18f),Offset(0f,gy),Offset(size.width,gy),1.dp.toPx())}
-     if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
-     val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
-     drawPath(path,color,style=Stroke(2.dp.toPx()))
-    }
-    if(points.isNotEmpty())Text(trendYearLabel(points),fontSize=10.sp,color=Muted,modifier=Modifier.align(Alignment.TopStart).padding(start=4.dp))
-    points.indices.forEach{i->
-     val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
-     Box(
-      Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
-       .size(24.dp)
-       .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
-       .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
-      contentAlignment=Alignment.Center
-     ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
-     Column(
-      Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-40.dp.roundToPx()).coerceIn(0,(chartWidth-80.dp.roundToPx()).coerceAtLeast(0)),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
-      horizontalAlignment=Alignment.CenterHorizontally
-     ){
-      Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-      Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
-     }
+  BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)){
+   val chartWidth=constraints.maxWidth
+   val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
+   Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
+    if(points.isEmpty())return@Canvas
+    val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+    fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
+    if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.14f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+    val path=Path();points.indices.forEach{i->val at=pointPosition(i,size.width,size.height);if(i==0)path.moveTo(at.x,at.y)else{val previous=pointPosition(i-1,size.width,size.height);val middle=(previous.x+at.x)/2f;path.cubicTo(middle,previous.y,middle,at.y,at.x,at.y)}}
+    drawPath(path,color,style=Stroke(2.dp.toPx()))
+   }
+   points.indices.forEach{i->
+    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
+    Box(
+     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
+      .size(24.dp)
+      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
+      .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
+     contentAlignment=Alignment.Center
+    ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
+    Column(
+     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-40.dp.roundToPx(),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
+     horizontalAlignment=Alignment.CenterHorizontally
+    ){
+     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
     }
    }
   }
@@ -273,7 +281,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      Canvas(Modifier.fillMaxWidth().height(160.dp)){
       val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
       fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-      if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(color.copy(alpha=.10f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
+      if(referenceLow!=null&&referenceHigh!=null){val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.14f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))}
       val path=Path()
       points.indices.forEach{i->
        val x=if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)
@@ -293,12 +301,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  }
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10)
-internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
- val years=points.map{dateText(it.first).substring(0,4)}.distinct()
- return when(years.size){0->"";1->"${years.single()}年";else->"${years.first()}–${years.last()}年"}
-}
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
  if(filter=="症状报告"){SymptomReport(entries.filter{it.kind==EntryKind.SYMPTOM})}else{
