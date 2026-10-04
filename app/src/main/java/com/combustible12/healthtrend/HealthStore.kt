@@ -40,7 +40,13 @@ class HealthStore(private val context:Context) {
  }
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
- @Synchronized fun reports()=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
+ @Synchronized fun reports():List<LabReport>{
+  val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
+  reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.forEach{report->
+   android.util.Log.d("HealthTrendReports","09/23 report id=${report.id}: "+report.results.joinToString(" || "){"metricKey=${it.metricKey}, rawName=${it.rawName}, rawLine=${it.rawLine}"})
+  }
+  return reports
+ }
  @Synchronized fun saveReport(r:LabReport){ require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank());write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}}) }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
