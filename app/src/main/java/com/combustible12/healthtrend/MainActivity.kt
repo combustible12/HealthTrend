@@ -239,7 +239,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   points.indices.forEach{i->
    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
    Column(
-        Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.semantics(mergeDescendants=true){contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}";onClick(label="打开该数据点"){onPointClick(i);true}}),
+        Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x.toInt()-30).coerceIn(0,(chartWidth-60).coerceAtLeast(0)),plotHeightPx+4)}.width(60.dp).heightIn(min=48.dp).then(if(onPointClick==null) Modifier else Modifier.clickable{onPointClick(i)}.semantics(mergeDescendants=true){contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"}),
     horizontalAlignment=Alignment.CenterHorizontally
    ){
     Text(trendShortDate(points[i].first),fontSize=10.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
