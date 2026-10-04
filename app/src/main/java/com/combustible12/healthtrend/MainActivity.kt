@@ -3,7 +3,7 @@ package com.combustible12.healthtrend
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.enableEdgeToEdge\nimport androidx.activity.compose.rememberLauncherForActivityResult\nimport androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
@@ -89,7 +89,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.mapIndexed{i,x->x.copy(id=d.rows[i].id,reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
   }},{viewer=it})
- if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}})}
+ if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{items->change{store.confirmTemplate(template!!.hospitalKey,template!!.reportType,items,template!!.systemKey,true);template=null}})
  }
@@ -120,6 +120,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
+ var imageError by remember{mutableStateOf<String?>(null)};var imageBusy by remember{mutableStateOf(false)}
+ var imageTargetReportId by remember{mutableStateOf<String?>(null)}
+ val imageScope=rememberCoroutineScope()
+ val imagePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->
+  val reportId=imageTargetReportId;imageTargetReportId=null
+  if(reportId!=null&&uris.isNotEmpty()){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{imageBusy=false}}}
+ }
  fun fixedTrendTitle(metricKey:String):String?=when(metricKey.trim().uppercase()){
   "WBC"->"白细胞 WBC";"#NEUT","NEUT#"->"中性粒细胞计数 #NEUT";"%NEUT","NEUT%"->"中性粒细胞百分比 %NEUT"
   "#LYMPH","LYMPH#"->"淋巴细胞计数 #LYMPH";"%LYMPH","LYMPH%"->"淋巴细胞百分比 %LYMPH"
@@ -217,10 +224,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
    else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
   },dismissButton={Row{
-   if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")}
+   if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")} else TextButton({imageTargetReportId=r.id;imagePicker.launch(arrayOf("image/*"))},enabled=!imageBusy){Text("导入原报告")}
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }
+ if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
  val key=ReportParser.key(result.metricKey.ifBlank{result.rawName})
