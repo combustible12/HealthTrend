@@ -119,10 +119,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
- val all=reports.flatMap{r->r.results.map{r to it}}.groupBy{
- val key=it.second.metricKey
- if(key=="AST/ALT" && it.second.rawName.contains("谷草转氨酶") && !it.second.rawName.contains("谷草/谷丙")) "AST" else key
-}
+ val all=reports.flatMap{r->r.results.map{x->
+  val corrected=if(x.metricKey=="AST/ALT" && x.rawName.contains("谷草转氨酶") && !x.rawName.contains("谷草/谷丙")) x.copy(metricKey="AST") else x
+  r to corrected
+ }}.groupBy{it.second.metricKey}
  Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
