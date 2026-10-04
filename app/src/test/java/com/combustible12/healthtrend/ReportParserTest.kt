@@ -112,9 +112,9 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
  }
  @Test fun trendPointHitTestingCoversEdgesAndInvalidGeometry(){
   val points=listOf(0L to 100.0,100L to 120.0)
-  // First point is at x=8, y=88 for this geometry; radius boundary is inclusive.
-  assertEquals(0,nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(28f,88f),200f,100f,100.0,120.0,20f))
-  assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(28.1f,88f),200f,100f,100.0,120.0,20f))
+  // First point is at x=56, y=88 for this geometry; radius boundary is inclusive.
+  assertEquals(0,nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(76f,88f),200f,100f,100.0,120.0,20f))
+  assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset(76.1f,88f),200f,100f,100.0,120.0,20f))
   assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset.Zero,0f,100f,radius=48f))
   assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset.Zero,100f,0f,radius=48f))
   assertNull(nearestTrendPoint(points,androidx.compose.ui.geometry.Offset.Zero,100f,100f,radius=-1f))
