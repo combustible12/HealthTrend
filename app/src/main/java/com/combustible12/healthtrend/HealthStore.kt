@@ -6,7 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-var debugLog by androidx.compose.runtime.mutableStateOf("")
+@Volatile var debugLog:String=""
 
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
