@@ -200,7 +200,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(_,result)->resolvedMetricKey(series.last().first,result)}.forEach{(_,series)->
+    points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}.groupBy{(report,result)->resolvedMetricKey(report,result)}.forEach{(_,series)->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
