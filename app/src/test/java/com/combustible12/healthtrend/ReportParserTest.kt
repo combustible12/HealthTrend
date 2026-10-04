@@ -26,7 +26,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
  }
  @Test fun trendLabelsKeepCompactDatesValuesAndYearContext(){
   val first=parseDate("2026-09-18")!!;val last=parseDate("2026-09-26")!!
-  assertEquals("09-18",trendShortDate(first));assertEquals("2026年",trendYearLabel(listOf(first to 7.25,last to 3.75)))
+  assertEquals("09/18",trendShortDate(first));assertEquals("2026年",trendYearLabel(listOf(first to 7.25,last to 3.75)))
   assertEquals("2025–2026年",trendYearLabel(listOf(parseDate("2025-12-31")!! to 1.0,last to 2.0)))
   assertEquals("7.25",formatTrendValue(7.25));assertEquals("3",formatTrendValue(3.0))
  }
