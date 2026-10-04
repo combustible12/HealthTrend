@@ -95,7 +95,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }},{viewer=it})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
- if(template!=null)TemplateEditor(template!!,{template=null},{items->change{store.confirmTemplate(template!!.hospitalKey,template!!.reportType,items,template!!.systemKey,true);template=null}})
+ if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null})
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
@@ -183,7 +183,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Column(Modifier.weight(1f)){
       val fixedTitle=fixedTrendTitle(key) ?: latest.rawName.trim()
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
-      metricPurpose(key)?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
+      val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{ReportParser.key(it.metricKey)==ReportParser.key(key)}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
+      trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
      Column(horizontalAlignment=Alignment.End){
