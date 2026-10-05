@@ -187,12 +187,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val reportId=imageTargetReportId;imageTargetReportId=null
   if(reportId!=null&&uris.isNotEmpty()){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{imageBusy=false}}}
  }
- fun fixedTrendTitle(metricKey:String):String?=when(metricKey.trim().uppercase()){
-  "WBC"->"白细胞 WBC";"#NEUT","NEUT#"->"中性粒细胞计数 #NEUT";"%NEUT","NEUT%"->"中性粒细胞百分比 %NEUT"
-  "#LYMPH","LYMPH#"->"淋巴细胞计数 #LYMPH";"%LYMPH","LYMPH%"->"淋巴细胞百分比 %LYMPH"
-  "#MONO","MONO#"->"单核细胞计数 #MONO";"%MONO","MONO%"->"单核细胞百分比 %MONO"
-  "#EOS","EOS#"->"嗜酸性粒细胞计数 #EOS";"%EOS","EOS%"->"嗜酸性粒细胞百分比 %EOS"
-  "#BASO","BASO#"->"嗜碱性粒细胞计数 #BASO";"%BASO","BASO%"->"嗜碱性粒细胞百分比 %BASO"
+ fun fixedTrendTitle(metricKey:String):String?=when(metricKey){
+  "WBC"->"白细胞 WBC";"NEUT#"->"中性粒细胞计数 NEUT#";"NEUT%"->"中性粒细胞百分比 NEUT%"
+  "LYMPH#"->"淋巴细胞计数 LYMPH#";"LYMPH%"->"淋巴细胞百分比 LYMPH%"
+  "MONO#"->"单核细胞计数 MONO#";"MONO%"->"单核细胞百分比 MONO%"
+  "EOS#"->"嗜酸性粒细胞计数 EOS#";"EOS%"->"嗜酸性粒细胞百分比 EOS%"
+  "BASO#"->"嗜碱性粒细胞计数 BASO#";"BASO%"->"嗜碱性粒细胞百分比 BASO%"
   "RBC"->"红细胞 RBC";"HGB"->"血红蛋白 HGB";"HCT"->"红细胞压积 HCT";"MCV"->"红细胞平均体积 MCV"
   "MCH"->"平均红细胞血红蛋白量 MCH";"MCHC"->"平均血红蛋白浓度 MCHC";"RDW"->"红细胞分布宽度 RDW";"RDW-SD"->"红细胞分布宽度SD RDW-SD"
   "PLT"->"血小板 PLT";"PCT"->"血小板压积 PCT";"MPV"->"平均血小板体积 MPV";"PDW"->"血小板分布宽度 PDW"
@@ -306,7 +306,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   else->report.reportType==category
  }
 }
-fun metricPurpose(metricKey:String):String?=when(metricKey.trim().uppercase()){
+fun metricPurpose(metricKey:String):String?=when(metricKey){
  "WBC"->"↑感染/炎症 / ↓感染防御不足"
  "NEUT#"->"↑细菌感染/炎症 / ↓感染防御不足"
  "NEUT%"->"↑细菌感染/炎症"
