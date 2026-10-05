@@ -294,7 +294,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
- val key=ReportParser.key(result.metricKey.ifBlank{result.rawName})
+ val key=result.metricKey.ifBlank{ReportParser.key(result.rawName)}
  val liver=setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
  val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
  val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#")
@@ -306,7 +306,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   else->report.reportType==category
  }
 }
-fun metricPurpose(metricKey:String):String?=when(ReportParser.key(metricKey)){
+fun metricPurpose(metricKey:String):String?=when(metricKey.trim().uppercase()){
  "WBC"->"↑感染/炎症 / ↓感染防御不足"
  "NEUT#"->"↑细菌感染/炎症 / ↓感染防御不足"
  "NEUT%"->"↑细菌感染/炎症"
