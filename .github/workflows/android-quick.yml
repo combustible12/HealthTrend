@@ -1,7 +1,5 @@
 name: Android build and release
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 concurrency:
   group: healthtrend-build-${{ github.ref }}
