@@ -62,6 +62,7 @@ import java.io.File
 import java.security.MessageDigest
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -277,7 +278,13 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    Text("宫格查看",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
   }
   Spacer(Modifier.height(4.dp))
-  HighlightImage(page,currentBlock,Modifier.weight(1f).fillMaxWidth())
+  HighlightImage(
+   page=page,
+   highlight=currentBlock,
+   onSwipePrevious={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}},
+   onSwipeNext={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}},
+   modifier=Modifier.weight(1f).fillMaxWidth()
+  )
  }}
  if(confirmDelete)DeleteConfirmation({confirmDelete=false}){onDelete(document);onClose()}
  if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
@@ -303,11 +310,47 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  }
 }
 
-@Composable private fun HighlightImage(page:ImagePage,highlight:SearchTextBlock?,modifier:Modifier=Modifier){
- val context=LocalContext.current;var viewport by remember{mutableStateOf(IntSize.Zero)};var zoom by rememberSaveable(page.id){mutableFloatStateOf(1f)};var x by rememberSaveable(page.id){mutableFloatStateOf(0f)};var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
+@Composable private fun HighlightImage(
+ page:ImagePage,
+ highlight:SearchTextBlock?,
+ onSwipePrevious:()->Unit,
+ onSwipeNext:()->Unit,
+ modifier:Modifier=Modifier
+){
+ val context=LocalContext.current
+ var viewport by remember{mutableStateOf(IntSize.Zero)}
+ var zoom by rememberSaveable(page.id){mutableFloatStateOf(1f)}
+ var x by rememberSaveable(page.id){mutableFloatStateOf(0f)}
+ var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
+ var swipeX by remember(page.id){mutableFloatStateOf(0f)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri))}.fold({it to null},{null to "原图无法读取：${it.message}"})}}
  LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,zoom);x=focused.x;y=focused.y}}
- Box(modifier.clipToBounds().onSizeChanged{viewport=it}.pointerInput(page.id,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=transformedTranslation(x,cx,ratio,pan.x);y=transformedTranslation(y,cy,ratio,pan.y);zoom=next}},contentAlignment=Alignment.Center){
+ Box(
+  modifier.clipToBounds().onSizeChanged{viewport=it}.pointerInput(page.id,viewport){
+   detectTransformGestures{centroid,pan,scale,_->
+    val next=(zoom*scale).coerceIn(1f,8f)
+    val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
+    val horizontal=abs(pan.x)>abs(pan.y)*1.15f
+    if(atRest&&horizontal){
+     swipeX+=pan.x
+     val threshold=(viewport.width*.16f).coerceIn(56f,120f)
+     when{
+      swipeX>=threshold->{swipeX=0f;onSwipePrevious()}
+      swipeX<=-threshold->{swipeX=0f;onSwipeNext()}
+     }
+    }else{
+     swipeX=0f
+     val ratio=next/zoom
+     val cx=centroid.x-viewport.width/2f
+     val cy=centroid.y-viewport.height/2f
+     x=transformedTranslation(x,cx,ratio,pan.x)
+     y=transformedTranslation(y,cy,ratio,pan.y)
+     zoom=next
+    }
+   }
+  },
+  contentAlignment=Alignment.Center
+ ){
   val bitmap=loaded.first
   if(bitmap!=null&&viewport.width>0&&viewport.height>0)Canvas(Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y}){
    val fit=min(size.width/page.imageWidth,size.height/page.imageHeight);val dw=(page.imageWidth*fit).roundToInt();val dh=(page.imageHeight*fit).roundToInt();val left=((size.width-dw)/2f).roundToInt();val top=((size.height-dh)/2f).roundToInt()
