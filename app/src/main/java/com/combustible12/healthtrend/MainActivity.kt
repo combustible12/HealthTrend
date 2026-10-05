@@ -117,10 +117,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }
-@Composable fun Screen(m:Modifier,title:String,subtitle:String="",content:@Composable ColumnScope.()->Unit){
+@Composable fun Screen(m:Modifier,title:String,subtitle:String="",spacing:androidx.compose.ui.unit.Dp=14.dp,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(m.fillMaxSize()){
-  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(spacing)){
    Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
    if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
    Spacer(Modifier.height(12.dp))
@@ -201,11 +201,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 
  val all=reports.flatMap{r->r.results.map{x->r to x}}
   .groupBy{(_,result)->ReportParser.key(result.metricKey)}
- Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告"){
+ Screen(m,"指标趋势","点按曲线上的数据点可查看当次详情、编辑数值或打开原报告",spacing=7.dp){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
-  OutlinedTextField(query,{query=it},label={Text("查找指标")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+  OutlinedTextField(query,{query=it},placeholder={Text("查找指标",fontSize=14.sp)},textStyle=LocalTextStyle.current.copy(fontSize=14.sp),modifier=Modifier.fillMaxWidth().height(48.dp),singleLine=true)
   val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)&&(x.rawName.contains(query,true)||key.contains(query,true))}}
   if(filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   filtered.forEach{(key,list)->
