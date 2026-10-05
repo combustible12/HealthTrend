@@ -44,6 +44,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
@@ -112,7 +113,7 @@ enum class ImageIndexStatus:java.io.Serializable { READY, FAILED }
 
 data class ImagePage(
  val id:String=newId(),val imageUri:String,val pageIndex:Int,val imageWidth:Int,val imageHeight:Int,
- val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY,val contentHash:String="",val sourceUrl:String=""
+ val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY,val contentHash:String="",val sourceUrl:String="",val rotationDegrees:Int=0
 ):java.io.Serializable
 
 data class ImageDocument(
@@ -191,8 +192,8 @@ class ImageDocumentStore(private val context:Context){
   file.baseFile.parentFile?.mkdirs();val stream=file.startWrite()
   try{stream.bufferedWriter().apply{write(JSONArray().apply{documents.forEach{d->put(documentToJson(d))}}.toString());flush()};file.finishWrite(stream)}catch(t:Throwable){file.failWrite(stream);throw t}
  }
- private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("sourceUrl",p.sourceUrl).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
- private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"),p.optString("sourceUrl"))}})
+ private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("sourceUrl",p.sourceUrl).put("rotation",p.rotationDegrees).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
+ private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"),p.optString("sourceUrl"),p.optInt("rotation",0))}})
 }
 
 private fun normalizedSearchText(value:String)=value.filterNot(Char::isWhitespace).lowercase()
@@ -352,7 +353,15 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
    Text(if(page.isTextPage())"删说明" else "删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
-   Spacer(Modifier.width(24.dp))
+   if(!page.isTextPage()){
+    Spacer(Modifier.width(20.dp))
+    Text("旋转",fontSize=14.sp,color=Accent,modifier=Modifier.clickable{
+     val updatedPage=page.copy(rotationDegrees=(page.rotationDegrees+90)%360)
+     document=document.copy(pages=document.pages.map{if(it.id==page.id)updatedPage else it})
+     onSaved(document);savedTitle=document.title
+    }.padding(horizontal=3.dp,vertical=1.dp))
+   }
+   Spacer(Modifier.width(20.dp))
    Text("删整份",fontSize=13.sp,color=Bad.copy(alpha=.78f),modifier=Modifier.clickable{confirmDeleteDocument=true}.padding(horizontal=3.dp,vertical=1.dp))
    Spacer(Modifier.weight(1f))
    if(!page.isTextPage())Box(
@@ -525,7 +534,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val context=LocalContext.current
  val bitmap by produceState<android.graphics.Bitmap?>(null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=300_000,maxDimension=600)}.getOrNull()}}
  Box(modifier.clipToBounds().border(if(selected)3.dp else 1.dp,if(selected)Accent else Color(0xFFD0D0C8),RoundedCornerShape(8.dp)).clickable(onClick=onClick),contentAlignment=Alignment.Center){
-  if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop) else Text("…",color=Muted)
+  if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize().graphicsLayer{rotationZ=page.rotationDegrees.toFloat()},contentScale=ContentScale.Crop) else Text("…",color=Muted)
  }
 }
 
@@ -632,9 +641,15 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  ){
   val bitmap=loaded.first
   if(bitmap!=null&&viewport.width>0&&viewport.height>0)Canvas(Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y}){
-   val fit=min(size.width/page.imageWidth,size.height/page.imageHeight);val dw=(page.imageWidth*fit).roundToInt();val dh=(page.imageHeight*fit).roundToInt();val left=((size.width-dw)/2f).roundToInt();val top=((size.height-dh)/2f).roundToInt()
-   drawImage(bitmap.asImageBitmap(),dstOffset=IntOffset(left,top),dstSize=IntSize(dw,dh))
-   highlight?.let{b->val rectTop=top+b.top*fit;val rectLeft=left+b.left*fit;val rectWidth=(b.right-b.left)*fit;val rectHeight=(b.bottom-b.top)*fit;drawRect(Color(0x55FFD54F),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight));drawRect(Color(0xFFFFA000),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight),style=Stroke(width=(2f/zoom).coerceAtLeast(.5f)))}
+   val quarterTurn=page.rotationDegrees%180!=0
+   val visualWidth=if(quarterTurn)page.imageHeight else page.imageWidth
+   val visualHeight=if(quarterTurn)page.imageWidth else page.imageHeight
+   val fit=min(size.width/visualWidth,size.height/visualHeight)
+   val dw=(page.imageWidth*fit).roundToInt();val dh=(page.imageHeight*fit).roundToInt();val left=((size.width-dw)/2f).roundToInt();val top=((size.height-dh)/2f).roundToInt()
+   withTransform({rotate(page.rotationDegrees.toFloat(),Offset(size.width/2f,size.height/2f))}){
+    drawImage(bitmap.asImageBitmap(),dstOffset=IntOffset(left,top),dstSize=IntSize(dw,dh))
+    highlight?.let{b->val rectTop=top+b.top*fit;val rectLeft=left+b.left*fit;val rectWidth=(b.right-b.left)*fit;val rectHeight=(b.bottom-b.top)*fit;drawRect(Color(0x55FFD54F),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight));drawRect(Color(0xFFFFA000),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight),style=Stroke(width=(2f/zoom).coerceAtLeast(.5f)))}
+   }
   }else Text(loaded.second?:"正在读取原图…")
  }
 }
