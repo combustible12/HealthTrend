@@ -5,13 +5,13 @@ data class ParsedLabResult(val metricKey:String,val displayName:String,val value
 object ReportParser {
  val primaryKeys=setOf("WBC","NEUT#","HGB","PLT","ALT","AST","TBIL","ALB","CREA","UREA","UA")
  private val differentialBases=setOf("NEUT","LYMPH","MONO","EOS","BASO","NRBC")
- private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","单核细胞计数" to "MONO#","单核细胞绝对值" to "MONO#","单核细胞百分比" to "MONO%","嗜酸性粒细胞计数" to "EOS#","嗜酸性粒细胞绝对值" to "EOS#","嗜酸性粒细胞百分比" to "EOS%","嗜碱性粒细胞计数" to "BASO#","嗜碱性粒细胞绝对值" to "BASO#","嗜碱性粒细胞百分比" to "BASO%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","总蛋白" to "TP","球蛋白" to "GLOB","白球比" to "A/G","直接胆红素" to "DBIL","间接胆红素" to "IBIL","谷氨酰转肽酶" to "GGT","谷草/谷丙" to "AST/ALT","碱性磷酸酶" to "ALP","胆碱酯酶" to "CHE","总胆汁酸" to "TBA","前白蛋白" to "PA","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA","红细胞" to "RBC","淋巴细胞计数" to "LYMPH#","淋巴细胞绝对值" to "LYMPH#","淋巴细胞百分比" to "LYMPH%","平均红细胞体积" to "MCV","平均红细胞血红蛋白量" to "MCH","平均红细胞血红蛋白浓度" to "MCHC","红细胞分布宽度" to "RDW","平均血小板体积" to "MPV","血小板分布宽度" to "PDW","血小板压积" to "PCT","红细胞压积" to "HCT","淋巴细胞比率" to "LYMPH%","淋巴细胞比例" to "LYMPH%","中性粒细胞比率" to "NEUT%","中性粒细胞比例" to "NEUT%","单核细胞比率" to "MONO%","单核细胞比例" to "MONO%","嗜酸性粒细胞比率" to "EOS%","嗜酸性粒细胞比例" to "EOS%","嗜碱性粒细胞比率" to "BASO%","嗜碱性粒细胞比例" to "BASO%","有核红细胞比率" to "NRBC%","有核红细胞百分比" to "NRBC%","有核红细胞计数" to "NRBC#","大型血小板比率" to "P-LCR","大小血小板数目" to "P-LCC","大血小板数目" to "P-LCC","大型血小板数目" to "P-LCC","红细胞分布宽度SD" to "RDW-SD","乳酸脱氢酶" to "LDH")
+ private val aliases=mapOf("白细胞计数" to "WBC","白细胞" to "WBC","中性粒细胞计数" to "NEUT#","中性粒细胞绝对值" to "NEUT#","中性粒细胞百分比" to "NEUT%","单核细胞计数" to "MONO#","单核细胞绝对值" to "MONO#","单核细胞百分比" to "MONO%","嗜酸性粒细胞计数" to "EOS#","嗜酸性粒细胞绝对值" to "EOS#","嗜酸性粒细胞百分比" to "EOS%","嗜碱性粒细胞计数" to "BASO#","嗜碱性粒细胞绝对值" to "BASO#","嗜碱性粒细胞百分比" to "BASO%","血红蛋白" to "HGB","血小板计数" to "PLT","血小板" to "PLT","总蛋白" to "TP","球蛋白" to "GLOB","白球比" to "A/G","直接胆红素" to "DBIL","间接胆红素" to "IBIL","谷氨酰转肽酶" to "GGT","谷草/谷丙" to "AST/ALT","碱性磷酸酶" to "ALP","胆碱酯酶" to "CHE","总胆汁酸" to "TBA","前白蛋白" to "PA","丙氨酸氨基转移酶" to "ALT","谷丙转氨酶" to "ALT","天门冬氨酸氨基转移酶" to "AST","谷草转氨酶" to "AST","总胆红素" to "TBIL","白蛋白" to "ALB","肌酐" to "CREA","CRE" to "CREA","尿素" to "UREA","尿酸" to "UA","红细胞" to "RBC","淋巴细胞计数" to "LYMPH#","淋巴细胞绝对值" to "LYMPH#","淋巴细胞百分比" to "LYMPH%","平均红细胞体积" to "MCV","平均红细胞血红蛋白量" to "MCH","平均红细胞血红蛋白浓度" to "MCHC","红细胞分布宽度" to "RDW","平均血小板体积" to "MPV","血小板分布宽度" to "PDW","血小板压积" to "PCT","红细胞压积" to "HCT","淋巴细胞比率" to "LYMPH%","淋巴细胞比例" to "LYMPH%","中性粒细胞比率" to "NEUT%","中性粒细胞比例" to "NEUT%","单核细胞比率" to "MONO%","单核细胞比例" to "MONO%","嗜酸性粒细胞比率" to "EOS%","嗜酸性粒细胞比例" to "EOS%","嗜碱性粒细胞比率" to "BASO%","嗜碱性粒细胞比例" to "BASO%","有核红细胞比率" to "NRBC%","有核红细胞百分比" to "NRBC%","有核红细胞计数" to "NRBC#","大型血小板比率" to "P-LCR","大小血小板数目" to "LCC","大血小板数目" to "LCC","大型血小板数目" to "LCC","红细胞分布宽度SD" to "RDW-SD","乳酸脱氢酶" to "LDH")
  private val numeric=Regex("(?<![A-Za-z\\d.^×])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
  private val canonicalUnits=mapOf(
   "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","MONO#" to "×10^9/L","EOS#" to "×10^9/L","BASO#" to "×10^9/L","PLT" to "×10^9/L",
   "RBC" to "×10^12/L","HGB" to "g/L","HCT" to "%","NEUT%" to "%","LYMPH%" to "%","MONO%" to "%","EOS%" to "%","BASO%" to "%",
-  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","RDW-SD" to "fL","MPV" to "fL","PDW" to "%","PCT" to "%","NRBC%" to "%","NRBC#" to "×10^9/L","P-LCR" to "%","P-LCC" to "×10^9/L",
+  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","RDW-SD" to "fL","MPV" to "fL","PDW" to "%","PCT" to "%","NRBC%" to "%","NRBC#" to "×10^9/L","P-LCR" to "%","LCC" to "×10^9/L",
   "ALT" to "U/L","AST" to "U/L","ALB" to "g/L","TBIL" to "μmol/L",
   "CREA" to "μmol/L","UREA" to "mmol/L","UA" to "μmol/L","LDH" to "U/L"
  )
@@ -28,7 +28,7 @@ object ReportParser {
   if(got.equals(want,true))return expected
   // Known CBC families are dimension-specific. A valid-looking unit from the neighboring
   // OCR column (for example %NEUT receiving MPV's fL) is still invalid for this metric.
-  val countKeys=setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC")
+  val countKeys=setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","LCC")
   val percentKeys=setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR")
   if(metricKey in countKeys)return expected
   if(metricKey in percentKeys)return expected
@@ -43,7 +43,7 @@ object ReportParser {
   val upper=clean.uppercase().replace('‑','-').replace('–','-')
   if(upper.contains("RDW-SD"))return "RDW-SD"
   if(upper.contains("P-LCR"))return "P-LCR"
-  if(upper.contains("P-LCC"))return "P-LCC"
+  if(upper.contains("LCC"))return "LCC"
   val astAlt=clean.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(clean)
   if(astAlt)return "AST/ALT"
   val ast=clean.contains("谷草转氨酶")&&!clean.contains("谷草/谷丙")&&!clean.contains("/")||
@@ -51,7 +51,7 @@ object ReportParser {
   if(ast)return "AST"
   aliases[clean]?.let{return it}
   aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])|(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
+  Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])|(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
  private val astKeySelfCheck by lazy {
@@ -69,13 +69,13 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|CREA|CRE|UREA|UA|LDH)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
  }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
-  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
+  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|LCC|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
   val textual=Regex("^(.*?)\\s+(阴性|阳性|弱阳性|未检出|正常|异常|[+-]{1,4})(.*)$").find(line)
@@ -105,7 +105,7 @@ object ReportParser {
   var k=when{ratioLine->"AST/ALT";astLine->"AST";else->explicitCode?.let(::normalizeCode) ?: key(name)}
   // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
   // The Chinese row label and unit disambiguate it; keep one stable internal identity.
-  if(k=="P-LCR" && (name.contains("大小血小板数目")||name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
+  if(k=="P-LCR" && (name.contains("大小血小板数目")||name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="LCC"
   // OCR commonly confuses the leading #/% markers with Chinese strokes (e.g. 上NEUT, 红MPH, 三MONO).
   // For differential rows the Chinese label is authoritative when the Latin prefix is damaged.
   val aliasKey=aliases.entries.filter{(label,_)->name.contains(label)&&!(label=="球蛋白"&&name.contains("白蛋白"))}.maxByOrNull{it.key.length}?.value
