@@ -91,15 +91,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2})
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
-   2->Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())})
-   3->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
+    2->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
      val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone)
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images.drop(index)+images.take(index)})
-   4->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
-   5->Mine(m,templates,{template=it},store,{error=it})
+    3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
+    4->Mine(m,templates,{template=it},store,{error=it})
   }
  }
  }
