@@ -42,6 +42,20 @@ data class HealthEntry(
  val note:String="",val hospital:String="",val category:String="",val severity:Int=0,val frequency:String="",val duration:String="",
  val dose:String="",val route:String="",val endAtEpochMillis:Long?=null,val images:List<String> = emptyList()
 ):java.io.Serializable
+data class CourseRecord(
+ val id:String=newId(),
+ val date:Long=System.currentTimeMillis(),
+ val phase:String="观察",
+ val title:String="",
+ val symptomText:String="",
+ val checkText:String="",
+ val checkImages:List<String> = emptyList(),
+ val medicineText:String="",
+ val medicineImages:List<String> = emptyList(),
+ val noteText:String="",
+ val createdAt:Long=System.currentTimeMillis(),
+ val updatedAt:Long=System.currentTimeMillis()
+):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
 data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpochMillis:Long,val category:String,val sourceImageUri:String?)
