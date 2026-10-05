@@ -58,8 +58,8 @@ class HealthStore(private val context:Context) {
  @Synchronized fun saveReport(r:LabReport){
   require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
   latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.let{template->
-   val expected=template.fields.map{ReportParser.key(it.metricKey)}
-   val actual=r.results.map{ReportParser.key(it.metricKey)}
+   val expected=template.fields.map{it.metricKey}
+   val actual=r.results.map{it.metricKey}
    require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
    require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
    require(actual==expected){"报告项目身份与当前模板不一致，请重新核对"}
@@ -78,9 +78,9 @@ class HealthStore(private val context:Context) {
 
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  fun rememberedUnits(key:String):List<String>{
-  val canonical=key.takeIf{it.isNotBlank()}?.let(ReportParser::key)
+  val canonical=key.trim().takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
-  val templateUnits=templates().flatMap{it.fields}.filter{canonical==null||ReportParser.key(it.metricKey)==canonical}.map{it.unit}
+  val templateUnits=templates().flatMap{it.fields}.filter{canonical==null||it.metricKey==canonical}.map{it.unit}
   return (reportUnits+templateUnits).map{it.trim()}.filter{it.isNotBlank()}.distinct()
  }
  fun rememberedHospitals():List<String> =
@@ -146,12 +146,12 @@ class HealthStore(private val context:Context) {
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
   return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->
-   val key=ReportParser.key(x.getString("key"));val value=x.doubleOrNull("value");val unit=displayLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
+   val key=x.getString("key").trim();val value=x.doubleOrNull("value");val unit=displayLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
    LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
   },o.optString("ocr"),o.optString("system"))
  }
  private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("system",t.systemKey).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow?:JSONObject.NULL).put("high",it.referenceHigh?:JSONObject.NULL).put("trendMeaning",it.trendMeaning))}})
- private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(ReportParser.key(x.getString("key")),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
+ private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key").trim(),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
  private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("symptomText",r.symptomText).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
@@ -159,7 +159,7 @@ class HealthStore(private val context:Context) {
 }
 /** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */
 fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=items.map{p->
- val field=template?.fields?.firstOrNull{ReportParser.key(it.metricKey)==p.metricKey}
+ val field=template?.fields?.firstOrNull{it.metricKey==p.metricKey}
  if(field==null)p else p.copy(
   unit=sanitizeLabUnit(p.unit).ifBlank{sanitizeLabUnit(field.unit)},
   referenceLow=p.referenceLow?:field.referenceLow,
@@ -167,12 +167,12 @@ fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemp
  )
 }
 private fun templateCompleteness(t:HospitalLabTemplate):Int{
- val unique=t.fields.map{ReportParser.key(it.metricKey)}.distinct().size
+ val unique=t.fields.map{it.metricKey}.distinct().size
  val sane=t.fields.count{f->f.displayName.isNotBlank()&&sanitizeLabUnit(f.unit)==f.unit.trim()&&(f.referenceLow==null||f.referenceHigh==null||f.referenceLow<=f.referenceHigh)}
  return unique*100+sane
 }
 private fun templateMigrationTier(t:HospitalLabTemplate):Int{
- val unique=t.fields.map{ReportParser.key(it.metricKey)}.distinct().size
+ val unique=t.fields.map{it.metricKey}.distinct().size
  return when{
   t.hospitalKey.trim()=="霞浦县中医院"&&t.reportType.trim()=="血常规"&&unique==27->3
   t.confirmed&&unique>0->2
