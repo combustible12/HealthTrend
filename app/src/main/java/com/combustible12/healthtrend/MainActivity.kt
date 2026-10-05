@@ -125,7 +125,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
    Spacer(Modifier.height(12.dp))
   }
-  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(vertical=20.dp,end=2.dp).width(24.dp).fillMaxHeight())
+  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=20.dp,bottom=20.dp,end=2.dp).width(24.dp).fillMaxHeight())
  }
 }
 
@@ -133,7 +133,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(modifier){
   Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}
-  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(vertical=12.dp,end=2.dp).width(24.dp).fillMaxHeight())
+  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=12.dp,bottom=12.dp,end=2.dp).width(24.dp).fillMaxHeight())
  }
 }
 
