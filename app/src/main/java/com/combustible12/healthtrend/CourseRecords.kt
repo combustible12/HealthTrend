@@ -130,7 +130,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  else->Color(0xFFF0F0F0) to Color(0xFF707070)
 }
 
-@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,lineHeight=21.sp)}}
+@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)14.sp else 16.sp,lineHeight=if(muted)19.sp else 21.sp)}}
 
 @Composable private fun CourseSection(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,text:String,images:List<String>,view:(List<String>,Int)->Unit){
  Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
