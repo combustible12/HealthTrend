@@ -159,7 +159,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
 }
 @Composable fun Paper(m:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){Card(modifier=m.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
-@Composable fun TrendPaper(content:@Composable ColumnScope.()->Unit){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(start=18.dp,end=18.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
+@Composable fun TrendPaper(content:@Composable ColumnScope.()->Unit){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(start=18.dp,end=18.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(4.dp),content=content)}}
 @Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){
  var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
  Screen(m,"HealthTrend","把检查、症状和病历放在一条清楚的时间线上"){
@@ -239,7 +239,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
-    Row(Modifier.fillMaxWidth().offset(y=(-4).dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
      TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
