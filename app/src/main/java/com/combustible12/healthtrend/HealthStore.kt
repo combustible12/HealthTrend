@@ -11,7 +11,7 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce(); migrateAstIdentityRepairOnce(); migrateCanonicalMetricIdentityOnce() }
+ init { migrateCurrentTemplates() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
@@ -23,81 +23,6 @@ class HealthStore(private val context:Context) {
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
- }
- private fun migrateAstAltIdentityOnce(){
-  val migrationKey="migration_ast_alt_identity_v2"
-  if(prefs.getBoolean(migrationKey,false))return
-  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
-  var changed=false
-  val fixed=raw.map{report->
-   report.copy(results=report.results.map{result->
-    if(result.metricKey=="AST/ALT" && !result.rawName.contains("/") && !result.rawName.contains("谷草/谷丙")){
-     changed=true
-     result.copy(metricKey="AST")
-    }else result
-   })
-  }
-  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
-  check(prefs.edit().putBoolean(migrationKey,true).commit())
- }
- private fun migrateAstRawNameOnce(){
-  val migrationKey="migration_ast_raw_name_v1"
-  if(prefs.getBoolean(migrationKey,false))return
-  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
-  var changed=false
-  val fixed=raw.map{report->report.copy(results=report.results.map{result->
-   if(result.metricKey=="AST" && (result.rawName.contains("AST/ALT",true)||result.rawName.contains("谷草/谷丙")) && result.rawLine.contains(Regex("(?i)(^|\\s)AST(?:\\s|$)")) && !result.rawLine.contains("AST/ALT",true)){
-    changed=true
-    result.copy(rawName="AST 谷草转氨酶")
-   }else result
-  })}
-  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
-  check(prefs.edit().putBoolean(migrationKey,true).commit())
- }
- private fun migrateAstIdentityRepairOnce(){
-  val migrationKey="migration_ast_identity_repair_v2"
-  if(prefs.getBoolean(migrationKey,false))return
-  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
-  var changed=false
-  val fixed=raw.map{report->report.copy(results=report.results.map{result->
-   val line=listOf(result.rawName,result.rawLine).joinToString(" ")
-   val ratioLine=line.contains("谷草/谷丙")||line.contains("AST/ALT",true)
-   val astLine=(line.contains("谷草转氨酶")||line.contains("谷草转酶")||line.contains("天门冬氨酸氨基转移酶"))&&!ratioLine
-   when{
-    ratioLine && result.value!=null && result.value in 0.0..5.0 && (result.metricKey!="AST/ALT"||result.rawName!="AST/ALT 谷草/谷丙")->{
-     changed=true
-     result.copy(metricKey="AST/ALT",rawName="AST/ALT 谷草/谷丙")
-    }
-    astLine && result.value!=null && result.value !in 0.0..5.0 && (result.metricKey!="AST"||result.rawName!="AST 谷草转氨酶")->{
-     changed=true
-     result.copy(metricKey="AST",rawName="AST 谷草转氨酶")
-    }
-    result.metricKey=="AST" && result.value!=null && result.value in 0.0..5.0 && result.rawName=="AST 谷草转氨酶"->{
-     changed=true
-     result.copy(metricKey="AST/ALT",rawName="AST/ALT 谷草/谷丙")
-    }
-    else->result
-   }
-  })}
-  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
-  check(prefs.edit().putBoolean(migrationKey,true).commit())
- }
- private fun migrateCanonicalMetricIdentityOnce(){
-  val migrationKey="migration_metric_identity_clean_v5"
-  if(prefs.getBoolean(migrationKey,false))return
-  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList());var changed=false
-  val fixed=raw.map{report->
-   val template=latestTemplate(report.hospitalKey,report.reportType,report.systemKey)
-   val fields=template?.fields.orEmpty()
-   report.copy(results=report.results.mapIndexed{index,result->
-    val templateField=fields.getOrNull(index)
-    val canonical=templateField?.metricKey?.let(ReportParser::key) ?: ReportParser.key(result.metricKey)
-    val normalized=UnitNormalizer.normalize(canonical,result.value,result.unitAtTest)
-    if(canonical!=result.metricKey||normalized.first!=result.normalizedValue||normalized.second!=result.normalizedUnit){changed=true;result.copy(metricKey=canonical,normalizedValue=normalized.first,normalizedUnit=normalized.second)}else result
-   })
-  }
-  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
-  check(prefs.edit().putBoolean(migrationKey,true).commit())
  }
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
