@@ -86,10 +86,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val importer=rememberReportImport(store,{draft=it},{error=it},deliver=draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
  Box(Modifier.fillMaxSize().then(if(draft!=null||report!=null||entry!=null||template!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
- Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"记录" to Icons.Outlined.FolderOpen,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
+ Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   when(tab){
-   0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2;recordsFilter="全部"})
+   0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2})
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
    2->Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())})
    3->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
@@ -210,7 +210,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
-  OutlinedTextField(query,{query=it},placeholder={Text("查找指标",fontSize=14.sp)},textStyle=LocalTextStyle.current.copy(fontSize=14.sp),modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),singleLine=true)
+  BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(32.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().border(1.dp,Color(0xFF7B7B82),RoundedCornerShape(4.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()}}})
   val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)&&(x.rawName.contains(query,true)||key.contains(query,true))}}
   if(filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   filtered.forEach{(key,list)->
