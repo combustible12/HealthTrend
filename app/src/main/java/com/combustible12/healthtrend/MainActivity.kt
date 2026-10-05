@@ -196,7 +196,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "RBC"->"红细胞 RBC";"HGB"->"血红蛋白 HGB";"HCT"->"红细胞压积 HCT";"MCV"->"红细胞平均体积 MCV"
   "MCH"->"平均红细胞血红蛋白量 MCH";"MCHC"->"平均血红蛋白浓度 MCHC";"RDW"->"红细胞分布宽度 RDW";"RDW-SD"->"红细胞分布宽度SD RDW-SD"
   "PLT"->"血小板 PLT";"PCT"->"血小板压积 PCT";"MPV"->"平均血小板体积 MPV";"PDW"->"血小板分布宽度 PDW"
-  "P-LCR"->"大型血小板比率 P-LCR";"NRBC%"->"有核红细胞比率 NRBC%";"NRBC#"->"有核红细胞计数 NRBC#";"P-LCC"->"大血小板数目 LCC"
+  "P-LCR"->"大型血小板比率 P-LCR";"NRBC%"->"有核红细胞比率 NRBC%";"NRBC#"->"有核红细胞计数 NRBC#";"P-LCC"->"大血小板数目 P-LCC"
   "TP"->"总蛋白 TP";"ALB"->"白蛋白 ALB";"GLOB"->"球蛋白 GLOB";"A/G"->"白球比 A/G";"TBIL"->"总胆红素 TBIL"
   "DBIL"->"直接胆红素 DBIL";"IBIL"->"间接胆红素 IBIL";"ALT"->"谷丙转氨酶 ALT";"AST"->"谷草转氨酶 AST"
   "GGT"->"谷氨酰转肽酶 GGT";"AST/ALT"->"谷草/谷丙 AST/ALT";"ALP"->"碱性磷酸酶 ALP";"CHE"->"胆碱酯酶 CHE"
