@@ -243,14 +243,29 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
  }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}}
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
- FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+ FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column{
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
-  LazyRow(Modifier.fillMaxWidth().height(72.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=4.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(58.dp).fillMaxHeight())}}
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({pageIndex--;matches=emptyList();matchPosition=0},enabled=pageIndex>0){Text("上一张")};TextButton({confirmDelete=true}){Text("删除资料",color=Bad)};TextButton({pageIndex++;matches=emptyList();matchPosition=0},enabled=pageIndex<document.pages.lastIndex){Text("下一张")}}
- }}){m->Column(m.padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-  OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.fillMaxWidth(),label={Text("资料标题")},singleLine=true,trailingIcon={TextButton({if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}){Text("保存")}})
-  OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.fillMaxWidth(),enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(8.dp));Text(if(busy)progress else "添加图片")}
-  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted);TextButton({showGrid=true}){Text("宫格查看")}}
+  LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
+  Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+   Text("上一张",fontSize=14.sp,color=if(pageIndex>0)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}.padding(horizontal=4.dp,vertical=1.dp))
+   Text("删除资料",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDelete=true}.padding(horizontal=4.dp,vertical=1.dp))
+   Text("下一张",fontSize=14.sp,color=if(pageIndex<document.pages.lastIndex)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}.padding(horizontal=4.dp,vertical=1.dp))
+  }
+ }}){m->Column(m.padding(horizontal=12.dp)){
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.weight(1f).height(44.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=15.sp),trailingIcon={
+    Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}.padding(horizontal=8.dp,vertical=4.dp))
+   })
+   OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
+    Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
+   }
+  }
+  Spacer(Modifier.height(18.dp))
+  Row(Modifier.fillMaxWidth().heightIn(min=18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){
+   Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,lineHeight=16.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted)
+   Text("宫格查看",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
+  }
+  Spacer(Modifier.height(4.dp))
   HighlightImage(page,currentBlock,Modifier.weight(1f).fillMaxWidth())
  }}
  if(confirmDelete)DeleteConfirmation({confirmDelete=false}){onDelete(document);onClose()}
