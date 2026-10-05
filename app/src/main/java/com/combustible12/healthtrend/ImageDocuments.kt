@@ -389,7 +389,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
    TextButton({noteDraft=document.pages.firstOrNull{it.isTextPage()}?.fullText.orEmpty();showNoteEditor=true}){
-    Icon(Icons.Outlined.EditNote,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(document.pages.any{it.isTextPage()})"编辑说明" else "添加说明")
+    Icon(Icons.Outlined.Clear,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(document.pages.any{it.isTextPage()})"编辑说明" else "添加说明")
    }
   }
   Spacer(Modifier.height(4.dp))
