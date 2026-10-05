@@ -141,7 +141,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 }
 
 @Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
- Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){images.forEachIndexed{i,uri->Box{CourseThumbnail(uri,Modifier.size(64.dp).clickable{open(i)});if(remove!=null)Surface(onClick={remove(i)},modifier=Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Close,"移除图片",Modifier.padding(4.dp),tint=Muted)}}}}
+ Row(Modifier.padding(start=29.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){images.forEachIndexed{i,uri->Box{CourseThumbnail(uri,Modifier.size(64.dp).clickable{open(i)});if(remove!=null)Surface(onClick={remove(i)},modifier=Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Close,"移除图片",Modifier.padding(4.dp),tint=Muted)}}}}
 }
 
 @Composable private fun CourseThumbnail(uri:String,modifier:Modifier){
