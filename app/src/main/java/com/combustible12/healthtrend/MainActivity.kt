@@ -203,7 +203,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "TBA"->"总胆汁酸 TBA";"PA"->"前白蛋白 PA";"UREA"->"尿素 UREA";"CREA"->"肌酐 CREA";"UA"->"尿酸 UA"
   else->null
  }
- val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->ReportParser.key(result.metricKey)}
+ val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->result.metricKey}
  val weights=remember(weightVersion,revision){store.weightRecords()}
  Screen(m,"指标趋势",spacing=3.5.dp){
   Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
@@ -232,7 +232,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Column(Modifier.weight(1f)){
       val fixedTitle=fixedTrendTitle(key) ?: latest.rawName.trim()
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
-      val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{ReportParser.key(it.metricKey)==ReportParser.key(key)}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
+      val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{it.metricKey==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
