@@ -378,7 +378,10 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  var swipeX by remember(page.id){mutableFloatStateOf(0f)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
   value=withContext(Dispatchers.IO){
-   runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=24_000_000L,maxDimension=16_000)}
+   val longNarrow=page.imageWidth<=2_000&&page.imageHeight>=8_000
+   val maxPixels=if(longNarrow)28_000_000L else 16_000_000L
+   val maxDimension=if(longNarrow)24_000 else 8_192
+   runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=maxPixels,maxDimension=maxDimension)}
     .fold({it to null},{null to "原图无法读取：${it.message}"})
   }
  }
@@ -393,7 +396,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
      }else{
       val fit=min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight)
       val fittedWidth=page.imageWidth*fit
-      val target=(viewport.width/fittedWidth).coerceIn(1f,8f)
+      val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
+      val target=widthFill.coerceAtMost(32f)
       if(target>1.01f){
        val ratio=target/zoom
        val cy=tap.y-viewport.height/2f
@@ -407,7 +411,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    }
    .pointerInput(page.id,viewport){
    detectTransformGestures{centroid,pan,scale,_->
-    val next=(zoom*scale).coerceIn(1f,8f)
+    val fit=if(viewport.width>0&&viewport.height>0&&page.imageWidth>0&&page.imageHeight>0)min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight) else 1f
+    val fittedWidth=(page.imageWidth*fit).coerceAtLeast(1f)
+    val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
+    val maxZoom=maxOf(8f,widthFill*1.5f).coerceAtMost(32f)
+    val next=(zoom*scale).coerceIn(1f,maxZoom)
     val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
     val horizontal=abs(pan.x)>abs(pan.y)*1.15f
     if(atRest&&horizontal){
