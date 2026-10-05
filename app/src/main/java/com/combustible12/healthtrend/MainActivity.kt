@@ -99,7 +99,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images.drop(index)+images.take(index)})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
-    4->Mine(m,templates,{template=it},store,{error=it})
+    4->Mine(m,templates,{template=it},store,{error=it},{revision++})
   }
  }
  }
@@ -246,12 +246,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
+    val compatibleSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
+     .groupBy{(r,x)->trendSeriesKey(x) to r.systemKey}.values.toList()
     Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
      Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
-     TextButton(onClick={previewSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+     TextButton(onClick={previewSeries=compatibleSeries.maxByOrNull{it.last().first.testedAtEpochMillis}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    listOf(points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}).forEach{series->
+    compatibleSeries.forEach{series->
      val sx=series.last().second
+     if(compatibleSeries.size>1)Text("${sx.hospitalKey} · ${displayLabUnit(sx.unitAtTest)}",color=Muted,fontSize=11.sp)
      val bounds=sx.trendReferenceRange()
      val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
@@ -294,7 +297,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
- val key=result.metricKey.ifBlank{ReportParser.key(result.rawName)}
+ val key=result.metricKey
  val liver=setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
  val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
  val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#")

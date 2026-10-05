@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
 data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String=""):java.io.Serializable {
- fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();val metric=key.ifBlank{ReportParser.key(name)};return ParsedLabResult(metric,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,metric in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})}
+ fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})}
  fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
  companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
 }
@@ -95,7 +95,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  d.rows.firstOrNull{it.id==editing}?.let{row->
   val units=remember(row.key,d.rows){(store.rememberedUnits(row.key)+d.rows.filter{it.key==row.key}.map{it.unit}).map{it.trim()}.filter{it.isNotBlank()}.distinct()}
   val fixed=store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==row.key}==true
-  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed)
+  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=fixed||d.existing!=null)
  }
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
@@ -103,10 +103,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  if(templateOnly){Text(displayLabUnit(r.unit),fontSize=22.sp);if(r.trendMeaning.isNotBlank())Text(r.trendMeaning,color=Accent,fontSize=12.sp)} else ResultValueUnit(r.text,r.unit);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  TextButton(edit,contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),modifier=Modifier.heightIn(min=28.dp)){Text("编辑")}
 }}}
-@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){
+@Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){
  var unlock by rememberSaveable(row.id){mutableStateOf(false)}
  FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
-  LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock)
+  LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock,lockIdentity)
   if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
  }}
 }
@@ -128,9 +128,12 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
 
 fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyList() else listOf("invalid")
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
-@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){Paper{
+@Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
- if(lockMetadata)Text(r.name,fontSize=18.sp) else Field(r.name,{edit(r.copy(name=it,key=ReportParser.key(it)))},"项目名称")
+ if(lockMetadata)Text(r.name,fontSize=18.sp) else {
+  Field(r.name,{edit(r.copy(name=it))},"项目名称")
+  if(lockIdentity)Text(r.key,color=Muted) else Field(r.key,{edit(r.copy(key=it))},"项目代码")
+ }
  if(templateOnly)Field(r.trendMeaning,{edit(r.copy(trendMeaning=it))},"趋势说明（箭头在前）")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
  if(lockMetadata){Text("${r.unit.ifBlank{"单位未录入"}} · 参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)}else{
@@ -159,15 +162,16 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 @Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<LabFieldTemplate>)->Unit){
  val context=LocalContext.current
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
+ var addedRowIds by rememberSaveable{mutableStateOf<List<String>>(emptyList())}
  var rows by rememberSaveable(t,stateSaver=diskStateSaver<List<DraftRow>>(context,"template-editor")){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty(),trendMeaning=it.trendMeaning.ifBlank{metricPurpose(it.metricKey).orEmpty()})})}
  FullPage("医院模板",close,hidden=editing!=null,bottom={Button({save(rows.map{LabFieldTemplate(it.key,it.name,displayLabUnit(it.unit),it.low.toDoubleOrNull(),it.high.toDoubleOrNull(),it.trendMeaning.trim())})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()&&it.trendMeaning.isNotBlank()}){Text("保存模板")}}){m->Column(m.padding(horizontal=12.dp)){
  Text("${t.hospitalKey}\n${t.reportType}",Modifier.padding(vertical=6.dp))
  LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(vertical=6.dp)){
   gridItemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}},true)}
-  item{TextButton({val added=DraftRow(text="0");rows=rows+added;editing=added.id}){Text("+ 添加指标")}}
+  item{TextButton({val added=DraftRow(text="0");rows=rows+added;addedRowIds=addedRowIds+added.id;editing=added.id}){Text("+ 添加指标")}}
  }
  }}
- rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->rows=rows.map{if(it.id==changed.id)changed else it}},{editing=null},true,rows.filter{it.key==row.key}.map{it.unit}.filter{it.isNotBlank()}.distinct())}
+ rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->rows=rows.map{if(it.id==changed.id)changed else it}},{editing=null},true,rows.filter{it.key==row.key}.map{it.unit}.filter{it.isNotBlank()}.distinct(),lockIdentity=row.id !in addedRowIds)}
 }
 @Composable fun EntryEditor(initial:HealthEntry,store:HealthStore,close:()->Unit,save:(HealthEntry)->Unit,delete:()->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current

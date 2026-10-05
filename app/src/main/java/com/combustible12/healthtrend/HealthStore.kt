@@ -18,7 +18,8 @@ class HealthStore(private val context:Context) {
  private fun migrateCurrentTemplates(){
  val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
-   versions.maxWithOrNull(compareBy<HospitalLabTemplate>{templateMigrationTier(it)}.thenBy{it.version}.thenBy{templateCompleteness(it)})
+   versions.withIndex().maxWithOrNull(compareBy<IndexedValue<HospitalLabTemplate>>{it.value.confirmed}
+    .thenBy{it.value.version}.thenBy{it.index})?.value
   }.toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
@@ -32,6 +33,8 @@ class HealthStore(private val context:Context) {
  }
  @Synchronized fun saveReport(r:LabReport){
   require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
+  require(r.results.all{it.metricKey.isNotBlank()&&it.reportId==r.id&&it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效"}
+  require(r.results.map{it.metricKey}.distinct().size==r.results.size){"报告存在重复项目 ID"}
   latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.let{template->
    val expected=template.fields.map{it.metricKey}
    val actual=r.results.map{it.metricKey}
@@ -42,6 +45,51 @@ class HealthStore(private val context:Context) {
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}})
  }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
+ private fun historyReplacementBatch(text:String):HistoryReplacementBatch{
+  val o=JSONObject(text)
+  require(o.getString("format")=="healthtrend-history-replacement-v1"){"不是 HealthTrend 历史核对文件"}
+  val keys=o.getJSONArray("metricKeys").let{a->(0 until a.length()).map{a.getString(it)}}
+  val rows=o.getJSONArray("reports").let{a->(0 until a.length()).map{i->
+   val r=a.getJSONObject(i);val values=r.getJSONArray("values")
+   HistoryReplacementRow(java.time.LocalDate.parse(r.getString("date")),(0 until values.length()).map{values.getString(it)})
+  }}
+  return HistoryReplacementBatch(o.getString("hospital"),o.getString("type"),o.optString("system"),keys,rows)
+ }
+ @Synchronized fun previewHistoryReplacement(text:String):String{
+  val batch=historyReplacementBatch(text)
+  val template=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  replaceReportHistory(reports(),template,batch)
+  return "${batch.hospital} · ${batch.type}\n${batch.reports.size} 份报告 × ${batch.metricKeys.size} 项 = ${batch.reports.sumOf{it.values.size}} 个结果\n${batch.reports.joinToString("、"){it.date.toString().replace('-','/')}}"
+ }
+ @Synchronized fun importHistoryReplacement(text:String):String{
+  val batch=historyReplacementBatch(text)
+  val fingerprint=java.security.MessageDigest.getInstance("SHA-256").digest(batch.copy(reports=batch.reports.sortedBy{it.date}).toString().toByteArray(Charsets.UTF_8)).joinToString(""){"%02x".format(it)}
+  val marker="history_replacement:$fingerprint"
+  if(prefs.getBoolean(marker,false))return "此核对文件已导入，无需重复替换"
+  val template=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  val all=reports();val replaced=replaceReportHistory(all,template,batch)
+  val before=prefs.getString("reports","[]")?:"[]"
+  val updates=all.zip(replaced).filter{(old,new)->old!==new}.associate{(_,new)->new.id to new}
+  val raw=JSONArray(before)
+  val after=JSONArray().apply{(0 until raw.length()).forEach{i->
+   val original=raw.getJSONObject(i)
+   put(updates[original.getString("id")]?.let(::reportToJson)?:original)
+  }}
+  val previousBackup=prefs.getString("history_replacement_backup",null)
+  val hadMarker=prefs.contains(marker)
+  // One atomic preference write: no partial replacement and no marker without data.
+  val saved=prefs.edit().putString("history_replacement_backup",before)
+   .putString("reports",after.toString()).putBoolean(marker,true).commit()
+  if(!saved){
+   // A failed disk commit may still update SharedPreferences' in-memory cache.
+   val rollback=prefs.edit().putString("reports",before)
+   if(previousBackup==null)rollback.remove("history_replacement_backup") else rollback.putString("history_replacement_backup",previousBackup)
+   if(hadMarker)rollback.putBoolean(marker,false) else rollback.remove(marker)
+   rollback.commit()
+   error("报告替换保存失败，已恢复替换前的记录")
+  }
+  return "已替换 ${batch.reports.size} 份报告，共 ${batch.reports.sumOf{it.values.size}} 个结果"
+ }
  @Synchronized fun addReportImages(reportId:String,uris:List<Uri>){
   if(uris.isEmpty())return
   val r=reports().first{it.id==reportId}
@@ -53,7 +101,7 @@ class HealthStore(private val context:Context) {
 
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  fun rememberedUnits(key:String):List<String>{
-  val canonical=key.trim().takeIf{it.isNotBlank()}
+  val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
   val templateUnits=templates().flatMap{it.fields}.filter{canonical==null||it.metricKey==canonical}.map{it.unit}
   return (reportUnits+templateUnits).map{it.trim()}.filter{it.isNotBlank()}.distinct()
@@ -67,6 +115,7 @@ class HealthStore(private val context:Context) {
  fun latestTemplate(h:String,t:String,system:String="")=storedTemplates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
  @Synchronized fun confirmTemplate(h:String,t:String,items:List<ParsedLabResult>,system:String="",newVersion:Boolean=false):HospitalLabTemplate {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
+  require(items.all{it.metricKey.isNotBlank()}&&items.map{it.metricKey}.distinct().size==items.size){"模板项目 ID 为空或重复"}
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
   val version=if(old==null)1 else old.version+1
@@ -77,6 +126,7 @@ class HealthStore(private val context:Context) {
   write("templates",JSONArray().apply{keep.forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  @Synchronized fun saveTemplateFields(source:HospitalLabTemplate,fields:List<LabFieldTemplate>):HospitalLabTemplate {
+  require(fields.isNotEmpty()&&fields.all{it.metricKey.isNotBlank()}&&fields.map{it.metricKey}.distinct().size==fields.size){"模板项目 ID 为空或重复"}
   val old=latestTemplate(source.hospitalKey,source.reportType,source.systemKey)?:source
   val template=old.copy(version=old.version+1,confirmed=true,fields=fields.map{it.copy(trendMeaning=it.trendMeaning.trim().ifBlank{metricPurpose(it.metricKey).orEmpty()})})
   val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey}
@@ -140,20 +190,6 @@ fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemp
   referenceLow=p.referenceLow?:field.referenceLow,
   referenceHigh=p.referenceHigh?:field.referenceHigh
  )
-}
-private fun templateCompleteness(t:HospitalLabTemplate):Int{
- val unique=t.fields.map{it.metricKey}.distinct().size
- val sane=t.fields.count{f->f.displayName.isNotBlank()&&sanitizeLabUnit(f.unit)==f.unit.trim()&&(f.referenceLow==null||f.referenceHigh==null||f.referenceLow<=f.referenceHigh)}
- return unique*100+sane
-}
-private fun templateMigrationTier(t:HospitalLabTemplate):Int{
- val unique=t.fields.map{it.metricKey}.distinct().size
- return when{
-  t.hospitalKey.trim()=="霞浦县中医院"&&t.reportType.trim()=="血常规"&&unique==27->3
-  t.confirmed&&unique>0->2
-  unique>0->1
-  else->0
- }
 }
 internal fun xiapuBiochemistryTemplate()=HospitalLabTemplate("霞浦县中医院","生化",1,true,listOf(
  LabFieldTemplate("TP","TP 总蛋白","g/L",65.0,85.0),

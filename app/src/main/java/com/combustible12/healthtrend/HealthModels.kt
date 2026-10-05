@@ -36,6 +36,9 @@ data class LabResult(
  }
 }
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
+/** Exact stored identity and compatible measurement scope; no name/code rewriting. */
+data class TrendSeriesIdentity(val hospital:String,val type:String,val metricKey:String,val unit:String)
+fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,result.metricKey,result.normalizedUnit)
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
 data class HealthEntry(
  val id:String=newId(),val kind:EntryKind,val title:String,val occurredAtEpochMillis:Long,
