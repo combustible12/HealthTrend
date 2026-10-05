@@ -94,7 +94,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->
   val units=remember(row.key,d.rows){(store.rememberedUnits(row.key)+d.rows.filter{it.key==row.key}.map{it.unit}).map{it.trim()}.filter{it.isNotBlank()}.distinct()}
-  val fixed=store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{ReportParser.key(it.metricKey)==ReportParser.key(row.key)}==true
+  val fixed=store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==row.key}==true
   MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed)
  }
 }
