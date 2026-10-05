@@ -40,6 +40,10 @@ object ReportParser {
  }
  fun key(name:String):String {
   val clean=name.trim().replace(" ","")
+  val upper=clean.uppercase().replace('‑','-').replace('–','-')
+  if(upper.contains("RDW-SD"))return "RDW-SD"
+  if(upper.contains("P-LCR"))return "P-LCR"
+  if(upper.contains("P-LCC"))return "P-LCC"
   val astAlt=clean.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(clean)
   if(astAlt)return "AST/ALT"
   val ast=clean.contains("谷草转氨酶")&&!clean.contains("谷草/谷丙")&&!clean.contains("/")||
