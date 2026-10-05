@@ -109,7 +109,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
   Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(start=16.dp,top=14.dp,end=12.dp,bottom=14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     Text("${courseDate(record.date)} · ${record.title}",Modifier.weight(1f).padding(top=4.dp),fontWeight=FontWeight.Bold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",Modifier.weight(1f).padding(top=4.dp),fontWeight=FontWeight.Bold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      Spacer(Modifier.width(6.dp))
      Surface(shape=RoundedCornerShape(20.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=9.dp,vertical=4.dp),color=phaseColors.second,fontSize=11.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(34.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(22.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
