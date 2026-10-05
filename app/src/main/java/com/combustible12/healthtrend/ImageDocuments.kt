@@ -12,6 +12,8 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +48,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.math.min
@@ -88,7 +91,7 @@ enum class ImageIndexStatus:java.io.Serializable { READY, FAILED }
 
 data class ImagePage(
  val id:String=newId(),val imageUri:String,val pageIndex:Int,val imageWidth:Int,val imageHeight:Int,
- val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY
+ val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY,val contentHash:String=""
 ):java.io.Serializable
 
 data class ImageDocument(
@@ -135,8 +138,8 @@ class ImageDocumentStore(private val context:Context){
   file.baseFile.parentFile?.mkdirs();val stream=file.startWrite()
   try{stream.bufferedWriter().apply{write(JSONArray().apply{documents.forEach{d->put(documentToJson(d))}}.toString());flush()};file.finishWrite(stream)}catch(t:Throwable){file.failWrite(stream);throw t}
  }
- private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
- private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED))}})
+ private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
+ private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"))}})
 }
 
 private fun normalizedSearchText(value:String)=value.filterNot(Char::isWhitespace).lowercase()
@@ -168,29 +171,44 @@ private fun originalOrientedSize(context:Context,uri:Uri):IntSize{
  return if(orientation in listOf(ExifInterface.ORIENTATION_ROTATE_90,ExifInterface.ORIENTATION_ROTATE_270,ExifInterface.ORIENTATION_TRANSPOSE,ExifInterface.ORIENTATION_TRANSVERSE))IntSize(bounds.outHeight,bounds.outWidth)else IntSize(bounds.outWidth,bounds.outHeight)
 }
 
-private suspend fun importImageDocument(context:Context,store:ImageDocumentStore,uris:List<Uri>,progress:(String)->Unit):ImageDocument=withContext(Dispatchers.IO){
+private fun imageContentHash(context:Context,uri:Uri):String{
+ val digest=MessageDigest.getInstance("SHA-256")
+ context.contentResolver.openInputStream(uri).use{input->requireNotNull(input){"图片无法读取"};val buffer=ByteArray(64*1024);while(true){val count=input.read(buffer);if(count<0)break;if(count>0)digest.update(buffer,0,count)}}
+ return digest.digest().joinToString(""){"%02x".format(it)}
+}
+
+private data class ImportedImagePages(val pages:List<ImagePage>,val duplicateCount:Int)
+
+private suspend fun importImagePages(context:Context,store:ImageDocumentStore,uris:List<Uri>,startIndex:Int,existingHashes:Set<String>,progress:(String)->Unit):ImportedImagePages=withContext(Dispatchers.IO){
  val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build());val pages=mutableListOf<ImagePage>()
+ val seen=existingHashes.toMutableSet();var duplicates=0
  try{uris.forEachIndexed{i,source->
+  progress("正在检查第 ${i+1}/${uris.size} 张…");val hash=imageContentHash(context,source)
+  if(!seen.add(hash)){duplicates++;return@forEachIndexed}
   progress("正在保存第 ${i+1}/${uris.size} 张…");val owned=store.ownImage(source);val uri=Uri.parse(owned);val original=originalOrientedSize(context,uri)
   try{
    progress("正在建立第 ${i+1}/${uris.size} 张文字索引…");val bitmap=decodeReportBitmap(context,uri,maxDimension=12000)
    try{
     val result=recognizer.process(InputImage.fromBitmap(bitmap,0)).awaitImageIndex();val sx=original.width.toFloat()/bitmap.width;val sy=original.height.toFloat()/bitmap.height
     val blocks=result.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{box->SearchTextBlock(line.text,(box.left*sx).roundToInt(),(box.top*sy).roundToInt(),(box.right*sx).roundToInt(),(box.bottom*sy).roundToInt())}}
-    pages+=ImagePage(imageUri=owned,pageIndex=i,imageWidth=original.width,imageHeight=original.height,fullText=result.text,indexStatus=if(blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=blocks)
+    pages+=ImagePage(imageUri=owned,pageIndex=startIndex+pages.size,imageWidth=original.width,imageHeight=original.height,fullText=result.text,indexStatus=if(blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=blocks,contentHash=hash)
    }finally{bitmap.recycle()}
-  }catch(t:Throwable){if(t is CancellationException)throw t;pages+=ImagePage(imageUri=owned,pageIndex=i,imageWidth=original.width,imageHeight=original.height,indexStatus=ImageIndexStatus.FAILED)}
+  }catch(t:Throwable){if(t is CancellationException)throw t;pages+=ImagePage(imageUri=owned,pageIndex=startIndex+pages.size,imageWidth=original.width,imageHeight=original.height,indexStatus=ImageIndexStatus.FAILED,contentHash=hash)}
  }}finally{recognizer.close()}
- ImageDocument(pages=pages)
+ ImportedImagePages(pages,duplicates)
+}
+
+private suspend fun existingImageHashes(context:Context,document:ImageDocument)=withContext(Dispatchers.IO){
+ document.pages.mapNotNull{page->page.contentHash.ifBlank{runCatching{imageContentHash(context,Uri.parse(page.imageUri))}.getOrNull()}}.toSet()
 }
 
 @Composable fun ImageDocumentsPage(m:Modifier,open:(ImageDocument,Int,List<Int>)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};var revision by remember{mutableIntStateOf(0)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")};var error by remember{mutableStateOf("")};var query by rememberSaveable{mutableStateOf("")};val scope=rememberCoroutineScope()
- val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val d=importImageDocument(context,store,uris){progress=it};store.save(d);revision++;open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);revision++;if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}}
  val documents=runCatching{store.all()}.getOrElse{error=it.message.orEmpty();emptyList()};val hits=if(query.isBlank())emptyList()else runCatching{store.search(query)}.getOrDefault(emptyList())
  Screen(m,"图片资料","保存原图，文字仅用于搜索和定位"){
   Button({picker.launch(arrayOf("image/*"))},Modifier.fillMaxWidth(),enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(8.dp));Text(if(busy)progress else "导入多张图片")}
-  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("搜索图片中的文字")},singleLine=true)
+  OutlinedTextField(query,{query=it},Modifier.fillMaxWidth(),label={Text("搜索图片中的文字")},singleLine=true,trailingIcon={if(query.isNotEmpty())IconButton({query=""}){Icon(Icons.Outlined.Clear,"清空搜索")}})
   if(query.isNotBlank()){
    if(hits.isEmpty())Paper{Text("没有找到相关内容")}
    hits.forEach{hit->Paper(Modifier.clickable{open(hit.document,hit.page.pageIndex,hit.blockIndexes)}){Text("${hit.document.title} · 第 ${hit.page.pageIndex+1} 张",fontWeight=FontWeight.Bold);Text(hit.context,fontSize=13.sp,maxLines=3,overflow=TextOverflow.Ellipsis);if(hit.page.indexStatus==ImageIndexStatus.FAILED)Text("本页文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
@@ -203,17 +221,27 @@ private suspend fun importImageDocument(context:Context,store:ImageDocumentStore
 }
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
- var document by remember{mutableStateOf(initial)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDelete by remember{mutableStateOf(false)}
+ val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDelete by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
+ val addImages=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
+  val hashes=existingImageHashes(context,document);val imported=importImagePages(context,store,uris,document.pages.size,hashes){progress=it}
+  if(imported.pages.isNotEmpty()){val firstNew=document.pages.size;document=document.copy(pages=document.pages+imported.pages);onSaved(document);savedTitle=document.title;pageIndex=firstNew;matches=emptyList();matchPosition=0}
+  val message=when{imported.duplicateCount>0&&imported.pages.isNotEmpty()->"已添加 ${imported.pages.size} 张，跳过 ${imported.duplicateCount} 张重复图片";imported.duplicateCount>0->"所选图片均已存在，无需重复添加";else->"已添加 ${imported.pages.size} 张图片"}
+  android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
+ }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}}
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
- FullPage("图片资料",onClose,bottom={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+ FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({pageIndex--;matches=emptyList();matchPosition=0},enabled=pageIndex>0){Text("上一张")};TextButton({confirmDelete=true}){Text("删除资料",color=Bad)};TextButton({pageIndex++;matches=emptyList();matchPosition=0},enabled=pageIndex<document.pages.lastIndex){Text("下一张")}}
  }}){m->Column(m.padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-  OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.fillMaxWidth(),label={Text("资料标题")},singleLine=true,trailingIcon={TextButton({if(document.title.isNotBlank())onSaved(document)}){Text("保存")}})
+  OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.fillMaxWidth(),label={Text("资料标题")},singleLine=true,trailingIcon={TextButton({if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}){Text("保存")}})
+  OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.fillMaxWidth(),enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(8.dp));Text(if(busy)progress else "添加图片")}
   Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted)
   HighlightImage(page,currentBlock,Modifier.weight(1f).fillMaxWidth())
  }}
  if(confirmDelete)DeleteConfirmation({confirmDelete=false}){onDelete(document);onClose()}
+ if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
 }
 
 @Composable private fun HighlightImage(page:ImagePage,highlight:SearchTextBlock?,modifier:Modifier=Modifier){
