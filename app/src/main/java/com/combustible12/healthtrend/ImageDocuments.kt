@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -340,11 +342,24 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column{
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
-  Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
-   Text("上一张",fontSize=14.sp,color=if(pageIndex>0)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}.padding(horizontal=3.dp,vertical=1.dp))
+  Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
    Text("删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
+   Spacer(Modifier.width(24.dp))
    Text("删整份",fontSize=13.sp,color=Bad.copy(alpha=.78f),modifier=Modifier.clickable{confirmDeleteDocument=true}.padding(horizontal=3.dp,vertical=1.dp))
-   Text("下一张",fontSize=14.sp,color=if(pageIndex<document.pages.lastIndex)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}.padding(horizontal=3.dp,vertical=1.dp))
+   Spacer(Modifier.weight(1f))
+   Box(
+    Modifier.size(40.dp)
+     .background(if(page.sourceUrl.isBlank())Color(0xFFF0F0F0) else Color(0xFFEAF3FF),RoundedCornerShape(12.dp))
+     .clickable{linkDraft=page.sourceUrl;showLinkEditor=true},
+    contentAlignment=Alignment.Center
+   ){
+    Icon(
+     Icons.Outlined.Link,
+     if(page.sourceUrl.isBlank())"添加链接" else "图片来源链接",
+     tint=if(page.sourceUrl.isBlank())Color(0xFF8A8A8A) else Color(0xFF5B8FD9),
+     modifier=Modifier.size(20.dp)
+    )
+   }
   }
  }}){m->Column(m.padding(horizontal=12.dp)){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
@@ -386,11 +401,6 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
        }finally{reindexing=false}
       }
      }.padding(horizontal=6.dp,vertical=1.dp)
-    )
-    Text(
-     if(page.sourceUrl.isBlank())"+链接" else "原文",
-     fontSize=12.sp,lineHeight=16.sp,color=Accent,
-     modifier=Modifier.clickable{linkDraft=page.sourceUrl;showLinkEditor=true}.padding(horizontal=4.dp,vertical=1.dp)
     )
     Text("宫格",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
    }
