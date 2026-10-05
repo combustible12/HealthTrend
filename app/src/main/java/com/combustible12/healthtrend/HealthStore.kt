@@ -50,9 +50,6 @@ class HealthStore(private val context:Context) {
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports():List<LabReport>{
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
-  val unusedDebugLog=reports.filter{java.text.SimpleDateFormat("MM/dd",java.util.Locale.US).format(java.util.Date(it.testedAtEpochMillis))=="09/23"}.flatMap{report->
-   report.results.map{result->"metricKey=${result.metricKey}\nrawName=${result.rawName}\nrawLine=${result.rawLine}"}
-  }.joinToString("\n\n")
   return reports
  }
  @Synchronized fun saveReport(r:LabReport){
