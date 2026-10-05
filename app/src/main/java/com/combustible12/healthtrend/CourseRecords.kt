@@ -69,7 +69,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text("还没有病程记录",color=Muted)}
-   else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
@@ -82,9 +82,9 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
 
 @Composable private fun CourseTimelineCard(record:CourseRecord,onOpen:()->Unit,menuOpen:Boolean,onMenu:()->Unit,onEdit:()->Unit,onDelete:()->Unit,onDismiss:()->Unit,view:(List<String>,Int)->Unit){
  val phaseColors=coursePhaseColors(record.phase)
- Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-  Column(Modifier.width(22.dp),horizontalAlignment=Alignment.CenterHorizontally){
-   Spacer(Modifier.height(25.dp));Box(Modifier.size(10.dp).background(phaseColors.second,CircleShape));Box(Modifier.width(2.dp).height(200.dp).background(Color(0xFFE7DDD6)))
+ Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
+  Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
+   Spacer(Modifier.height(25.dp));Box(Modifier.size(10.dp).background(phaseColors.second,CircleShape));Box(Modifier.width(2.dp).weight(1f).background(Color(0xFFE7DDD6)))
   }
   Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(start=16.dp,top=14.dp,end=12.dp,bottom=14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
