@@ -1,6 +1,7 @@
 package com.combustible12.healthtrend
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.ExifInterface
 import android.net.Uri
@@ -218,6 +219,68 @@ private fun imageContentHash(context:Context,uri:Uri):String{
  return digest.digest().joinToString(""){"%02x".format(it)}
 }
 
+private data class IndexedPageText(val fullText:String,val blocks:List<SearchTextBlock>)
+
+private suspend fun recognizePageBitmap(
+ recognizer:com.google.mlkit.vision.text.TextRecognizer,
+ bitmap:Bitmap,
+ original:IntSize
+):IndexedPageText{
+ val sx=original.width.toFloat()/bitmap.width
+ val sy=original.height.toFloat()/bitmap.height
+ val tileHeight=2400
+ val overlap=96
+ val step=(tileHeight-overlap).coerceAtLeast(1)
+ val blocks=mutableListOf<SearchTextBlock>()
+ val texts=mutableListOf<String>()
+ var top=0
+ while(top<bitmap.height){
+  val height=min(tileHeight,bitmap.height-top)
+  val tile=if(top==0&&height==bitmap.height)bitmap else Bitmap.createBitmap(bitmap,0,top,bitmap.width,height)
+  try{
+   val result=recognizer.process(InputImage.fromBitmap(tile,0)).awaitImageIndex()
+   if(result.text.isNotBlank())texts+=result.text
+   result.textBlocks.flatMap{it.lines}.forEach{line->
+    line.boundingBox?.let{box->
+     blocks+=SearchTextBlock(
+      line.text,
+      (box.left*sx).roundToInt(),
+      ((top+box.top)*sy).roundToInt(),
+      (box.right*sx).roundToInt(),
+      ((top+box.bottom)*sy).roundToInt()
+     )
+    }
+   }
+  }finally{
+   if(tile!==bitmap&&!tile.isRecycled)tile.recycle()
+  }
+  if(top+height>=bitmap.height)break
+  top+=step
+ }
+ val uniqueBlocks=blocks.distinctBy{b->"${normalizedSearchText(b.text)}:${b.left/8}:${b.top/8}:${b.right/8}:${b.bottom/8}"}.sortedWith(compareBy<SearchTextBlock>{it.top}.thenBy{it.left})
+ return IndexedPageText(
+  fullText=uniqueBlocks.joinToString("\n"){it.text}.ifBlank{texts.joinToString("\n")},
+  blocks=uniqueBlocks
+ )
+}
+
+private suspend fun reindexImagePage(context:Context,page:ImagePage):ImagePage=withContext(Dispatchers.IO){
+ val uri=Uri.parse(page.imageUri)
+ val original=IntSize(page.imageWidth,page.imageHeight)
+ val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+ try{
+  val bitmap=decodeReportBitmap(context,uri,maxPixels=12_000_000L,maxDimension=16_000)
+  try{
+   val indexed=recognizePageBitmap(recognizer,bitmap,original)
+   page.copy(
+    fullText=indexed.fullText,
+    blocks=indexed.blocks,
+    indexStatus=if(indexed.blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY
+   )
+  }finally{if(!bitmap.isRecycled)bitmap.recycle()}
+ }finally{recognizer.close()}
+}
+
 private data class ImportedImagePages(val pages:List<ImagePage>,val duplicateCount:Int)
 
 private suspend fun importImagePages(context:Context,store:ImageDocumentStore,uris:List<Uri>,startIndex:Int,existingHashes:Set<String>,progress:(String)->Unit):ImportedImagePages=withContext(Dispatchers.IO){
@@ -228,11 +291,10 @@ private suspend fun importImagePages(context:Context,store:ImageDocumentStore,ur
   if(!seen.add(hash)){duplicates++;return@forEachIndexed}
   progress("正在保存第 ${i+1}/${uris.size} 张…");val owned=store.ownImage(source);val uri=Uri.parse(owned);val original=originalOrientedSize(context,uri)
   try{
-   progress("正在建立第 ${i+1}/${uris.size} 张文字索引…");val bitmap=decodeReportBitmap(context,uri,maxDimension=12000)
+   progress("正在建立第 ${i+1}/${uris.size} 张文字索引…");val bitmap=decodeReportBitmap(context,uri,maxPixels=12_000_000L,maxDimension=16_000)
    try{
-    val result=recognizer.process(InputImage.fromBitmap(bitmap,0)).awaitImageIndex();val sx=original.width.toFloat()/bitmap.width;val sy=original.height.toFloat()/bitmap.height
-    val blocks=result.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{box->SearchTextBlock(line.text,(box.left*sx).roundToInt(),(box.top*sy).roundToInt(),(box.right*sx).roundToInt(),(box.bottom*sy).roundToInt())}}
-    pages+=ImagePage(imageUri=owned,pageIndex=startIndex+pages.size,imageWidth=original.width,imageHeight=original.height,fullText=result.text,indexStatus=if(blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=blocks,contentHash=hash)
+    val indexed=recognizePageBitmap(recognizer,bitmap,original)
+    pages+=ImagePage(imageUri=owned,pageIndex=startIndex+pages.size,imageWidth=original.width,imageHeight=original.height,fullText=indexed.fullText,indexStatus=if(indexed.blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=indexed.blocks,contentHash=hash)
    }finally{bitmap.recycle()}
   }catch(t:Throwable){if(t is CancellationException)throw t;pages+=ImagePage(imageUri=owned,pageIndex=startIndex+pages.size,imageWidth=original.width,imageHeight=original.height,indexStatus=ImageIndexStatus.FAILED,contentHash=hash)}
  }}finally{recognizer.close()}
@@ -263,7 +325,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
@@ -304,8 +366,28 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   }
   Spacer(Modifier.height(18.dp))
   Row(Modifier.fillMaxWidth().heightIn(min=18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){
-   Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,lineHeight=16.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted)
-   Text("宫格查看",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
+   Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,lineHeight=16.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted,modifier=Modifier.weight(1f))
+   Row(verticalAlignment=Alignment.CenterVertically){
+    if(page.indexStatus==ImageIndexStatus.FAILED)Text(
+     if(reindexing)"识别中…" else "重新识别",
+     fontSize=12.sp,lineHeight=16.sp,color=if(reindexing)Muted else Accent,
+     modifier=Modifier.clickable(enabled=!reindexing){
+      reindexing=true
+      scope.launch{
+       try{
+        val refreshed=reindexImagePage(context,page)
+        document=document.copy(pages=document.pages.map{if(it.id==refreshed.id)refreshed else it})
+        onSaved(document);savedTitle=document.title
+        android.widget.Toast.makeText(context,if(refreshed.indexStatus==ImageIndexStatus.READY)"本页文字索引已建立" else "仍未识别到文字",android.widget.Toast.LENGTH_LONG).show()
+       }catch(t:Throwable){
+        if(t is CancellationException)throw t
+        android.widget.Toast.makeText(context,"重新识别失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()
+       }finally{reindexing=false}
+      }
+     }.padding(horizontal=6.dp,vertical=1.dp)
+    )
+    Text("宫格查看",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
+   }
   }
   Spacer(Modifier.height(4.dp))
   HighlightImage(
