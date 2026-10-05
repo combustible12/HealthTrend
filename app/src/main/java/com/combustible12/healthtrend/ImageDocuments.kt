@@ -51,6 +51,35 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+internal data class ImageViewportTransform(
+ val fit:Float,val imageLeft:Float,val imageTop:Float,val zoom:Float,val translationX:Float,val translationY:Float
+)
+
+internal data class FloatBox(val left:Float,val top:Float,val right:Float,val bottom:Float)
+
+internal fun imageViewportTransform(viewportWidth:Int,viewportHeight:Int,imageWidth:Int,imageHeight:Int,zoom:Float=1f,translationX:Float=0f,translationY:Float=0f):ImageViewportTransform{
+ require(viewportWidth>0&&viewportHeight>0&&imageWidth>0&&imageHeight>0)
+ val fit=min(viewportWidth.toFloat()/imageWidth,viewportHeight.toFloat()/imageHeight)
+ return ImageViewportTransform(fit,(viewportWidth-imageWidth*fit)/2f,(viewportHeight-imageHeight*fit)/2f,zoom,translationX,translationY)
+}
+
+internal fun ImageViewportTransform.screenBox(block:SearchTextBlock,viewportWidth:Int,viewportHeight:Int):FloatBox{
+ val centerX=viewportWidth/2f;val centerY=viewportHeight/2f
+ fun x(source:Int)=(imageLeft+source*fit-centerX)*zoom+centerX+translationX
+ fun y(source:Int)=(imageTop+source*fit-centerY)*zoom+centerY+translationY
+ return FloatBox(x(block.left),y(block.top),x(block.right),y(block.bottom))
+}
+
+internal fun focusTranslation(block:SearchTextBlock,viewportWidth:Int,viewportHeight:Int,imageWidth:Int,imageHeight:Int,zoom:Float):Offset{
+ val t=imageViewportTransform(viewportWidth,viewportHeight,imageWidth,imageHeight)
+ val sourceCenterX=(block.left+block.right)/2f;val sourceCenterY=(block.top+block.bottom)/2f
+ val fittedX=t.imageLeft+sourceCenterX*t.fit;val fittedY=t.imageTop+sourceCenterY*t.fit
+ return Offset(-(fittedX-viewportWidth/2f)*zoom,-(fittedY-viewportHeight/2f)*zoom)
+}
+
+internal fun transformedTranslation(old:Float,centroidFromViewportCenter:Float,zoomRatio:Float,pan:Float)=
+ old*zoomRatio+(1f-zoomRatio)*centroidFromViewportCenter+pan
+
 data class SearchTextBlock(
  val text:String,val left:Int,val top:Int,val right:Int,val bottom:Int
 ):java.io.Serializable
@@ -96,8 +125,8 @@ class ImageDocumentStore(private val context:Context){
  fun search(query:String):List<ImageSearchHit>{
   val q=query.trim();if(q.isBlank())return emptyList()
   return all().flatMap{document->document.pages.mapNotNull{page->
-   val indexes=page.blocks.indices.filter{page.blocks[it].text.contains(q,true)}
-   val pageMatches=indexes.isNotEmpty()||page.fullText.contains(q,true);val titleMatches=document.title.contains(q,true)&&page.pageIndex==0
+   val indexes=matchingBlockIndexes(page.blocks,q)
+   val pageMatches=indexes.isNotEmpty()||containsSearchText(page.fullText,q);val titleMatches=containsSearchText(document.title,q)&&page.pageIndex==0
    if(!pageMatches&&!titleMatches)null
    else ImageSearchHit(document,page,indexes,searchContext(page.fullText,q,indexes.firstOrNull()?.let{page.blocks[it].text}))
   }}
@@ -108,6 +137,21 @@ class ImageDocumentStore(private val context:Context){
  }
  private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
  private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED))}})
+}
+
+private fun normalizedSearchText(value:String)=value.filterNot(Char::isWhitespace).lowercase()
+
+internal fun containsSearchText(value:String,query:String)=normalizedSearchText(value).contains(normalizedSearchText(query))
+
+internal fun matchingBlockIndexes(blocks:List<SearchTextBlock>,query:String):List<Int>{
+ val needle=normalizedSearchText(query);if(needle.isEmpty())return emptyList()
+ val direct=blocks.indices.filter{containsSearchText(blocks[it].text,query)}
+ if(direct.isNotEmpty())return direct
+ val ranges=mutableListOf<IntRange>();val combined=buildString{
+  blocks.forEach{block->val start=length;append(normalizedSearchText(block.text));ranges+=start until length}
+ }
+ val start=combined.indexOf(needle);if(start<0)return emptyList();val end=start+needle.length-1
+ return ranges.indices.filter{index->val range=ranges[index];!range.isEmpty()&&range.last>=start&&range.first<=end}
 }
 
 internal fun searchContext(fullText:String,query:String,matchedBlock:String?):String{
@@ -129,10 +173,12 @@ private suspend fun importImageDocument(context:Context,store:ImageDocumentStore
  try{uris.forEachIndexed{i,source->
   progress("正在保存第 ${i+1}/${uris.size} 张…");val owned=store.ownImage(source);val uri=Uri.parse(owned);val original=originalOrientedSize(context,uri)
   try{
-   progress("正在建立第 ${i+1}/${uris.size} 张文字索引…");val bitmap=decodeReportBitmap(context,uri,maxDimension=12000);val result=recognizer.process(InputImage.fromBitmap(bitmap,0)).awaitImageIndex();val sx=original.width.toFloat()/bitmap.width;val sy=original.height.toFloat()/bitmap.height
-   val blocks=result.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{box->SearchTextBlock(line.text,(box.left*sx).roundToInt(),(box.top*sy).roundToInt(),(box.right*sx).roundToInt(),(box.bottom*sy).roundToInt())}}
-   pages+=ImagePage(imageUri=owned,pageIndex=i,imageWidth=original.width,imageHeight=original.height,fullText=result.text,indexStatus=if(blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=blocks)
-   bitmap.recycle()
+   progress("正在建立第 ${i+1}/${uris.size} 张文字索引…");val bitmap=decodeReportBitmap(context,uri,maxDimension=12000)
+   try{
+    val result=recognizer.process(InputImage.fromBitmap(bitmap,0)).awaitImageIndex();val sx=original.width.toFloat()/bitmap.width;val sy=original.height.toFloat()/bitmap.height
+    val blocks=result.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{box->SearchTextBlock(line.text,(box.left*sx).roundToInt(),(box.top*sy).roundToInt(),(box.right*sx).roundToInt(),(box.bottom*sy).roundToInt())}}
+    pages+=ImagePage(imageUri=owned,pageIndex=i,imageWidth=original.width,imageHeight=original.height,fullText=result.text,indexStatus=if(blocks.isEmpty())ImageIndexStatus.FAILED else ImageIndexStatus.READY,blocks=blocks)
+   }finally{bitmap.recycle()}
   }catch(t:Throwable){if(t is CancellationException)throw t;pages+=ImagePage(imageUri=owned,pageIndex=i,imageWidth=original.width,imageHeight=original.height,indexStatus=ImageIndexStatus.FAILED)}
  }}finally{recognizer.close()}
  ImageDocument(pages=pages)
@@ -173,8 +219,8 @@ private suspend fun importImageDocument(context:Context,store:ImageDocumentStore
 @Composable private fun HighlightImage(page:ImagePage,highlight:SearchTextBlock?,modifier:Modifier=Modifier){
  val context=LocalContext.current;var viewport by remember{mutableStateOf(IntSize.Zero)};var zoom by rememberSaveable(page.id){mutableFloatStateOf(1f)};var x by rememberSaveable(page.id){mutableFloatStateOf(0f)};var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri))}.fold({it to null},{null to "原图无法读取：${it.message}"})}}
- LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val fit=min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight);val ox=(viewport.width-page.imageWidth*fit)/2f;val oy=(viewport.height-page.imageHeight*fit)/2f;val cx=ox+(highlight.left+highlight.right)/2f*fit;val cy=oy+(highlight.top+highlight.bottom)/2f*fit;x=-(cx-viewport.width/2f)*zoom;y=-(cy-viewport.height/2f)*zoom}}
- Box(modifier.clipToBounds().onSizeChanged{viewport=it}.pointerInput(page.id,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=(x-cx)*ratio+cx+pan.x;y=(y-cy)*ratio+cy+pan.y;zoom=next}},contentAlignment=Alignment.Center){
+ LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,zoom);x=focused.x;y=focused.y}}
+ Box(modifier.clipToBounds().onSizeChanged{viewport=it}.pointerInput(page.id,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=transformedTranslation(x,cx,ratio,pan.x);y=transformedTranslation(y,cy,ratio,pan.y);zoom=next}},contentAlignment=Alignment.Center){
   val bitmap=loaded.first
   if(bitmap!=null&&viewport.width>0&&viewport.height>0)Canvas(Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y}){
    val fit=min(size.width/page.imageWidth,size.height/page.imageHeight);val dw=(page.imageWidth*fit).roundToInt();val dh=(page.imageHeight*fit).roundToInt();val left=((size.width-dw)/2f).roundToInt();val top=((size.height-dh)/2f).roundToInt()
