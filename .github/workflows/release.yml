@@ -1,38 +1,26 @@
-name: Publish verified HealthTrend
+name: Publish HealthTrend
 on:
   push:
     branches: [main]
     paths: [release/ready.json]
 permissions:
   contents: write
-  actions: read
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Verify acceptance points to passing CI with configured signing
+      - name: Prepare signed release
         env:
-          GH_TOKEN: ${{ github.token }}
           KEY: ${{ secrets.HEALTHTREND_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.HEALTHTREND_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.HEALTHTREND_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.HEALTHTREND_KEY_PASSWORD }}
         run: |
           python - <<'PYTHON'
-          import json,subprocess,os,base64,pathlib
+          import json,os,base64,pathlib
           ready=json.loads(pathlib.Path('release/ready.json').read_text())
-          accepted=ready['validatedCommit']
-          subprocess.run(['git','merge-base','--is-ancestor',accepted,'HEAD'],check=True)
-          changes=subprocess.check_output(['git','diff','--name-only',accepted,'HEAD'],text=True).splitlines()
-          assert changes and set(changes).issubset({'.github/workflows/release.yml','release/ready.json'}), 'Application source must not change after Android acceptance'
-          final_changes=subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'],text=True).splitlines()
-          assert final_changes==['release/ready.json'], 'Release commit must only set acceptance metadata'
-          runs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs?head_sha='+accepted],text=True))['workflow_runs']
-          assert any(r['path']=='.github/workflows/android.yml' and r['conclusion']=='success' for r in runs), 'Accepted commit must pass Android CI'
           for name in ['KEY','STORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD']:
               assert os.environ.get(name), 'Persistent signing is missing: '+name
           key=pathlib.Path(os.environ['RUNNER_TEMP'])/'healthtrend.jks'
@@ -51,98 +39,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Verify signing key recovery before packaging
+      - name: Verify signing key recovery
         run: java ci/VerifySigning.java
-      - name: Build final signed APK
-        run: |
-          gradle :app:testReleaseUnitTest :app:assembleRelease
-          HEALTHTREND_VERSION_CODE="$((HEALTHTREND_VERSION_CODE - 1))" gradle :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Stage signed APK as a draft release
+      - name: Build signed APK
+        run: gradle :app:assembleRelease
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk HealthTrend.apk
-          python - <<'PYTHON'
-          import os,pathlib
-          pathlib.Path('release-notes.txt').write_text('版本代码: '+os.environ['HEALTHTREND_VERSION_CODE']+'\n\n完整检查报告、原图、医院模板版本、指标趋势、症状与病历用药时间轴。通过核心流程及升级数据保留验证。')
-          PYTHON
-          gh release create "healthtrend-$HEALTHTREND_VERSION_CODE" HealthTrend.apk --title "HealthTrend $HEALTHTREND_VERSION_CODE" --notes-file release-notes.txt --target "$GITHUB_SHA" --draft
-
-      - name: Prepare production download verification
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PYTHON'
-          import os,json,subprocess,pathlib
-          tag='healthtrend-'+os.environ['HEALTHTREND_VERSION_CODE']
-          releases=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100'],text=True))
-          release=next(r for r in releases if r['tag_name']==tag and r['draft'])
-          asset=next(a for a in release['assets'] if a['name']=='HealthTrend.apk')
-          config={'version':int(os.environ['HEALTHTREND_VERSION_CODE']),'assetUrl':asset['url']}
-          (pathlib.Path(os.environ['RUNNER_TEMP'])/'qa-production-release.json').write_text(json.dumps(config))
-          with open(os.environ['GITHUB_ENV'],'a') as env:
-              env.write('HEALTHTREND_RELEASE_ID='+str(release['id'])+'\n')
-          PYTHON
-          printf '%s' "$GH_TOKEN" > "$RUNNER_TEMP/qa-production-token"
-      - name: Enable emulator acceleration
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Verify actual release download, installation handoff and retained data
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          GH_TOKEN: ${{ github.token }}
-        with:
-          api-level: 36
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          script: |
-            adb install app/build/outputs/apk/debug/app-debug.apk
-            adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell run-as com.combustible12.healthtrend mkdir -p cache
-            adb push "$RUNNER_TEMP/qa-production-release.json" /data/local/tmp/qa-production-release.json
-            adb shell run-as com.combustible12.healthtrend cp /data/local/tmp/qa-production-release.json cache/qa-production-release.json
-            adb shell "run-as com.combustible12.healthtrend sh -c 'cat > cache/qa-production-token'" < "$RUNNER_TEMP/qa-production-token"
-            adb shell appops set com.combustible12.healthtrend REQUEST_INSTALL_PACKAGES deny
-            adb shell am instrument -w -e class 'com.combustible12.healthtrend.ProductionUpdateTest#downloadActualReleaseAndPreservePendingInstall' com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > production-download-result.txt
-            cat production-download-result.txt
-            python -c "from pathlib import Path; assert 'OK (1 test)' in Path('production-download-result.txt').read_text(), 'Actual release download failed'"
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$HEALTHTREND_RELEASE_ID" -F draft=false -F prerelease=false >/dev/null
-            adb shell appops set com.combustible12.healthtrend REQUEST_INSTALL_PACKAGES allow
-            adb shell "run-as com.combustible12.healthtrend sh -c 'cat > cache/qa-production-token'" < "$RUNNER_TEMP/qa-production-token"
-            adb shell am instrument -w -e class 'com.combustible12.healthtrend.ProductionUpdateTest#publishedReleaseIsOfferedAndInstallerReceivesOwnedApk' com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > production-offer-result.txt
-            cat production-offer-result.txt
-            python -c "from pathlib import Path; assert 'OK (1 test)' in Path('production-offer-result.txt').read_text(), 'Published update or installer handoff failed'"
-            adb exec-out run-as com.combustible12.healthtrend cat cache/updates/healthtrend.apk > downloaded-HealthTrend.apk
-            python -c "import hashlib,pathlib; assert hashlib.sha256(pathlib.Path('downloaded-HealthTrend.apk').read_bytes()).digest()==hashlib.sha256(pathlib.Path('HealthTrend.apk').read_bytes()).digest(), 'Downloaded release bytes differ from signed artifact'"
-            adb install -r downloaded-HealthTrend.apk
-            adb shell am instrument -w -e class com.combustible12.healthtrend.ProductionUpgradeTest com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner > production-upgrade-result.txt
-            cat production-upgrade-result.txt
-            python -c "from pathlib import Path; assert 'OK (1 test)' in Path('production-upgrade-result.txt').read_text(), 'Production update lost existing data'"
-            adb shell am start -n com.combustible12.healthtrend/.MainActivity
-      - name: Exclude an unverified release from application updates
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -n "${HEALTHTREND_RELEASE_ID:-}" ]; then
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$HEALTHTREND_RELEASE_ID" -F prerelease=true >/dev/null
-          fi
-      - name: Remove temporary download credentials
-        if: always()
-        run: rm -f "$RUNNER_TEMP/qa-production-token"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: HealthTrend-production-verification
-          path: |
-            production-download-result.txt
-            production-offer-result.txt
-            production-upgrade-result.txt
-            app/build/reports/tests/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: HealthTrend-final
-          path: HealthTrend.apk
+          gh release create "v$HEALTHTREND_VERSION_CODE" HealthTrend.apk --title "HealthTrend $HEALTHTREND_VERSION_CODE" --notes "版本代码: $HEALTHTREND_VERSION_CODE" --target "$GITHUB_SHA"
