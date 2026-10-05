@@ -79,14 +79,17 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
 }
 
 @Composable private fun CourseTimelineCard(record:CourseRecord,onOpen:()->Unit,menuOpen:Boolean,onMenu:()->Unit,onEdit:()->Unit,onDelete:()->Unit,onDismiss:()->Unit,view:(List<String>,Int)->Unit){
+ val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp),horizontalAlignment=Alignment.CenterHorizontally){
-   Spacer(Modifier.height(25.dp));Box(Modifier.size(10.dp).background(Accent,CircleShape));Box(Modifier.width(2.dp).height(200.dp).background(Color(0xFFE7DDD6)))
+   Spacer(Modifier.height(25.dp));Box(Modifier.size(10.dp).background(phaseColors.second,CircleShape));Box(Modifier.width(2.dp).height(200.dp).background(Color(0xFFE7DDD6)))
   }
   Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     Column(Modifier.weight(1f)){Text("${courseDate(record.date)} · ${record.title}",fontWeight=FontWeight.Bold,fontSize=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis);Spacer(Modifier.height(5.dp));Surface(shape=RoundedCornerShape(20.dp),color=Color(0xFFFFEEE5)){Text(record.phase,Modifier.padding(horizontal=10.dp,vertical=4.dp),color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium)}}
+     Text("${courseDate(record.date)} · ${record.title}",Modifier.weight(1f).padding(top=5.dp),fontWeight=FontWeight.Bold,fontSize=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
+     Spacer(Modifier.width(8.dp))
+     Surface(shape=RoundedCornerShape(20.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=10.dp,vertical=5.dp),color=phaseColors.second,fontSize=12.sp,fontWeight=FontWeight.Medium)}
      Box{IconButton(onMenu){Icon(Icons.Outlined.MoreVert,"更多")};DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
     CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText.ifBlank{"未记录症状"})
@@ -96,6 +99,13 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
    }
   }
  }
+}
+
+private fun coursePhaseColors(phase:String)=when(phase){
+ "化疗日"->Color(0xFFFFEEE5) to Color(0xFFF2763D)
+ "恢复期"->Color(0xFFE5F8EE) to Color(0xFF20A66A)
+ "观察"->Color(0xFFE4F2FF) to Color(0xFF3285C8)
+ else->Color(0xFFF0F0F0) to Color(0xFF707070)
 }
 
 @Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=Ink,lineHeight=21.sp)}}
