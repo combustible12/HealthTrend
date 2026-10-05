@@ -80,18 +80,18 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
      Text("共 ${shown.size} 条记录",color=Muted,fontSize=12.sp)
     }
    }
-   OutlinedTextField(search,{search=it},Modifier.fillMaxWidth().padding(top=10.dp),singleLine=true,placeholder={Text("搜索标题、症状、检查、药品、备注")},leadingIcon={Icon(Icons.Outlined.Search,null)},trailingIcon={if(search.isNotEmpty())IconButton({search=""}){Icon(Icons.Outlined.Clear,"清空搜索")}})
+   OutlinedTextField(search,{search=it},Modifier.fillMaxWidth().padding(top=6.dp).height(48.dp),singleLine=true,leadingIcon={Icon(Icons.Outlined.Search,null)},trailingIcon={if(search.isNotEmpty())IconButton({search=""}){Icon(Icons.Outlined.Clear,"清空搜索")}})
    Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
-    LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
     }
-    if(listState.canScrollBackward)OutlinedButton({scope.launch{listState.animateScrollToItem(0)}},Modifier.align(Alignment.BottomCenter).padding(bottom=84.dp)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
+    if(listState.canScrollBackward)OutlinedButton({scope.launch{listState.animateScrollToItem(0)}},Modifier.align(Alignment.BottomCenter).padding(bottom=20.dp)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
     LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).padding(top=8.dp,bottom=8.dp,end=0.dp).width(24.dp).fillMaxHeight())
    }
   }
