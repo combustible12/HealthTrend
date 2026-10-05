@@ -64,7 +64,7 @@ val LocalPageVisible=staticCompositionLocalOf{true}
  }}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
-@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true)}
+@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}})}
 @Composable fun RememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,m:Modifier=Modifier){
  val saved=options.map{it.trim()}.filter{it.isNotBlank()}.distinct()
  Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)){
@@ -182,7 +182,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
   EntryKind.MEDICAL->{RememberedField(e.hospital,{e=e.copy(hospital=it)},"医院",remember(store){store.rememberedHospitals()});Field(e.category,{e=e.copy(category=it)},"分类（诊断、影像、出院等）")}
   EntryKind.MEDICATION->{Field(e.dose,{e=e.copy(dose=it)},"每次剂量（注明单位）");Field(e.frequency,{e=e.copy(frequency=it)},"用药频率 / 时间");Field(e.route,{e=e.copy(route=it)},"使用方式");Field(end,{end=it},"结束时间（选填）YYYY-MM-DD HH:mm")}
  }
- OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3)
+ OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(e.note.isNotEmpty())IconButton({e=e.copy(note="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
  OutlinedButton({picker.launch(arrayOf("image/*"))},enabled=!busy){Text("添加照片 / 原报告")}
  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
  e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({images(e.images)}){Text("查看第 ${i+1} 张原图")};IconButton({e=e.copy(images=e.images.filterIndexed{j,_->j!=i})}){Icon(Icons.Outlined.Close,"移除图片")}}}
