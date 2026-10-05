@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -378,7 +379,28 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri))}.fold({it to null},{null to "原图无法读取：${it.message}"})}}
  LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,zoom);x=focused.x;y=focused.y}}
  Box(
-  modifier.clipToBounds().onSizeChanged{viewport=it}.pointerInput(page.id,viewport){
+  modifier.clipToBounds().onSizeChanged{viewport=it}
+   .pointerInput(page.id,viewport){
+    detectTapGestures(onDoubleTap={tap->
+     if(viewport.width<=0||viewport.height<=0||page.imageWidth<=0||page.imageHeight<=0)return@detectTapGestures
+     if(zoom>1.05f){
+      zoom=1f;x=0f;y=0f;swipeX=0f
+     }else{
+      val fit=min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight)
+      val fittedWidth=page.imageWidth*fit
+      val target=(viewport.width/fittedWidth).coerceIn(1f,8f)
+      if(target>1.01f){
+       val ratio=target/zoom
+       val cy=tap.y-viewport.height/2f
+       zoom=target
+       x=0f
+       y=transformedTranslation(y,cy,ratio,0f)
+       swipeX=0f
+      }
+     }
+    })
+   }
+   .pointerInput(page.id,viewport){
    detectTransformGestures{centroid,pan,scale,_->
     val next=(zoom*scale).coerceIn(1f,8f)
     val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
