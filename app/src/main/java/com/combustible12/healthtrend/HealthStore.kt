@@ -11,7 +11,7 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); repairStoredMetricIdentityFromSourceOnce() }
+ init { migrateCurrentTemplates() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
@@ -23,28 +23,6 @@ class HealthStore(private val context:Context) {
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
- }
- private fun repairStoredMetricIdentityFromSourceOnce(){
-  val migrationKey="migration_source_identity_repair_v1"
-  if(prefs.getBoolean(migrationKey,false))return
-  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList())
-  var changed=false
-  val fixed=raw.map{report->
-   val repaired=report.results.map{result->
-    val parsed=result.rawLine.takeIf{it.isNotBlank()}?.let{ReportParser.parse(it)}
-    val sourceKey=parsed?.singleOrNull()?.metricKey?.let(ReportParser::key)
-    if(sourceKey!=null && sourceKey!=result.metricKey){
-     val normalized=UnitNormalizer.normalize(sourceKey,result.value,result.unitAtTest)
-     changed=true
-     result.copy(metricKey=sourceKey,normalizedValue=normalized.first,normalizedUnit=normalized.second)
-    }else result
-   }
-   // Never manufacture or discard a result to make a panel look complete. This repair
-   // only restores identities that the saved source line proves unambiguously.
-   report.copy(results=repaired)
-  }
-  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
-  check(prefs.edit().putBoolean(migrationKey,true).commit())
  }
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
