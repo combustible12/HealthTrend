@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -135,21 +136,25 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val checkPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("check",it)}
  val medicinePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("medicine",it)}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
+ val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
+ val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
+ val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
+ val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date);val valid=record.title.isNotBlank()&&selectedDate!=null&&!busy
  FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=selectedDate!!))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
   Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}}
-   Field(record.title,{record=record.copy(title=it)},"标题")
+   CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},label={Text("症状内容")},modifier=Modifier.fillMaxWidth(),minLines=2)
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
-   OutlinedTextField(record.checkText,{record=record.copy(checkText=it)},label={Text("检查内容")},modifier=Modifier.fillMaxWidth(),minLines=2)
+   CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    OutlinedButton({checkPicker.launch(arrayOf("image/*"))},enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加检查图片")}
    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->record=record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=i})}
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
-   OutlinedTextField(record.medicineText,{record=record.copy(medicineText=it)},label={Text("药品 / 取药内容")},modifier=Modifier.fillMaxWidth(),minLines=2)
+   CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    OutlinedButton({medicinePicker.launch(arrayOf("image/*"))},enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加药品图片")}
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->record=record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=i})}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
@@ -159,6 +164,21 @@ private fun coursePhaseColors(phase:String)=when(phase){
   }
  }
  if(deleting)DeleteConfirmation({deleting=false}){onDelete();deleting=false}
+}
+
+@Composable private fun CourseRememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,minLines:Int=1){
+ var focused by remember{mutableStateOf(false)}
+ val query=value.trim()
+ val suggestions=options.filter{it!=query&&(query.isBlank()||it.contains(query,ignoreCase=true))}.take(5)
+ Column(Modifier.fillMaxWidth()){
+  OutlinedTextField(value,onChange,label={Text(label)},modifier=Modifier.fillMaxWidth().onFocusChanged{focused=it.isFocused},singleLine=minLines==1,minLines=minLines)
+  if(focused&&suggestions.isNotEmpty())Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(bottomStart=12.dp,bottomEnd=12.dp),color=Color.White,shadowElevation=3.dp){
+   Column{suggestions.forEachIndexed{index,option->
+    Text(option,Modifier.fillMaxWidth().clickable{onChange(option)}.padding(horizontal=14.dp,vertical=11.dp),maxLines=2,overflow=TextOverflow.Ellipsis)
+    if(index<suggestions.lastIndex)HorizontalDivider(color=Color(0xFFEDE8E3))
+   }}
+  }
+ }
 }
 
 @Composable private fun CourseDateField(value:String,onChange:(String)->Unit){
@@ -178,6 +198,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 private fun courseDate(epoch:Long):String{val d=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault());return "${d.monthValue}月${d.dayOfMonth}日"}
 private fun courseEditorDate(epoch:Long)=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+private fun courseTitleMemoryKey(value:String)=Regex("第[零一二三四五六七八九十百两\\d]+天").replace(value.trim(),"第X天")
 private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
  val date=LocalDate.parse(value);val originalTime=Instant.ofEpochMilli(original).atZone(ZoneId.systemDefault()).toLocalTime()
  date.atTime(originalTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
