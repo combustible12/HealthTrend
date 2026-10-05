@@ -66,21 +66,24 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)}
- var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}\n var structuredTable by rememberSaveable(stateSaver=diskStateSaver<StructuredTable?>(ctx,"root-structured-table")){mutableStateOf<StructuredTable?>(null)}
+ var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
+ var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
+ var imageDocumentPage by rememberSaveable{mutableIntStateOf(0)};var imageDocumentMatches by rememberSaveable{mutableStateOf<List<Int>>(emptyList())}
  val reports=remember(revision){runCatching{store.reports()}.getOrElse{error="历史数据读取失败：${it.message}";emptyList()}}
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
- val importer=rememberReportImport(store,{draft=it},{error=it},deliver=draft==null&&report==null&&entry==null&&template==null&&structuredTable==null&&viewer==null)
+ val importer=rememberReportImport(store,{draft=it},{error=it},deliver=draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
- Box(Modifier.fillMaxSize().then(if(draft!=null||report!=null||entry!=null||template!=null||structuredTable!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
- Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"记录" to Icons.Outlined.FolderOpen,"资料表" to Icons.Outlined.TableChart,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first)})}}}){padding->
+ Box(Modifier.fillMaxSize().then(if(draft!=null||report!=null||entry!=null||template!=null||imageDocument!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
+ Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"记录" to Icons.Outlined.FolderOpen,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first)})}}}){padding->
   val m=Modifier.padding(padding)
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2;recordsFilter="全部"})
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}})
    2->Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())})
-   3->StructuredTablesPage(m){structuredTable=it}\n   4->Mine(m,templates,{template=it},store,{error=it})
+   3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
+   4->Mine(m,templates,{template=it},store,{error=it})
   }
  }
  }
@@ -95,7 +98,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }},{viewer=it})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
- if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})\n if(structuredTable!=null)StructuredTableEditor(structuredTable!!,{structuredTable=null},{saved->StructuredTableStore(ctx).save(saved);structuredTable=null;revision++},{uri->viewer=listOf(uri)})
+ if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
+ if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);imageDocument=null})
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null})
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
