@@ -86,7 +86,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
-    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=15.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
@@ -106,13 +106,13 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
    Spacer(Modifier.height(25.dp));Box(Modifier.size(10.dp).background(phaseColors.second,CircleShape));Box(Modifier.width(2.dp).weight(1f).background(Color(0xFFE7DDD6)))
   }
-  Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+  Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(start=16.dp,top=14.dp,end=12.dp,bottom=14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",Modifier.weight(1f).padding(top=4.dp),fontWeight=FontWeight.Bold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",Modifier.weight(1f).padding(top=4.dp),fontWeight=FontWeight.Bold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      Spacer(Modifier.width(6.dp))
-     Surface(shape=RoundedCornerShape(20.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=9.dp,vertical=4.dp),color=phaseColors.second,fontSize=11.sp,fontWeight=FontWeight.Medium)}
-     Box(Modifier.size(34.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(22.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
+     Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
+     Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
     if(record.symptomText.isNotBlank())CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText,true)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
@@ -130,7 +130,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  else->Color(0xFFF0F0F0) to Color(0xFF707070)
 }
 
-@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)14.sp else 16.sp,lineHeight=if(muted)19.sp else 21.sp)}}
+@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)13.sp else 15.sp,lineHeight=if(muted)17.sp else 19.sp)}}
 
 @Composable private fun CourseSection(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,text:String,images:List<String>,view:(List<String>,Int)->Unit){
  Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
@@ -141,13 +141,13 @@ private fun coursePhaseColors(phase:String)=when(phase){
 }
 
 @Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
- Row(Modifier.padding(start=29.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){images.forEachIndexed{i,uri->Box{CourseThumbnail(uri,Modifier.size(64.dp).clickable{open(i)});if(remove!=null)Surface(onClick={remove(i)},modifier=Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Close,"移除图片",Modifier.padding(4.dp),tint=Muted)}}}}
+ Row(Modifier.padding(start=29.dp).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){images.forEachIndexed{i,uri->Box{CourseThumbnail(uri,Modifier.size(52.dp).clickable{open(i)});if(remove!=null)Surface(onClick={remove(i)},modifier=Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Close,"移除图片",Modifier.padding(4.dp),tint=Muted)}}}}
 }
 
 @Composable private fun CourseThumbnail(uri:String,modifier:Modifier){
  val context=LocalContext.current
  val bitmap by produceState<android.graphics.Bitmap?>(null,uri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(uri),maxPixels=250_000,maxDimension=600)}.getOrNull()}}
- Box(modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
+ Box(modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
 }
 
 @Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit){
