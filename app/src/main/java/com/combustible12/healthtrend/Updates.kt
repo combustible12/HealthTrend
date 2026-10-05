@@ -15,11 +15,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.*
@@ -90,7 +93,12 @@ private fun URI(s:String)=java.net.URI(s)
   Paper{Text("患者资料");if(editPatient){OutlinedTextField(patient.name,{patient=patient.copy(name=it)},label={Text("姓名")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.birthDate,{patient=patient.copy(birthDate=it)},label={Text("出生日期（YYYY-MM-DD）")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.sex,{patient=patient.copy(sex=it)},label={Text("性别")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.note,{patient=patient.copy(note=it)},label={Text("备注")},modifier=Modifier.fillMaxWidth());Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料")}}}else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);Text(listOf(patient.sex,patient.birthDate).filter{it.isNotBlank()}.joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
-  templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).forEach{t->Paper{Text(t.hospitalKey);Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted);Text("${t.fields.size} 个指标");TextButton({edit(t)},Modifier.semantics{contentDescription="编辑模板 ${t.hospitalKey} ${t.reportType}"}){Text("查看 / 编辑模板")}}}
+  templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).chunked(2).forEach{row->
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    row.forEach{t->HospitalTemplateCard(t,{edit(t)},Modifier.weight(1f))}
+    if(row.size==1)Spacer(Modifier.weight(1f))
+   }
+  }
   if(debugLog.isNotBlank())Paper{Text("09/23 调试数据",fontWeight=FontWeight.Bold);Text(debugLog,fontSize=12.sp)}
   Paper{
    Text("应用更新");Text("仅检查正式发布版本。升级保留现有记录和原图。",color=Muted)
@@ -101,6 +109,18 @@ private fun URI(s:String)=java.net.URI(s)
    downloaded?.let{f->TextButton({try{updater.install(f)}catch(e:Exception){error(e.message?:"安装失败")}}){Text("继续安装已下载版本")}}
    TextButton({showAuth=!showAuth}){Text("私有仓库访问设置")}
    if(showAuth){OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true);Text("仅用于读取此私有仓库的正式版本，加密保存在本机。",color=Muted);TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}}
+  }
+ }
+}
+
+@Composable private fun HospitalTemplateCard(t:HospitalLabTemplate,onEdit:()->Unit,m:Modifier=Modifier){
+ Card(modifier=m.height(154.dp),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+  Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
+   Text(t.hospitalKey,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
+   Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+   Text("${t.fields.size} 个指标",fontSize=14.sp)
+   Spacer(Modifier.weight(1f))
+   TextButton(onEdit,Modifier.semantics{contentDescription="编辑模板 ${t.hospitalKey} ${t.reportType}"},contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp)){Text("查看 / 编辑",fontSize=14.sp)}
   }
  }
 }
