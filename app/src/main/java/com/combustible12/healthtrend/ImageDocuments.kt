@@ -119,9 +119,15 @@ class ImageDocumentStore(private val context:Context){
 
  @Synchronized fun all():List<ImageDocument>{
   if(!file.baseFile.exists())return emptyList()
-  return runCatching{file.openRead().bufferedReader().use{reader->
+  val parsed=runCatching{file.openRead().bufferedReader().use{reader->
    val array=JSONArray(reader.readText());(0 until array.length()).map{documentFromJson(array.getJSONObject(it))}
-  }}.getOrElse{throw IllegalStateException("图片资料索引无法读取",it)}.sortedByDescending{it.createdAt}
+  }}.getOrElse{throw IllegalStateException("图片资料索引无法读取",it)}
+  val cleaned=parsed.mapNotNull{document->
+   val pages=document.pages.filter(::pageFileExists).mapIndexed{index,page->if(page.pageIndex==index)page else page.copy(pageIndex=index)}
+   if(pages.isEmpty())null else if(pages==document.pages)document else document.copy(pages=pages)
+  }
+  if(cleaned!=parsed)runCatching{write(cleaned)}
+  return cleaned.sortedByDescending{it.createdAt}
  }
  @Synchronized fun save(document:ImageDocument){
   require(document.title.isNotBlank());require(document.pages.isNotEmpty())
@@ -129,8 +135,30 @@ class ImageDocumentStore(private val context:Context){
  }
  @Synchronized fun delete(document:ImageDocument){
   write(all().filterNot{it.id==document.id})
-  val imagesDir=File(context.filesDir,"image-documents/images").canonicalFile
-  document.pages.forEach{page->runCatching{val uri=Uri.parse(page.imageUri);val image=uri.path?.let(::File)?.canonicalFile;if(uri.scheme=="file"&&image!=null&&image.parentFile==imagesDir)image.delete()}}
+  document.pages.forEach(::deleteOwnedImage)
+ }
+ @Synchronized fun deletePage(document:ImageDocument,pageId:String):ImageDocument?{
+  val current=all().firstOrNull{it.id==document.id}?:document
+  val target=current.pages.firstOrNull{it.id==pageId}?:return current
+  deleteOwnedImage(target)
+  val remaining=current.pages.filterNot{it.id==pageId}.mapIndexed{index,page->page.copy(pageIndex=index)}
+  if(remaining.isEmpty()){write(all().filterNot{it.id==current.id});return null}
+  val updated=current.copy(pages=remaining)
+  write(all().filterNot{it.id==current.id}+updated)
+  return updated
+ }
+ private fun pageFileExists(page:ImagePage):Boolean{
+  val uri=Uri.parse(page.imageUri)
+  if(uri.scheme!="file")return true
+  return uri.path?.let(::File)?.exists()==true
+ }
+ private fun deleteOwnedImage(page:ImagePage){
+  runCatching{
+   val imagesDir=File(context.filesDir,"image-documents/images").canonicalFile
+   val uri=Uri.parse(page.imageUri)
+   val image=uri.path?.let(::File)?.canonicalFile
+   if(uri.scheme=="file"&&image!=null&&image.parentFile==imagesDir)image.delete()
+  }
  }
  fun ownImage(uri:Uri):String{
   val dir=File(context.filesDir,"image-documents/images").apply{mkdirs()}
@@ -234,7 +262,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDelete by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
@@ -249,9 +277,10 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
-   Text("上一张",fontSize=14.sp,color=if(pageIndex>0)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}.padding(horizontal=4.dp,vertical=1.dp))
-   Text("删除资料",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDelete=true}.padding(horizontal=4.dp,vertical=1.dp))
-   Text("下一张",fontSize=14.sp,color=if(pageIndex<document.pages.lastIndex)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}.padding(horizontal=4.dp,vertical=1.dp))
+   Text("上一张",fontSize=14.sp,color=if(pageIndex>0)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}.padding(horizontal=3.dp,vertical=1.dp))
+   Text("删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
+   Text("删整份",fontSize=13.sp,color=Bad.copy(alpha=.78f),modifier=Modifier.clickable{confirmDeleteDocument=true}.padding(horizontal=3.dp,vertical=1.dp))
+   Text("下一张",fontSize=14.sp,color=if(pageIndex<document.pages.lastIndex)Ink else Muted,modifier=Modifier.clickable(enabled=pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}.padding(horizontal=3.dp,vertical=1.dp))
   }
  }}){m->Column(m.padding(horizontal=12.dp)){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
@@ -286,7 +315,30 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    modifier=Modifier.weight(1f).fillMaxWidth()
   )
  }}
- if(confirmDelete)DeleteConfirmation({confirmDelete=false}){onDelete(document);onClose()}
+ if(confirmDeletePage)AlertDialog(
+  onDismissRequest={confirmDeletePage=false},
+  title={Text("删除当前图片？")},
+  text={Text(if(document.pages.size==1)"这是最后一张，删除后整份资料也会移除。" else "只删除当前第 ${pageIndex+1} 张，其余图片保留。")},
+  confirmButton={TextButton({
+   confirmDeletePage=false
+   val removedId=document.pages[pageIndex].id
+   val updated=store.deletePage(document,removedId)
+   if(updated==null){onClose()}else{
+    document=updated
+    pageIndex=pageIndex.coerceAtMost(updated.pages.lastIndex)
+    matches=emptyList();matchPosition=0
+    onSaved(updated)
+   }
+  }){Text("删除当前图片",color=Bad)}},
+  dismissButton={TextButton({confirmDeletePage=false}){Text("取消")}}
+ )
+ if(confirmDeleteDocument)AlertDialog(
+  onDismissRequest={confirmDeleteDocument=false},
+  title={Text("删除整份图片资料？")},
+  text={Text("会删除“${document.title}”中的全部 ${document.pages.size} 张原图，删除后无法在应用内恢复。")},
+  confirmButton={TextButton({confirmDeleteDocument=false;onDelete(document);onClose()}){Text("删除整份",color=Bad)}},
+  dismissButton={TextButton({confirmDeleteDocument=false}){Text("取消")}}
+ )
  if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
  if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false}){index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}
 }
