@@ -215,6 +215,14 @@ class HealthStore(private val context:Context) {
   write("course_records",JSONArray().apply{(courseRecords().filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
  }
  @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
+ @Synchronized fun ensureTodayCourseRecord():CourseRecord{
+  val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
+  current.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}?.let{return it}
+  fun CourseRecord.isBlankPlaceholder()=title.isBlank()&&symptomText.isBlank()&&checkText.isBlank()&&checkImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()
+  val placeholder=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
+  write("course_records",JSONArray().apply{(current.filterNot{it.isBlankPlaceholder()}+placeholder).forEach{put(courseRecordToJson(it))}})
+  return placeholder
+ }
  fun isPrimary(k:String)=if(prefs.contains("primary:$k"))prefs.getBoolean("primary:$k",false)else k in ReportParser.primaryKeys
  fun setPrimary(k:String,value:Boolean){check(prefs.edit().putBoolean("primary:$k",value).commit())}
  fun ownImage(uri:Uri):String {
