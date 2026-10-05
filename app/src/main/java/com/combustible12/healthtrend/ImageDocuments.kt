@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -253,9 +254,19 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   }
  }}){m->Column(m.padding(horizontal=12.dp)){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.weight(1f).height(44.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=15.sp),trailingIcon={
-    Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}.padding(horizontal=8.dp,vertical=4.dp))
-   })
+   Row(
+    Modifier.weight(1f).height(44.dp).border(1.dp,Color(0xFF7B7B82),RoundedCornerShape(4.dp)).padding(horizontal=12.dp),
+    verticalAlignment=Alignment.CenterVertically
+   ){
+    BasicTextField(
+     value=document.title,
+     onValueChange={document=document.copy(title=it)},
+     modifier=Modifier.weight(1f),
+     singleLine=true,
+     textStyle=LocalTextStyle.current.copy(fontSize=15.sp,color=Ink)
+    )
+    Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}.padding(start=8.dp,top=5.dp,bottom=5.dp))
+   }
    OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
     Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
    }
