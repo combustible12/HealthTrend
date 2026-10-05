@@ -73,7 +73,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
- Column(m.verticalScroll(rememberScrollState()).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
@@ -100,7 +100,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 }}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false){
  var unlock by rememberSaveable(row.id){mutableStateOf(false)}
- FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp)){
+ FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
   LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock)
   if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
  }}
@@ -168,7 +168,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  val scope=rememberCoroutineScope()
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()){busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};e=e.copy(images=e.images+owned)}catch(x:Exception){error="原图保存失败：${x.message}"}finally{busy=false}}}}
  val valid=e.title.isNotBlank()&&parseDate(date)!=null&&(end.isBlank()||parseDate(end)?.let{it>=parseDate(date)!!}==true)&&!busy
- FullPage(e.kind.title,close,bottom={Row{Button({save(e.copy(occurredAtEpochMillis=preserveTimestamp(date,initial.occurredAtEpochMillis)!!,endAtEpochMillis=preserveTimestamp(end,initial.endAtEpochMillis)))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(store.entries().any{it.id==e.id})TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ FullPage(e.kind.title,close,bottom={Row{Button({save(e.copy(occurredAtEpochMillis=preserveTimestamp(date,initial.occurredAtEpochMillis)!!,endAtEpochMillis=preserveTimestamp(end,initial.endAtEpochMillis)))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(store.entries().any{it.id==e.id})TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->ScrollablePageColumn(m,PaddingValues(16.dp),Arrangement.spacedBy(12.dp)){
  Field(e.title,{e=e.copy(title=it)},when(e.kind){EntryKind.SYMPTOM->"症状名称";EntryKind.MEDICAL->"病历标题";EntryKind.MEDICATION->"药品名称"});Field(date,{date=it},if(e.kind==EntryKind.MEDICATION)"开始时间 YYYY-MM-DD HH:mm"else"发生时间 YYYY-MM-DD HH:mm")
  when(e.kind){
   EntryKind.SYMPTOM->{Text("程度 ${e.severity}/10");Slider(e.severity.toFloat(),{e=e.copy(severity=it.toInt())},valueRange=0f..10f,steps=9);Field(e.frequency,{e=e.copy(frequency=it)},"频率 / 次数");Field(e.duration,{e=e.copy(duration=it)},"持续时间")}
