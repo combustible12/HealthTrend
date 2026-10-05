@@ -10,6 +10,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -37,6 +38,10 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 
 private val coursePhases=listOf("化疗日","恢复期","观察","其他")
 
@@ -50,6 +55,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
 ){
  var filter by rememberSaveable{mutableStateOf("全部")}
  val shown=if(filter=="全部")records else records.filter{it.phase==filter}
+ val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  var menuFor by remember{mutableStateOf<String?>(null)}
  var deleting by remember{mutableStateOf<CourseRecord?>(null)}
  Box(modifier.fillMaxSize()){
@@ -69,10 +75,14 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text("还没有病程记录",color=Muted)}
-   else LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   else Box(Modifier.fillMaxSize()){
+    LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
+    }
+    if(listState.canScrollBackward)OutlinedButton({scope.launch{listState.animateScrollToItem(0)}},Modifier.align(Alignment.BottomCenter).padding(bottom=84.dp)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
+    LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).padding(top=8.dp,bottom=8.dp,end=0.dp).width(24.dp).fillMaxHeight())
    }
   }
   FloatingActionButton(add,Modifier.align(Alignment.BottomEnd).padding(20.dp),containerColor=Accent,contentColor=Color.White){Icon(Icons.Outlined.Add,"新增病程记录")}
@@ -94,7 +104,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
      Surface(shape=RoundedCornerShape(20.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=9.dp,vertical=4.dp),color=phaseColors.second,fontSize=11.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(34.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(22.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
-    CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText.ifBlank{"未记录症状"})
+    CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText.ifBlank{"未记录症状"},record.symptomText.isNotBlank())
     CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.noteText.isNotBlank())CourseTextRow(Icons.Outlined.Notes,record.noteText)
@@ -110,10 +120,10 @@ private fun coursePhaseColors(phase:String)=when(phase){
  else->Color(0xFFF0F0F0) to Color(0xFF707070)
 }
 
-@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=Ink,lineHeight=21.sp)}}
+@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,lineHeight=21.sp)}}
 
 @Composable private fun CourseSection(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,text:String,images:List<String>,view:(List<String>,Int)->Unit){
- Column(verticalArrangement=Arrangement.spacedBy(7.dp)){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(label,fontWeight=FontWeight.Medium);if(text.isNotBlank()){Text(" · $text",Modifier.weight(1f),color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis)}};if(images.isNotEmpty())CourseThumbnails(images,{view(images,it)})}
+ Column(verticalArrangement=Arrangement.spacedBy(7.dp)){CourseTextRow(icon,text.ifBlank{label},text.isNotBlank());if(images.isNotEmpty())CourseThumbnails(images,{view(images,it)})}
 }
 
 @Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
@@ -203,3 +213,15 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
  val date=LocalDate.parse(value);val originalTime=Instant.ofEpochMilli(original).atZone(ZoneId.systemDefault()).toLocalTime()
  date.atTime(originalTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 }.getOrNull()
+
+@Composable private fun LazyScrollProgressRail(state:androidx.compose.foundation.lazy.LazyListState,modifier:Modifier=Modifier){
+ var dragging by remember{mutableStateOf(false)};var visible by remember{mutableStateOf(false)};var height by remember{mutableIntStateOf(0)};val scope=rememberCoroutineScope()
+ val total=state.layoutInfo.totalItemsCount
+ LaunchedEffect(state.isScrollInProgress,dragging,state.firstVisibleItemIndex,state.firstVisibleItemScrollOffset){if(state.isScrollInProgress||dragging)visible=true else{kotlinx.coroutines.delay(850);visible=false}}
+ AnimatedVisibility(visible=visible&&total>1,modifier=modifier,enter=androidx.compose.animation.fadeIn(),exit=androidx.compose.animation.fadeOut()){
+  androidx.compose.foundation.Canvas(Modifier.fillMaxSize().onSizeChanged{height=it.height}.pointerInput(total){
+   fun seek(y:Float){if(height>0&&total>0)scope.launch{state.scrollToItem(((y/height)*(total-1)).roundToInt().coerceIn(0,total-1))}}
+   androidx.compose.foundation.gestures.detectDragGestures(onDragStart={dragging=true;seek(it.y)},onDragEnd={dragging=false},onDragCancel={dragging=false}){change,_->change.consume();seek(change.position.y)}
+  }){val x=size.width/2f;drawLine(Color(0x337B7B82),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),4.dp.toPx());val progress=state.firstVisibleItemIndex.toFloat()/(total-1).coerceAtLeast(1);drawCircle(Accent,7.dp.toPx(),androidx.compose.ui.geometry.Offset(x,(progress*size.height).coerceIn(7.dp.toPx(),size.height-7.dp.toPx())))}
+ }
+}
