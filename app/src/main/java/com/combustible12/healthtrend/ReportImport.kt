@@ -171,9 +171,9 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
  // A confirmed template owns metric identity. OCR may only provide a value to the
  // exact same canonical metric key. Names and row position are never allowed to
  // override identity; ambiguous duplicates stay empty for explicit review.
- val byKey=items.groupBy{ReportParser.key(it.metricKey)}
+ val byKey=items.groupBy{it.metricKey}
  return fields.mapIndexedNotNull{index,field->
-  val key=ReportParser.key(field.metricKey)
+  val key=field.metricKey
   byKey[key]?.singleOrNull()?.let{index to it}
  }.toMap()
 }
