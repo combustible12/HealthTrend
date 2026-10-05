@@ -381,7 +381,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
      singleLine=true,
      textStyle=LocalTextStyle.current.copy(fontSize=15.sp,color=Ink)
     )
-    Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}.padding(start=8.dp,top=5.dp,bottom=5.dp))
+    Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show()}}.padding(start=8.dp,top=5.dp,bottom=5.dp))
    }
    OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
     Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
@@ -492,10 +492,10 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   dismissButton={TextButton({confirmDeleteDocument=false}){Text("取消")}}
  )
  if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
- if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false}){index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}
+ if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false},{index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}){from,to->val pages=document.pages.toMutableList();val moved=pages.removeAt(from);pages.add(to,moved);document=document.copy(pages=pages.mapIndexed{i,p->p.copy(pageIndex=i)});onSaved(document);savedTitle=document.title;pageIndex=to}
 }
 
-@Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit){
+@Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit,onMove:(Int,Int)->Unit){
  FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=Icons.Outlined.ArrowBack){m->
   LazyVerticalGrid(columns=GridCells.Fixed(3),modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
    gridItemsIndexed(document.pages){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
