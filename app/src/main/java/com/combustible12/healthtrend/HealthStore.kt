@@ -55,7 +55,17 @@ class HealthStore(private val context:Context) {
   }.joinToString("\n\n")
   return reports
  }
- @Synchronized fun saveReport(r:LabReport){ require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank());write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}}) }
+ @Synchronized fun saveReport(r:LabReport){
+  require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
+  latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.let{template->
+   val expected=template.fields.map{ReportParser.key(it.metricKey)}
+   val actual=r.results.map{ReportParser.key(it.metricKey)}
+   require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
+   require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
+   require(actual==expected){"报告项目身份与当前模板不一致，请重新核对"}
+  }
+  write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}})
+ }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
  @Synchronized fun addReportImages(reportId:String,uris:List<Uri>){
   if(uris.isEmpty())return
