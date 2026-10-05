@@ -45,7 +45,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.ui.input.pointer.consume
 
 private val coursePhases=listOf("化疗日","恢复期","观察","其他")
 
@@ -236,7 +235,7 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
  AnimatedVisibility(visible=visible&&total>1,modifier=modifier,enter=fadeIn(),exit=fadeOut()){
   androidx.compose.foundation.Canvas(Modifier.fillMaxSize().onSizeChanged{height=it.height}.pointerInput(total){
    fun seek(y:Float){if(height>0&&total>0)scope.launch{state.scrollToItem(((y/height)*(total-1)).roundToInt().coerceIn(0,total-1))}}
-   detectDragGestures(onDragStart={dragging=true;seek(it.y)},onDragEnd={dragging=false},onDragCancel={dragging=false}){change,_->change.consume();seek(change.position.y)}
+   detectDragGestures(onDragStart={dragging=true;seek(it.y)},onDragEnd={dragging=false},onDragCancel={dragging=false}){change,_->seek(change.position.y)}
   }){val x=size.width/2f;drawLine(Color(0x337B7B82),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),4.dp.toPx());val progress=state.firstVisibleItemIndex.toFloat()/(total-1).coerceAtLeast(1);drawCircle(Accent,7.dp.toPx(),androidx.compose.ui.geometry.Offset(x,(progress*size.height).coerceIn(7.dp.toPx(),size.height-7.dp.toPx())))}
  }
 }
