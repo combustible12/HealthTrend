@@ -86,7 +86,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
-    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=30.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=15.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
