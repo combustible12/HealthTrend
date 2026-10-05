@@ -54,7 +54,13 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
  view:(List<String>,Int)->Unit
 ){
  var filter by rememberSaveable{mutableStateOf("全部")}
- val shown=if(filter=="全部")records else records.filter{it.phase==filter}
+ var search by rememberSaveable{mutableStateOf("")}
+ val query=search.trim()
+ val shown=records.filter{record->
+  (filter=="全部"||record.phase==filter)&&(
+   query.isBlank()||listOf(record.title,record.symptomText,record.checkText,record.medicineText,record.noteText).any{it.contains(query,ignoreCase=true)}
+  )
+ }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  var menuFor by remember{mutableStateOf<String?>(null)}
  var deleting by remember{mutableStateOf<CourseRecord?>(null)}
@@ -71,10 +77,11 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
      Text("共 ${shown.size} 条记录",color=Muted,fontSize=12.sp)
     }
    }
+   OutlinedTextField(search,{search=it},Modifier.fillMaxWidth().padding(top=10.dp),singleLine=true,placeholder={Text("搜索标题、症状、检查、药品、备注")},leadingIcon={Icon(Icons.Outlined.Search,null)},trailingIcon={if(search.isNotEmpty())IconButton({search=""}){Icon(Icons.Outlined.Clear,"清空搜索")}})
    Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}
    }
-   if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text("还没有病程记录",color=Muted)}
+   if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize(),state=listState,contentPadding=PaddingValues(bottom=96.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
@@ -104,9 +111,9 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
      Surface(shape=RoundedCornerShape(20.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=9.dp,vertical=4.dp),color=phaseColors.second,fontSize=11.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(34.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(22.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
-    CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText.ifBlank{"未记录症状"},record.symptomText.isNotBlank())
-    CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
-    CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
+    if(record.symptomText.isNotBlank())CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText,true)
+    if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
+    if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.noteText.isNotBlank())CourseTextRow(Icons.Outlined.Notes,record.noteText)
    }
   }
@@ -123,7 +130,11 @@ private fun coursePhaseColors(phase:String)=when(phase){
 @Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,lineHeight=21.sp)}}
 
 @Composable private fun CourseSection(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,text:String,images:List<String>,view:(List<String>,Int)->Unit){
- Column(verticalArrangement=Arrangement.spacedBy(7.dp)){CourseTextRow(icon,text.ifBlank{label},text.isNotBlank());if(images.isNotEmpty())CourseThumbnails(images,{view(images,it)})}
+ Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+  if(text.isNotBlank())CourseTextRow(icon,text,true)
+  else if(images.isNotEmpty())CourseTextRow(icon,label)
+  if(images.isNotEmpty())CourseThumbnails(images,{view(images,it)})
+ }
 }
 
 @Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
