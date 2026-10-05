@@ -328,7 +328,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    hits.forEach{hit->Paper(Modifier.clickable{open(hit.document,hit.page.pageIndex,hit.blockIndexes)}){Text("${hit.document.title} · 第 ${hit.page.pageIndex+1} 张",fontWeight=FontWeight.Bold);Text(hit.context,fontSize=13.sp,maxLines=3,overflow=TextOverflow.Ellipsis);if(hit.page.indexStatus==ImageIndexStatus.FAILED)Text("本页文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
   }else{
    if(documents.isEmpty())Paper{Text("还没有图片资料")}
-   documents.forEach{d->Paper(Modifier.clickable{open(d,0,emptyList())}){Text(d.title,fontWeight=FontWeight.Bold);Text("${d.pages.size} 张 · ${dateText(d.createdAt)}",color=Muted,fontSize=12.sp);val failed=d.pages.count{it.indexStatus==ImageIndexStatus.FAILED};if(failed>0)Text("$failed 张文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
+   documents.forEach{d->Card(Modifier.fillMaxWidth().clickable{open(d,0,emptyList())},shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(horizontal=18.dp,vertical=9.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(d.title,fontWeight=FontWeight.Bold);Text("${d.pages.size} 张 · ${dateText(d.createdAt)}",color=Muted,fontSize=12.sp);val failed=d.pages.count{it.indexStatus==ImageIndexStatus.FAILED};if(failed>0)Text("$failed 张文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}}
   }
   if(error.isNotBlank())Text(error,color=Bad)
  }
