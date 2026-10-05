@@ -7,9 +7,18 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -26,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -222,7 +232,9 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDelete by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDelete by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ val thumbnailState=rememberLazyListState()
+ LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
  val addImages=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
   val hashes=existingImageHashes(context,document);val imported=importImagePages(context,store,uris,document.pages.size,hashes){progress=it}
@@ -233,15 +245,37 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
  FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
+  LazyRow(Modifier.fillMaxWidth().height(72.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=4.dp)){itemsIndexed(document.pages,key={_,item->item.id}){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(58.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({pageIndex--;matches=emptyList();matchPosition=0},enabled=pageIndex>0){Text("上一张")};TextButton({confirmDelete=true}){Text("删除资料",color=Bad)};TextButton({pageIndex++;matches=emptyList();matchPosition=0},enabled=pageIndex<document.pages.lastIndex){Text("下一张")}}
  }}){m->Column(m.padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.fillMaxWidth(),label={Text("资料标题")},singleLine=true,trailingIcon={TextButton({if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}){Text("保存")}})
   OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.fillMaxWidth(),enabled=!busy){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(8.dp));Text(if(busy)progress else "添加图片")}
-  Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted)
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted);TextButton({showGrid=true}){Text("宫格查看")}}
   HighlightImage(page,currentBlock,Modifier.weight(1f).fillMaxWidth())
  }}
  if(confirmDelete)DeleteConfirmation({confirmDelete=false}){onDelete(document);onClose()}
  if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
+ if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false}){index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}
+}
+
+@Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit){
+ FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=Icons.Outlined.ArrowBack){m->
+  LazyVerticalGrid(columns=GridCells.Fixed(3),modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+    ImagePageThumbnail(item,index==selected,{onSelect(index)},Modifier.fillMaxWidth().aspectRatio(.78f))
+    Text("第 ${index+1} 张",fontSize=12.sp,color=if(index==selected)Accent else Muted,modifier=Modifier.align(Alignment.CenterHorizontally))
+   }}
+  }
+ }
+}
+
+@Composable private fun ImagePageThumbnail(page:ImagePage,selected:Boolean,onClick:()->Unit,modifier:Modifier=Modifier){
+ val context=LocalContext.current
+ val bitmap by produceState<android.graphics.Bitmap?>(null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=300_000,maxDimension=600)}.getOrNull()}}
+ DisposableEffect(bitmap){onDispose{bitmap?.takeUnless{it.isRecycled}?.recycle()}}
+ Box(modifier.clipToBounds().border(if(selected)3.dp else 1.dp,if(selected)Accent else Color(0xFFD0D0C8),RoundedCornerShape(8.dp)).clickable(onClick=onClick),contentAlignment=Alignment.Center){
+  if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop) else Text("…",color=Muted)
+ }
 }
 
 @Composable private fun HighlightImage(page:ImagePage,highlight:SearchTextBlock?,modifier:Modifier=Modifier){
