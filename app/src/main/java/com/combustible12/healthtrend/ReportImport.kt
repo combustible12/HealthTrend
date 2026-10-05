@@ -168,34 +168,14 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
  * several similarly named template fields.
  */
 internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLabResult>):Map<Int,ParsedLabResult>{
- fun chinese(s:String)=s.filter{it.code in 0x4E00..0x9FFF}.replace(Regex("^(上|下|三|红|丨|I)+"),"")
- fun identityScore(fieldIndex:Int,itemIndex:Int):Int{
-  val field=fields[fieldIndex];val item=items[itemIndex]
-  val keyMatch=ReportParser.key(field.metricKey)==ReportParser.key(item.metricKey)
-  val expected=chinese(field.displayName);val actual=chinese(item.displayName)
-  val nameScore=when{
-   expected.length<2||actual.length<2->0
-   expected==actual->90
-   expected.contains(actual)||actual.contains(expected)->70
-   else->0
-  }
-  if(!keyMatch&&nameScore==0)return Int.MIN_VALUE
-  return (if(keyMatch)120 else 0)+nameScore
- }
- fun score(fieldIndex:Int,itemIndex:Int)=identityScore(fieldIndex,itemIndex)+(20-kotlin.math.abs(fieldIndex-itemIndex).coerceAtMost(20))
- data class Candidate(val field:Int,val item:Int,val score:Int)
- // If several OCR rows have the same strongest identity evidence, position alone is not
- // enough to choose a medical result. Leave that template value empty for user review.
- val ambiguous=fields.indices.filter{fi->
-  val evidence=items.indices.map{ii->identityScore(fi,ii)}.filter{it>0}
-  val strongest=evidence.maxOrNull()?:return@filter false
-  evidence.count{it==strongest}>1
- }.toSet()
- val candidates=fields.indices.filterNot{it in ambiguous}.flatMap{fi->items.indices.mapNotNull{ii->score(fi,ii).takeIf{it>0}?.let{Candidate(fi,ii,it)}}}
-  .sortedWith(compareByDescending<Candidate>{it.score}.thenBy{it.field}.thenBy{it.item})
- val usedFields=mutableSetOf<Int>();val usedItems=mutableSetOf<Int>();val result=mutableMapOf<Int,ParsedLabResult>()
- candidates.forEach{candidate->if(candidate.field !in usedFields&&candidate.item !in usedItems){usedFields+=candidate.field;usedItems+=candidate.item;result[candidate.field]=items[candidate.item]}}
- return result
+ // A confirmed template owns metric identity. OCR may only provide a value to the
+ // exact same canonical metric key. Names and row position are never allowed to
+ // override identity; ambiguous duplicates stay empty for explicit review.
+ val byKey=items.groupBy{ReportParser.key(it.metricKey)}
+ return fields.mapIndexedNotNull{index,field->
+  val key=ReportParser.key(field.metricKey)
+  byKey[key]?.singleOrNull()?.let{index to it}
+ }.toMap()
 }
 
 /**
