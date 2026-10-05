@@ -272,7 +272,6 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 @Composable private fun ImagePageThumbnail(page:ImagePage,selected:Boolean,onClick:()->Unit,modifier:Modifier=Modifier){
  val context=LocalContext.current
  val bitmap by produceState<android.graphics.Bitmap?>(null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=300_000,maxDimension=600)}.getOrNull()}}
- DisposableEffect(bitmap){onDispose{bitmap?.takeUnless{it.isRecycled}?.recycle()}}
  Box(modifier.clipToBounds().border(if(selected)3.dp else 1.dp,if(selected)Accent else Color(0xFFD0D0C8),RoundedCornerShape(8.dp)).clickable(onClick=onClick),contentAlignment=Alignment.Center){
   if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop) else Text("…",color=Muted)
  }
