@@ -86,3 +86,5 @@ object UnitNormalizer {
 
 fun symptomReportText(start:String,end:String,selected:List<HealthEntry>):String =
  buildString{append("症状报告 $start 至 $end\n记录 ${selected.size} 次\n");selected.groupBy{it.title}.forEach{(name,rows)->append("$name：${rows.size} 次，平均程度 ${"%.1f".format(rows.map{it.severity}.average())}/10，最高 ${rows.maxOf{it.severity}}/10\n");rows.sortedBy{it.occurredAtEpochMillis}.forEach{e->append("${dateText(e.occurredAtEpochMillis)} 程度${e.severity} ${e.frequency} ${e.duration} ${e.note}\n")}}}
+
+data class WeightRecord(val id:String=newId(),val measuredAtEpochMillis:Long=System.currentTimeMillis(),val kilograms:Double):java.io.Serializable
