@@ -409,6 +409,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   HighlightImage(
    page=page,
    highlight=currentBlock,
+   onPinchIn={showGrid=true},
    onSwipePrevious={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}},
    onSwipeNext={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}},
    modifier=Modifier.weight(1f).fillMaxWidth()
@@ -495,6 +496,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 @Composable private fun HighlightImage(
  page:ImagePage,
  highlight:SearchTextBlock?,
+ onPinchIn:()->Unit,
  onSwipePrevious:()->Unit,
  onSwipeNext:()->Unit,
  modifier:Modifier=Modifier
@@ -505,6 +507,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  var x by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  var swipeX by remember(page.id){mutableFloatStateOf(0f)}
+ var pinchScale by remember(page.id){mutableFloatStateOf(1f)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
   value=withContext(Dispatchers.IO){
    val longNarrow=page.imageWidth<=2_000&&page.imageHeight>=8_000
@@ -545,23 +548,30 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
     val maxZoom=maxOf(8f,widthFill*1.5f).coerceAtMost(32f)
     val next=(zoom*scale).coerceIn(1f,maxZoom)
-    val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
-    val horizontal=abs(pan.x)>abs(pan.y)*1.15f
-    if(atRest&&horizontal){
-     swipeX+=pan.x
-     val threshold=(viewport.width*.16f).coerceIn(56f,120f)
-     when{
-      swipeX>=threshold->{swipeX=0f;onSwipePrevious()}
-      swipeX<=-threshold->{swipeX=0f;onSwipeNext()}
-     }
-    }else{
+    if(zoom<=1.01f&&scale<.995f){
+     pinchScale*=scale
      swipeX=0f
-     val ratio=next/zoom
-     val cx=centroid.x-viewport.width/2f
-     val cy=centroid.y-viewport.height/2f
-     x=transformedTranslation(x,cx,ratio,pan.x)
-     y=transformedTranslation(y,cy,ratio,pan.y)
-     zoom=next
+     if(pinchScale<=.82f){pinchScale=1f;onPinchIn()}
+    }else{
+     if(scale>=1f)pinchScale=1f
+     val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
+     val horizontal=abs(pan.x)>abs(pan.y)*1.15f
+     if(atRest&&horizontal){
+      swipeX+=pan.x
+      val threshold=(viewport.width*.16f).coerceIn(56f,120f)
+      when{
+       swipeX>=threshold->{swipeX=0f;onSwipePrevious()}
+       swipeX<=-threshold->{swipeX=0f;onSwipeNext()}
+      }
+     }else{
+      swipeX=0f
+      val ratio=next/zoom
+      val cx=centroid.x-viewport.width/2f
+      val cy=centroid.y-viewport.height/2f
+      x=transformedTranslation(x,cx,ratio,pan.x)
+      y=transformedTranslation(y,cy,ratio,pan.y)
+      zoom=next
+     }
     }
    }
   },
