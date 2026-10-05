@@ -176,7 +176,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit){
- var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")}
+ var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  var imageError by remember{mutableStateOf<String?>(null)};var imageBusy by remember{mutableStateOf(false)}
@@ -211,7 +211,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(32.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().border(1.dp,Color(0xFF7B7B82),RoundedCornerShape(4.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()}}})
   if(category=="体重"){
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";showWeight=true}){Text("+ 记录体重")}}
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";weightDate=java.time.LocalDate.now().toString();showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
     val w=weights.last()
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Text("体重",fontWeight=FontWeight.Bold,fontSize=16.sp);Row(verticalAlignment=Alignment.Bottom){Text(String.format(java.util.Locale.US,"%.1f",w.kilograms),fontWeight=FontWeight.Bold,fontSize=20.sp,color=Good);Spacer(Modifier.width(4.dp));Text("kg",fontSize=11.sp,color=Good)}}
@@ -276,7 +276,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
  }
- if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();if(kg!=null&&kg>0){store.saveWeight(WeightRecord(kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
+ if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
  selected?.let{(r,x)->
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Text(x.rawName)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
