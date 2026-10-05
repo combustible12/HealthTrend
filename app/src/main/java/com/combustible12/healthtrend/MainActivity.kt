@@ -202,7 +202,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "TBA"->"总胆汁酸 TBA";"PA"->"前白蛋白 PA";"UREA"->"尿素 UREA";"CREA"->"肌酐 CREA";"UA"->"尿酸 UA"
   else->null
  }
- fun trendIdentity(result:LabResult):String{val stored=ReportParser.key(result.metricKey);val n=result.rawName;return if(stored=="P-LCR"&&(n.contains("大小血小板数目")||n.contains("大血小板数目")||n.contains("大型血小板数目"))&&!n.contains("比率"))"P-LCC" else stored}
+ fun trendIdentity(result:LabResult):String{val stored=ReportParser.key(result.metricKey);val n=result.rawName;val u=result.normalizedUnit.trim();return if(stored=="P-LCR"&&(((n.contains("大小血小板数目")||n.contains("大血小板数目")||n.contains("大型血小板数目"))&&!n.contains("比率"))||(u.isNotBlank()&&u!="%")))"P-LCC" else stored}
  val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->trendIdentity(result)}
  val weights=remember(weightVersion,revision){store.weightRecords()}
  Screen(m,"指标趋势",spacing=3.5.dp){
