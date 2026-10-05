@@ -11,7 +11,7 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce(); migrateAstIdentityRepairOnce(); migrateCanonicalMetricIdentityOnce(); migrateCanonicalMetricIdentityV2Once() }
+ init { migrateCurrentTemplates(); migrateAstAltIdentityOnce(); migrateAstRawNameOnce(); migrateAstIdentityRepairOnce(); migrateCanonicalMetricIdentityOnce(); migrateCanonicalMetricIdentityV2Once();migrateCanonicalMetricIdentityV3Once() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
@@ -125,6 +125,23 @@ class HealthStore(private val context:Context) {
     changed=true
     result.copy(metricKey=canonical,normalizedValue=normalized.first,normalizedUnit=normalized.second)
    }else result
+  })}
+  if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
+  check(prefs.edit().putBoolean(migrationKey,true).commit())
+ }
+ private fun migrateCanonicalMetricIdentityV3Once(){
+  val migrationKey="migration_canonical_metric_identity_v3"
+  if(prefs.getBoolean(migrationKey,false))return
+  val raw=runCatching{rows(read("reports"),::reportFromJson)}.getOrDefault(emptyList());var changed=false
+  val fixed=raw.map{report->report.copy(results=report.results.map{result->
+   val stored=ReportParser.key(result.metricKey);val evidence=listOf(result.rawName,result.rawLine).joinToString(" ")
+   val unit=result.unitAtTest.replace("×","").replace("x","").replace(" ","").lowercase()
+   val isLargeCellCount=stored=="P-LCR"&&(
+    evidence.contains("血小板数目")||unit.contains("10^9/l")||result.referenceLowAtTest==30.0||result.referenceHighAtTest==90.0
+   )
+   val canonical=when{isLargeCellCount->"P-LCC";evidence.contains("红细胞分布宽度SD",true)||stored=="RDW"&&unit=="fl"->"RDW-SD";else->stored}
+   val normalized=UnitNormalizer.normalize(canonical,result.value,result.unitAtTest)
+   if(canonical!=result.metricKey||normalized.first!=result.normalizedValue||normalized.second!=result.normalizedUnit){changed=true;result.copy(metricKey=canonical,normalizedValue=normalized.first,normalizedUnit=normalized.second)}else result
   })}
   if(changed)write("reports",JSONArray().apply{fixed.forEach{put(reportToJson(it))}})
   check(prefs.edit().putBoolean(migrationKey,true).commit())
