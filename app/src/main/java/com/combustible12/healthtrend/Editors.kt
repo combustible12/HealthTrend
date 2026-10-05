@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -46,13 +47,13 @@ data class ReportDraft(val hospital:String="",val type:String="血常规",val sy
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
-@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
+@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
  val active=!hidden&&LocalPageVisible.current
  val focus=LocalFocusManager.current
  BackHandler(enabled=active,onBack=onClose)
  LaunchedEffect(active){if(active)focus.clearFocus()}
  Surface(color=Warm,modifier=Modifier.fillMaxSize().then(if(active)Modifier else Modifier.clearAndSetSemantics{})){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
-  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(Icons.Outlined.Close,"关闭")};Text(title,fontSize=21.sp,modifier=Modifier.weight(1f))}
+  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回")};Text(title,fontSize=21.sp,modifier=Modifier.weight(1f))}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
   Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
  }}
