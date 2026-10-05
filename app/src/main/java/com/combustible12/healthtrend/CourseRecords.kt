@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 private val coursePhases=listOf("化疗日","恢复期","观察","其他")
@@ -127,17 +128,17 @@ private fun coursePhaseColors(phase:String)=when(phase){
 @Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit){
  val context=LocalContext.current
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
- var date by rememberSaveable{mutableStateOf(dateText(initial.date))}
+ var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
  fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=if(target=="check")record.copy(checkImages=record.checkImages+owned)else record.copy(medicineImages=record.medicineImages+owned)}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val checkPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("check",it)}
  val medicinePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("medicine",it)}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
- val valid=record.title.isNotBlank()&&parseDate(date)!=null&&!busy
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=preserveTimestamp(date,initial.date)!!))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
+ val selectedDate=courseDateMillis(date,initial.date);val valid=record.title.isNotBlank()&&selectedDate!=null&&!busy
+ FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=selectedDate!!))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
   Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   Field(date,{date=it},"日期 / 时间 YYYY-MM-DD HH:mm")
+   CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp))}}
    Field(record.title,{record=record.copy(title=it)},"标题")
@@ -160,6 +161,24 @@ private fun coursePhaseColors(phase:String)=when(phase){
  if(deleting)DeleteConfirmation({deleting=false}){onDelete();deleting=false}
 }
 
+@Composable private fun CourseDateField(value:String,onChange:(String)->Unit){
+ val context=LocalContext.current
+ Box(Modifier.fillMaxWidth()){
+  OutlinedTextField(value,{},Modifier.fillMaxWidth(),label={Text("日期")},trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true)
+  Box(Modifier.matchParentSize().clickable{
+   val initial=runCatching{LocalDate.parse(value)}.getOrElse{LocalDate.now()}
+   android.app.DatePickerDialog(context,{_,year,month,day->
+    onChange(LocalDate.of(year,month+1,day).toString())
+   },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
+  })
+ }
+}
+
 @Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
 
 private fun courseDate(epoch:Long):String{val d=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault());return "${d.monthValue}月${d.dayOfMonth}日"}
+private fun courseEditorDate(epoch:Long)=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
+ val date=LocalDate.parse(value);val originalTime=Instant.ofEpochMilli(original).atZone(ZoneId.systemDefault()).toLocalTime()
+ date.atTime(originalTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}.getOrNull()
