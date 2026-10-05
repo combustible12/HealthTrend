@@ -245,7 +245,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
  FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
-  LazyRow(Modifier.fillMaxWidth().height(72.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=4.dp)){itemsIndexed(document.pages,key={_,item->item.id}){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(58.dp).fillMaxHeight())}}
+  LazyRow(Modifier.fillMaxWidth().height(72.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=4.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(58.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({pageIndex--;matches=emptyList();matchPosition=0},enabled=pageIndex>0){Text("上一张")};TextButton({confirmDelete=true}){Text("删除资料",color=Bad)};TextButton({pageIndex++;matches=emptyList();matchPosition=0},enabled=pageIndex<document.pages.lastIndex){Text("下一张")}}
  }}){m->Column(m.padding(horizontal=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   OutlinedTextField(document.title,{document=document.copy(title=it)},Modifier.fillMaxWidth(),label={Text("资料标题")},singleLine=true,trailingIcon={TextButton({if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show();onClose()}}){Text("保存")}})
@@ -261,7 +261,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 @Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit){
  FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=Icons.Outlined.ArrowBack){m->
   LazyVerticalGrid(columns=GridCells.Fixed(3),modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-   gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+   gridItemsIndexed(document.pages){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
     ImagePageThumbnail(item,index==selected,{onSelect(index)},Modifier.fillMaxWidth().aspectRatio(.78f))
     Text("第 ${index+1} 张",fontSize=12.sp,color=if(index==selected)Accent else Muted,modifier=Modifier.align(Alignment.CenterHorizontally))
    }}
