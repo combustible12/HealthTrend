@@ -15,7 +15,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -502,7 +502,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
     var dragX by remember(item.id){mutableFloatStateOf(0f)};var dragY by remember(item.id){mutableFloatStateOf(0f)}
     val dragModifier=if(item.isTextPage())Modifier else Modifier.pointerInput(item.id,index,document.pages.size){
-     detectDragGestures(onDragStart={dragX=0f;dragY=0f},onDragCancel={dragX=0f;dragY=0f},onDragEnd={dragX=0f;dragY=0f}){change,amount->
+     detectDragGesturesAfterLongPress(onDragStart={dragX=0f;dragY=0f},onDragCancel={dragX=0f;dragY=0f},onDragEnd={dragX=0f;dragY=0f}){change,amount->
       change.consume();dragX+=amount.x;dragY+=amount.y
       val step=if(kotlin.math.abs(dragX)>size.width*.35f){if(dragX>0)1 else -1}else if(kotlin.math.abs(dragY)>size.height*.35f){if(dragY>0)3 else -3}else 0
       if(step!=0){val minIndex=if(document.pages.firstOrNull()?.isTextPage()==true)1 else 0;val target=(index+step).coerceIn(minIndex,document.pages.lastIndex);if(target!=index)onMove(index,target);dragX=0f;dragY=0f}
