@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,6 +23,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -115,6 +118,9 @@ data class ImageDocument(
  val id:String=newId(),val title:String="未命名图片资料",val createdAt:Long=System.currentTimeMillis(),val pages:List<ImagePage>
 ):java.io.Serializable
 
+private fun ImagePage.isTextPage()=imageUri.isBlank()
+private fun textPage(text:String)=ImagePage(imageUri="",pageIndex=0,imageWidth=0,imageHeight=0,fullText=text,indexStatus=ImageIndexStatus.READY)
+
 data class ImageSearchHit(
  val document:ImageDocument,val page:ImagePage,val blockIndexes:List<Int>,val context:String
 )
@@ -153,6 +159,7 @@ class ImageDocumentStore(private val context:Context){
   return updated
  }
  private fun pageFileExists(page:ImagePage):Boolean{
+  if(page.isTextPage())return true
   val uri=Uri.parse(page.imageUri)
   if(uri.scheme!="file")return true
   return uri.path?.let(::File)?.exists()==true
@@ -305,7 +312,7 @@ private suspend fun importImagePages(context:Context,store:ImageDocumentStore,ur
 }
 
 private suspend fun existingImageHashes(context:Context,document:ImageDocument)=withContext(Dispatchers.IO){
- document.pages.mapNotNull{page->page.contentHash.ifBlank{runCatching{imageContentHash(context,Uri.parse(page.imageUri))}.getOrNull()}}.toSet()
+ document.pages.filterNot{it.isTextPage()}.mapNotNull{page->page.contentHash.ifBlank{runCatching{imageContentHash(context,Uri.parse(page.imageUri))}.getOrNull()}}.toSet()
 }
 
 @Composable fun ImageDocumentsPage(m:Modifier,open:(ImageDocument,Int,List<Int>)->Unit){
@@ -328,7 +335,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var showNoteEditor by remember{mutableStateOf(false)};var noteDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
@@ -343,11 +350,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
-   Text("删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
+   Text(if(page.isTextPage())"删说明" else "删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
    Spacer(Modifier.width(24.dp))
    Text("删整份",fontSize=13.sp,color=Bad.copy(alpha=.78f),modifier=Modifier.clickable{confirmDeleteDocument=true}.padding(horizontal=3.dp,vertical=1.dp))
    Spacer(Modifier.weight(1f))
-   Box(
+   if(!page.isTextPage())Box(
     Modifier.size(40.dp)
      .background(if(page.sourceUrl.isBlank())Color(0xFFF0F0F0) else Color(0xFFEAF3FF),RoundedCornerShape(12.dp))
      .clickable{linkDraft=page.sourceUrl;showLinkEditor=true},
@@ -380,11 +387,16 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
    }
   }
-  Spacer(Modifier.height(18.dp))
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
+   TextButton({noteDraft=document.pages.firstOrNull{it.isTextPage()}?.fullText.orEmpty();showNoteEditor=true}){
+    Icon(Icons.Outlined.Notes,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(document.pages.any{it.isTextPage()})"编辑说明" else "添加说明")
+   }
+  }
+  Spacer(Modifier.height(4.dp))
   Row(Modifier.fillMaxWidth().heightIn(min=18.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween){
-   Text("第 ${pageIndex+1}/${document.pages.size} 张"+(if(page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,lineHeight=16.sp,color=if(page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted,modifier=Modifier.weight(1f))
+   Text("第 ${pageIndex+1}/${document.pages.size} 页"+(if(!page.isTextPage()&&page.indexStatus==ImageIndexStatus.FAILED)" · 本页文字未识别 / 待建立索引" else ""),fontSize=12.sp,lineHeight=16.sp,color=if(!page.isTextPage()&&page.indexStatus==ImageIndexStatus.FAILED)Accent else Muted,modifier=Modifier.weight(1f))
    Row(verticalAlignment=Alignment.CenterVertically){
-    if(page.indexStatus==ImageIndexStatus.FAILED)Text(
+    if(!page.isTextPage()&&page.indexStatus==ImageIndexStatus.FAILED)Text(
      if(reindexing)"识别中…" else "重新识别",
      fontSize=12.sp,lineHeight=16.sp,color=if(reindexing)Muted else Accent,
      modifier=Modifier.clickable(enabled=!reindexing){
@@ -406,15 +418,24 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    }
   }
   Spacer(Modifier.height(4.dp))
-  HighlightImage(
-   page=page,
-   highlight=currentBlock,
-   onPinchIn={showGrid=true},
-   onSwipePrevious={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}},
-   onSwipeNext={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}},
-   modifier=Modifier.weight(1f).fillMaxWidth()
-  )
+  val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
+  val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
+  if(page.isTextPage())TextDocumentPage(page.fullText,previous,next,Modifier.weight(1f).fillMaxWidth())
+  else HighlightImage(page,currentBlock,{showGrid=true},previous,next,Modifier.weight(1f).fillMaxWidth())
  }}
+ if(showNoteEditor)AlertDialog(
+  onDismissRequest={showNoteEditor=false},
+  title={Text("资料说明")},
+  text={OutlinedTextField(noteDraft,{noteDraft=it},Modifier.fillMaxWidth(),label={Text("说明文字")},minLines=6,maxLines=12)},
+  confirmButton={TextButton({
+   val value=noteDraft.trim();val old=document.pages.firstOrNull{it.isTextPage()}
+   val pages=when{value.isBlank()->document.pages.filterNot{it.isTextPage()};old==null->listOf(textPage(value))+document.pages;else->document.pages.map{if(it.id==old.id)it.copy(fullText=value)else it}}
+    .mapIndexed{index,item->item.copy(pageIndex=index)}
+   document=document.copy(pages=pages);onSaved(document);savedTitle=document.title;pageIndex=if(value.isBlank())pageIndex.coerceAtMost(pages.lastIndex) else 0;matches=emptyList();matchPosition=0;showNoteEditor=false
+   android.widget.Toast.makeText(context,if(value.isBlank())"说明已删除" else "说明已保存为第一页",android.widget.Toast.LENGTH_SHORT).show()
+  }){Text("保存")}},
+  dismissButton={TextButton({showNoteEditor=false}){Text("取消")}}
+ )
  if(showLinkEditor)AlertDialog(
   onDismissRequest={showLinkEditor=false},
   title={Text(if(page.sourceUrl.isBlank())"添加文章链接" else "图片来源链接")},
@@ -448,8 +469,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  )
  if(confirmDeletePage)AlertDialog(
   onDismissRequest={confirmDeletePage=false},
-  title={Text("删除当前图片？")},
-  text={Text(if(document.pages.size==1)"这是最后一张，删除后整份资料也会移除。" else "只删除当前第 ${pageIndex+1} 张，其余图片保留。")},
+  title={Text(if(page.isTextPage())"删除说明？" else "删除当前图片？")},
+  text={Text(if(document.pages.size==1)"这是最后一页，删除后整份资料也会移除。" else "只删除当前第 ${pageIndex+1} 页，其余内容保留。")},
   confirmButton={TextButton({
    confirmDeletePage=false
    val removedId=document.pages[pageIndex].id
@@ -460,7 +481,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     matches=emptyList();matchPosition=0
     onSaved(updated)
    }
-  }){Text("删除当前图片",color=Bad)}},
+  }){Text(if(page.isTextPage())"删除说明" else "删除当前图片",color=Bad)}},
   dismissButton={TextButton({confirmDeletePage=false}){Text("取消")}}
  )
  if(confirmDeleteDocument)AlertDialog(
@@ -486,10 +507,33 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 }
 
 @Composable private fun ImagePageThumbnail(page:ImagePage,selected:Boolean,onClick:()->Unit,modifier:Modifier=Modifier){
+ if(page.isTextPage()){
+  Box(modifier.background(Color(0xFFFFFBF7),RoundedCornerShape(8.dp)).border(if(selected)3.dp else 1.dp,if(selected)Accent else Color(0xFFD0D0C8),RoundedCornerShape(8.dp)).clickable(onClick=onClick).padding(6.dp),contentAlignment=Alignment.Center){
+   Text(page.fullText,fontSize=8.sp,lineHeight=10.sp,maxLines=6,overflow=TextOverflow.Ellipsis,color=Ink)
+  }
+  return
+ }
  val context=LocalContext.current
  val bitmap by produceState<android.graphics.Bitmap?>(null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=300_000,maxDimension=600)}.getOrNull()}}
  Box(modifier.clipToBounds().border(if(selected)3.dp else 1.dp,if(selected)Accent else Color(0xFFD0D0C8),RoundedCornerShape(8.dp)).clickable(onClick=onClick),contentAlignment=Alignment.Center){
   if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop) else Text("…",color=Muted)
+ }
+}
+
+@Composable private fun TextDocumentPage(text:String,onSwipePrevious:()->Unit,onSwipeNext:()->Unit,modifier:Modifier=Modifier){
+ var swipe by remember(text){mutableFloatStateOf(0f)}
+ Card(modifier.padding(10.dp).pointerInput(text){
+  detectHorizontalDragGestures(
+   onDragStart={swipe=0f},
+   onHorizontalDrag={change,amount->change.consume();swipe+=amount},
+   onDragEnd={if(swipe>90f)onSwipePrevious() else if(swipe< -90f)onSwipeNext();swipe=0f}
+  )
+ },shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+  ScrollablePageColumn(Modifier.fillMaxSize(),PaddingValues(24.dp)){
+   Text("说明",fontSize=13.sp,color=Accent,fontWeight=FontWeight.Medium)
+   Spacer(Modifier.height(14.dp))
+   Text(text,fontSize=18.sp,lineHeight=30.sp,color=Ink)
+  }
  }
 }
 
