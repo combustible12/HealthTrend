@@ -1,6 +1,7 @@
 package com.combustible12.healthtrend
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.ExifInterface
@@ -105,7 +106,7 @@ enum class ImageIndexStatus:java.io.Serializable { READY, FAILED }
 
 data class ImagePage(
  val id:String=newId(),val imageUri:String,val pageIndex:Int,val imageWidth:Int,val imageHeight:Int,
- val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY,val contentHash:String=""
+ val fullText:String="",val blocks:List<SearchTextBlock> = emptyList(),val indexStatus:ImageIndexStatus=ImageIndexStatus.READY,val contentHash:String="",val sourceUrl:String=""
 ):java.io.Serializable
 
 data class ImageDocument(
@@ -180,8 +181,8 @@ class ImageDocumentStore(private val context:Context){
   file.baseFile.parentFile?.mkdirs();val stream=file.startWrite()
   try{stream.bufferedWriter().apply{write(JSONArray().apply{documents.forEach{d->put(documentToJson(d))}}.toString());flush()};file.finishWrite(stream)}catch(t:Throwable){file.failWrite(stream);throw t}
  }
- private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
- private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"))}})
+ private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("sourceUrl",p.sourceUrl).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
+ private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"),p.optString("sourceUrl"))}})
 }
 
 private fun normalizedSearchText(value:String)=value.filterNot(Char::isWhitespace).lowercase()
@@ -325,7 +326,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
@@ -386,7 +387,12 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
       }
      }.padding(horizontal=6.dp,vertical=1.dp)
     )
-    Text("宫格查看",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
+    Text(
+     if(page.sourceUrl.isBlank())"+链接" else "原文",
+     fontSize=12.sp,lineHeight=16.sp,color=Accent,
+     modifier=Modifier.clickable{linkDraft=page.sourceUrl;showLinkEditor=true}.padding(horizontal=4.dp,vertical=1.dp)
+    )
+    Text("宫格",fontSize=12.sp,lineHeight=16.sp,color=Accent,modifier=Modifier.clickable{showGrid=true}.padding(horizontal=4.dp,vertical=1.dp))
    }
   }
   Spacer(Modifier.height(4.dp))
@@ -398,6 +404,37 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    modifier=Modifier.weight(1f).fillMaxWidth()
   )
  }}
+ if(showLinkEditor)AlertDialog(
+  onDismissRequest={showLinkEditor=false},
+  title={Text(if(page.sourceUrl.isBlank())"添加文章链接" else "图片来源链接")},
+  text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(
+    value=linkDraft,
+    onValueChange={linkDraft=it},
+    modifier=Modifier.fillMaxWidth(),
+    label={Text("公众号文章 / 网页链接")},
+    placeholder={Text("https://mp.weixin.qq.com/...")},
+    singleLine=true
+   )
+   if(linkDraft.isNotBlank()&&!linkDraft.trim().let{it.startsWith("https://")||it.startsWith("http://")})Text("请输入 http:// 或 https:// 开头的链接",fontSize=12.sp,color=Bad)
+  }},
+  confirmButton={TextButton({
+   val value=linkDraft.trim()
+   if(value.isBlank()||value.startsWith("https://")||value.startsWith("http://")){
+    val updatedPage=page.copy(sourceUrl=value)
+    document=document.copy(pages=document.pages.map{if(it.id==page.id)updatedPage else it})
+    onSaved(document);savedTitle=document.title;showLinkEditor=false
+    android.widget.Toast.makeText(context,if(value.isBlank())"链接已删除" else "链接已保存",android.widget.Toast.LENGTH_SHORT).show()
+   }else android.widget.Toast.makeText(context,"链接格式不正确",android.widget.Toast.LENGTH_SHORT).show()
+  }){Text("保存")}},
+  dismissButton={Row{
+   if(page.sourceUrl.isNotBlank())TextButton({
+    runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(page.sourceUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}
+     .onFailure{android.widget.Toast.makeText(context,"无法打开这个链接",android.widget.Toast.LENGTH_SHORT).show()}
+   }){Text("打开原文")}
+   TextButton({showLinkEditor=false}){Text("取消")}
+  }}
+ )
  if(confirmDeletePage)AlertDialog(
   onDismissRequest={confirmDeletePage=false},
   title={Text("删除当前图片？")},
