@@ -86,13 +86,13 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
-    LazyColumn(Modifier.fillMaxSize().padding(end=20.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LazyColumn(Modifier.fillMaxSize().padding(start=(-6).dp,end=30.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
     }
     if(listState.canScrollBackward)OutlinedButton({scope.launch{listState.animateScrollToItem(0)}},Modifier.align(Alignment.BottomCenter).padding(bottom=20.dp)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
-    LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).padding(top=8.dp,bottom=8.dp,end=(-10).dp).width(12.dp).fillMaxHeight())
+    LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).padding(top=8.dp,bottom=8.dp,end=(-16).dp).width(10.dp).fillMaxHeight())
    }
   }
   FloatingActionButton(add,Modifier.align(Alignment.BottomEnd).padding(20.dp),containerColor=Accent,contentColor=Color.White){Icon(Icons.Outlined.Add,"新增病程记录")}
