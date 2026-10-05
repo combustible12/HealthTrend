@@ -220,7 +220,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
 
-private fun courseDate(epoch:Long):String{val d=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault());return "${d.monthValue}月${d.dayOfMonth}日"}
+private fun courseDate(epoch:Long):String{val d=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault());return "${d.monthValue}/${d.dayOfMonth}"}
 private fun courseEditorDate(epoch:Long)=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate().toString()
 private fun courseTitleMemoryKey(value:String)=Regex("第[零一二三四五六七八九十百两\\d]+天").replace(value.trim(),"第X天")
 private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
