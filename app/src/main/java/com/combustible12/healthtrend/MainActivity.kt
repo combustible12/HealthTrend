@@ -1,12 +1,16 @@
 package com.combustible12.healthtrend
 
 import android.os.Bundle
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -33,11 +38,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import java.time.*
 import java.time.format.DateTimeFormatter
 
@@ -109,7 +117,42 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }
-@Composable fun Screen(m:Modifier,title:String,subtitle:String="",content:@Composable ColumnScope.()->Unit){Column(m.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content();Spacer(Modifier.height(12.dp))}}
+@Composable fun Screen(m:Modifier,title:String,subtitle:String="",content:@Composable ColumnScope.()->Unit){
+ val scroll=rememberScrollState();val scope=rememberCoroutineScope()
+ Box(m.fillMaxSize()){
+  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+   Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
+   if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
+   Spacer(Modifier.height(12.dp))
+  }
+  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(vertical=20.dp,end=2.dp).width(24.dp).fillMaxHeight())
+ }
+}
+
+@Composable fun ScrollablePageColumn(modifier:Modifier=Modifier,padding:PaddingValues=PaddingValues(0.dp),arrangement:Arrangement.Vertical=Arrangement.Top,content:@Composable ColumnScope.()->Unit){
+ val scroll=rememberScrollState();val scope=rememberCoroutineScope()
+ Box(modifier){
+  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}
+  ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(vertical=12.dp,end=2.dp).width(24.dp).fillMaxHeight())
+ }
+}
+
+@Composable fun ScrollProgressRail(scroll:ScrollState,modifier:Modifier=Modifier){
+ val scope=rememberCoroutineScope();var size by remember{mutableStateOf(IntSize.Zero)};var dragging by remember{mutableStateOf(false)};var visible by remember{mutableStateOf(false)}
+ LaunchedEffect(scroll.isScrollInProgress,dragging,scroll.value){
+  if(scroll.isScrollInProgress||dragging)visible=true else{delay(850);visible=false}
+ }
+ AnimatedVisibility(visible=visible&&scroll.maxValue>0,modifier=modifier,enter=fadeIn(),exit=fadeOut()){
+  Canvas(Modifier.fillMaxSize().onSizeChanged{size=it}.pointerInput(scroll.maxValue){
+   fun seek(y:Float){if(size.height>0)scope.launch{scroll.scrollTo((y/size.height*scroll.maxValue).roundToInt().coerceIn(0,scroll.maxValue))}}
+   detectDragGestures(onDragStart={dragging=true;seek(it.y)},onDragEnd={dragging=false},onDragCancel={dragging=false}){change,_->change.consume();seek(change.position.y)}
+  }){
+   val x=this.size.width/2f;drawLine(Color(0x337B7B82),Offset(x,0f),Offset(x,this.size.height),4.dp.toPx())
+   val y=(scroll.value.toFloat()/scroll.maxValue.coerceAtLeast(1))*this.size.height
+   drawCircle(Accent,7.dp.toPx(),Offset(x,y.coerceIn(7.dp.toPx(),this.size.height-7.dp.toPx())))
+  }
+ }
+}
 @Composable fun Paper(m:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){Card(modifier=m.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
 @Composable fun TrendPaper(content:@Composable ColumnScope.()->Unit){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(start=18.dp,end=18.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
 @Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){
