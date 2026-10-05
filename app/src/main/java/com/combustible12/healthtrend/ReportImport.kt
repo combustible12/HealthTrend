@@ -219,9 +219,9 @@ fun retargetImportedDraft(
  val target=store.latestTemplate(hospital,type,system)
  if(d.ocr.isBlank()){
   if(target==null)return next
-  val current=d.rows.associateBy{ReportParser.key(it.key.ifBlank{it.name})}
+  val current=d.rows.associateBy{it.key.ifBlank{ReportParser.key(it.name)}}
   return next.copy(rows=target.fields.map{field->
-   current[ReportParser.key(field.metricKey)]?:DraftRow(name=field.displayName,key=ReportParser.key(field.metricKey),unit=field.unit,
+   current[field.metricKey]?:DraftRow(name=field.displayName,key=field.metricKey,unit=field.unit,
     low=field.referenceLow?.toString().orEmpty(),high=field.referenceHigh?.toString().orEmpty())
   })
  }
