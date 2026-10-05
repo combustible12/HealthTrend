@@ -376,7 +376,12 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  var x by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  var swipeX by remember(page.id){mutableFloatStateOf(0f)}
- val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri))}.fold({it to null},{null to "原图无法读取：${it.message}"})}}
+ val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
+  value=withContext(Dispatchers.IO){
+   runCatching{decodeReportBitmap(context,Uri.parse(page.imageUri),maxPixels=24_000_000L,maxDimension=16_000)}
+    .fold({it to null},{null to "原图无法读取：${it.message}"})
+  }
+ }
  LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,zoom);x=focused.x;y=focused.y}}
  Box(
   modifier.clipToBounds().onSizeChanged{viewport=it}
