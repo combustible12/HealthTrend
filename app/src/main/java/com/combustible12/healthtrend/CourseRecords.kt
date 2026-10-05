@@ -117,7 +117,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
     if(record.symptomText.isNotBlank())CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText,true)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
-    if(record.noteText.isNotBlank())CourseTextRow(Icons.Outlined.Notes,record.noteText)
+    if(record.noteText.isNotBlank())CourseTextRow(Icons.Outlined.Notes,record.noteText,true)
    }
   }
  }
