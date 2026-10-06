@@ -347,7 +347,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       Text(weightDate,fontSize=16.sp,color=Ink)
       Icon(Icons.Outlined.DateRange,"选择日期",tint=Accent)
      }
-     Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
+     Column(Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
       Text("体重 kg",fontSize=12.sp,color=Muted)
       BasicTextField(
        value=weightText,
