@@ -325,7 +325,7 @@ fun metricPurpose(metricKey:String):String?=when(metricKey){
  "WBC"->"↑感染/炎症 / ↓感染防御不足"
  "NEUT#"->"↑细菌感染/炎症 / ↓感染防御不足"
  "NEUT%"->"↑细菌感染/炎症"
- "LYMPH#","LYMPH%"->"↑病毒感染等"
+ "LYMPH#","LYMPH%"->"↑病毒感染时可升高"
  "MONO#","MONO%"->"↑感染/炎症"
  "EOS#","EOS%"->"↑过敏/寄生虫感染"
  "BASO#","BASO%"->"↑过敏/炎症"
