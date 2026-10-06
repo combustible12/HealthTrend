@@ -348,7 +348,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
  val key=result.metricKey
- val liver=setOf("ALT","AST","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA")
+ val liver=setOf("ALT","AST","AST/ALT","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA","CHE")
  val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
  val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#")
  return when(category){
