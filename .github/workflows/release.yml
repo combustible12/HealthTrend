@@ -1,5 +1,6 @@
 name: Publish HealthTrend
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths: [release/ready.json]
