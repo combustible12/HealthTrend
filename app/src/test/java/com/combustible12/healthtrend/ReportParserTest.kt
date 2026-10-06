@@ -640,4 +640,34 @@ P-LCR 大小血小板数目 59 30-90 10^9/L
   assertEquals("10^9/L",row("WBC").unit);assertTrue(rows.none{it.displayName.contains("上NEUT")||it.displayName.contains("FLYMPH")||it.displayName.contains("I嗜酸")||it.unit=="109/L"})
  }
 
+ @Test fun pastedBiochemistryCarriesAllFifteenResultsIntoCurrentTemplate(){
+  val raw="""医院：霞浦县中医院
+检查类型：生化
+
+TP 总蛋白 78.10 g/L 65-85
+ALB 白蛋白 44.30 g/L 40-55
+GLOB 球蛋白 33.80 g/L 20-40
+A/G 白球比 1.3 1.5-2.5
+TBIL 总胆红素 7.25 μmol/L 3.4-20.6
+DBIL 直接胆红素 1.10 μmol/L ≤6.84
+IBIL 间接胆红素 6.15 μmol/L 2-15.22
+ALT 谷丙转氨酶 25 U/L 7-40
+AST 谷草转氨酶 22 U/L 13-35
+GGT 谷氨酰转肽酶 16 U/L 7-45
+AST/ALT 谷草/谷丙 0.88
+ALP 碱性磷酸酶 70 U/L 50-130
+CHE 胆碱酯酶 9032 U/L 5000-
+TBA 总胆汁酸 4.0 μmol/L ≤10
+PA 前白蛋白 313.5 mg/L 170-420"""
+  val draft=pastedReportDraft(raw,xiapuBiochemistryTemplate())
+  val expected=linkedMapOf("TP" to "78.10","ALB" to "44.30","GLOB" to "33.80","A/G" to "1.3","TBIL" to "7.25","DBIL" to "1.10","IBIL" to "6.15","ALT" to "25","AST" to "22","GGT" to "16","AST/ALT" to "0.88","ALP" to "70","CHE" to "9032","TBA" to "4.0","PA" to "313.5")
+  val actual=draft.rows.filter{it.key in expected}.associate{it.key to it.value}
+  assertEquals(expected,actual)
+  assertEquals(15,actual.size)
+  assertEquals("g/L",draft.rows.single{it.key=="TP"}.unit)
+  assertEquals("65.0",draft.rows.single{it.key=="TP"}.low)
+  assertEquals("85.0",draft.rows.single{it.key=="TP"}.high)
+  assertEquals("",draft.rows.single{it.key=="AST/ALT"}.unit)
+ }
+
 }
