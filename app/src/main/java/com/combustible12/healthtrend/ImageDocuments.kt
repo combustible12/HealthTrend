@@ -148,6 +148,15 @@ class ImageDocumentStore(private val context:Context){
   require(document.title.isNotBlank());require(document.pages.isNotEmpty())
   write(all().filterNot{it.id==document.id}+document)
  }
+ @Synchronized fun reorderPages(documentId:String,orderedPageIds:List<String>):ImageDocument{
+  val documents=all()
+  val current=documents.firstOrNull{it.id==documentId}?:error("图片资料不存在")
+  require(orderedPageIds.size==current.pages.size&&orderedPageIds.toSet()==current.pages.map{it.id}.toSet()){"图片排序数据不完整"}
+  val byId=current.pages.associateBy{it.id}
+  val updated=current.copy(pages=orderedPageIds.mapIndexed{index,id->requireNotNull(byId[id]).copy(pageIndex=index)})
+  write(documents.map{if(it.id==documentId)updated else it})
+  return updated
+ }
  @Synchronized fun delete(document:ImageDocument){
   write(all().filterNot{it.id==document.id})
   document.pages.forEach(::deleteOwnedImage)
@@ -504,7 +513,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   dismissButton={TextButton({confirmDeleteDocument=false}){Text("取消")}}
  )
  if(confirmDiscard)AlertDialog(onDismissRequest={confirmDiscard=false},title={Text("标题尚未保存")},text={Text("确定放弃本次标题修改吗？")},confirmButton={TextButton({confirmDiscard=false;onClose()}){Text("放弃")}},dismissButton={TextButton({confirmDiscard=false}){Text("继续编辑")}})
- if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false},{index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}){from,to->val pages=document.pages.toMutableList();val moved=pages.removeAt(from);pages.add(to,moved);document=document.copy(pages=pages.mapIndexed{i,p->p.copy(pageIndex=i)});onSaved(document);savedTitle=document.title;pageIndex=to}
+ if(showGrid)ImageDocumentGrid(document,pageIndex,{showGrid=false},{index->pageIndex=index;matches=emptyList();matchPosition=0;showGrid=false}){from,to->
+  val pages=document.pages.toMutableList();val moved=pages.removeAt(from);pages.add(to,moved)
+  val updated=store.reorderPages(document.id,pages.map{it.id})
+  document=updated;onSaved(updated);savedTitle=updated.title;pageIndex=to
+ }
 }
 
 @Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit,onMove:(Int,Int)->Unit){
