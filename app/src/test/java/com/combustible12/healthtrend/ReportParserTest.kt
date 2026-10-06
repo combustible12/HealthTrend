@@ -113,6 +113,27 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals("AST/ALT 谷草/谷丙",labDisplayTitle("AST/ALT 谷草/谷丙","AST"))
  }
 
+
+ @Test fun pollutedXiapuBiochemistryTemplateRepairsIdentityWithoutOverwritingUserFields(){
+  val storeRepair=HealthStore::class.java.getDeclaredMethod("repairXiacuBiochemistryTemplate",HospitalLabTemplate::class.java).apply{isAccessible=true}
+  val polluted=HospitalLabTemplate("霞浦县中医院","生化",7,true,listOf(
+   LabFieldTemplate("AST","AST 谷草转氨酶","U/L",13.0,35.0,"用户说明A"),
+   LabFieldTemplate("AST","AST/ALT 谷草/谷丙","自定义单位",null,null,"用户说明B")
+  ))
+  val repaired=storeRepair.invoke(null,polluted) as HospitalLabTemplate
+  assertEquals(listOf("AST","AST/ALT"),repaired.fields.map{it.metricKey})
+  assertEquals("自定义单位",repaired.fields[1].unit)
+  assertEquals("用户说明B",repaired.fields[1].trendMeaning)
+  val raw="""霞浦县中医院
+生化
+2026-10-06
+AST 谷草转氨酶 22 U/L 13-35
+AST/ALT 谷草/谷丙 0.88"""
+  val draft=pastedReportDraft(raw,repaired)
+  assertEquals("22",draft.rows.single{it.key=="AST"}.text)
+  assertEquals("0.88",draft.rows.single{it.key=="AST/ALT"}.text)
+ }
+
  @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
   val raw="医院：测试医院\n检查类型：肾功能\n报告日期：2026/9/29\nUREA 尿素 5.2 mmol/L 1.43-7.14"
   val draft=pastedReportDraft(raw)
