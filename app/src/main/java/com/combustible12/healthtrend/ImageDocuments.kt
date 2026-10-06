@@ -604,6 +604,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
  var swipeX by remember(page.id){mutableFloatStateOf(0f)}
  var pinchScale by remember(page.id){mutableFloatStateOf(1f)}
+ var freePan by rememberSaveable(page.id){mutableStateOf(false)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
   value=withContext(Dispatchers.IO){
    val longNarrow=page.imageWidth<=2_000&&page.imageHeight>=8_000
@@ -620,7 +621,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     detectTapGestures(onTap={onSingleTap()},onDoubleTap={tap->
      if(viewport.width<=0||viewport.height<=0||page.imageWidth<=0||page.imageHeight<=0)return@detectTapGestures
      if(zoom>1.05f){
-      zoom=1f;x=0f;y=0f;swipeX=0f
+      zoom=1f;x=0f;y=0f;swipeX=0f;freePan=false
      }else{
       val fit=min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight)
       val fittedWidth=page.imageWidth*fit
@@ -630,6 +631,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
        val ratio=target/zoom
        val cy=tap.y-viewport.height/2f
        zoom=target
+       freePan=false
        x=0f
        y=transformedTranslation(y,cy,ratio,0f)
        swipeX=0f
@@ -644,15 +646,18 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
     val maxZoom=maxOf(8f,widthFill*1.5f).coerceAtMost(32f)
     val next=(zoom*scale).coerceIn(1f,maxZoom)
+    val isPinching=abs(scale-1f)>=.015f
+    if(isPinching&&scale>1.005f)freePan=true
+    if(next<=1.01f&&isPinching)freePan=false
     if(zoom<=1.01f&&scale<.995f){
      pinchScale*=scale
      swipeX=0f
      if(pinchScale<=.82f){pinchScale=1f;onPinchIn()}
     }else{
      if(scale>=1f)pinchScale=1f
-     val atRest=zoom<=1.01f&&next<=1.01f&&abs(scale-1f)<.015f
      val horizontal=abs(pan.x)>abs(pan.y)*1.15f
-     if(atRest&&horizontal){
+     // Horizontal page switching stays available at every zoom level.
+     if(horizontal&&!isPinching){
       swipeX+=pan.x
       val threshold=(viewport.width*.16f).coerceIn(56f,120f)
       when{
@@ -664,10 +669,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
       val ratio=next/zoom
       val cx=centroid.x-viewport.width/2f
       val cy=centroid.y-viewport.height/2f
-      if(zoom>1.01f||next>1.01f){
+      if(freePan){
        x=transformedTranslation(x,cx,ratio,pan.x)
        y=transformedTranslation(y,cy,ratio,pan.y)
       }else{
+       // Double-tap width-fill reading is vertically locked.
        x=0f
        y=transformedTranslation(y,cy,ratio,pan.y)
       }
