@@ -235,10 +235,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
-  Box(Modifier.fillMaxWidth().weight(1f,fill=true).pointerInput(category,trendCategories){
+  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){
    detectHorizontalDragGestures(
     onDragStart={categorySwipe=0f},
-    onHorizontalDrag={change,dragAmount->change.consume();categorySwipe+=dragAmount},
+    onHorizontalDrag={change,dragAmount->categorySwipe+=dragAmount},
     onDragCancel={categorySwipe=0f},
     onDragEnd={
      val i=trendCategories.indexOf(category)
