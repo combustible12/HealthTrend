@@ -47,10 +47,11 @@ object ReportParser {
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
   if(key(trimmed)!="未识别")return@joinToString trimmed
-  val firstNumber=numeric.find(trimmed)?.range?.first?:trimmed.length
-  val header=trimmed.substring(0,firstNumber)
-  val explicit=knownCode.findAll(header).map{normalizeCode(it.value)}.filter{it in metricIdentityKeys}.distinct().toList()
-  if(explicit.size==1)"（${explicit.single()}） $trimmed" else line
+  // Clipboard contract: the first whitespace-delimited token is the complete metric code.
+  // Identity is exact: AST != AST/ALT, NEUT# != NEUT%, P-LCR != P-LCC.
+  val token=trimmed.substringBefore(' ').substringBefore('\t').trim()
+  val explicit=normalizeCode(token)
+  if(explicit in metricIdentityKeys)"（$explicit） "+trimmed.removePrefix(token).trimStart() else line
  }
  private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
