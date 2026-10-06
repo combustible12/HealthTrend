@@ -89,23 +89,11 @@ object ReportParser {
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
-  val bracketIdentity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(line).map{normalizeCode(it.groupValues[1])}.firstOrNull{it=="AST"||it=="AST/ALT"}
-  val ratioLine=bracketIdentity=="AST/ALT"
-  val astLine=bracketIdentity=="AST"
   val kIdentity=key(name)
   if(kIdentity=="未识别")return@mapNotNull null
   var k=kIdentity
-  // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
-  // The Chinese row label and unit disambiguate it; keep one stable internal identity.
-  if(k=="P-LCR" && (name.contains("大小血小板数目")||name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
-  // OCR commonly confuses the leading #/% markers with Chinese strokes (e.g. 上NEUT, 红MPH, 三MONO).
-  // For differential rows the Chinese label is authoritative when the Latin prefix is damaged.
-  val aliasKey=aliases.entries.filter{(label,_)->name.contains(label)&&!(label=="球蛋白"&&name.contains("白蛋白"))}.maxByOrNull{it.key.length}?.value
-  // A valid printed code is authoritative. Chinese text only replaces it when the OCR code
-  // is absent/damaged, except the known P-LCR duplicate-token count row handled above.
-
   val unit=resolvedUnit(k,ocrUnit)
-  if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
+  if(k=="未识别" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
  }
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
