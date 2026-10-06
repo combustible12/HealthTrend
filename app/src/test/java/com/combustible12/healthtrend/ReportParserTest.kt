@@ -670,4 +670,41 @@ PA 前白蛋白 313.5 mg/L 170-420"""
   assertEquals("",draft.rows.single{it.key=="AST/ALT"}.unit)
  }
 
+ @Test fun pastedCbcAlsoCarriesAllTwentySevenResultsThroughSameGenericPath(){
+  val raw="""医院：霞浦县中医院
+检查类型：血常规
+WBC 白细胞 8.42 3.5-9.5 10^9/L
+#NEUT 中性粒细胞计数 5.80 2.00-7.00 10^9/L
+%NEUT 中性粒细胞百分比 69.0 50.0-70.0 %
+#LYMPH 淋巴细胞计数 2.20 0.80-4.00 10^9/L
+%LYMPH 淋巴细胞百分比 26.1 20.0-40.0 %
+#MONO 单核细胞计数 0.37 0.12-1.2 10^9/L
+%MONO 单核细胞百分比 4.4 3-12 %
+#EOS 嗜酸性粒细胞计数 0.04 0.02-0.5 10^9/L
+%EOS 嗜酸性粒细胞百分比 0.4 0.5-5 %
+#BASO 嗜碱性粒细胞计数 0.01 0.00-0.10 10^9/L
+%BASO 嗜碱性粒细胞百分比 0.1 0.0-1.0 %
+RBC 红细胞 4.19 3.68-5.13 10^12/L
+HGB 血红蛋白 115 113-151 g/L
+HCT 红细胞压积 35.60 34-45 %
+MCV 红细胞平均体积 84.8 80-100 fL
+MCH 平均红细胞血红蛋白量 27.4 27-34 pg
+MCHC 平均血红蛋白浓度 323 320-360 g/L
+RDW 红细胞分布宽度 13.1 11-16 %
+RDW-SD 红细胞分布宽度SD 41 35-56 fL
+PLT 血小板 204 100-300 10^9/L
+PCT 血小板压积 0.178 0.108--
+MPV 平均血小板体积 8.8 6.5-12 fL
+PDW 血小板分布宽度 16.7 15-17 %
+P-LCR 大型血小板比率 15.9 11-45
+%NRBC 有核红细胞比率 0.00 <=9999.99
+#NRBC 有核红细胞计数 0.000 <=9999.99
+P-LCC 大血小板数目 40 30-90 10^9/L"""
+  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalizePastedReportText(raw)))
+  assertEquals(27,parsed.size)
+  val expected=listOf("8.42","5.80","69.0","2.20","26.1","0.37","4.4","0.04","0.4","0.01","0.1","4.19","115","35.60","84.8","27.4","323","13.1","41","204","0.178","8.8","16.7","15.9","0.00","0.000","40")
+  assertEquals(expected,parsed.map{it.textValue})
+  assertEquals(27,parsed.map{it.metricKey}.distinct().size)
+ }
+
 }
