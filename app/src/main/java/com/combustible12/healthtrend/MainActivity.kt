@@ -214,7 +214,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().border(1.dp,Color(0xFF7B7B82),RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
-  if(category=="体重"){
+  if(category=="体重"&&query.isBlank()){
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";weightDate=java.time.LocalDate.now().toString();showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
     val w=weights.last()
@@ -222,11 +222,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Spark(points=weights.map{it.measuredAtEpochMillis to it.kilograms},color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={},metricKey="WEIGHT",pointDescriptions=weights.map{"体重 "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=weights.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},onShowPreview={})
    }
   }
-  val filtered=all.filter{(key,list)->store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)&&(x.rawName.contains(query,true)||key.contains(query,true))}}
-  if(category!="体重"&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
-  if(category!="体重")filtered.forEach{(key,list)->
+  val searching=query.isNotBlank()
+  val filtered=all.filter{(key,list)->
+   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
+   matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
+  }
+  if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
+  if(category!="体重"||searching)filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
-   val points=list.filter{trendCategoryMatches(category,it.first,it.second)&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
+   val points=list.filter{(searching||trendCategoryMatches(category,it.first,it.second))&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
