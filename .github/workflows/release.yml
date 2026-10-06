@@ -1,32 +1,17 @@
 name: Publish HealthTrend
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths: [release/ready.json]
 permissions:
   contents: write
-concurrency:
-  group: healthtrend-release
-  cancel-in-progress: false
-
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Skip already published release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION_CODE=$(python -c "import json; print(json.load(open('release/ready.json'))['versionCode'])")
-          if gh release view "v$VERSION_CODE" >/dev/null 2>&1; then
-            echo "Release v$VERSION_CODE already exists."
-            exit 0
-          fi
       - name: Prepare signed release
         env:
           KEY: ${{ secrets.HEALTHTREND_KEYSTORE_BASE64 }}
