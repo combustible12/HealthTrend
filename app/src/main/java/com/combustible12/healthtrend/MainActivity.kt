@@ -245,11 +245,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val latestStatus=latest.status()
    val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
+    var meaningDetail by remember{mutableStateOf(false)}
+    val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{it.metricKey==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val fixedTitle=labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
-      val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{it.metricKey==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{meaningDetail=true})}
       Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
