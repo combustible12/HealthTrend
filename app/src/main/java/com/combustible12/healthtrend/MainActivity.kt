@@ -437,13 +437,14 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val groupGap=16.dp
  val edgePadding=12.dp
  val pointByDate=points.indices.associateBy{points[it].first}
- val groupWidths=timeline.map{date->
+ val groupWidthsPx=timeline.map{date->
   val pointIndex=pointByDate[date] ?: -1
   val value=if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else ""
-  val datePx=textMeasurer.measure(trendShortDate(date),dateStyle).size.width
-  val valuePx=if(value.isBlank())0 else textMeasurer.measure(value,valueStyle).size.width
-  with(density){maxOf(datePx,valuePx).toDp()}
+  val datePx=textMeasurer.measure(text=trendShortDate(date),style=dateStyle,maxLines=1).size.width
+  val valuePx=if(value.isBlank())0 else textMeasurer.measure(text=value,style=valueStyle,maxLines=1).size.width
+  maxOf(datePx,valuePx)
  }
+ val groupWidths=groupWidthsPx.map{px->with(density){px.toDp()}}
  val centers=mutableListOf<androidx.compose.ui.unit.Dp>()
  var cursor=edgePadding
  groupWidths.forEachIndexed{i,w->
@@ -493,8 +494,8 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     val groupWidth=groupWidths[slot]
     val center=centered[slot]
     Column(Modifier.offset(x=center-groupWidth/2,y=plotHeight+4.dp).width(groupWidth),horizontalAlignment=Alignment.CenterHorizontally){
-     Text(trendShortDate(date),fontSize=10.sp,lineHeight=11.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",fontSize=13.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+     Text(trendShortDate(date),style=dateStyle.copy(lineHeight=11.sp,color=Muted,textAlign=TextAlign.Center),maxLines=1)
+     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",style=valueStyle.copy(lineHeight=14.sp,color=color,textAlign=TextAlign.Center),maxLines=1)
     }
    }
   }
