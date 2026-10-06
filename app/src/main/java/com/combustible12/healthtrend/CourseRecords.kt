@@ -165,14 +165,14 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date);val valid=record.title.isNotBlank()&&selectedDate!=null&&!busy
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=selectedDate!!))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
+ FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=selectedDate!!))},Modifier.weight(1f),enabled=valid){Text("保存记录",color=Color.White)};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
   Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
-   OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},label={Text("症状内容")},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},placeholder={Text("症状内容")},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    Button({checkPicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加检查图片")}
@@ -182,7 +182,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    Button({medicinePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加药品图片")}
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->record=record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=i})}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
-   OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},label={Text("备注（选填）")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},placeholder={Text("备注（选填）")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
@@ -195,7 +195,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val query=value.trim()
  val suggestions=options.filter{it!=query&&(query.isBlank()||it.contains(query,ignoreCase=true))}.take(5)
  Column(Modifier.fillMaxWidth()){
-  OutlinedTextField(value,onChange,label={Text(label)},modifier=Modifier.fillMaxWidth().onFocusChanged{focused=it.isFocused},singleLine=minLines==1,minLines=minLines,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+  OutlinedTextField(value,onChange,placeholder={Text(label)},modifier=Modifier.fillMaxWidth().onFocusChanged{focused=it.isFocused},singleLine=minLines==1,minLines=minLines,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
   if(focused&&suggestions.isNotEmpty())Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(bottomStart=12.dp,bottomEnd=12.dp),color=Color.White,shadowElevation=3.dp){
    Column{suggestions.forEachIndexed{index,option->
     Text(option,Modifier.fillMaxWidth().clickable{onChange(option)}.padding(horizontal=14.dp,vertical=11.dp),maxLines=2,overflow=TextOverflow.Ellipsis)
@@ -208,7 +208,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 @Composable private fun CourseDateField(value:String,onChange:(String)->Unit){
  val context=LocalContext.current
  Box(Modifier.fillMaxWidth()){
-  OutlinedTextField(value,{},Modifier.fillMaxWidth(),label={Text("日期")},trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+  OutlinedTextField(value,{},Modifier.fillMaxWidth(),trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
   Box(Modifier.matchParentSize().clickable{
    val initial=runCatching{LocalDate.parse(value)}.getOrElse{LocalDate.now()}
    android.app.DatePickerDialog(context,{_,year,month,day->
