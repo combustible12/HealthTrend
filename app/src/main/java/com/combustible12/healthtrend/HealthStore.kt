@@ -34,9 +34,10 @@ class HealthStore(private val context:Context) {
     val row=results.getJSONObject(j)
     if(row.optString("key")!="AST")continue
     val evidence=listOf(row.optString("raw"),row.optString("line")).joinToString(" ")
+    // Historical repair is allowed only with explicit AST/ALT code evidence.
+    // Never infer identity from the Chinese display name.
     val explicitAstAlt=Regex("[（(]\\s*AST/ALT\\s*[）)]",RegexOption.IGNORE_CASE).containsMatchIn(evidence) ||
-     Regex("(?i)(?:^|\\s)AST/ALT(?:\\s|$)").containsMatchIn(evidence) ||
-     row.optString("raw").contains("谷草/谷丙")
+     Regex("(?i)(?:^|\\s)AST/ALT(?:\\s|$)").containsMatchIn(evidence)
     if(!explicitAstAlt)continue
     val already=(0 until results.length()).any{k->k!=j&&results.getJSONObject(k).optString("key")=="AST/ALT"}
     if(already){remove+=j;changed=true;continue}
