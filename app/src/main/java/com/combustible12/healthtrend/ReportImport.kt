@@ -98,7 +98,24 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):Re
  // guess by name and does not change the stored template.
  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized))
  val meta=ReportMetadata.extract(raw,parsed)
- val resolved=if(template!=null)templateDrivenResults(parsed,template) else parsed
+ // Clipboard data already has an explicit metric code on every row. Exact canonical
+ // code matching is sufficient here; do not run the OCR-only "independent result"
+ // heuristic, because units such as 10^9/L contain digits before the printed range.
+ // The confirmed template still owns name/order/unit/reference, and only pasted metrics
+ // are emitted, so a 15-item report remains exactly 15 items.
+ val resolved=if(template!=null){
+  val byKey=parsed.groupBy{it.metricKey}
+  template.fields.mapNotNull{field->
+   val source=byKey[field.metricKey]?.singleOrNull() ?: return@mapNotNull null
+   if(source.textValue.isBlank())return@mapNotNull null
+   ParsedLabResult(
+    metricKey=field.metricKey,displayName=field.displayName,value=source.value,
+    unit=displayLabUnit(field.unit),referenceLow=field.referenceLow,referenceHigh=field.referenceHigh,
+    rawLine=source.rawLine,primary=field.metricKey in ReportParser.primaryKeys,
+    textValue=source.textValue,comparator=source.comparator
+   )
+  }
+ }else parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=normalized,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain
