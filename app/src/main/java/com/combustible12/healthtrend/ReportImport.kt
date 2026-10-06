@@ -93,7 +93,10 @@ internal fun normalizePastedReportText(raw:String)=raw.lines().map{it.trim()}.fi
  */
 internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):ReportDraft{
  val normalized=normalizePastedReportText(raw)
- val parsed=ReportParser.parse(normalized)
+ // Clipboard rows commonly start with an explicit analyzer code (for example "TP 总蛋白 78.10 ...").
+ // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
+ // guess by name and does not change the stored template.
+ val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized))
  val meta=ReportMetadata.extract(raw,parsed)
  val resolved=if(template!=null)templateDrivenResults(parsed,template) else parsed
  return ReportDraft(
