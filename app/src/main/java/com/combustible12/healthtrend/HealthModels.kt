@@ -15,7 +15,7 @@ fun labDisplayTitle(name:String,key:String):String{
   .replace(Regex("[（(]\\s*(?:$pattern)\\s*[）)]",RegexOption.IGNORE_CASE),"")
   .replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
   .replace(Regex("[（(]\\s*[）)]"),"").replace(Regex("\\s+")," ").trim()
- return if(clean.isBlank()) "（$key）" else "$clean（$key）"
+ return clean.ifBlank{key}
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
