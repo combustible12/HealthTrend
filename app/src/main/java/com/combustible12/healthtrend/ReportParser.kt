@@ -87,10 +87,11 @@ object ReportParser {
   val prefix=if(isText)textual!!.groupValues[1] else line.substring(0,match!!.range.first)
   val parsedName=prefix.replace(Regex("(?<=[\\p{IsHan}])\\s+(?=[\\p{IsHan}])"),"").trim().trimEnd(':','↑','↓','*').replace(Regex("^\\d+[.、]\\s*"),"")
   if(parsedName.isBlank() || !parsedName.any{it.isLetter()} || parsedName.length>55) return@mapNotNull null
-  val name=when{
-   Regex("(?i)^AST(?:\\s|$)").containsMatchIn(parsedName) && !parsedName.contains("AST/ALT",true) && (parsedName.contains("谷草转酶")||parsedName.contains("谷草转氨酶")||parsedName.contains("天门冬氨酸氨基转移酶"))->"AST 谷草转氨酶"
-   else->parsedName
-  }
+  // Identity and display text are separate. Parenthesized code is internal only.
+  val kIdentity=key(parsedName)
+  if(kIdentity=="未识别")return@mapNotNull null
+  val identityPattern=Regex("[（(]\\s*"+Regex.escape(kIdentity)+"\\s*[）)]",RegexOption.IGNORE_CASE)
+  val name=parsedName.replace(identityPattern,"").replace(Regex("\\s+")," ").trim().ifBlank{kIdentity}
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?\\d+(?:\\.\\d+)?)").find(suffix)
@@ -102,8 +103,6 @@ object ReportParser {
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
-  val kIdentity=key(name)
-  if(kIdentity=="未识别")return@mapNotNull null
   var k=kIdentity
   val unit=resolvedUnit(k,ocrUnit)
   if(k=="未识别" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
