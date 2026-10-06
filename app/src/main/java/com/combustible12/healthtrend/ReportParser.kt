@@ -47,12 +47,10 @@ object ReportParser {
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
   if(key(trimmed)!="未识别")return@joinToString trimmed
-  // Clipboard rows are code-led by contract. Read the first token as identity
-  // instead of searching the whole pre-value header: Chinese names such as
-  // "白细胞" must never be mistaken for the WBC code that precedes them.
-  val token=trimmed.substringBefore(' ').trim()
-  val explicit=normalizeCode(token)
-  if(explicit in metricIdentityKeys)"（$explicit） $trimmed" else line
+  val firstNumber=numeric.find(trimmed)?.range?.first?:trimmed.length
+  val header=trimmed.substring(0,firstNumber)
+  val explicit=knownCode.findAll(header).map{normalizeCode(it.value)}.filter{it in metricIdentityKeys}.distinct().toList()
+  if(explicit.size==1)"（${explicit.single()}） $trimmed" else line
  }
  private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
