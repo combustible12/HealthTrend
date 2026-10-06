@@ -25,7 +25,7 @@ class HealthStore(private val context:Context) {
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
- private fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
+ internal fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
   if(t.hospitalKey.trim()!="霞浦县中医院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
   val repaired=t.fields.map{field->
    // Repair identity only. Preserve user-edited name/unit/range/trend meaning.
