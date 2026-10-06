@@ -661,7 +661,7 @@ TBA 总胆汁酸 4.0 μmol/L ≤10
 PA 前白蛋白 313.5 mg/L 170-420"""
   val draft=pastedReportDraft(raw,xiapuBiochemistryTemplate())
   val expected=linkedMapOf("TP" to "78.10","ALB" to "44.30","GLOB" to "33.80","A/G" to "1.3","TBIL" to "7.25","DBIL" to "1.10","IBIL" to "6.15","ALT" to "25","AST" to "22","GGT" to "16","AST/ALT" to "0.88","ALP" to "70","CHE" to "9032","TBA" to "4.0","PA" to "313.5")
-  val actual=draft.rows.filter{it.key in expected}.associate{it.key to it.value}
+  val actual=draft.rows.filter{it.key in expected}.associate{it.key to it.text}
   assertEquals(expected,actual)
   assertEquals(15,actual.size)
   assertEquals("g/L",draft.rows.single{it.key=="TP"}.unit)
