@@ -39,22 +39,10 @@ object ReportParser {
   return if(validAlternative) ocr else expected
  }
  fun key(name:String):String {
-  val clean=name.trim().replace(" ","")
-  val upper=clean.uppercase().replace('‑','-').replace('–','-')
-  if(upper.contains("RDW-SD"))return "RDW-SD"
-  if(upper.contains("P-LCR"))return "P-LCR"
-  if(upper.contains("P-LCC"))return "P-LCC"
-  val astAlt=clean.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(clean)
-  if(astAlt)return "AST/ALT"
-  val ast=clean.contains("谷草转氨酶")&&!clean.contains("谷草/谷丙")&&!clean.contains("/")||
-   Regex("(?i)(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])").containsMatchIn(clean)
-  if(ast)return "AST"
-  aliases[clean]?.let{return it}
-  aliases[clean.substringBefore("(").substringBefore("（")]?.let{return it}
-  Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])|(?<![A-Za-z])AST(?!/?ALT)(?![A-Za-z])|A/G|[#%][A-Za-z]+|[A-Za-z]+[#%]?").findAll(clean).map{normalizeCode(it.value)}.firstOrNull{it in primaryKeys || it in setOf("AST/ALT","A/G","NEUT%","RBC","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","NRBC#","NRBC%","P-LCR","P-LCC","RDW-SD","MCV","MCH","MCHC","RDW","MPV","PDW","PCT","HCT","LDH") }?.let{return it}
-  return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
+  val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
+  return identity?.takeIf{it in metricIdentityKeys} ?: "未识别"
  }
- private val astKeySelfCheck by lazy {
+ private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH")\n private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
   check(key("谷草/谷丙（AST/ALT）")=="AST/ALT")
   check(key("谷草/谷丙（AST/ALT）")!="AST")
@@ -103,8 +91,9 @@ object ReportParser {
   val bracketIdentity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(line).map{normalizeCode(it.groupValues[1])}.firstOrNull{it=="AST"||it=="AST/ALT"}
   val ratioLine=bracketIdentity=="AST/ALT"
   val astLine=bracketIdentity=="AST"
-  val explicitCode=knownCode.find(name)?.value
-  var k=when{ratioLine->"AST/ALT";astLine->"AST";else->explicitCode?.let(::normalizeCode) ?: key(name)}
+  val kIdentity=key(name)
+  if(kIdentity=="未识别")return@mapNotNull null
+  var k=kIdentity
   // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
   // The Chinese row label and unit disambiguate it; keep one stable internal identity.
   if(k=="P-LCR" && (name.contains("大小血小板数目")||name.contains("大血小板数目")||name.contains("大型血小板数目")) && !name.contains("比率"))k="P-LCC"
@@ -113,7 +102,7 @@ object ReportParser {
   val aliasKey=aliases.entries.filter{(label,_)->name.contains(label)&&!(label=="球蛋白"&&name.contains("白蛋白"))}.maxByOrNull{it.key.length}?.value
   // A valid printed code is authoritative. Chinese text only replaces it when the OCR code
   // is absent/damaged, except the known P-LCR duplicate-token count row handled above.
-  if(explicitCode==null && !ratioLine && !astLine)aliasKey?.let{k=it}
+
   val unit=resolvedUnit(k,ocrUnit)
   if(k=="未命名" || listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
