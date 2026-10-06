@@ -264,7 +264,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
-    var meaningDetail by remember{mutableStateOf(false)}
     val compatibleSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
      .groupBy{(r,x)->trendSeriesKey(x) to r.systemKey}.values.toList()
     Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
