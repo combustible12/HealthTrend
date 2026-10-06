@@ -234,7 +234,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
-  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){detectDragGestures(onDragStart={categorySwipe=0f},onDragCancel={categorySwipe=0f},onDragEnd={val i=trendCategories.indexOf(category);if(categorySwipe< -90f&&i<trendCategories.lastIndex)category=trendCategories[i+1] else if(categorySwipe>90f&&i>0)category=trendCategories[i-1];categorySwipe=0f}){change,amount->if(kotlin.math.abs(amount.x)>kotlin.math.abs(amount.y)){change.consume();categorySwipe+=amount.x}}}){
+  Box(Modifier.fillMaxWidth().weight(1f,fill=true).pointerInput(category,trendCategories){detectDragGestures(onDragStart={categorySwipe=0f},onDragCancel={categorySwipe=0f},onDragEnd={val i=trendCategories.indexOf(category);if(categorySwipe< -90f&&i<trendCategories.lastIndex)category=trendCategories[i+1] else if(categorySwipe>90f&&i>0)category=trendCategories[i-1];categorySwipe=0f}){change,amount->if(kotlin.math.abs(amount.x)>kotlin.math.abs(amount.y)){change.consume();categorySwipe+=amount.x}}}){
    Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
