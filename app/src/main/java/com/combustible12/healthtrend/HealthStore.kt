@@ -27,17 +27,17 @@ class HealthStore(private val context:Context) {
  }
  private fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
   if(t.hospitalKey.trim()!="霞浦县中医院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
-  val standard=xiapuBiochemistryTemplate().fields.associateBy{it.metricKey}
   val repaired=t.fields.map{field->
-   val title=field.displayName.replace(Regex("^[A-Z/]+\\s*",RegexOption.IGNORE_CASE),"").trim()
-   when(title){
-    "谷草转氨酶"->standard.getValue("AST")
-    "谷草/谷丙"->standard.getValue("AST/ALT")
+   // Repair identity only. Preserve user-edited name/unit/range/trend meaning.
+   val explicit=field.displayName.trim().substringBefore(' ').uppercase()
+   when(explicit){
+    "AST"->if(field.metricKey=="AST")field else field.copy(metricKey="AST")
+    "AST/ALT"->if(field.metricKey=="AST/ALT")field else field.copy(metricKey="AST/ALT")
     else->field
    }
   }
-  // Never persist a repair that creates duplicate identities.
-  return if(repaired.map{it.metricKey}.distinct().size==repaired.size)t else t.copy(fields=repaired)
+  // Persist only a safe repair: every metric identity must remain unique.
+  return if(repaired.map{it.metricKey}.distinct().size==repaired.size)t.copy(fields=repaired) else t
  }
  private fun migrateAstAltIdentity(){
   val raw=read("reports");var changed=false
