@@ -65,7 +65,7 @@ val LocalPageVisible=staticCompositionLocalOf{true}
  }}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
-@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){OutlinedTextField(value,onChange,label={Text(label)},modifier=m.fillMaxWidth(),singleLine=true,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}})}
+@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(5.dp)){Text(label,fontSize=13.sp,color=Ink,modifier=Modifier.padding(start=10.dp));Row(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(start=14.dp,end=4.dp),verticalAlignment=Alignment.CenterVertically){BasicTextField(value,onChange,Modifier.weight(1f).padding(vertical=16.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink));if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}}}}
 @Composable fun RememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,m:Modifier=Modifier){
  val saved=options.map{it.trim()}.filter{it.isNotBlank()}.distinct()
  Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)){
