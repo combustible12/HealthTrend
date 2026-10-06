@@ -55,8 +55,9 @@ object ReportParser {
   return clean.uppercase().replace("NEUT％","NEUT%").ifBlank{"未命名"}
  }
  private val astKeySelfCheck by lazy {
-  check(key("AST 谷草转氨酶")=="AST")
-  check(key("AST/ALT 谷草/谷丙")=="AST/ALT")
+  check(key("谷草转氨酶（AST）")=="AST")
+  check(key("谷草/谷丙（AST/ALT）")=="AST/ALT")
+  check(key("谷草/谷丙（AST/ALT）")!="AST")
   true
  }
  private fun normalizeCode(raw:String):String{
@@ -99,8 +100,9 @@ object ReportParser {
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
-  val ratioLine=line.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(line)
-  val astLine=(line.contains("谷草转氨酶")||line.contains("谷草转酶"))&&!line.contains("谷草/谷丙")&&!line.contains("/")
+  val bracketIdentity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(line).map{normalizeCode(it.groupValues[1])}.firstOrNull{it=="AST"||it=="AST/ALT"}
+  val ratioLine=bracketIdentity=="AST/ALT" || (bracketIdentity==null && (line.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(line)))
+  val astLine=bracketIdentity=="AST" || (bracketIdentity==null && (line.contains("谷草转氨酶")||line.contains("谷草转酶"))&&!line.contains("谷草/谷丙")&&!line.contains("/"))
   val explicitCode=knownCode.find(name)?.value
   var k=when{ratioLine->"AST/ALT";astLine->"AST";else->explicitCode?.let(::normalizeCode) ?: key(name)}
   // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
