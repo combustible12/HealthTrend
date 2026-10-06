@@ -16,14 +16,28 @@ class HealthStore(private val context:Context) {
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
  private fun migrateCurrentTemplates(){
- val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
+  val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
    versions.withIndex().maxWithOrNull(compareBy<IndexedValue<HospitalLabTemplate>>{it.value.confirmed}
     .thenBy{it.value.version}.thenBy{it.index})?.value
-  }.toMutableList()
+  }.map(::repairXiacuBiochemistryTemplate).toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
+ }
+ private fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
+  if(t.hospitalKey.trim()!="霞浦县中医院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
+  val standard=xiapuBiochemistryTemplate().fields.associateBy{it.metricKey}
+  val repaired=t.fields.map{field->
+   val title=field.displayName.replace(Regex("^[A-Z/]+\\s*",RegexOption.IGNORE_CASE),"").trim()
+   when(title){
+    "谷草转氨酶"->standard.getValue("AST")
+    "谷草/谷丙"->standard.getValue("AST/ALT")
+    else->field
+   }
+  }
+  // Never persist a repair that creates duplicate identities.
+  return if(repaired.map{it.metricKey}.distinct().size==repaired.size)t else t.copy(fields=repaired)
  }
  private fun migrateAstAltIdentity(){
   val raw=read("reports");var changed=false
