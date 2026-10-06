@@ -434,7 +434,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val textMeasurer=rememberTextMeasurer()
  val dateStyle=TextStyle(fontSize=10.sp,fontWeight=FontWeight.Normal)
  val valueStyle=TextStyle(fontSize=13.sp,fontWeight=FontWeight.SemiBold)
- val groupGap=18.dp
+ val groupGap=16.dp
  val edgePadding=12.dp
  val pointByDate=points.indices.associateBy{points[it].first}
  val groupWidths=timeline.map{date->
