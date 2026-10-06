@@ -230,7 +230,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TrendPaper{
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      val fixedTitle=fixedTrendTitle(key) ?: latest.rawName.trim()
+      val fixedTitle=labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
       val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{it.metricKey==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)}
@@ -274,14 +274,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
-     TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,latest.rawName,onDismiss={previewSeries=null})
+     TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,labDisplayTitle(latest.rawName,latest.metricKey),onDismiss={previewSeries=null})
     }
    }
   }
  }
  if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
  selected?.let{(r,x)->
-  AlertDialog(onDismissRequest={selected=null;editing=false},title={Text(x.rawName)},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+  AlertDialog(onDismissRequest={selected=null;editing=false},title={Text(labDisplayTitle(x.rawName,x.metricKey))},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
    Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)} · ${x.status().label()}",color=Muted)

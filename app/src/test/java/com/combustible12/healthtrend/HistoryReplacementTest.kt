@@ -43,11 +43,37 @@ class HistoryReplacementTest {
   val old=(1..6).map{report(it).copy(results=listOf(report(it).results.first(),report(it).results.first().copy(id="duplicate-${it}")))}
   assertEquals(162,replaceReportHistory(old,template,batch(),zone).sumOf{it.results.size})
  }
+ @Test fun rebuildsBrokenTemplateFromExplicitFieldsWithoutReusingOldIdentities(){
+  val broken=template.copy(fields=template.fields.map{it.copy(metricKey="duplicate",unit="bad-unit",referenceHigh=-9.0)})
+  val complete=batch().copy(fields=template.fields)
+  val rebuilt=historyReplacementTemplate(broken,complete)
+  assertEquals(template.fields,rebuilt.fields)
+  val old=(1..6).map{report(it).copy(results=report(it).results.take(5)+report(it).results.first())}
+  val fixed=replaceReportHistory(old,rebuilt,complete,zone)
+  assertEquals(162,fixed.sumOf{it.results.size})
+  keys.forEach{key->assertEquals(6,fixed.flatMap{it.results}.count{it.metricKey==key})}
+  assertTrue(fixed.flatMap{it.results}.all{it.unitAtTest=="test-unit"&&it.referenceHighAtTest==1000.0})
+ }
+ @Test fun collapsesSelectedDuplicateDatesAndRetainsAllTheirImages(){
+  val all=(1..6).map(::report)
+  val duplicate=report(1).copy(id="extra-report",sourceImages=listOf(ReportImage("file:///extra-image",0,2L)))
+  val unrelated=report(20).copy(hospitalKey="其他医院")
+  val fixed=replaceReportHistory(all+duplicate+unrelated,template,batch(),zone)
+  assertEquals(7,fixed.size);assertEquals(unrelated,fixed.last())
+  assertEquals(setOf("file:///private/image-1","file:///extra-image"),fixed.first().sourceImages.map{it.uri}.toSet())
+  assertEquals(162,fixed.dropLast(1).sumOf{it.results.size})
+ }
+ @Test fun hidesMetricAbbreviationsButPreservesEnglishInsideNames(){
+  assertEquals("血红蛋白",labDisplayTitle("血红蛋白 HGB","HGB"))
+  assertEquals("中性粒细胞计数",labDisplayTitle("#NEUT 中性粒细胞计数","NEUT#"))
+  assertEquals("红细胞分布宽度SD",labDisplayTitle("RDW-SD 红细胞分布宽度SD","RDW-SD"))
+  assertEquals("维生素B12",labDisplayTitle("维生素B12","B12"))
+  assertEquals("C反应蛋白",labDisplayTitle("C反应蛋白","CRP"))
+ }
  private fun rejects(block:()->Unit){try{block();fail("Expected rejection")}catch(e:IllegalArgumentException){}}
  @Test fun rejectsMissingDuplicateAndWrongScopeWithoutChangingInput(){
   val all=(1..6).map(::report);val original=all.toList()
   rejects{replaceReportHistory(all.drop(1),template,batch(),zone)}
-  rejects{replaceReportHistory(all+report(1).copy(id="duplicate-date"),template,batch(),zone)}
   rejects{replaceReportHistory(all,template,batch().copy(metricKeys=keys.reversed()),zone)}
   rejects{replaceReportHistory(all,template,batch().copy(hospital="其他医院"),zone)}
   rejects{replaceReportHistory(all,template,batch().copy(system="其他仪器"),zone)}

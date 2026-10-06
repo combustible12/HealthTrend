@@ -49,40 +49,54 @@ class HealthStore(private val context:Context) {
   val o=JSONObject(text)
   require(o.getString("format")=="healthtrend-history-replacement-v1"){"不是 HealthTrend 历史核对文件"}
   val keys=o.getJSONArray("metricKeys").let{a->(0 until a.length()).map{a.getString(it)}}
-  val rows=o.getJSONArray("reports").let{a->(0 until a.length()).map{i->
+  val reportRows=o.getJSONArray("reports").let{a->(0 until a.length()).map{i->
    val r=a.getJSONObject(i);val values=r.getJSONArray("values")
    HistoryReplacementRow(java.time.LocalDate.parse(r.getString("date")),(0 until values.length()).map{values.getString(it)})
   }}
-  return HistoryReplacementBatch(o.getString("hospital"),o.getString("type"),o.optString("system"),keys,rows)
+  val fields=o.optJSONArray("fields")?.let{a->rows(a){f->LabFieldTemplate(f.getString("key"),f.getString("name"),displayLabUnit(f.getString("unit")),f.doubleOrNull("low"),f.doubleOrNull("high"),f.optString("trendMeaning").ifBlank{metricPurpose(f.getString("key")).orEmpty()})}}
+  return HistoryReplacementBatch(o.getString("hospital"),o.getString("type"),o.optString("system"),keys,reportRows,fields)
  }
  @Synchronized fun previewHistoryReplacement(text:String):String{
   val batch=historyReplacementBatch(text)
-  val template=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  val source=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  val template=historyReplacementTemplate(source,batch)
   replaceReportHistory(reports(),template,batch)
-  return "${batch.hospital} · ${batch.type}\n${batch.reports.size} 份报告 × ${batch.metricKeys.size} 项 = ${batch.reports.sumOf{it.values.size}} 个结果\n${batch.reports.joinToString("、"){it.date.toString().replace('-','/')}}"
+  val binding=if(template==source)"" else "\n\n按核对文件重建完整模板，清除旧项目身份。\n"+template.fields.mapIndexed{i,f->"${i+1}. ${labDisplayTitle(f.displayName,f.metricKey)}"}.joinToString("\n")
+  return "${batch.hospital} · ${batch.type}\n${batch.reports.size} 份报告 × ${batch.metricKeys.size} 项 = ${batch.reports.sumOf{it.values.size}} 个结果\n${batch.reports.joinToString("、"){it.date.toString().replace('-','/')}}$binding"
  }
  @Synchronized fun importHistoryReplacement(text:String):String{
   val batch=historyReplacementBatch(text)
   val fingerprint=java.security.MessageDigest.getInstance("SHA-256").digest(batch.copy(reports=batch.reports.sortedBy{it.date}).toString().toByteArray(Charsets.UTF_8)).joinToString(""){"%02x".format(it)}
   val marker="history_replacement:$fingerprint"
   if(prefs.getBoolean(marker,false))return "此核对文件已导入，无需重复替换"
-  val template=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  val source=latestTemplate(batch.hospital,batch.type,batch.system)?:error("未找到已确认的医院模板")
+  val template=historyReplacementTemplate(source,batch)
   val all=reports();val replaced=replaceReportHistory(all,template,batch)
   val before=prefs.getString("reports","[]")?:"[]"
-  val updates=all.zip(replaced).filter{(old,new)->old!==new}.associate{(_,new)->new.id to new}
+  val templatesBefore=prefs.getString("templates","[]")?:"[]"
+  val templatesAfter=JSONArray(templatesBefore).apply{if(template!=source){for(i in 0 until length()){
+   val original=getJSONObject(i)
+   if(original.getString("hospital")==batch.hospital&&original.getString("type")==batch.type&&original.optString("system")==batch.system)put(i,templateToJson(template))
+  }}}
+  val originalById=all.associateBy{it.id}
+  val updates=replaced.filter{originalById[it.id]!==it}.associateBy{it.id}
+  val removed=originalById.keys-replaced.map{it.id}.toSet()
   val raw=JSONArray(before)
   val after=JSONArray().apply{(0 until raw.length()).forEach{i->
    val original=raw.getJSONObject(i)
-   put(updates[original.getString("id")]?.let(::reportToJson)?:original)
+   if(original.getString("id") !in removed)put(updates[original.getString("id")]?.let(::reportToJson)?:original)
   }}
   val previousBackup=prefs.getString("history_replacement_backup",null)
+  val previousTemplateBackup=prefs.getString("history_replacement_template_backup",null)
   val hadMarker=prefs.contains(marker)
   // One atomic preference write: no partial replacement and no marker without data.
   val saved=prefs.edit().putString("history_replacement_backup",before)
+   .putString("history_replacement_template_backup",templatesBefore).putString("templates",templatesAfter.toString())
    .putString("reports",after.toString()).putBoolean(marker,true).commit()
   if(!saved){
    // A failed disk commit may still update SharedPreferences' in-memory cache.
-   val rollback=prefs.edit().putString("reports",before)
+   val rollback=prefs.edit().putString("reports",before).putString("templates",templatesBefore)
+   if(previousTemplateBackup==null)rollback.remove("history_replacement_template_backup") else rollback.putString("history_replacement_template_backup",previousTemplateBackup)
    if(previousBackup==null)rollback.remove("history_replacement_backup") else rollback.putString("history_replacement_backup",previousBackup)
    if(hadMarker)rollback.putBoolean(marker,false) else rollback.remove(marker)
    rollback.commit()

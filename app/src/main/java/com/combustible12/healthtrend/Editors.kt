@@ -99,7 +99,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
- Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
+ Row{Text(labDisplayTitle(r.name,r.key).ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
  if(templateOnly){Text(displayLabUnit(r.unit),fontSize=22.sp);if(r.trendMeaning.isNotBlank())Text(r.trendMeaning,color=Accent,fontSize=12.sp)} else ResultValueUnit(r.text,r.unit);Text("参考 ${rangeText(r.low.toDoubleOrNull(),r.high.toDoubleOrNull())}",color=Muted)
  TextButton(edit,contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),modifier=Modifier.heightIn(min=28.dp)){Text("编辑")}
 }}}
@@ -130,9 +130,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
- if(lockMetadata)Text(r.name,fontSize=18.sp) else {
-  Field(r.name,{edit(r.copy(name=it))},"项目名称")
-  if(lockIdentity)Text(r.key,color=Muted) else Field(r.key,{edit(r.copy(key=it))},"项目代码")
+ if(lockMetadata)Text(labDisplayTitle(r.name,r.key),fontSize=18.sp) else {
+  Field(labDisplayTitle(r.name,r.key),{edit(r.copy(name=it))},"项目名称")
+  if(!lockIdentity)Field(r.key,{edit(r.copy(key=it))},"项目代码")
  }
  if(templateOnly)Field(r.trendMeaning,{edit(r.copy(trendMeaning=it))},"趋势说明（箭头在前）")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
@@ -152,9 +152,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  FullPage(r.reportType,close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else picker.launch(arrayOf("image/*"))},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
   if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{Row{Text(x.rawName,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};ResultValueUnit(x.textValue,x.unitAtTest);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}}}
+  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{Row{Text(labDisplayTitle(x.rawName,x.metricKey),modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};ResultValueUnit(x.textValue,x.unitAtTest);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}}}
  }}
- if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${point!!.rawName}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble(),value.trim());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
+ if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${labDisplayTitle(point!!.rawName,point!!.metricKey)}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble(),value.trim());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
  if(confirmDelete)DeleteConfirmation({confirmDelete=false},delete)
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }

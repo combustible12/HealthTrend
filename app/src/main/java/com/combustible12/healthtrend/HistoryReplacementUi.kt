@@ -3,6 +3,8 @@ package com.combustible12.healthtrend
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,7 +37,7 @@ import kotlinx.coroutines.withContext
   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
   if(status.isNotBlank())Text(status,color=Muted)
  }
- if(file!=null)AlertDialog(onDismissRequest={if(!busy)file=null},title={Text("替换已核对的报告？")},text={Text("$summary\n\n保留日期、原图和其他记录。替换前自动保存备份。")},confirmButton={
+ if(file!=null)AlertDialog(onDismissRequest={if(!busy)file=null},title={Text("替换已核对的报告？")},text={Text("$summary\n\n保留日期、原图和其他记录。替换前自动保存备份。",modifier=Modifier.verticalScroll(rememberScrollState()))},confirmButton={
   TextButton({val text=file?:return@TextButton;busy=true;scope.launch{
    try{val result=withContext(Dispatchers.IO){store.importHistoryReplacement(text)};file=null;status=result;changed()}
    catch(e:Exception){error(e.message?:"报告替换失败")}
