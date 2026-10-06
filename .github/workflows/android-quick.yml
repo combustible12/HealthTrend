@@ -1,6 +1,9 @@
 name: Android compile check
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'ci/compile-trigger.txt'
 concurrency:
   group: healthtrend-compile-${{ github.ref }}
   cancel-in-progress: true
