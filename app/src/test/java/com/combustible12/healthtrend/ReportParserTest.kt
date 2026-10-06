@@ -85,6 +85,24 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   assertTrue(chemDraft.rows.none{it.key in setOf("LDH","CHE","TBA")})
  }
 
+ @Test fun astAndAstAltStaySeparateAndTitlesHideInternalCodes(){
+  val raw="""测试医院
+生化
+2026-10-06
+AST 谷草转氨酶 22 U/L 13-35
+AST/ALT 谷草/谷丙 0.88"""
+  val template=HospitalLabTemplate("测试医院","生化",1,true,listOf(
+   LabFieldTemplate("AST","AST 谷草转氨酶","U/L",13.0,35.0),
+   LabFieldTemplate("AST/ALT","AST/ALT 谷草/谷丙","",null,null)
+  ))
+  val draft=pastedReportDraft(raw,template)
+  assertEquals(listOf("AST","AST/ALT"),draft.rows.map{it.key})
+  assertEquals(listOf("22","0.88"),draft.rows.map{it.text})
+  assertEquals("谷草转氨酶",labDisplayTitle(draft.rows[0].name,draft.rows[0].key))
+  assertEquals("谷草/谷丙",labDisplayTitle(draft.rows[1].name,draft.rows[1].key))
+  assertFalse(labDisplayTitle(draft.rows[0].name,draft.rows[0].key).contains("AST"))
+ }
+
  @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
   val raw="医院：测试医院\n检查类型：肾功能\n报告日期：2026/9/29\nUREA 尿素 5.2 mmol/L 1.43-7.14"
   val draft=pastedReportDraft(raw)
