@@ -29,13 +29,20 @@ class HealthStore(private val context:Context) {
   val raw=read("reports");var changed=false
   for(i in 0 until raw.length()){
    val report=raw.getJSONObject(i);val results=report.optJSONArray("results")?:continue
+   val remove=mutableListOf<Int>()
    for(j in 0 until results.length()){
     val row=results.getJSONObject(j)
     if(row.optString("key")!="AST")continue
     val evidence=listOf(row.optString("raw"),row.optString("line")).joinToString(" ")
-    val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(evidence).map{it.groupValues[1].trim().uppercase()}.firstOrNull{it=="AST"||it=="AST/ALT"}
-    if(identity=="AST/ALT"){row.put("key","AST/ALT");row.put("normalizedUnit","");changed=true}
+    val explicitAstAlt=Regex("[（(]\\s*AST/ALT\\s*[）)]",RegexOption.IGNORE_CASE).containsMatchIn(evidence) ||
+     Regex("(?i)(?:^|\\s)AST/ALT(?:\\s|$)").containsMatchIn(evidence) ||
+     row.optString("raw").contains("谷草/谷丙")
+    if(!explicitAstAlt)continue
+    val already=(0 until results.length()).any{k->k!=j&&results.getJSONObject(k).optString("key")=="AST/ALT"}
+    if(already){remove+=j;changed=true;continue}
+    row.put("key","AST/ALT").put("raw","谷草/谷丙").put("normalizedUnit","");changed=true
    }
+   remove.sortedDescending().forEach{results.remove(it)}
   }
   if(changed)write("reports",raw)
  }
@@ -54,7 +61,8 @@ class HealthStore(private val context:Context) {
    val actual=r.results.map{it.metricKey}
    require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
    require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
-   require(actual==expected){"报告项目身份与当前模板不一致，请重新核对"}
+   require(actual.all{it in expected}){"报告包含当前模板之外的项目，请重新核对"}
+   require(actual==expected.filter{it in actual.toSet()}){"报告项目顺序与当前模板不一致，请重新核对"}
   }
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}})
  }
