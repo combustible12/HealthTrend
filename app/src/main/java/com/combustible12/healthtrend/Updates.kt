@@ -90,7 +90,7 @@ private fun URI(s:String)=java.net.URI(s)
  val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
  var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
-  Paper{Text("患者资料");if(editPatient){
+  Paper{if(editPatient){
    val fieldColors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent)
    @Composable fun PatientField(label:String,value:String,onChange:(String)->Unit,readOnly:Boolean=false){Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(label,color=Muted,fontSize=12.sp);OutlinedTextField(value,onChange,modifier=Modifier.fillMaxWidth(),readOnly=readOnly,singleLine=label!="备注",minLines=if(label=="备注")2 else 1,colors=fieldColors)}}
    PatientField("姓名",patient.name,{patient=patient.copy(name=it)})
