@@ -72,7 +72,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun App(){
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
- var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
+ var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("检查报告")}
+ var recordsOpen by rememberSaveable{mutableStateOf(false)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)}
  var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
@@ -84,9 +85,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
  val courseRecords=remember(revision){runCatching{store.courseRecords()}.getOrElse{error="病程记录读取失败：${it.message}";emptyList()}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
- val importer=rememberReportImport(store,{draft=it},{error=it},deliver=draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&courseRecord==null&&viewer==null)
+ val importer=rememberReportImport(store,{draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
- Box(Modifier.fillMaxSize().then(if(draft!=null||report!=null||entry!=null||template!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
+ Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||template!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   when(tab){
@@ -99,11 +100,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images.drop(index)+images.take(index)})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
-    4->Mine(m,templates,{template=it},store,{error=it},{revision++})
+    4->Mine(m,templates,{template=it},store,{error=it},{revision++},{recordsOpen=true})
   }
  }
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
+ if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+ }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
    val t=existing?:store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
@@ -126,7 +130,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(m.fillMaxSize()){
   Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(spacing)){
-   Spacer(Modifier.height(6.dp));Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
+   Spacer(Modifier.height(6.dp));if(title.isNotBlank())Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
    if(scroll.maxValue>0)OutlinedButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
    Spacer(Modifier.height(12.dp))
   }
@@ -476,7 +480,7 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit){Screen(m,"病程时间轴","按记录发生时间排列"){
+@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp))}}
  if(filter=="症状报告"){SymptomReport(entries.filter{it.kind==EntryKind.SYMPTOM})}else{
   Row(Modifier.horizontalScroll(rememberScrollState())){EntryKind.entries.forEach{k->TextButton({add(k)}){Text("+ ${k.title}")}}}

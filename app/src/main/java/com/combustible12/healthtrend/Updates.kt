@@ -86,11 +86,14 @@ class AppUpdater(private val context:Context){
  fun resumableDownloadedApk():File?=File(context.cacheDir,"updates/healthtrend.apk").takeIf{it.isFile&&runCatching{validate(it);true}.getOrDefault(false)}
 }
 private fun URI(s:String)=java.net.URI(s)
-@Composable fun Mine(m:Modifier,templates:List<HospitalLabTemplate>,edit:(HospitalLabTemplate)->Unit,store:HealthStore,error:(String)->Unit,changed:()->Unit={}){
+@Composable fun Mine(m:Modifier,templates:List<HospitalLabTemplate>,edit:(HospitalLabTemplate)->Unit,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
  val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
  var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{Text("患者资料");if(editPatient){OutlinedTextField(patient.name,{patient=patient.copy(name=it)},label={Text("姓名")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.birthDate,{patient=patient.copy(birthDate=it)},label={Text("出生日期（YYYY-MM-DD）")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.sex,{patient=patient.copy(sex=it)},label={Text("性别")},modifier=Modifier.fillMaxWidth());OutlinedTextField(patient.note,{patient=patient.copy(note=it)},label={Text("备注")},modifier=Modifier.fillMaxWidth());Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料")}}}else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);Text(listOf(patient.sex,patient.birthDate).filter{it.isNotBlank()}.joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
+  Card(onClick=records,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text("查看报告 ›",color=Muted)}
+  }
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
   templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).chunked(2).forEach{row->
