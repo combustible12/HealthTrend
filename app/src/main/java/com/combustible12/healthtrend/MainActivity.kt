@@ -91,6 +91,18 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||template!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
+  var mainPageDrag by remember{mutableFloatStateOf(0f)}
+  Box(Modifier.fillMaxSize().pointerInput(tab){
+   if(tab!=1)detectHorizontalDragGestures(
+    onDragStart={mainPageDrag=0f},
+    onHorizontalDrag={_,amount->mainPageDrag+=amount},
+    onDragCancel={mainPageDrag=0f},
+    onDragEnd={
+     if(kotlin.math.abs(mainPageDrag)>90f)tab=(tab+if(mainPageDrag<0)1 else -1).coerceIn(0,4)
+     mainPageDrag=0f
+    }
+   )
+  }){
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2})
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
@@ -106,6 +118,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images.drop(index)+images.take(index)})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
     4->Mine(m,templates,{template=it},store,{error=it},{revision++},{recordsOpen=true})
+  }
   }
  }
  }
@@ -217,7 +230,23 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val trendCategories=listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}
  val categoryScroll=rememberScrollState()
  var categorySwipe by remember{mutableFloatStateOf(0f)}
- Screen(m,"指标趋势",spacing=3.5.dp){
+ var trendPageDrag by remember{mutableFloatStateOf(0f)}
+ val trendSwipeModifier=m.pointerInput(category,trendCategories){
+  detectHorizontalDragGestures(
+   onDragStart={trendPageDrag=0f},
+   onHorizontalDrag={_,amount->trendPageDrag+=amount},
+   onDragCancel={trendPageDrag=0f},
+   onDragEnd={
+    if(kotlin.math.abs(trendPageDrag)>90f){
+     val i=trendCategories.indexOf(category)
+     if(trendPageDrag<0){if(i<trendCategories.lastIndex)category=trendCategories[i+1] else onMainPageSwipe(1)}
+     else{if(i>0)category=trendCategories[i-1] else onMainPageSwipe(-1)}
+    }
+    trendPageDrag=0f
+   }
+  )
+ }
+ Screen(trendSwipeModifier,"指标趋势",spacing=3.5.dp){
   Row(Modifier.horizontalScroll(categoryScroll)){trendCategories.forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
@@ -235,21 +264,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
-  var axisDrag by remember{mutableStateOf(Offset.Zero)}
-  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){
-   detectDragGestures(
-    onDragStart={axisDrag=Offset.Zero},
-    onDragCancel={axisDrag=Offset.Zero},
-    onDragEnd={
-     if(kotlin.math.abs(axisDrag.x)>90f&&kotlin.math.abs(axisDrag.x)>kotlin.math.abs(axisDrag.y)*1.35f){
-      val i=trendCategories.indexOf(category)
-      if(axisDrag.x<0){if(i<trendCategories.lastIndex)category=trendCategories[i+1] else onMainPageSwipe(1)}
-      else{if(i>0)category=trendCategories[i-1] else onMainPageSwipe(-1)}
-     }
-     axisDrag=Offset.Zero
-    }
-   ){_,drag->axisDrag+=drag}
-  }){
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
@@ -313,8 +327,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
    }
-  }
-
  }
  if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
  selected?.let{(r,x)->
