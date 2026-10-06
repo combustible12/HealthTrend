@@ -6,16 +6,12 @@ fun newId(): String = UUID.randomUUID().toString()
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
  val raw=name.trim()
- if(raw.isBlank())return "（$key）"
- // The parenthesized key is the visible identity marker. Keep English that is genuinely
- // part of the human-readable name; remove only standalone copies of this metric code.
- val variants=if(key.lastOrNull() in listOf('#','%'))listOf(key,key.last()+key.dropLast(1)) else listOf(key)
- val pattern=variants.distinct().sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}
- val clean=raw
-  .replace(Regex("[（(]\\s*(?:$pattern)\\s*[）)]",RegexOption.IGNORE_CASE),"")
-  .replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
-  .replace(Regex("[（(]\\s*[）)]"),"").replace(Regex("\\s+")," ").trim()
- return clean.ifBlank{key}
+ if(raw.isBlank())return ""
+ // Legacy templates may still have a code prefix. Remove the complete key only;
+ // never let AST partially strip AST/ALT.
+ val prefix=Regex("^\\s*"+Regex.escape(key)+"(?=\\s|$)",RegexOption.IGNORE_CASE)
+ val wrapped=Regex("[（(]\\s*"+Regex.escape(key)+"\\s*[）)]",RegexOption.IGNORE_CASE)
+ return raw.replace(wrapped,"").replace(prefix,"").replace(Regex("\\s+")," ").trim()
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
