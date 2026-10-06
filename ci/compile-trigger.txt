@@ -11,3 +11,4 @@ compile-check 2026-10-06 gesture-architecture
 2026-10-06 parser identity display-name root fix
 2026-10-06 persisted Xiapu biochemistry template repair
 2026-10-06 targeted AST ALT polluted-template regression
+2026-10-06 verify AST ALT repair and trend group-gap layout
