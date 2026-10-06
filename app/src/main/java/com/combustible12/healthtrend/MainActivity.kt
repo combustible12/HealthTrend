@@ -97,7 +97,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
-   })
+   },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)})
     2->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
      val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone)
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -185,7 +185,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Text(r.reportType,fontWeight=FontWeight.Bold);Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
-@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit){
+@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
@@ -235,6 +235,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
+  var axisDrag by remember{mutableStateOf(Offset.Zero)}
+  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){
+   detectDragGestures(
+    onDragStart={axisDrag=Offset.Zero},
+    onDragCancel={axisDrag=Offset.Zero},
+    onDragEnd={
+     if(kotlin.math.abs(axisDrag.x)>90f&&kotlin.math.abs(axisDrag.x)>kotlin.math.abs(axisDrag.y)*1.35f){
+      val i=trendCategories.indexOf(category)
+      if(axisDrag.x<0){if(i<trendCategories.lastIndex)category=trendCategories[i+1] else onMainPageSwipe(1)}
+      else{if(i>0)category=trendCategories[i-1] else onMainPageSwipe(-1)}
+     }
+     axisDrag=Offset.Zero
+    }
+   ){_,drag->axisDrag+=drag}
+  }){
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
@@ -298,6 +313,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
    }
+  }
+
  }
  if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
  selected?.let{(r,x)->
