@@ -647,8 +647,9 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     val maxZoom=maxOf(8f,widthFill*1.5f).coerceAtMost(32f)
     val next=(zoom*scale).coerceIn(1f,maxZoom)
     val isPinching=abs(scale-1f)>=.015f
-    if(isPinching&&scale>1.005f)freePan=true
-    if(next<=1.01f&&isPinching)freePan=false
+    val horizontallyOverflowing=fittedWidth*next>viewport.width+1f
+    if(isPinching&&scale>1.005f&&horizontallyOverflowing)freePan=true
+    if(isPinching&&!horizontallyOverflowing)freePan=false
     if(zoom<=1.01f&&scale<.995f){
      pinchScale*=scale
      swipeX=0f
@@ -656,8 +657,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     }else{
      if(scale>=1f)pinchScale=1f
      val horizontal=abs(pan.x)>abs(pan.y)*1.15f
-     // Horizontal page switching stays available at every zoom level.
-     if(horizontal&&!isPinching){
+     // Once pinch-zoom makes the image wider than the viewport, one-finger drag pans the image instead of paging.
+     if(horizontal&&!isPinching&&!freePan){
       swipeX+=pan.x
       val threshold=(viewport.width*.16f).coerceIn(56f,120f)
       when{
