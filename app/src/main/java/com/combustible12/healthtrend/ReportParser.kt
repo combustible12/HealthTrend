@@ -44,10 +44,13 @@ object ReportParser {
  }
  private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH")
  internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
-  val trimmed=line.trimStart()
-  val token=trimmed.substringBefore(' ',trimmed).trim()
-  val identity=normalizeCode(token)
-  if(identity in metricIdentityKeys) "（$identity） $trimmed" else line
+  val trimmed=line.trim()
+  if(trimmed.isBlank())return@joinToString line
+  if(key(trimmed)!="未识别")return@joinToString trimmed
+  val firstNumber=numeric.find(trimmed)?.range?.first?:trimmed.length
+  val header=trimmed.substring(0,firstNumber)
+  val explicit=knownCode.findAll(header).map{normalizeCode(it.value)}.filter{it in metricIdentityKeys}.distinct().toList()
+  if(explicit.size==1)"（${explicit.single()}） $trimmed" else line
  }
  private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
