@@ -34,8 +34,7 @@ class HealthStore(private val context:Context) {
     if(row.optString("key")!="AST")continue
     val evidence=listOf(row.optString("raw"),row.optString("line")).joinToString(" ")
     val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(evidence).map{it.groupValues[1].trim().uppercase()}.firstOrNull{it=="AST"||it=="AST/ALT"}
-    val isRatio=identity=="AST/ALT" || (identity==null && (evidence.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(evidence)))
-    if(isRatio){row.put("key","AST/ALT");row.put("normalizedUnit","");changed=true}
+    if(identity=="AST/ALT"){row.put("key","AST/ALT");row.put("normalizedUnit","");changed=true}
    }
   }
   if(changed)write("reports",raw)
