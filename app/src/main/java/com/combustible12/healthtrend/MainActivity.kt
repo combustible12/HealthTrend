@@ -314,6 +314,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=key,
       pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=series.map{it.second.textValue},
+      timelineDates=reports.filter{r->r.systemKey==series.last().first.systemKey&&r.reportType==series.last().first.reportType&&r.testedAtEpochMillis>=cutoff}.map{it.testedAtEpochMillis},
       onShowPreview={previewSeries=series}
      )
     }
@@ -428,8 +429,15 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=trendPointPosition(points,hit,width,height,referenceLow,referenceHigh);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),onShowPreview:()->Unit={}){
- fun pointPosition(index:Int,width:Float,height:Float)=trendPointPosition(points,index,width,height,referenceLow,referenceHigh)
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
+ val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
+ fun pointPosition(index:Int,width:Float,height:Float):Offset{
+  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+  val pad=56f;val slot=timeline.indexOf(points[index].first).takeIf{it>=0}?:index
+  val x=if(timeline.size<=1)width/2 else pad+(width-2*pad)*slot/(timeline.size-1)
+  val y=(height*.88-(points[index].second-low)/span*height*.76).toFloat()
+  return Offset(x,y)
+ }
  val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
  val plotHeight=125.dp
  val chartHeight=160.dp
@@ -460,21 +468,18 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
       drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
      }
     }
-    val path=Path()
     if(points.isNotEmpty()){
      val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
-     path.moveTo(plotted[0].x,plotted[0].y)
+     // Draw only between adjacent report dates. A report date where this metric was
+     // not tested is a real gap, so the line must stop and restart afterwards.
      for(i in 0 until plotted.lastIndex){
-      val p0=plotted.getOrElse(i-1){plotted[i]}
-      val p1=plotted[i]
-      val p2=plotted[i+1]
-      val p3=plotted.getOrElse(i+2){p2}
-      val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
-      val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
-      path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
+      val a=timeline.indexOf(points[i].first);val b=timeline.indexOf(points[i+1].first)
+      if(a>=0&&b==a+1){
+       val path=Path();path.moveTo(plotted[i].x,plotted[i].y);path.lineTo(plotted[i+1].x,plotted[i+1].y)
+       drawPath(path,color,style=Stroke(2.dp.toPx()))
+      }
      }
     }
-    drawPath(path,color,style=Stroke(2.dp.toPx()))
    }
    points.indices.forEach{i->
     val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
@@ -485,12 +490,16 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
       .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
      contentAlignment=Alignment.Center
     ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
+   }
+   timeline.forEachIndexed{slot,date->
+    val padPx=56f;val x=if(timeline.size<=1)chartWidth/2f else padPx+(chartWidth-2*padPx)*slot/(timeline.size-1)
+    val pointIndex=points.indexOfFirst{it.first==date}
     Column(
-     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-40.dp.roundToPx(),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
+     Modifier.offset{androidx.compose.ui.unit.IntOffset(x.toInt()-40.dp.roundToPx(),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
      horizontalAlignment=Alignment.CenterHorizontally
     ){
-     Text(trendShortDate(points[i].first),fontSize=10.sp,lineHeight=11.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
-     Text(valueLabels.getOrNull(i).orEmpty().ifBlank{formatTrendValue(points[i].second)},fontSize=13.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
+     Text(trendShortDate(date),fontSize=10.sp,lineHeight=11.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
+     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",fontSize=13.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
     }
    }
   }
