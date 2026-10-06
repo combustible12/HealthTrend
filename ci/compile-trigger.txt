@@ -7,3 +7,4 @@ compile-check 2026-10-06 gesture-architecture
 2026-10-06 restore-proven-paste-parser
 2026-10-06 keep-bound-clipboard-rows-intact
 2026-10-06 fixed-clipboard-contract
+2026-10-06 exact AST identity and Chinese-only titles
