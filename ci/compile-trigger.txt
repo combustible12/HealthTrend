@@ -9,3 +9,4 @@ compile-check 2026-10-06 gesture-architecture
 2026-10-06 fixed-clipboard-contract
 2026-10-06 exact AST identity and Chinese-only titles
 2026-10-06 parser identity display-name root fix
+2026-10-06 persisted Xiapu biochemistry template repair
