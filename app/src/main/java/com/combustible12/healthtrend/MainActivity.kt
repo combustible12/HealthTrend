@@ -12,6 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -234,7 +237,23 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
-  Box(Modifier.fillMaxWidth().weight(1f,fill=true).pointerInput(category,trendCategories){detectDragGestures(onDragStart={categorySwipe=0f},onDragCancel={categorySwipe=0f},onDragEnd={val i=trendCategories.indexOf(category);if(categorySwipe< -90f&&i<trendCategories.lastIndex)category=trendCategories[i+1] else if(categorySwipe>90f&&i>0)category=trendCategories[i-1];categorySwipe=0f}){change,amount->if(kotlin.math.abs(amount.x)>kotlin.math.abs(amount.y)){change.consume();categorySwipe+=amount.x}}}){
+  Box(Modifier.fillMaxWidth().weight(1f,fill=true).pointerInput(category,trendCategories){
+   awaitPointerEventScope{
+    while(true){
+     val down=awaitFirstDown(requireUnconsumed=false);var dx=0f;var dy=0f;var horizontal=false
+     do{
+      val event=awaitPointerEvent();val change=event.changes.firstOrNull{it.id==down.id}?:break
+      val delta=change.position-change.previousPosition;dx+=delta.x;dy+=delta.y
+      if(!horizontal && kotlin.math.abs(dx)>viewConfiguration.touchSlop && kotlin.math.abs(dx)>kotlin.math.abs(dy)*1.25f)horizontal=true
+      if(horizontal)change.consume()
+      if(change.changedToUpIgnoreConsumed()){
+       if(kotlin.math.abs(dx)>90f){val i=trendCategories.indexOf(category);if(dx<0&&i<trendCategories.lastIndex)category=trendCategories[i+1] else if(dx>0&&i>0)category=trendCategories[i-1]}
+       break
+      }
+     }while(change.pressed)
+    }
+   }
+  }){
    Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
