@@ -359,6 +359,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
  }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}}
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
+ val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
+ val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
  FullPage("图片资料",close,hidden=immersive,navigationIcon=Icons.Outlined.ArrowBack,bottom={if(!immersive)Column{
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
@@ -439,8 +441,6 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    }
   }
   Spacer(Modifier.height(4.dp))
-  val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
-  val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
   if(page.isTextPage())TextDocumentPage(page.fullText,previous,next,Modifier.weight(1f).fillMaxWidth())
   else HighlightImage(page,currentBlock,{showGrid=true},previous,next,{immersive=!immersive},Modifier.weight(1f).fillMaxWidth())
  }}
