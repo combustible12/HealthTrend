@@ -101,8 +101,8 @@ object ReportParser {
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   val bracketIdentity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(line).map{normalizeCode(it.groupValues[1])}.firstOrNull{it=="AST"||it=="AST/ALT"}
-  val ratioLine=bracketIdentity=="AST/ALT" || (bracketIdentity==null && (line.contains("谷草/谷丙")||Regex("(?i)(?<![A-Za-z])AST/ALT(?![A-Za-z])").containsMatchIn(line)))
-  val astLine=bracketIdentity=="AST" || (bracketIdentity==null && (line.contains("谷草转氨酶")||line.contains("谷草转酶"))&&!line.contains("谷草/谷丙")&&!line.contains("/"))
+  val ratioLine=bracketIdentity=="AST/ALT"
+  val astLine=bracketIdentity=="AST"
   val explicitCode=knownCode.find(name)?.value
   var k=when{ratioLine->"AST/ALT";astLine->"AST";else->explicitCode?.let(::normalizeCode) ?: key(name)}
   // Some analyzers print the platelet large-cell count with the same P-LCR token used for the ratio.
