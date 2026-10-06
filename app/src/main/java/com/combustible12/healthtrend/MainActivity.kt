@@ -210,19 +210,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   if(reportId!=null&&uris.isNotEmpty()){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{imageBusy=false}}}
  }
  fun fixedTrendTitle(metricKey:String):String?=when(metricKey){
-  "WBC"->"白细胞 WBC";"NEUT#"->"中性粒细胞计数 NEUT#";"NEUT%"->"中性粒细胞百分比 NEUT%"
-  "LYMPH#"->"淋巴细胞计数 LYMPH#";"LYMPH%"->"淋巴细胞百分比 LYMPH%"
-  "MONO#"->"单核细胞计数 MONO#";"MONO%"->"单核细胞百分比 MONO%"
-  "EOS#"->"嗜酸性粒细胞计数 EOS#";"EOS%"->"嗜酸性粒细胞百分比 EOS%"
-  "BASO#"->"嗜碱性粒细胞计数 BASO#";"BASO%"->"嗜碱性粒细胞百分比 BASO%"
-  "RBC"->"红细胞 RBC";"HGB"->"血红蛋白 HGB";"HCT"->"红细胞压积 HCT";"MCV"->"红细胞平均体积 MCV"
-  "MCH"->"平均红细胞血红蛋白量 MCH";"MCHC"->"平均血红蛋白浓度 MCHC";"RDW"->"红细胞分布宽度 RDW";"RDW-SD"->"红细胞分布宽度SD RDW-SD"
-  "PLT"->"血小板 PLT";"PCT"->"血小板压积 PCT";"MPV"->"平均血小板体积 MPV";"PDW"->"血小板分布宽度 PDW"
-  "P-LCR"->"大型血小板比率 P-LCR";"NRBC%"->"有核红细胞比率 NRBC%";"NRBC#"->"有核红细胞计数 NRBC#";"P-LCC"->"大血小板数目 P-LCC"
-  "TP"->"总蛋白 TP";"ALB"->"白蛋白 ALB";"GLOB"->"球蛋白 GLOB";"A/G"->"白球比 A/G";"TBIL"->"总胆红素 TBIL"
-  "DBIL"->"直接胆红素 DBIL";"IBIL"->"间接胆红素 IBIL";"ALT"->"谷丙转氨酶 ALT";"AST"->"谷草转氨酶 AST"
-  "GGT"->"谷氨酰转肽酶 GGT";"AST/ALT"->"谷草/谷丙 AST/ALT";"ALP"->"碱性磷酸酶 ALP";"CHE"->"胆碱酯酶 CHE"
-  "TBA"->"总胆汁酸 TBA";"PA"->"前白蛋白 PA";"UREA"->"尿素 UREA";"CREA"->"肌酐 CREA";"UA"->"尿酸 UA"
+  "WBC"->"白细胞";"NEUT#"->"中性粒细胞计数";"NEUT%"->"中性粒细胞百分比"
+  "LYMPH#"->"淋巴细胞计数";"LYMPH%"->"淋巴细胞百分比";"MONO#"->"单核细胞计数";"MONO%"->"单核细胞百分比"
+  "EOS#"->"嗜酸性粒细胞计数";"EOS%"->"嗜酸性粒细胞百分比";"BASO#"->"嗜碱性粒细胞计数";"BASO%"->"嗜碱性粒细胞百分比"
+  "RBC"->"红细胞";"HGB"->"血红蛋白";"HCT"->"红细胞压积";"MCV"->"红细胞平均体积";"MCH"->"平均红细胞血红蛋白量"
+  "MCHC"->"平均血红蛋白浓度";"RDW"->"红细胞分布宽度";"RDW-SD"->"红细胞分布宽度SD";"PLT"->"血小板"
+  "PCT"->"血小板压积";"MPV"->"平均血小板体积";"PDW"->"血小板分布宽度";"P-LCR"->"大型血小板比率"
+  "NRBC%"->"有核红细胞比率";"NRBC#"->"有核红细胞计数";"P-LCC"->"大血小板数目"
+  "TP"->"总蛋白";"ALB"->"白蛋白";"GLOB"->"球蛋白";"A/G"->"白球比";"TBIL"->"总胆红素";"DBIL"->"直接胆红素";"IBIL"->"间接胆红素"
+  "ALT"->"谷丙转氨酶";"AST"->"谷草转氨酶";"AST/ALT"->"谷草/谷丙";"GGT"->"谷氨酰转肽酶";"ALP"->"碱性磷酸酶";"CHE"->"胆碱酯酶"
+  "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸"
   else->null
  }
  val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->result.metricKey}
