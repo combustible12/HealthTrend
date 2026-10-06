@@ -199,9 +199,26 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  var index by rememberSaveable{mutableIntStateOf(0)};val context=LocalContext.current
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
  var zoom by rememberSaveable(index){mutableFloatStateOf(1f)};var x by rememberSaveable(index){mutableFloatStateOf(0f)};var y by rememberSaveable(index){mutableFloatStateOf(0f)}
+ var swipeX by remember(index){mutableFloatStateOf(0f)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,index){value=withContext(Dispatchers.IO){try{val b=decodeReportBitmap(context,Uri.parse(uris[index]));b to null}catch(e:Exception){null to "原图无法读取：${e.message}"}}}
- FullPage("原报告 ${index+1}/${uris.size}",close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({index--;zoom=1f;x=0f;y=0f},enabled=index>0){Text("上一页")};TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")};TextButton({index++;zoom=1f;x=0f;y=0f},enabled=index<uris.lastIndex){Text("下一页")}}}){m->Box(m.clipToBounds().onSizeChanged{viewport=it}.pointerInput(index,viewport,zoom){if(zoom<=1.01f){detectHorizontalDragGestures(onHorizontalDrag={change,dragAmount->x+=dragAmount;if(kotlin.math.abs(x)>120f){if(x<0&&index<uris.lastIndex)index++ else if(x>0&&index>0)index--;zoom=1f;x=0f;y=0f;change.consume()}})}.pointerInput(index,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=(x-cx)*ratio+cx+pan.x;y=(y-cy)*ratio+cy+pan.y;zoom=next}},contentAlignment=Alignment.Center){
- loaded.first?.let{Image(it.asImageBitmap(),"原始检查报告",Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y})}?:Text(loaded.second?:"正在读取原图…")
- }}
+ FullPage("原报告 ${index+1}/${uris.size}",close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({index--;zoom=1f;x=0f;y=0f},enabled=index>0){Text("上一页")};TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")};TextButton({index++;zoom=1f;x=0f;y=0f},enabled=index<uris.lastIndex){Text("下一页")}}}){m->
+  Box(m.clipToBounds().onSizeChanged{viewport=it}
+   .pointerInput(index,zoom){
+    if(zoom<=1.01f)detectHorizontalDragGestures(
+     onDragStart={swipeX=0f},
+     onHorizontalDrag={_,dragAmount->swipeX+=dragAmount},
+     onDragEnd={
+      if(swipeX<=-120f&&index<uris.lastIndex)index++
+      else if(swipeX>=120f&&index>0)index--
+      swipeX=0f;zoom=1f;x=0f;y=0f
+     },
+     onDragCancel={swipeX=0f}
+    )
+   }
+   .pointerInput(index,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=(x-cx)*ratio+cx+pan.x;y=(y-cy)*ratio+cy+pan.y;zoom=next}},
+   contentAlignment=Alignment.Center){
+   loaded.first?.let{Image(it.asImageBitmap(),"原始检查报告",Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y})}?:Text(loaded.second?:"正在读取原图…")
+  }
+ }
 }
 fun shareText(context:Context,title:String,text:String){context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,title).putExtra(Intent.EXTRA_TEXT,text),"分享"))}
