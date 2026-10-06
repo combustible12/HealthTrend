@@ -5,13 +5,17 @@ import java.util.UUID
 fun newId(): String = UUID.randomUUID().toString()
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
- if(!name.any{it in '\u4e00'..'\u9fff'})return name.trim().ifBlank{key}
- val codes=setOf(key,"WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","CRE","UA","LDH")
- val tokens=codes.filter{it.any{c->c in 'A'..'Z'}}.flatMap{code->if(code.lastOrNull() in listOf('#','%'))listOf(code,code.last()+code.dropLast(1)) else listOf(code)}.distinct().sortedByDescending{it.length}
- val pattern=tokens.joinToString("|"){Regex.escape(it)}
- val clean=name.replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
+ val raw=name.trim()
+ if(raw.isBlank())return "（$key）"
+ // The parenthesized key is the visible identity marker. Keep English that is genuinely
+ // part of the human-readable name; remove only standalone copies of this metric code.
+ val variants=if(key.lastOrNull() in listOf('#','%'))listOf(key,key.last()+key.dropLast(1)) else listOf(key)
+ val pattern=variants.distinct().sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}
+ val clean=raw
+  .replace(Regex("[（(]\\s*(?:$pattern)\\s*[）)]",RegexOption.IGNORE_CASE),"")
+  .replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
   .replace(Regex("[（(]\\s*[）)]"),"").replace(Regex("\\s+")," ").trim()
- return if(clean.isBlank()) key else "$clean（$key）"
+ return if(clean.isBlank()) "（$key）" else "$clean（$key）"
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
