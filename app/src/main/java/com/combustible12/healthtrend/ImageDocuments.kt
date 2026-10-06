@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -506,18 +507,33 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 }
 
 @Composable private fun ImageDocumentGrid(document:ImageDocument,selected:Int,onClose:()->Unit,onSelect:(Int)->Unit,onMove:(Int,Int)->Unit){
+ val gridState=rememberLazyGridState();val scope=rememberCoroutineScope()
+ var draggingId by remember{mutableStateOf<String?>(null)};var dragOffset by remember{mutableStateOf(Offset.Zero)}
+ var pendingFrom by remember{mutableIntStateOf(-1)};var pendingTo by remember{mutableIntStateOf(-1)}
  FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=Icons.Outlined.ArrowBack){m->
-  LazyVerticalGrid(columns=GridCells.Fixed(3),modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-   gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
-    var dragX by remember(item.id){mutableFloatStateOf(0f)};var dragY by remember(item.id){mutableFloatStateOf(0f)}
-    val dragModifier=if(item.isTextPage())Modifier else Modifier.pointerInput(item.id,index,document.pages.size){
-     detectDragGesturesAfterLongPress(onDragStart={dragX=0f;dragY=0f},onDragCancel={dragX=0f;dragY=0f},onDragEnd={dragX=0f;dragY=0f}){change,amount->
-      change.consume();dragX+=amount.x;dragY+=amount.y
-      val step=if(kotlin.math.abs(dragX)>size.width*.35f){if(dragX>0)1 else -1}else if(kotlin.math.abs(dragY)>size.height*.35f){if(dragY>0)3 else -3}else 0
-      if(step!=0){val minIndex=if(document.pages.firstOrNull()?.isTextPage()==true)1 else 0;val target=(index+step).coerceIn(minIndex,document.pages.lastIndex);if(target!=index)onMove(index,target);dragX=0f;dragY=0f}
+  LazyVerticalGrid(columns=GridCells.Fixed(3),state=gridState,modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.graphicsLayer{if(draggingId==item.id){translationX=dragOffset.x;translationY=dragOffset.y;alpha=.88f}}){
+    val dragModifier=if(item.isTextPage())Modifier else Modifier.pointerInput(item.id,document.pages.size){
+     detectDragGesturesAfterLongPress(
+      onDragStart={draggingId=item.id;dragOffset=Offset.Zero;pendingFrom=index;pendingTo=index},
+      onDragCancel={draggingId=null;dragOffset=Offset.Zero;pendingFrom=-1;pendingTo=-1},
+      onDragEnd={if(pendingFrom>=0&&pendingTo>=0&&pendingFrom!=pendingTo)onMove(pendingFrom,pendingTo);draggingId=null;dragOffset=Offset.Zero;pendingFrom=-1;pendingTo=-1}
+     ){change,amount->
+      change.consume();dragOffset+=amount
+      val visible=gridState.layoutInfo.visibleItemsInfo
+      val dragged=visible.firstOrNull{it.key==item.id}
+      if(dragged!=null){
+       val centerY=dragged.offset.y+dragOffset.y+dragged.size.height/2f
+       val centerX=dragged.offset.x+dragOffset.x+dragged.size.width/2f
+       val target=visible.minByOrNull{v->val dx=(v.offset.x+v.size.width/2f)-centerX;val dy=(v.offset.y+v.size.height/2f)-centerY;dx*dx+dy*dy}
+       if(target!=null){val minIndex=if(document.pages.firstOrNull()?.isTextPage()==true)1 else 0;pendingTo=target.index.coerceIn(minIndex,document.pages.lastIndex)}
+       val top=gridState.layoutInfo.viewportStartOffset+80
+       val bottom=gridState.layoutInfo.viewportEndOffset-80
+       when{centerY<top->scope.launch{gridState.scrollBy(-36f)};centerY>bottom->scope.launch{gridState.scrollBy(36f)}}
+      }
      }
     }
-    ImagePageThumbnail(item,index==selected,{onSelect(index)},Modifier.fillMaxWidth().aspectRatio(.78f).then(dragModifier))
+    ImagePageThumbnail(item,index==selected,{if(draggingId==null)onSelect(index)},Modifier.fillMaxWidth().aspectRatio(.78f).then(dragModifier))
     Text("第 ${index+1} 张",fontSize=12.sp,color=if(index==selected)Accent else Muted,modifier=Modifier.align(Alignment.CenterHorizontally))
    }}
   }
