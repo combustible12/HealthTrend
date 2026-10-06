@@ -146,20 +146,23 @@ object ReportOcr {
  */
 internal fun templateDrivenResults(items:List<ParsedLabResult>,template:HospitalLabTemplate):List<ParsedLabResult>{
  val matches=matchTemplateRows(template.fields,items)
- return template.fields.mapIndexed{index,field->
-  val source=matches[index]
-  val reliable=source?.let{templateResultIsIndependent(it,field)}==true
+ // A template is an identity/fixed-field skeleton, not a checklist for every visit.
+ // Only metrics that are actually present in this report become visit results.
+ return template.fields.mapIndexedNotNull{index,field->
+  val source=matches[index] ?: return@mapIndexedNotNull null
+  val reliable=templateResultIsIndependent(source,field)
+  if(!reliable)return@mapIndexedNotNull null
   ParsedLabResult(
    metricKey=field.metricKey,
    displayName=field.displayName,
-   value=source?.value?.takeIf{reliable},
+   value=source.value,
    unit=displayLabUnit(field.unit),
    referenceLow=field.referenceLow,
    referenceHigh=field.referenceHigh,
-   rawLine=source?.rawLine.orEmpty(),
+   rawLine=source.rawLine,
    primary=field.metricKey in ReportParser.primaryKeys,
-   textValue=source?.textValue?.takeIf{reliable}.orEmpty(),
-   comparator=source?.comparator?.takeIf{reliable}.orEmpty()
+   textValue=source.textValue,
+   comparator=source.comparator
  )
  }
 }
@@ -228,7 +231,7 @@ fun retargetImportedDraft(
     low=field.referenceLow?.toString().orEmpty(),high=field.referenceHigh?.toString().orEmpty())
   })
  }
- val original=ReportParser.parse(d.ocr)
+ val original=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(d.ocr))
  val previous=store.latestTemplate(d.hospital,d.type,d.system)
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
