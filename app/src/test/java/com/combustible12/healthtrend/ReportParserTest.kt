@@ -101,6 +101,9 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals("谷草转氨酶",labDisplayTitle(draft.rows[0].name,draft.rows[0].key))
   assertEquals("谷草/谷丙",labDisplayTitle(draft.rows[1].name,draft.rows[1].key))
   assertFalse(labDisplayTitle(draft.rows[0].name,draft.rows[0].key).contains("AST"))
+  assertEquals("（AST） 谷草转氨酶 22 U/L 13-35",ReportParser.bindExplicitLeadingIdentities("AST 谷草转氨酶 22 U/L 13-35"))
+  assertEquals("（AST/ALT） 谷草/谷丙 0.88",ReportParser.bindExplicitLeadingIdentities("AST/ALT 谷草/谷丙 0.88"))
+  assertNotEquals(ReportParser.key("谷草转氨酶（AST）"),ReportParser.key("谷草/谷丙（AST/ALT）"))
  }
 
  @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
