@@ -348,7 +348,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
- var document by remember{mutableStateOf(initial)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var showNoteEditor by remember{mutableStateOf(false)};var noteDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
+ var document by remember{mutableStateOf(initial)};var immersive by rememberSaveable{mutableStateOf(false)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var showNoteEditor by remember{mutableStateOf(false)};var noteDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
@@ -359,7 +359,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
  }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}}
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
- FullPage("图片资料",close,navigationIcon=Icons.Outlined.ArrowBack,bottom={Column{
+ FullPage("图片资料",close,hidden=immersive,navigationIcon=Icons.Outlined.ArrowBack,bottom={if(!immersive)Column{
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
@@ -442,8 +442,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
   val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
   if(page.isTextPage())TextDocumentPage(page.fullText,previous,next,Modifier.weight(1f).fillMaxWidth())
-  else HighlightImage(page,currentBlock,{showGrid=true},previous,next,Modifier.weight(1f).fillMaxWidth())
+  else HighlightImage(page,currentBlock,{showGrid=true},previous,next,{immersive=!immersive},Modifier.weight(1f).fillMaxWidth())
  }}
+ if(immersive&&!page.isTextPage())Box(Modifier.fillMaxSize().background(Warm).windowInsetsPadding(WindowInsets.safeDrawing)){
+  HighlightImage(page,currentBlock,{showGrid=true},previous,next,{immersive=false},Modifier.fillMaxSize())
+ }
  if(showNoteEditor)AlertDialog(
   onDismissRequest={showNoteEditor=false},
   title={Text("资料说明")},
@@ -591,6 +594,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  onPinchIn:()->Unit,
  onSwipePrevious:()->Unit,
  onSwipeNext:()->Unit,
+ onSingleTap:()->Unit,
  modifier:Modifier=Modifier
 ){
  val context=LocalContext.current
@@ -613,7 +617,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  Box(
   modifier.clipToBounds().onSizeChanged{viewport=it}
    .pointerInput(page.id,viewport){
-    detectTapGestures(onDoubleTap={tap->
+    detectTapGestures(onTap={onSingleTap()},onDoubleTap={tap->
      if(viewport.width<=0||viewport.height<=0||page.imageWidth<=0||page.imageHeight<=0)return@detectTapGestures
      if(zoom>1.05f){
       zoom=1f;x=0f;y=0f;swipeX=0f
@@ -660,8 +664,13 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
       val ratio=next/zoom
       val cx=centroid.x-viewport.width/2f
       val cy=centroid.y-viewport.height/2f
-      x=transformedTranslation(x,cx,ratio,pan.x)
-      y=transformedTranslation(y,cy,ratio,pan.y)
+      if(zoom>1.01f||next>1.01f){
+       x=transformedTranslation(x,cx,ratio,pan.x)
+       y=transformedTranslation(y,cy,ratio,pan.y)
+      }else{
+       x=0f
+       y=transformedTranslation(y,cy,ratio,pan.y)
+      }
       zoom=next
      }
     }
