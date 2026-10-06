@@ -328,7 +328,51 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }
    }
  }
- if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
+ if(showWeight){
+  val weightDay=runCatching{java.time.LocalDate.parse(weightDate)}.getOrElse{java.time.LocalDate.now()}
+  val weightPickerState=rememberDatePickerState(
+   initialSelectedDateMillis=weightDay.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+  )
+  var showWeightDatePicker by remember{mutableStateOf(false)}
+  AlertDialog(
+   onDismissRequest={showWeight=false},
+   title={Text("记录体重")},
+   text={
+    Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+     Column(
+      Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).clickable{showWeightDatePicker=true}.padding(horizontal=16.dp,vertical=12.dp)
+     ){
+      Text("日期",fontSize=12.sp,color=Accent)
+      Text(weightDate,fontSize=16.sp,color=Ink)
+     }
+     Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
+      Text("体重 kg",fontSize=12.sp,color=Muted)
+      BasicTextField(
+       value=weightText,
+       onValueChange={weightText=it.filter{ch->ch.isDigit()||ch=='.'}},
+       modifier=Modifier.fillMaxWidth().padding(top=6.dp),
+       singleLine=true,
+       textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink)
+      )
+     }
+    }
+   },
+   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},
+   dismissButton={TextButton({showWeight=false}){Text("取消")}}
+  )
+  if(showWeightDatePicker){
+   DatePickerDialog(
+    onDismissRequest={showWeightDatePicker=false},
+    confirmButton={TextButton({
+     weightPickerState.selectedDateMillis?.let{millis->
+      weightDate=java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().toString()
+     }
+     showWeightDatePicker=false
+    }){Text("确定")}},
+    dismissButton={TextButton({showWeightDatePicker=false}){Text("取消")}}
+   ){DatePicker(state=weightPickerState)}
+  }
+ }
  selected?.let{(r,x)->
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(labDisplayTitle(x.rawName,x.metricKey));IconButton({selected=null;openCourse(r.testedAtEpochMillis)}){Icon(Icons.Outlined.Timeline,"打开当天病程",tint=Accent)}}},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
