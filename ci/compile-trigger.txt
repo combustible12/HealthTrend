@@ -1,14 +1,1 @@
-compile-check 2026-10-06 gesture-architecture
-2026-10-06 import-actual-items-and-trend-gaps
-2026-10-06 ui-borderless-report-fields
-2026-10-06 ui-import-fix-compile
-2026-10-06 restore-smooth-trend-compile
-2026-10-06 explicit-code-paste-import-fix
-2026-10-06 restore-proven-paste-parser
-2026-10-06 keep-bound-clipboard-rows-intact
-2026-10-06 fixed-clipboard-contract
-2026-10-06 exact AST identity and Chinese-only titles
-2026-10-06 parser identity display-name root fix
-2026-10-06 persisted Xiapu biochemistry template repair
-2026-10-06 targeted AST ALT polluted-template regression
-2026-10-06 verify AST ALT repair and trend group-gap layout
+trend-group-width-5952a5ad
