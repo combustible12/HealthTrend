@@ -37,6 +37,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -428,86 +430,69 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
 }
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
- fun pointPosition(index:Int,width:Float,height:Float):Offset{
+ val density=LocalDensity.current
+ val textMeasurer=rememberTextMeasurer()
+ val dateStyle=TextStyle(fontSize=10.sp,fontWeight=FontWeight.Normal)
+ val valueStyle=TextStyle(fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+ val groupGap=18.dp
+ val edgePadding=12.dp
+ val pointByDate=points.indices.associateBy{points[it].first}
+ val groupWidths=timeline.map{date->
+  val pointIndex=pointByDate[date] ?: -1
+  val value=if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else ""
+  val datePx=textMeasurer.measure(trendShortDate(date),dateStyle).size.width
+  val valuePx=if(value.isBlank())0 else textMeasurer.measure(value,valueStyle).size.width
+  with(density){maxOf(datePx,valuePx).toDp()}
+ }
+ val centers=mutableListOf<androidx.compose.ui.unit.Dp>()
+ var cursor=edgePadding
+ groupWidths.forEachIndexed{i,w->
+  centers+=cursor+w/2
+  cursor+=w
+  if(i<groupWidths.lastIndex)cursor+=groupGap
+ }
+ val naturalWidth=cursor+edgePadding
+ val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
+ val contentWidth=maxOf(viewportWidth,naturalWidth)
+ // If the series is shorter than the viewport, keep the same group gaps and center the whole run.
+ val extra=(contentWidth-naturalWidth)/2
+ val centered=centers.map{it+extra}
+ val scroll=rememberScrollState()
+ LaunchedEffect(contentWidth,timeline.size){scroll.scrollTo(scroll.maxValue)}
+ val plotHeight=125.dp
+ val chartHeight=160.dp
+ fun pointPosition(index:Int,widthPx:Float,height:Float):Offset{
   val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
-  val pad=56f;val slot=timeline.indexOf(points[index].first).takeIf{it>=0}?:index
-  val x=if(timeline.size<=1)width/2 else pad+(width-2*pad)*slot/(timeline.size-1)
+  val slot=timeline.indexOf(points[index].first).takeIf{it>=0}?:index
+  val x=with(density){centered.getOrElse(slot){contentWidth/2}.toPx()}
   val y=(height*.88-(points[index].second-low)/span*height*.76).toFloat()
   return Offset(x,y)
  }
- val viewportWidth=LocalConfiguration.current.screenWidthDp.dp-76.dp
- val plotHeight=125.dp
- val chartHeight=160.dp
- Box(Modifier.fillMaxWidth()){
-  BoxWithConstraints(Modifier.fillMaxWidth().height(chartHeight)){
+ Box(Modifier.fillMaxWidth().horizontalScroll(scroll)){
+  BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
    val chartWidth=constraints.maxWidth
-   val plotHeightPx=with(LocalDensity.current){plotHeight.roundToPx()}
-   Canvas(Modifier.fillMaxWidth().height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
+   val plotHeightPx=with(density){plotHeight.roundToPx()}
+   Canvas(Modifier.width(contentWidth).height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
     if(points.isEmpty())return@Canvas
     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
     val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
     when{
-     referenceLow!=null&&referenceHigh!=null->{
-      val top=y(referenceHigh);val bottom=y(referenceLow)
-      drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
-      drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
-      drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
-     }
-     referenceHigh!=null->{
-      val top=y(referenceHigh)
-      drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(size.height-top).coerceAtLeast(1f)))
-      drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
-     }
-     referenceLow!=null->{
-      val bottom=y(referenceLow)
-      drawRect(Good.copy(alpha=.08f),Offset.Zero,Size(size.width,bottom.coerceAtLeast(1f)))
-      drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
-     }
+     referenceLow!=null&&referenceHigh!=null->{val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
+     referenceHigh!=null->{val top=y(referenceHigh);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(size.height-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)}
+     referenceLow!=null->{val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset.Zero,Size(size.width,bottom.coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
-    if(points.isNotEmpty()){
-     // Keep the original smooth curve. Split it only when an intervening report date
-     // exists without this metric, so missing tests still create a real visual gap.
-     val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
-     val segments=mutableListOf<MutableList<Int>>()
-     points.indices.forEach{i->
-      if(segments.isEmpty() || (i>0 && timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1))segments.add(mutableListOf())
-      segments.last().add(i)
-     }
-     segments.forEach{indices->
-      if(indices.size>=2){
-       val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
-       for(k in 0 until indices.lastIndex){
-        val i=indices[k];val next=indices[k+1]
-        val p0=plotted[indices.getOrElse(k-1){k}]
-        val p1=plotted[i];val p2=plotted[next]
-        val p3=plotted[indices.getOrElse(k+2){k+1}]
-        val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
-        val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
-        path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
-       }
-       drawPath(path,color,style=Stroke(2.dp.toPx()))
-      }
-     }
-    }
+    val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
+    val segments=mutableListOf<MutableList<Int>>()
+    points.indices.forEach{i->if(segments.isEmpty()||(i>0&&timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1))segments.add(mutableListOf());segments.last().add(i)}
+    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);for(k in 0 until indices.lastIndex){val i=indices[k];val next=indices[k+1];val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}];path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)};drawPath(path,color,style=Stroke(2.dp.toPx()))}}
    }
-   points.indices.forEach{i->
-    val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat())
-    Box(
-     Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}
-      .size(24.dp)
-      .then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)})
-      .semantics{contentDescription=pointDescriptions.getOrNull(i) ?: "趋势点 $metricKey ${i+1}"},
-     contentAlignment=Alignment.Center
-    ){Canvas(Modifier.size(8.dp)){drawCircle(color)}}
-   }
+   points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(color)}}}
    timeline.forEachIndexed{slot,date->
-    val padPx=56f;val x=if(timeline.size<=1)chartWidth/2f else padPx+(chartWidth-2*padPx)*slot/(timeline.size-1)
-    val pointIndex=points.indexOfFirst{it.first==date}
-    Column(
-     Modifier.offset{androidx.compose.ui.unit.IntOffset(x.toInt()-40.dp.roundToPx(),plotHeightPx+4.dp.roundToPx())}.width(80.dp),
-     horizontalAlignment=Alignment.CenterHorizontally
-    ){
+    val pointIndex=pointByDate[date]?:-1
+    val groupWidth=groupWidths[slot]
+    val center=centered[slot]
+    Column(Modifier.offset(x=center-groupWidth/2,y=plotHeight+4.dp).width(groupWidth),horizontalAlignment=Alignment.CenterHorizontally){
      Text(trendShortDate(date),fontSize=10.sp,lineHeight=11.sp,fontWeight=FontWeight.Normal,color=Muted,maxLines=1,textAlign=TextAlign.Center)
      Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",fontSize=13.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=color,maxLines=1,textAlign=TextAlign.Center)
     }
@@ -518,7 +503,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?,referenceHigh:Double?,metricKey:String,onDismiss:()->Unit){
  Dialog(onDismissRequest=onDismiss){
   Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Column(Modifier.padding(20.dp).fillMaxWidth(0.8f),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Column(Modifier.padding(20.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
      Canvas(Modifier.fillMaxWidth().height(160.dp)){
