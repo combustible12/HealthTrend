@@ -469,13 +469,26 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      }
     }
     if(points.isNotEmpty()){
+     // Keep the original smooth curve. Split it only when an intervening report date
+     // exists without this metric, so missing tests still create a real visual gap.
      val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
-     // Draw only between adjacent report dates. A report date where this metric was
-     // not tested is a real gap, so the line must stop and restart afterwards.
-     for(i in 0 until plotted.lastIndex){
-      val a=timeline.indexOf(points[i].first);val b=timeline.indexOf(points[i+1].first)
-      if(a>=0&&b==a+1){
-       val path=Path();path.moveTo(plotted[i].x,plotted[i].y);path.lineTo(plotted[i+1].x,plotted[i+1].y)
+     val segments=mutableListOf<MutableList<Int>>()
+     points.indices.forEach{i->
+      if(segments.isEmpty() || (i>0 && timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1))segments.add(mutableListOf())
+      segments.last().add(i)
+     }
+     segments.forEach{indices->
+      if(indices.size>=2){
+       val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
+       for(k in 0 until indices.lastIndex){
+        val i=indices[k];val next=indices[k+1]
+        val p0=plotted[indices.getOrElse(k-1){k}]
+        val p1=plotted[i];val p2=plotted[next]
+        val p3=plotted[indices.getOrElse(k+2){k+1}]
+        val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
+        val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
+        path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
+       }
        drawPath(path,color,style=Stroke(2.dp.toPx()))
       }
      }
