@@ -9,8 +9,9 @@ fun labDisplayTitle(name:String,key:String):String{
  val codes=setOf(key,"WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","CRE","UA","LDH")
  val tokens=codes.filter{it.any{c->c in 'A'..'Z'}}.flatMap{code->if(code.lastOrNull() in listOf('#','%'))listOf(code,code.last()+code.dropLast(1)) else listOf(code)}.distinct().sortedByDescending{it.length}
  val pattern=tokens.joinToString("|"){Regex.escape(it)}
- return name.replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
+ val clean=name.replace(Regex("(?<![\\p{L}\\p{N}])(?:$pattern)(?![\\p{L}\\p{N}])",RegexOption.IGNORE_CASE),"")
   .replace(Regex("[（(]\\s*[）)]"),"").replace(Regex("\\s+")," ").trim()
+ return if(clean.isBlank()) key else "$clean（$key）"
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
