@@ -251,7 +251,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
   if(category=="体重"&&query.isBlank()){
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";weightDate=java.time.LocalDate.now().toString();showWeight=true}){Text("+ 记录体重")}}
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";weightDate="";showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
     val w=weights.last()
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Text("体重",fontWeight=FontWeight.Bold,fontSize=16.sp);Row(verticalAlignment=Alignment.Bottom){Text(String.format(java.util.Locale.US,"%.1f",w.kilograms),fontWeight=FontWeight.Bold,fontSize=20.sp,color=Good);Spacer(Modifier.width(4.dp));Text("kg",fontSize=11.sp,color=Good)}}
@@ -329,9 +329,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
  }
  if(showWeight){
-  val weightDay=runCatching{java.time.LocalDate.parse(weightDate)}.getOrElse{java.time.LocalDate.now()}
+  val weightDay=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull()
   val weightPickerState=rememberDatePickerState(
-   initialSelectedDateMillis=weightDay.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+   initialSelectedDateMillis=weightDay?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
   )
   var showWeightDatePicker by remember{mutableStateOf(false)}
   AlertDialog(
@@ -339,11 +339,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    title={Text("记录体重")},
    text={
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-     Column(
-      Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).clickable{showWeightDatePicker=true}.padding(horizontal=16.dp,vertical=12.dp)
+     Row(
+      Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).clickable{showWeightDatePicker=true}.padding(horizontal=16.dp,vertical=12.dp),
+      horizontalArrangement=Arrangement.SpaceBetween,
+      verticalAlignment=Alignment.CenterVertically
      ){
-      Text("日期",fontSize=12.sp,color=Accent)
       Text(weightDate,fontSize=16.sp,color=Ink)
+      Icon(Icons.Outlined.DateRange,"选择日期",tint=Accent)
      }
      Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
       Text("体重 kg",fontSize=12.sp,color=Muted)
@@ -357,7 +359,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
    },
-   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},
+   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},
    dismissButton={TextButton({showWeight=false}){Text("取消")}}
   )
   if(showWeightDatePicker){
@@ -365,7 +367,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     onDismissRequest={showWeightDatePicker=false},
     confirmButton={TextButton({
      weightPickerState.selectedDateMillis?.let{millis->
-      weightDate=java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().toString()
+      weightDate=java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"))
      }
      showWeightDatePicker=false
     }){Text("确定")}},
