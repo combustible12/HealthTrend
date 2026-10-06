@@ -235,20 +235,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
-  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){
-   detectHorizontalDragGestures(
-    onDragStart={categorySwipe=0f},
-    onHorizontalDrag={change,dragAmount->categorySwipe+=dragAmount},
-    onDragCancel={categorySwipe=0f},
-    onDragEnd={
-     val i=trendCategories.indexOf(category)
-     if(categorySwipe< -90f&&i<trendCategories.lastIndex)category=trendCategories[i+1]
-     else if(categorySwipe>90f&&i>0)category=trendCategories[i-1]
-     categorySwipe=0f
-    }
-   )
-  }){
-   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
+  Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
@@ -311,7 +298,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
    }
-  }
  }
  if(showWeight)AlertDialog(onDismissRequest={showWeight=false},title={Text("记录体重")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(weightDate,{weightDate=it},label={Text("日期 YYYY-MM-DD")},singleLine=true);OutlinedTextField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label={Text("体重 kg")},singleLine=true)}},confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate)}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},dismissButton={TextButton({showWeight=false}){Text("取消")}})
  selected?.let{(r,x)->
