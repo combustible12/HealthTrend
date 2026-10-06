@@ -213,8 +213,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->result.metricKey}
  val weights=remember(weightVersion,revision){store.weightRecords()}
+ val trendCategories=listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}
+ val categoryScroll=rememberScrollState()
+ var categorySwipe by remember{mutableFloatStateOf(0f)}
  Screen(m,"指标趋势",spacing=3.5.dp){
-  Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}).forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+  Row(Modifier.horizontalScroll(categoryScroll)){trendCategories.forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
@@ -231,6 +234,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
+  Box(Modifier.fillMaxWidth().pointerInput(category,trendCategories){detectDragGestures(onDragStart={categorySwipe=0f},onDragCancel={categorySwipe=0f},onDragEnd={val i=trendCategories.indexOf(category);if(categorySwipe< -90f&&i<trendCategories.lastIndex)category=trendCategories[i+1] else if(categorySwipe>90f&&i>0)category=trendCategories[i-1];categorySwipe=0f}){change,amount->if(kotlin.math.abs(amount.x)>kotlin.math.abs(amount.y)){change.consume();categorySwipe+=amount.x}}}){
+   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
@@ -290,6 +295,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val bounds=sx.trendReferenceRange()
      TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,labDisplayTitle(latest.rawName,latest.metricKey),onDismiss={previewSeries=null})
     }
+   }
+  }
    }
   }
  }
