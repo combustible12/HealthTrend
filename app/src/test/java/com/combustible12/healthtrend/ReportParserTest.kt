@@ -19,6 +19,72 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   assertEquals(listOf("ALT","CREA"),draft.rows.map{it.key});assertEquals(listOf("23","46"),draft.rows.map{it.text})
   assertEquals("U/L",draft.rows[0].unit);assertEquals("7.0",draft.rows[0].low);assertEquals("40.0",draft.rows[0].high)
  }
+ @Test fun fixedClipboardFormatKeepsOnlyActuallyTestedMetrics(){
+  val cbcLines=listOf(
+   "WBC 白细胞 6.42 10^9/L 3.5-9.5",
+   "NEUT# 中性粒细胞计数 4.10 10^9/L 2.00-7.00",
+   "NEUT% 中性粒细胞百分比 63.9 % 50.0-70.0",
+   "LYMPH# 淋巴细胞计数 1.72 10^9/L 0.80-4.00",
+   "LYMPH% 淋巴细胞百分比 26.8 % 20.0-40.0",
+   "MONO# 单核细胞计数 0.45 10^9/L 0.12-1.2",
+   "MONO% 单核细胞百分比 7.0 % 3-12",
+   "EOS# 嗜酸性粒细胞计数 0.12 10^9/L 0.02-0.5",
+   "EOS% 嗜酸性粒细胞百分比 1.9 % 0.5-5",
+   "BASO# 嗜碱性粒细胞计数 0.03 10^9/L 0.00-0.10",
+   "BASO% 嗜碱性粒细胞百分比 0.4 % 0.0-1.0",
+   "RBC 红细胞 4.18 10^12/L 3.68-5.13",
+   "HGB 血红蛋白 121 g/L 113-151",
+   "HCT 红细胞压积 36.40 % 34-45",
+   "MCV 红细胞平均体积 87.1 fL 80-100",
+   "MCH 平均红细胞血红蛋白量 29.0 pg 27-34",
+   "MCHC 平均红细胞血红蛋白浓度 333 g/L 320-360",
+   "RDW 红细胞分布宽度 12.70 % 11-16",
+   "RDW-SD 红细胞分布宽度SD 42 fL 35-56",
+   "PLT 血小板 245 10^9/L 100-300",
+   "PCT 血小板压积 0.221 0.108--",
+   "MPV 平均血小板体积 9.4 fL 6.5-12",
+   "PDW 血小板分布宽度 16.1 % 15-17",
+   "P-LCR 大型血小板比率 22.4 11-45",
+   "NRBC% 有核红细胞比率 0.00 <=9999.99",
+   "NRBC# 有核红细胞计数 0.000 <=9999.99",
+   "P-LCC 大小血小板数目 55 10^9/L 30-90"
+  )
+  val cbcTemplate=HospitalLabTemplate("测试市中心医院","血常规",1,true,
+   cbcLines.map{ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(it)).single()}.map{
+    LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)
+   })
+  val fullRaw=(listOf("测试市中心医院","血常规","2026-10-06")+cbcLines).joinToString("\n")
+  val full=pastedReportDraft(fullRaw,cbcTemplate)
+  assertEquals("测试市中心医院",full.hospital);assertEquals("血常规",full.type);assertEquals("2026-10-06",full.date)
+  assertEquals(27,full.rows.size);assertTrue(full.rows.all{it.text.isNotBlank()});assertTrue(full.valid())
+  assertEquals("36.40",full.rows.single{it.key=="HCT"}.text)
+  assertEquals("0.00",full.rows.single{it.key=="NRBC%"}.text);assertEquals("0.000",full.rows.single{it.key=="NRBC#"}.text)
+  assertEquals("10^9/L",full.rows.single{it.key=="NEUT#"}.unit);assertEquals("10^12/L",full.rows.single{it.key=="RBC"}.unit)
+  assertEquals("P-LCR",full.rows.single{it.key=="P-LCR"}.key);assertEquals("P-LCC",full.rows.single{it.key=="P-LCC"}.key)
+
+  val missingKeys=setOf("EOS#","EOS%","NRBC%","NRBC#")
+  val partialRaw=(listOf("测试市中心医院","血常规","2026-10-07")+cbcLines.filterNot{line->missingKeys.any{line.startsWith("$it ")}}).joinToString("\n")
+  val partial=pastedReportDraft(partialRaw,cbcTemplate)
+  assertEquals(23,partial.rows.size);assertTrue(partial.rows.none{it.key in missingKeys});assertTrue(partial.valid())
+
+  val chemistry=listOf(
+   "TP 总蛋白 72.40 g/L 65-85","ALB 白蛋白 41.80 g/L 40-55","GLOB 球蛋白 30.60 g/L 20-40",
+   "A/G 白球比 1.4 1.5-2.5","TBIL 总胆红素 8.10 umol/L 3.4-20.6","DBIL 直接胆红素 1.30 umol/L <=6.84",
+   "IBIL 间接胆红素 6.80 umol/L 2-15.22","ALT 谷丙转氨酶 24 U/L 7-40","AST 谷草转氨酶 19 U/L 13-35",
+   "AST/ALT 谷草/谷丙 0.79","GGT 谷氨酰转肽酶 17 U/L 7-45","ALP 碱性磷酸酶 68 U/L 35-100",
+   "UREA 尿素 4.8 mmol/L 1.43-7.14","CREA 肌酐 52 umol/L 35-80","UA 尿酸 310 umol/L 90-357"
+  )
+  val chemistryTemplate=HospitalLabTemplate("测试市中心医院","生化",1,true,
+   (chemistry+listOf("LDH 乳酸脱氢酶 180 U/L 120-250","CHE 胆碱酯酶 7000 U/L 5000-12000","TBA 总胆汁酸 5.0 umol/L 0-10")).map{
+    ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(it)).single()
+   }.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)})
+  val chemDraft=pastedReportDraft((listOf("测试市中心医院","生化","2026-10-08")+chemistry).joinToString("\n"),chemistryTemplate)
+  assertEquals(15,chemDraft.rows.size);assertTrue(chemDraft.valid())
+  assertEquals(19.0,chemDraft.rows.single{it.key=="AST"}.parsed().value!!,0.0)
+  assertEquals(0.79,chemDraft.rows.single{it.key=="AST/ALT"}.parsed().value!!,0.0)
+  assertTrue(chemDraft.rows.none{it.key in setOf("LDH","CHE","TBA")})
+ }
+
  @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
   val raw="医院：测试医院\n检查类型：肾功能\n报告日期：2026/9/29\nUREA 尿素 5.2 mmol/L 1.43-7.14"
   val draft=pastedReportDraft(raw)
