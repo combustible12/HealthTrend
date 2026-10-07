@@ -622,15 +622,19 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
        if(segments.isEmpty()||hospitalBreak)segments.add(mutableListOf())
        segments.last().add(i)
       }
-      segments.forEach{indices->if(indices.size>=2){
-       val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
-       for(k in 0 until indices.lastIndex){
-        val i=indices[k];val next=indices[k+1]
-        val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}]
-        path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)
+      segments.forEach{indices->
+       if(indices.size==1){drawCircle(color,4.dp.toPx(),plotted[indices.single()])}
+       else if(indices.size>=2){
+        val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
+        for(k in 0 until indices.lastIndex){
+         val i=indices[k];val next=indices[k+1]
+         val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}]
+         path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)
+        }
+        drawPath(path,color,style=Stroke(2.dp.toPx()))
+        indices.forEach{i->drawCircle(color,3.dp.toPx(),plotted[i])}
        }
-       drawPath(path,color,style=Stroke(2.dp.toPx()))
-      }}
+      }
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
       Text(trendShortDate(points.first().first),fontSize=10.sp,color=Muted)
