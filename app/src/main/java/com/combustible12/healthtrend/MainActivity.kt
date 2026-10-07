@@ -299,13 +299,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     fun rangeKey(x:LabResult):RangeRow{
      val b=x.trendReferenceRange()
      val unit=displayLabUnit(x.normalizedUnit.ifBlank{x.unitAtTest})
-     return RangeRow(b.first,b.second,unit)
+     fun clean(v:Double?)=v?.let{if(kotlin.math.abs(it)<1e-9)0.0 else kotlin.math.round(it*1_000_000.0)/1_000_000.0}
+     return RangeRow(clean(b.first),clean(b.second),unit)
     }
     val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
     hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,maxLines=1)}
-    val overallOffsetY=if(rangeRows.isNotEmpty())(-(hospitalRows.size*19+19+(rangeRows.size-1)*19)).dp else (-8).dp
+    val lineHeight=19.dp
+    val overallOffsetY=if(rangeRows.isNotEmpty())-(lineHeight*hospitalRows.size+lineHeight*rangeRows.size) else (-8).dp
     Row(Modifier.fillMaxWidth().offset(y=overallOffsetY),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
      TextButton(onClick={previewSeries=compatiblePoints},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
@@ -324,7 +326,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=compatiblePoints.map{it.second.textValue},
-      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff}.map{it.testedAtEpochMillis},
+      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff&&r.results.any{x->x.metricKey==key}}.map{it.testedAtEpochMillis},
       onShowPreview={previewSeries=compatiblePoints}
      )
     }
