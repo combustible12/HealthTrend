@@ -247,6 +247,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   else->null
  }
  val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->result.metricKey}
+ // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
+ // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
+ val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
+ val globalNormalHospitalColors=hospitalColorMap(globalHospitalRows,false)
+ val globalAbnormalHospitalColors=hospitalColorMap(globalHospitalRows,true)
  val weights=remember(weightVersion,revision){store.weightRecords()}
  val trendCategories=listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}
  val categoryScroll=rememberScrollState()
@@ -327,7 +332,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
-    val hospitalColors=hospitalColorMap(hospitalRows,hasHistoricalAbnormal)
+    val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
     val pointHospitalColors=compatiblePoints.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
