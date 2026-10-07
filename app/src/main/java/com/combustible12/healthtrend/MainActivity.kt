@@ -601,7 +601,6 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
       val low=rawLow-rawSpan*.10;val high=rawHigh+rawSpan*.10;val span=high-low
       fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
       val xs=points.indices.map{i->if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)}
-      val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
       if(referenceBands.size==points.size){
        points.indices.forEach{i->
         val left=if(i==0)0f else (xs[i-1]+xs[i])/2f
@@ -610,8 +609,6 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
         if(rl!=null&&rh!=null){
          val top=y(rh);val bottom=y(rl)
          drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)))
-         drawLine(Good.copy(alpha=.55f),Offset(left,top),Offset(right,top),1.5.dp.toPx(),pathEffect=dash)
-         drawLine(Good.copy(alpha=.55f),Offset(left,bottom),Offset(right,bottom),1.5.dp.toPx(),pathEffect=dash)
         }
        }
       }
