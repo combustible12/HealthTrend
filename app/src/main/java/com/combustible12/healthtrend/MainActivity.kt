@@ -295,9 +295,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val compatiblePoints=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
-    val displayUnit=compatiblePoints.lastOrNull()?.second?.let{displayLabUnit(it.unitAtTest)}.orEmpty()
     data class RangeRow(val low:Double?,val high:Double?,val unit:String)
-    val rangeRows=compatiblePoints.map{(_,x)->val b=x.trendReferenceRange();RangeRow(b.first,b.second,displayLabUnit(x.unitAtTest))}.distinct()
+    fun rangeKey(x:LabResult):RangeRow{
+     val b=x.trendReferenceRange()
+     val unit=displayLabUnit(x.normalizedUnit.ifBlank{x.unitAtTest})
+     return RangeRow(b.first,b.second,unit)
+    }
+    val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
     hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,maxLines=1)}
