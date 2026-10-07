@@ -303,7 +303,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      return RangeRow(clean(b.first),clean(b.second),unit)
     }
     val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}
-     .distinctBy{Triple(it.low,it.high,it.unit.trim().lowercase().replace("×","").replace("x",""))}
+     .distinctBy{Pair(it.low,it.high)}
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,lineHeight=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.height(12.dp))}
     hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=11.sp,maxLines=1,modifier=Modifier.height(12.dp))}
@@ -632,7 +632,6 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
          path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)
         }
         drawPath(path,color,style=Stroke(2.dp.toPx()))
-        indices.forEach{i->drawCircle(color,3.dp.toPx(),plotted[i])}
        }
       }
      }
