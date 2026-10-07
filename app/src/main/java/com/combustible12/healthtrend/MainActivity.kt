@@ -57,8 +57,8 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8)
-private val NormalHospitalPalette=listOf(Color(0xFF8DB8F4),Color(0xFF659CEB),Color(0xFF3F7FE8),Color(0xFF2F65C4),Color(0xFF244D9D),Color(0xFF193775))
-private val AbnormalHospitalPalette=listOf(Color(0xFFF59A9A),Color(0xFFF27272),Color(0xFFF04444),Color(0xFFD52F2F),Color(0xFFAE2424),Color(0xFF851A1A))
+private val NormalHospitalPalette=listOf(Color(0xFF9BC9FF),Color(0xFF4E8FE8),Color(0xFF1760B8),Color(0xFF104889),Color(0xFF0B3568),Color(0xFF07264D))
+private val AbnormalHospitalPalette=listOf(Color(0xFFFFAAA6),Color(0xFFF2645C),Color(0xFFD93636),Color(0xFFAD2424),Color(0xFF821A1A),Color(0xFF5D1111))
 private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color>{
  val ordered=keys.map{it.ifBlank{"医院未录入"}}.distinct()
  if(ordered.isEmpty())return emptyMap()
@@ -620,7 +620,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     val center=centered[slot]
     Column(Modifier.offset(x=center-groupWidth/2,y=plotHeight+4.dp).width(groupWidth),horizontalAlignment=Alignment.CenterHorizontally){
      Text(trendShortDate(date),style=dateStyle.copy(lineHeight=11.sp,color=Muted,textAlign=TextAlign.Center),maxLines=1)
-     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",style=valueStyle.copy(lineHeight=14.sp,color=color,textAlign=TextAlign.Center),maxLines=1)
+     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",style=valueStyle.copy(lineHeight=14.sp,color=if(pointIndex>=0)segmentColors.getOrNull(pointIndex)?:color else color,textAlign=TextAlign.Center),maxLines=1)
     }
    }
   }
