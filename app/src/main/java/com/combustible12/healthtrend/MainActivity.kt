@@ -57,8 +57,8 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8)
-private val NormalHospitalPalette=listOf(Color(0xFF9BC9FF),Color(0xFF4E8FE8),Color(0xFF1760B8),Color(0xFF104889),Color(0xFF0B3568),Color(0xFF07264D))
-private val AbnormalHospitalPalette=listOf(Color(0xFFFFAAA6),Color(0xFFF2645C),Color(0xFFD93636),Color(0xFFAD2424),Color(0xFF821A1A),Color(0xFF5D1111))
+private val NormalHospitalPalette=listOf(Color(0xFF82BEFF),Color(0xFF3488F0),Color(0xFF0862C8),Color(0xFF004A99),Color(0xFF003774),Color(0xFF002852))
+private val AbnormalHospitalPalette=listOf(Color(0xFFFF918B),Color(0xFFF04444),Color(0xFFD91E1E),Color(0xFFB50F0F),Color(0xFF8C0808),Color(0xFF650404))
 private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color>{
  val ordered=keys.map{it.ifBlank{"医院未录入"}}.distinct()
  if(ordered.isEmpty())return emptyMap()
