@@ -282,7 +282,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       val fixedTitle=labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{meaningDetail=true})}
-      Text("参考范围: ${rangeText(latest.referenceLowAtTest,latest.referenceHighAtTest)} ${displayLabUnit(latest.unitAtTest)}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
      Column(horizontalAlignment=Alignment.End){
       Row(verticalAlignment=Alignment.Bottom){
