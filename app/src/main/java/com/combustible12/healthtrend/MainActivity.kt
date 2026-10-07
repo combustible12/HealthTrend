@@ -520,7 +520,10 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val plotHeight=125.dp
  val chartHeight=160.dp
  fun pointPosition(index:Int,widthPx:Float,height:Float):Offset{
-  val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+  val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)}
+  val rawValues=points.map{it.second}+bandValues+listOfNotNull(referenceLow,referenceHigh)
+  val rawLow=rawValues.minOrNull()?:0.0;val rawHigh=rawValues.maxOrNull()?:1.0;val rawSpan=(rawHigh-rawLow).coerceAtLeast(1.0)
+  val low=rawLow-rawSpan*.10;val high=rawHigh+rawSpan*.10;val span=high-low
   val slot=timeline.indexOf(points[index].first).takeIf{it>=0}?:index
   val x=with(density){centered.getOrElse(slot){contentWidth/2}.toPx()}
   val y=(height*.88-(points[index].second-low)/span*height*.76).toFloat()
@@ -532,7 +535,10 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
    val plotHeightPx=with(density){plotHeight.roundToPx()}
    Canvas(Modifier.width(contentWidth).height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
     if(points.isEmpty())return@Canvas
-    val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+    val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)}
+    val rawValues=points.map{it.second}+bandValues+listOfNotNull(referenceLow,referenceHigh)
+    val rawLow=rawValues.minOrNull()?:0.0;val rawHigh=rawValues.maxOrNull()?:1.0;val rawSpan=(rawHigh-rawLow).coerceAtLeast(1.0)
+    val low=rawLow-rawSpan*.10;val high=rawHigh+rawSpan*.10;val span=high-low
     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
     val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
     if(referenceBands.size==points.size&&points.isNotEmpty()){
