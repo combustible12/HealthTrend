@@ -305,7 +305,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
     hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,maxLines=1)}
-    Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
+    val overallOffsetY=if(rangeRows.size>=2)(-(hospitalRows.size*19+19)).dp else (-8).dp
+    Row(Modifier.fillMaxWidth().offset(y=overallOffsetY),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
      TextButton(onClick={previewSeries=compatiblePoints},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
     if(compatiblePoints.isNotEmpty()){
