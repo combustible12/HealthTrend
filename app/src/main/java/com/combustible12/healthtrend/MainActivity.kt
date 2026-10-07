@@ -302,8 +302,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      fun clean(v:Double?)=v?.let{if(kotlin.math.abs(it)<1e-9)0.0 else kotlin.math.round(it*1_000_000.0)/1_000_000.0}
      return RangeRow(clean(b.first),clean(b.second),unit)
     }
+    fun displayRangeKey(row:RangeRow):String{
+     fun n(v:Double?)=v?.let{java.math.BigDecimal.valueOf(it).stripTrailingZeros().toPlainString()}?:""
+     return n(row.low)+"|"+n(row.high)
+    }
     val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}
-     .distinctBy{Pair(it.low,it.high)}
+     .distinctBy(::displayRangeKey)
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,lineHeight=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.height(12.dp))}
     hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=11.sp,maxLines=1,modifier=Modifier.height(12.dp))}
