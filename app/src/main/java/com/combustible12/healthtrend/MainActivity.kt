@@ -57,6 +57,26 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8)
+private val NormalHospitalPalette=listOf(Color(0xFF8DB8F4),Color(0xFF659CEB),Color(0xFF3F7FE8),Color(0xFF2F65C4),Color(0xFF244D9D),Color(0xFF193775))
+private val AbnormalHospitalPalette=listOf(Color(0xFFF59A9A),Color(0xFFF27272),Color(0xFFF04444),Color(0xFFD52F2F),Color(0xFFAE2424),Color(0xFF851A1A))
+private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color>{
+ val ordered=keys.map{it.ifBlank{"医院未录入"}}.distinct()
+ if(ordered.isEmpty())return emptyMap()
+ val palette=if(abnormal)AbnormalHospitalPalette else NormalHospitalPalette
+ return ordered.mapIndexed{i,key->
+  val color=if(ordered.size<=palette.size)palette[i] else{
+   val t=i.toFloat()/(ordered.size-1).coerceAtLeast(1)
+   val first=palette.first();val last=palette.last()
+   Color(
+    red=first.red+(last.red-first.red)*t,
+    green=first.green+(last.green-first.green)*t,
+    blue=first.blue+(last.blue-first.blue)*t,
+    alpha=1f
+   )
+  }
+  key to color
+ }.toMap()
+}
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 fun dateText(n:Long)=Instant.ofEpochMilli(n).atZone(ZoneId.systemDefault()).format(stamp)
 fun normalizeDateText(s:String):String? {
@@ -306,10 +326,19 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      "参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}".trim()
     }.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
+    val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
+    val hospitalColors=hospitalColorMap(hospitalRows,hasHistoricalAbnormal)
+    val pointHospitalColors=compatiblePoints.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->Text(text,color=Muted,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
-      hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)}
+      hospitalRows.forEach{hospital->
+       Row(verticalAlignment=Alignment.CenterVertically){
+        Canvas(Modifier.size(8.dp)){drawCircle(hospitalColors[hospital]?:Muted)}
+        Spacer(Modifier.width(6.dp))
+        Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)
+       }
+      }
      }
      if(rangeDisplayRows.isNotEmpty()){
       TextButton(
@@ -321,7 +350,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }
     if(compatiblePoints.isNotEmpty()){
      Spacer(Modifier.height(if(rangeDisplayRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
-     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
      val referenceBands=compatiblePoints.map{(_,x)->x.trendReferenceRange()}
      Spark(
@@ -331,6 +359,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       referenceHigh=null,
       referenceBands=referenceBands,
       segmentKeys=compatiblePoints.map{it.first.hospitalKey},
+      segmentColors=pointHospitalColors,
       onPointClick={index->selected=compatiblePoints[index]},
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
@@ -349,6 +378,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
       referenceBands=series.map{(_,r)->r.trendReferenceRange()},
       segmentKeys=series.map{it.first.hospitalKey},
+      segmentColors=series.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       onDismiss={previewSeries=null}
      )
@@ -503,7 +533,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=trendPointPosition(points,hit,width,height,referenceLow,referenceHigh);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
  val density=LocalDensity.current
  val textMeasurer=rememberTextMeasurer()
@@ -581,9 +611,9 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
      if(segments.isEmpty()||timelineBreak||hospitalBreak)segments.add(mutableListOf())
      segments.last().add(i)
     }
-    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);for(k in 0 until indices.lastIndex){val i=indices[k];val next=indices[k+1];val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}];path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)};drawPath(path,color,style=Stroke(2.dp.toPx()))}}
+    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);for(k in 0 until indices.lastIndex){val i=indices[k];val next=indices[k+1];val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}];path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
    }
-   points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(color)}}}
+   points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
     val pointIndex=pointByDate[date]?:-1
     val groupWidth=groupWidths[slot]
@@ -596,7 +626,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   }
  }
 }
-@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,metricKey:String,onDismiss:()->Unit){
+@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit){
  Dialog(onDismissRequest=onDismiss){
   Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(20.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
@@ -628,7 +658,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
        segments.last().add(i)
       }
       segments.forEach{indices->
-       if(indices.size==1){drawCircle(color,4.dp.toPx(),plotted[indices.single()])}
+       if(indices.size==1){drawCircle(segmentColors.getOrNull(indices.single())?:color,4.dp.toPx(),plotted[indices.single()])}
        else if(indices.size>=2){
         val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
         for(k in 0 until indices.lastIndex){
@@ -636,7 +666,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
          val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}]
          path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)
         }
-        drawPath(path,color,style=Stroke(2.dp.toPx()))
+        drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))
        }
       }
      }
