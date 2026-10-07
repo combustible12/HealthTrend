@@ -394,7 +394,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  }}){m->Column(m.padding(horizontal=12.dp)){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
    Row(
-    Modifier.weight(1f).height(44.dp).border(1.dp,Color(0xFF7B7B82),RoundedCornerShape(4.dp)).padding(horizontal=12.dp),
+    Modifier.weight(1f).height(44.dp).background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=12.dp),
     verticalAlignment=Alignment.CenterVertically
    ){
     BasicTextField(
@@ -450,7 +450,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  if(showNoteEditor)AlertDialog(
   onDismissRequest={showNoteEditor=false},
   title={Text("资料说明")},
-  text={OutlinedTextField(noteDraft,{noteDraft=it},Modifier.fillMaxWidth(),label={Text("说明文字")},minLines=6,maxLines=12)},
+  text={Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=14.dp,vertical=12.dp)){Text("说明文字",fontSize=12.sp,color=Muted);BasicTextField(noteDraft,{noteDraft=it},Modifier.fillMaxWidth().padding(top=6.dp),minLines=6,maxLines=12,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink))}},
   confirmButton={TextButton({
    val value=noteDraft.trim();val old=document.pages.firstOrNull{it.isTextPage()}
    val pages=when{value.isBlank()->document.pages.filterNot{it.isTextPage()};old==null->listOf(textPage(value))+document.pages;else->document.pages.map{if(it.id==old.id)it.copy(fullText=value)else it}}
@@ -464,14 +464,10 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   onDismissRequest={showLinkEditor=false},
   title={Text(if(page.sourceUrl.isBlank())"添加文章链接" else "图片来源链接")},
   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-   OutlinedTextField(
-    value=linkDraft,
-    onValueChange={linkDraft=it},
-    modifier=Modifier.fillMaxWidth(),
-    label={Text("公众号文章 / 网页链接")},
-    placeholder={Text("https://mp.weixin.qq.com/...")},
-    singleLine=true
-   )
+   Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=14.dp,vertical=12.dp)){
+    Text("公众号文章 / 网页链接",fontSize=12.sp,color=Muted)
+    BasicTextField(value=linkDraft,onValueChange={linkDraft=it},modifier=Modifier.fillMaxWidth().padding(top=6.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink),decorationBox={inner->Box{if(linkDraft.isBlank())Text("https://mp.weixin.qq.com/...",color=Muted);inner()}})
+   }
    if(linkDraft.isNotBlank()&&!linkDraft.trim().let{it.startsWith("https://")||it.startsWith("http://")})Text("请输入 http:// 或 https:// 开头的链接",fontSize=12.sp,color=Bad)
   }},
   confirmButton={TextButton({

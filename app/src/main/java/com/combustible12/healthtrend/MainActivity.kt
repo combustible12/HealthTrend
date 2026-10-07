@@ -109,6 +109,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
  val courseRecords=remember(revision){runCatching{store.courseRecords()}.getOrElse{error="病程记录读取失败：${it.message}";emptyList()}}
+ LaunchedEffect(Unit){runCatching{store.ensureTodayCourseRecord()}.onSuccess{revision++}.onFailure{error="今日病程卡创建失败：${it.message}"}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport(store,{draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
@@ -404,14 +405,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    text={
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
      Row(
-      Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).clickable{showWeightDatePicker=true}.padding(horizontal=16.dp,vertical=12.dp),
+      Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).clickable{showWeightDatePicker=true}.padding(horizontal=16.dp,vertical=12.dp),
       horizontalArrangement=Arrangement.SpaceBetween,
       verticalAlignment=Alignment.CenterVertically
      ){
       Text(weightDate,fontSize=16.sp,color=Ink)
       Icon(Icons.Outlined.DateRange,"选择日期",tint=Accent)
      }
-     Column(Modifier.fillMaxWidth().background(SelectedTint,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
+     Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
       Text("体重 kg",fontSize=12.sp,color=Muted)
       BasicTextField(
        value=weightText,
@@ -444,7 +445,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
    Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)} · ${x.status().label()}",color=Muted)
-   if(editing)OutlinedTextField(editValue,{editValue=it},label={Text("结果")},singleLine=true)
+   if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
    if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
    else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
@@ -702,7 +703,7 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
 }}
 @Composable fun SymptomReport(entries:List<HealthEntry>){
  var start by rememberSaveable{mutableStateOf(LocalDate.now().minusDays(30).toString())};var end by rememberSaveable{mutableStateOf(LocalDate.now().toString())}
- OutlinedTextField(start,{start=it},label={Text("开始日期 YYYY-MM-DD")},modifier=Modifier.fillMaxWidth());OutlinedTextField(end,{end=it},label={Text("结束日期 YYYY-MM-DD")},modifier=Modifier.fillMaxWidth())
+ Field(start,{start=it},"开始日期 YYYY-MM-DD");Field(end,{end=it},"结束日期 YYYY-MM-DD")
  val from=parseDate(start);val until=parseDate(end)?.let{Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).plusDays(1).toInstant().toEpochMilli()}
  if(from==null||until==null||from>=until){Text("请填写有效日期范围",color=Bad);return}
  val selected=entries.filter{it.occurredAtEpochMillis>=from&&it.occurredAtEpochMillis<until}
