@@ -302,21 +302,26 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      fun clean(v:Double?)=v?.let{if(kotlin.math.abs(it)<1e-9)0.0 else kotlin.math.round(it*1_000_000.0)/1_000_000.0}
      return RangeRow(clean(b.first),clean(b.second),unit)
     }
-    fun displayRangeKey(row:RangeRow):String{
-     fun n(v:Double?)=v?.let{java.math.BigDecimal.valueOf(it).stripTrailingZeros().toPlainString()}?:""
-     return n(row.low)+"|"+n(row.high)
-    }
-    val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}
-     .distinctBy(::displayRangeKey)
+    val rangeDisplayRows=compatiblePoints.map{(_,x)->
+     val rr=rangeKey(x)
+     "参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}".trim()
+    }.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
-    rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,lineHeight=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.height(12.dp))}
-    hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=11.sp,maxLines=1,modifier=Modifier.height(12.dp))}
-    val overallOffsetY=if(rangeRows.isNotEmpty())-(12.dp*(hospitalRows.size+rangeRows.size)) else (-8).dp
-    Row(Modifier.fillMaxWidth().offset(y=overallOffsetY),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
-     TextButton(onClick={previewSeries=compatiblePoints},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+    Box(Modifier.fillMaxWidth()){
+     Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
+      rangeDisplayRows.forEach{text->Text(text,color=Muted,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+      hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)}
+     }
+     if(rangeDisplayRows.isNotEmpty()){
+      TextButton(
+       onClick={previewSeries=compatiblePoints},
+       modifier=Modifier.align(Alignment.TopEnd).heightIn(min=24.dp),
+       contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)
+      ){Text("整体",fontSize=12.sp,color=Accent)}
+     }
     }
     if(compatiblePoints.isNotEmpty()){
-     Spacer(Modifier.height(if(rangeRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
+     Spacer(Modifier.height(if(rangeDisplayRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
      val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
      val referenceBands=compatiblePoints.map{(_,x)->x.trendReferenceRange()}
