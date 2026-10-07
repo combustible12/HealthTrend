@@ -336,7 +336,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
-     TrendPreviewDialog(series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},Accent,bounds.first,bounds.second,labDisplayTitle(latest.rawName,latest.metricKey),onDismiss={previewSeries=null})
+     TrendPreviewDialog(
+      points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
+      color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
+      referenceBands=series.map{(_,r)->r.trendReferenceRange()},
+      segmentKeys=series.map{it.first.hospitalKey},
+      metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
+      onDismiss={previewSeries=null}
+     )
     }
    }
   }
@@ -581,40 +588,49 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
   }
  }
 }
-@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?,referenceHigh:Double?,metricKey:String,onDismiss:()->Unit){
+@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,metricKey:String,onDismiss:()->Unit){
  Dialog(onDismissRequest=onDismiss){
   Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(20.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
      Canvas(Modifier.fillMaxWidth().height(160.dp)){
-      val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
+      val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)}
+      val rawValues=points.map{it.second}+bandValues
+      val rawLow=rawValues.minOrNull()?:0.0;val rawHigh=rawValues.maxOrNull()?:1.0;val rawSpan=(rawHigh-rawLow).coerceAtLeast(1.0)
+      val low=rawLow-rawSpan*.10;val high=rawHigh+rawSpan*.10;val span=high-low
       fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
-      if(referenceLow!=null&&referenceHigh!=null){
-       val top=y(referenceHigh);val bottom=y(referenceLow)
-       drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)))
-       val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
-       drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)
-       drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)
-      }
-      val path=Path()
-      val plotted=points.indices.map{i->
-       val x=if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)
-       Offset(x,y(points[i].second))
-      }
-      if(plotted.isNotEmpty()){
-       path.moveTo(plotted[0].x,plotted[0].y)
-       for(i in 0 until plotted.lastIndex){
-        val p0=plotted.getOrElse(i-1){plotted[i]}
-        val p1=plotted[i]
-        val p2=plotted[i+1]
-        val p3=plotted.getOrElse(i+2){p2}
-        val c1x=p1.x+(p2.x-p0.x)/6f;val c1y=p1.y+(p2.y-p0.y)/6f
-        val c2x=p2.x-(p3.x-p1.x)/6f;val c2y=p2.y-(p3.y-p1.y)/6f
-        path.cubicTo(c1x,c1y,c2x,c2y,p2.x,p2.y)
+      val xs=points.indices.map{i->if(points.size==1)size.width/2 else 8f+(size.width-16f)*i/(points.size-1)}
+      val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
+      if(referenceBands.size==points.size){
+       points.indices.forEach{i->
+        val left=if(i==0)0f else (xs[i-1]+xs[i])/2f
+        val right=if(i==points.lastIndex)size.width else (xs[i]+xs[i+1])/2f
+        val (rl,rh)=referenceBands[i]
+        if(rl!=null&&rh!=null){
+         val top=y(rh);val bottom=y(rl)
+         drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)))
+         drawLine(Good.copy(alpha=.55f),Offset(left,top),Offset(right,top),1.5.dp.toPx(),pathEffect=dash)
+         drawLine(Good.copy(alpha=.55f),Offset(left,bottom),Offset(right,bottom),1.5.dp.toPx(),pathEffect=dash)
+        }
        }
       }
-      drawPath(path,color,style=Stroke(2.dp.toPx()))
+      val plotted=points.indices.map{i->Offset(xs[i],y(points[i].second))}
+      val segments=mutableListOf<MutableList<Int>>()
+      points.indices.forEach{i->
+       val hospitalBreak=i>0&&segmentKeys.size==points.size&&segmentKeys[i]!=segmentKeys[i-1]
+       if(segments.isEmpty()||hospitalBreak)segments.add(mutableListOf())
+       segments.last().add(i)
+      }
+      segments.forEach{indices->if(indices.size>=2){
+       val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
+       for(k in 0 until indices.lastIndex){
+        val i=indices[k];val next=indices[k+1]
+        val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}]
+        path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)
+       }
+       drawPath(path,color,style=Stroke(2.dp.toPx()))
+      }}
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
       Text(trendShortDate(points.first().first),fontSize=10.sp,color=Muted)
