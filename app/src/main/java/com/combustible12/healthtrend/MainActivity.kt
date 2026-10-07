@@ -294,29 +294,33 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
-    val compatibleSeries=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
-     .groupBy{(r,x)->trendSeriesKey(x) to r.systemKey}.values.toList()
-    Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
-     Text(latest.hospitalKey.ifBlank{"医院未录入"},color=Muted,fontSize=11.sp,maxLines=1)
-     TextButton(onClick={previewSeries=compatibleSeries.maxByOrNull{it.last().first.testedAtEpochMillis}},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
+    val compatiblePoints=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
+    val displayUnit=compatiblePoints.lastOrNull()?.second?.let{displayLabUnit(it.unitAtTest)}.orEmpty()
+    data class RangeRow(val low:Double?,val high:Double?,val unit:String)
+    val rangeRows=compatiblePoints.map{(_,x)->val b=x.trendReferenceRange();RangeRow(b.first,b.second,displayLabUnit(x.unitAtTest))}.distinct()
+    val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
+    rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+    hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,maxLines=1)}
+    Row(Modifier.fillMaxWidth().offset(y=(-8).dp),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
+     TextButton(onClick={previewSeries=compatiblePoints},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
-    compatibleSeries.forEach{series->
-     val sx=series.last().second
-     if(compatibleSeries.size>1)Text("${sx.hospitalKey} · ${displayLabUnit(sx.unitAtTest)}",color=Muted,fontSize=11.sp)
-     val bounds=sx.trendReferenceRange()
-     val hasHistoricalAbnormal=series.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
+    if(compatiblePoints.isNotEmpty()){
+     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
+     val referenceBands=compatiblePoints.map{(_,x)->x.trendReferenceRange()}
      Spark(
-      points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
+      points=compatiblePoints.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
       color=trendColor,
-      referenceLow=bounds.first,
-      referenceHigh=bounds.second,
-      onPointClick={index->selected=series[index]},
+      referenceLow=null,
+      referenceHigh=null,
+      referenceBands=referenceBands,
+      segmentKeys=compatiblePoints.map{it.first.hospitalKey},
+      onPointClick={index->selected=compatiblePoints[index]},
       metricKey=key,
-      pointDescriptions=series.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
-      valueLabels=series.map{it.second.textValue},
-      timelineDates=reports.filter{r->r.systemKey==series.last().first.systemKey&&r.reportType==series.last().first.reportType&&r.testedAtEpochMillis>=cutoff}.map{it.testedAtEpochMillis},
-      onShowPreview={previewSeries=series}
+      pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
+      valueLabels=compatiblePoints.map{it.second.textValue},
+      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff}.map{it.testedAtEpochMillis},
+      onShowPreview={previewSeries=compatiblePoints}
      )
     }
     TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=28.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
@@ -465,7 +469,7 @@ fun metricPurposeDetail(metricKey:String):String?=when(metricKey){
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
- val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index]
+ val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)};val values=points.map{it.second}+bandValues+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index]
  val pad=56f
  val x=if(points.size==1)width/2 else pad+(width-2*pad)*index/(points.size-1)
  val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
@@ -476,7 +480,7 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=trendPointPosition(points,hit,width,height,referenceLow,referenceHigh);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
  val density=LocalDensity.current
  val textMeasurer=rememberTextMeasurer()
@@ -526,14 +530,28 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
     val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0)
     fun y(v:Double)=(size.height*.88-(v-low)/span*size.height*.76).toFloat()
     val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
-    when{
+    if(referenceBands.size==points.size&&points.isNotEmpty()){
+     points.indices.forEach{i->
+      val slot=timeline.indexOf(points[i].first).takeIf{it>=0}?:i
+      val center=with(density){centered.getOrElse(slot){contentWidth/2}.toPx()}
+      val left=if(slot==0)0f else (center+with(density){centered[slot-1].toPx()})/2f
+      val right=if(slot==timeline.lastIndex)size.width else (center+with(density){centered[slot+1].toPx()})/2f
+      val (rl,rh)=referenceBands[i]
+      if(rl!=null&&rh!=null){val top=y(rh);val bottom=y(rl);drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(left,top),Offset(right,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(left,bottom),Offset(right,bottom),1.5.dp.toPx(),pathEffect=dash)}
+     }
+    }else when{
      referenceLow!=null&&referenceHigh!=null->{val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
      referenceHigh!=null->{val top=y(referenceHigh);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(size.height-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)}
      referenceLow!=null->{val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset.Zero,Size(size.width,bottom.coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
     val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
     val segments=mutableListOf<MutableList<Int>>()
-    points.indices.forEach{i->if(segments.isEmpty()||(i>0&&timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1))segments.add(mutableListOf());segments.last().add(i)}
+    points.indices.forEach{i->
+     val timelineBreak=i>0&&timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1
+     val hospitalBreak=i>0&&segmentKeys.size==points.size&&segmentKeys[i]!=segmentKeys[i-1]
+     if(segments.isEmpty()||timelineBreak||hospitalBreak)segments.add(mutableListOf())
+     segments.last().add(i)
+    }
     segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);for(k in 0 until indices.lastIndex){val i=indices[k];val next=indices[k+1];val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}];path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)};drawPath(path,color,style=Stroke(2.dp.toPx()))}}
    }
    points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(color)}}}
