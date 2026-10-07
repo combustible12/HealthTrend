@@ -469,7 +469,7 @@ fun metricPurposeDetail(metricKey:String):String?=when(metricKey){
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{
- val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)};val values=points.map{it.second}+bandValues+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index]
+ val values=points.map{it.second}+listOfNotNull(referenceLow,referenceHigh);val low=values.minOrNull()?:0.0;val high=values.maxOrNull()?:1.0;val span=(high-low).coerceAtLeast(1.0);val p=points[index]
  val pad=56f
  val x=if(points.size==1)width/2 else pad+(width-2*pad)*index/(points.size-1)
  val y=(height*.88-(p.second-low)/span*height*.76).toFloat();return Offset(x,y)
