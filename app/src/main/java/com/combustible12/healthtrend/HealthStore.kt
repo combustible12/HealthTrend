@@ -203,12 +203,21 @@ class HealthStore(private val context:Context) {
   write("course_records",JSONArray().apply{(courseRecords().filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
  }
  @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
- @Synchronized fun ensureTodayCourseRecord():CourseRecord{
+ @Synchronized fun ensureCourseRecordsThroughToday():Int{
   val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
-  current.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}?.let{return it}
-  val placeholder=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
-  write("course_records",JSONArray().apply{(current+placeholder).forEach{put(courseRecordToJson(it))}})
-  return placeholder
+  if(current.isEmpty()){
+   val placeholder=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
+   write("course_records",JSONArray().apply{put(courseRecordToJson(placeholder))})
+   return 1
+  }
+  val existingDays=current.map{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()}.toSet()
+  val historicalDays=existingDays.filter{!it.isAfter(today)}
+  val start=historicalDays.minOrNull()?:today
+  val span=java.time.temporal.ChronoUnit.DAYS.between(start,today)
+  require(span in 0..3660){"病程日期跨度异常，请检查最早病程日期"}
+  val missing=generateSequence(start){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{it !in existingDays}.map{day->CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")}.toList()
+  if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
+  return missing.size
  }
  fun isPrimary(k:String)=if(prefs.contains("primary:$k"))prefs.getBoolean("primary:$k",false)else k in ReportParser.primaryKeys
  fun setPrimary(k:String,value:Boolean){check(prefs.edit().putBoolean("primary:$k",value).commit())}

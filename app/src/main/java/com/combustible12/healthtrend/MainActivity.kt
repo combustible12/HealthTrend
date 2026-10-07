@@ -109,7 +109,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
  val courseRecords=remember(revision){runCatching{store.courseRecords()}.getOrElse{error="病程记录读取失败：${it.message}";emptyList()}}
- LaunchedEffect(Unit){runCatching{store.ensureTodayCourseRecord()}.onSuccess{revision++}.onFailure{error="今日病程卡创建失败：${it.message}"}}
+ LaunchedEffect(Unit){runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport(store,{draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&template==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
