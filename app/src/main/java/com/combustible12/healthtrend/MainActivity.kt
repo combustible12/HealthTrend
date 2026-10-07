@@ -305,15 +305,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val rangeRows=compatiblePoints.map{(_,x)->rangeKey(x)}
      .distinctBy{Triple(it.low,it.high,it.unit.trim().lowercase().replace("×","").replace("x",""))}
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
-    val compactLineHeight=10.dp
-    rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,lineHeight=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.height(19.dp))}
-    hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=11.sp,maxLines=1,modifier=Modifier.height(19.dp))}
-    val overallOffsetY=if(rangeRows.isNotEmpty())-(19.dp*hospitalRows.size+19.dp*rangeRows.size) else (-8).dp
+    rangeRows.forEach{rr->Text("参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}",color=Muted,fontSize=12.sp,lineHeight=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.height(12.dp))}
+    hospitalRows.forEach{hospital->Text(hospital,color=Muted,fontSize=11.sp,lineHeight=11.sp,maxLines=1,modifier=Modifier.height(12.dp))}
+    val overallOffsetY=if(rangeRows.isNotEmpty())-(12.dp*(hospitalRows.size+rangeRows.size)) else (-8).dp
     Row(Modifier.fillMaxWidth().offset(y=overallOffsetY),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
      TextButton(onClick={previewSeries=compatiblePoints},modifier=Modifier.heightIn(min=32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text("整体",fontSize=12.sp,color=Accent)}
     }
     if(compatiblePoints.isNotEmpty()){
-     Spacer(Modifier.height((-((rangeRows.size+hospitalRows.size-1)*9)).dp))
+     Spacer(Modifier.height(if(rangeRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
      val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
      val referenceBands=compatiblePoints.map{(_,x)->x.trendReferenceRange()}
