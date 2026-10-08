@@ -20,7 +20,7 @@ class HealthStore(private val context:Context) {
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
    versions.withIndex().maxWithOrNull(compareBy<IndexedValue<HospitalLabTemplate>>{it.value.confirmed}
     .thenBy{it.value.version}.thenBy{it.index})?.value
-  }.map(::repairXiacuBiochemistryTemplate).toMutableList()
+  }.map(::repairXiacuBiochemistryTemplate).map(::ensureMaternalCbcRdwFields).toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","肿瘤标志物",1,true,listOf(
    LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
@@ -111,8 +111,8 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("MCV","平均红细胞体积","fL",82.0,100.0),
    LabFieldTemplate("MCH","平均血红蛋白含量","pg",27.0,34.0),
    LabFieldTemplate("MCHC","平均血红蛋白浓度","g/L",316.0,354.0),
-   LabFieldTemplate("RDW","红细胞体积分布宽度","%",12.2,15.0),
-   LabFieldTemplate("RDW-SD","红细胞体积分布宽度","fL",42.0,53.6),
+   LabFieldTemplate("RDW-CV","红细胞分布宽度CV","%",12.2,15.0),
+   LabFieldTemplate("RDW-SD","红细胞分布宽度SD","fL",42.0,53.6),
    LabFieldTemplate("PLT","血小板计数","10^9/L",125.0,350.0),
    LabFieldTemplate("MPV","平均血小板体积","fL",9.2,12.1),
    LabFieldTemplate("PCT","血小板压积","%",0.19,0.4),
@@ -121,6 +121,23 @@ class HealthStore(private val context:Context) {
   ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
+ }
+ /** Insert only the missing CV field in the maternal CBC template; preserve all other user edits. */
+ internal fun ensureMaternalCbcRdwFields(t:HospitalLabTemplate):HospitalLabTemplate {
+  if(t.hospitalKey.trim()!="福建省妇幼保健院" || t.reportType.trim()!="血常规" || t.systemKey.isNotBlank())return t
+  val fields=t.fields.toMutableList()
+  val sd=fields.indexOfFirst{it.metricKey=="RDW-SD"}
+  if(sd<0)return t
+  val cv=fields.indexOfFirst{it.metricKey=="RDW-CV" || (it.metricKey=="RDW" && it.unit=="%")}
+  if(cv>=0){
+   // Keep legacy RDW identity and existing results untouched; only correct display ordering.
+   val existing=fields.removeAt(cv)
+   val sdNow=fields.indexOfFirst{it.metricKey=="RDW-SD"}
+   fields.add(sdNow,existing)
+  }else{
+   fields.add(fields.indexOfFirst{it.metricKey=="RDW-SD"},LabFieldTemplate("RDW-CV","红细胞分布宽度CV","%",12.2,15.0))
+  }
+  return if(fields==t.fields)t else t.copy(fields=fields)
  }
  internal fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
   if(t.hospitalKey.trim()!="霞浦县中医院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
