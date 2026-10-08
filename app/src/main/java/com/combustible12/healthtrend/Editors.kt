@@ -11,6 +11,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -204,8 +206,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
  var zoom by rememberSaveable(index){mutableFloatStateOf(1f)};var x by rememberSaveable(index){mutableFloatStateOf(0f)};var y by rememberSaveable(index){mutableFloatStateOf(0f)}
  var swipeX by remember(index){mutableFloatStateOf(0f)}
+ var showGrid by rememberSaveable{mutableStateOf(false)}
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,index){value=withContext(Dispatchers.IO){try{val b=decodeReportBitmap(context,Uri.parse(uris[index]));b to null}catch(e:Exception){null to "原图无法读取：${e.message}"}}}
- FullPage("原报告 ${index+1}/${uris.size}",close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({index--;zoom=1f;x=0f;y=0f},enabled=index>0){Text("上一页")};TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")};TextButton({index++;zoom=1f;x=0f;y=0f},enabled=index<uris.lastIndex){Text("下一页")}}}){m->
+ FullPage("原报告 ${index+1}/${uris.size}",close,bottom={Column{if(uris.size>1){LazyRow(Modifier.fillMaxWidth().height(60.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){items(uris.size){i->val preview by produceState<android.graphics.Bitmap?>(null,uris[i]){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(uris[i]))}.getOrNull()}};Box(Modifier.size(52.dp).border(if(i==index)2.dp else 1.dp,if(i==index)Accent else Muted,RoundedCornerShape(8.dp)).clickable{index=i},contentAlignment=Alignment.Center){preview?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxSize())}?:Text("${i+1}",fontSize=12.sp)}}}};Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({index--;zoom=1f;x=0f;y=0f},enabled=index>0){Text("上一页")};TextButton({showGrid=true},enabled=uris.size>1){Text("全部图片")};TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")};TextButton({index++;zoom=1f;x=0f;y=0f},enabled=index<uris.lastIndex){Text("下一页")}}}}){m->
   Box(m.clipToBounds().onSizeChanged{viewport=it}
    .pointerInput(index,zoom){
     if(zoom<=1.01f)detectHorizontalDragGestures(
@@ -224,5 +227,6 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
    loaded.first?.let{Image(it.asImageBitmap(),"原始检查报告",Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y})}?:Text(loaded.second?:"正在读取原图…")
   }
  }
+ if(showGrid)AlertDialog(onDismissRequest={showGrid=false},title={Text("全部图片")},text={LazyVerticalGrid(columns=GridCells.Fixed(3),modifier=Modifier.heightIn(max=440.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){items(uris.size){i->Box(Modifier.height(88.dp).border(1.dp,if(i==index)Accent else Muted,RoundedCornerShape(8.dp)).clickable{index=i;showGrid=false},contentAlignment=Alignment.Center){val thumb by produceState<android.graphics.Bitmap?>(null,uris[i]){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(uris[i]))}.getOrNull()}};thumb?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxSize())}?:Text("${i+1}")}}}},confirmButton={TextButton({showGrid=false}){Text("关闭")}})
 }
 fun shareText(context:Context,title:String,text:String){context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,title).putExtra(Intent.EXTRA_TEXT,text),"分享"))}
