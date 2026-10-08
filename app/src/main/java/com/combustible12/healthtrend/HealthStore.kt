@@ -11,10 +11,31 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateAstAltIdentity() }
+ init { migrateCurrentTemplates(); migrateMaternalRdwReports(); migrateAstAltIdentity() }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
+ /** The maternal CBC formerly used RDW for CV. Resolve only an unambiguous % result. */
+ private fun normalizeMaternalRdw(report:LabReport):LabReport {
+  if(report.hospitalKey.trim()!="福建省妇幼保健院" || report.reportType.trim()!="血常规" || report.systemKey.isNotBlank())return report
+  if(report.results.any{it.metricKey=="RDW-CV"})return report
+  val legacy=report.results.filter{it.metricKey=="RDW" && displayLabUnit(it.unitAtTest)=="%"}
+  if(legacy.size!=1)return report
+  return report.copy(results=report.results.map{if(it.id==legacy.single().id)it.copy(metricKey="RDW-CV")else it})
+ }
+ private fun migrateMaternalRdwReports(){
+  val raw=read("reports")
+  var changed=false
+  val migrated=JSONArray()
+  for(i in 0 until raw.length()){
+   val original=raw.getJSONObject(i)
+   val report=reportFromJson(original)
+   val repaired=normalizeMaternalRdw(report)
+   if(repaired!=report)changed=true
+   migrated.put(if(repaired==report)original else reportToJson(repaired))
+  }
+  if(changed)write("reports",migrated)
+ }
  private fun migrateCurrentTemplates(){
   val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
@@ -181,7 +202,8 @@ class HealthStore(private val context:Context) {
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
   return reports
  }
- @Synchronized fun saveReport(r:LabReport){
+ @Synchronized fun saveReport(input:LabReport){
+  val r=normalizeMaternalRdw(input)
   require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
   require(r.results.all{it.metricKey.isNotBlank()&&it.reportId==r.id&&it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效"}
   require(r.results.map{it.metricKey}.distinct().size==r.results.size){"报告存在重复项目 ID"}
