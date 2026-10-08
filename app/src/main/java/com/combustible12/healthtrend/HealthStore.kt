@@ -29,6 +29,14 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("CA125","糖类抗原12-5","U/mL",0.0,25.0),
    LabFieldTemplate("SCC","鳞状细胞癌相关抗原","ng/mL",0.0,1.5)
   ))
+  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","肿瘤标志物",1,true,listOf(
+   LabFieldTemplate("AFP","甲胎蛋白","ng/mL",0.0,8.8),
+   LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
+   LabFieldTemplate("CA125","CA-125","U/mL",0.0,35.0),
+   LabFieldTemplate("CA153","CA-153","U/mL",0.0,31.3),
+   LabFieldTemplate("CA199","CA-199","U/mL",0.0,37.0),
+   LabFieldTemplate("SCC","鳞癌相关抗原测定","ng/mL",0.0,1.5)
+  ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
