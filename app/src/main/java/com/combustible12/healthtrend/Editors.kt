@@ -242,6 +242,5 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
     }
    }
   }
- }
 }
 fun shareText(context:Context,title:String,text:String){context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,title).putExtra(Intent.EXTRA_TEXT,text),"分享"))}
