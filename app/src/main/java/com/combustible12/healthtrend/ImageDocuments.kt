@@ -161,11 +161,15 @@ class ImageDocumentStore(private val context:Context){
  @Synchronized fun deletePage(document:ImageDocument,pageId:String):ImageDocument?{
   val current=all().firstOrNull{it.id==document.id}?:document
   val target=current.pages.firstOrNull{it.id==pageId}?:return current
-  deleteOwnedImage(target)
   val remaining=current.pages.filterNot{it.id==pageId}.mapIndexed{index,page->page.copy(pageIndex=index)}
-  if(remaining.isEmpty()){write(all().filterNot{it.id==current.id});return null}
+  if(remaining.isEmpty()){
+   write(all().filterNot{it.id==current.id})
+   deleteOwnedImage(target)
+   return null
+  }
   val updated=current.copy(pages=remaining)
   write(all().filterNot{it.id==current.id}+updated)
+  deleteOwnedImage(target)
   return updated
  }
  private fun pageFileExists(page:ImagePage):Boolean{
