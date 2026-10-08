@@ -8,9 +8,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -196,29 +199,81 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  }}
  if(deleting)DeleteConfirmation({deleting=false},delete)
 }
+/** Shared source-image viewer used by reports, entries and course records.
+ * Image Documents retains its OCR-aware canvas; gestures and thumbnail navigation match here.
+ */
 @Composable fun SourceViewer(uris:List<String>,close:()->Unit){
- var index by rememberSaveable{mutableIntStateOf(0)};val context=LocalContext.current
+ if(uris.isEmpty()){LaunchedEffect(Unit){close()};return}
+ var index by rememberSaveable(uris){mutableIntStateOf(0)}
+ val context=LocalContext.current
+ val listState=rememberLazyListState()
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
- var zoom by rememberSaveable(index){mutableFloatStateOf(1f)};var x by rememberSaveable(index){mutableFloatStateOf(0f)};var y by rememberSaveable(index){mutableFloatStateOf(0f)}
+ var zoom by rememberSaveable(index){mutableFloatStateOf(1f)}
+ var x by rememberSaveable(index){mutableFloatStateOf(0f)}
+ var y by rememberSaveable(index){mutableFloatStateOf(0f)}
  var swipeX by remember(index){mutableFloatStateOf(0f)}
- val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,index){value=withContext(Dispatchers.IO){try{val b=decodeReportBitmap(context,Uri.parse(uris[index]));b to null}catch(e:Exception){null to "原图无法读取：${e.message}"}}}
- FullPage("原报告 ${index+1}/${uris.size}",close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({index--;zoom=1f;x=0f;y=0f},enabled=index>0){Text("上一页")};TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")};TextButton({index++;zoom=1f;x=0f;y=0f},enabled=index<uris.lastIndex){Text("下一页")}}}){m->
+ var retry by remember(index){mutableIntStateOf(0)}
+ fun select(next:Int){if(next in uris.indices){index=next;zoom=1f;x=0f;y=0f;swipeX=0f}}
+ LaunchedEffect(index){listState.animateScrollToItem(index)}
+ val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,index,retry){
+  value=withContext(Dispatchers.IO){try{decodeReportBitmap(context,Uri.parse(uris[index])) to null}catch(e:Exception){null to "原图无法读取：${e.message}"}}
+ }
+ FullPage("图片 ${index+1}/${uris.size}",close,bottom={
+  Column{
+   LazyRow(Modifier.fillMaxWidth().height(64.dp),state=listState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=8.dp)){
+    itemsIndexed(uris){i,uri->
+     val thumb by produceState<android.graphics.Bitmap?>(null,uri){value=withContext(Dispatchers.IO){runCatching{decodeReportBitmap(context,Uri.parse(uri))}.getOrNull()}}
+     Box(Modifier.size(54.dp).border(if(i==index)2.dp else 1.dp,if(i==index)Accent else Color.LightGray,RoundedCornerShape(8.dp)).clickable{select(i)},contentAlignment=Alignment.Center){
+      if(thumb!=null)Image(thumb!!.asImageBitmap(),"第 ${i+1} 张",Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+      else Text("${i+1}",color=Muted)
+     }
+    }
+   }
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
+    TextButton({select(index-1)},enabled=index>0){Text("上一张")}
+    TextButton({zoom=1f;x=0f;y=0f}){Text("重置缩放")}
+    TextButton({select(index+1)},enabled=index<uris.lastIndex){Text("下一张")}
+   }
+  }
+ }){m->
   Box(m.clipToBounds().onSizeChanged{viewport=it}
    .pointerInput(index,zoom){
     if(zoom<=1.01f)detectHorizontalDragGestures(
      onDragStart={swipeX=0f},
-     onHorizontalDrag={_,dragAmount->swipeX+=dragAmount},
-     onDragEnd={
-      if(swipeX<=-120f&&index<uris.lastIndex)index++
-      else if(swipeX>=120f&&index>0)index--
-      swipeX=0f;zoom=1f;x=0f;y=0f
-     },
+     onHorizontalDrag={_,amount->swipeX+=amount},
+     onDragEnd={val delta=swipeX;swipeX=0f;if(delta<=-120f)select(index+1) else if(delta>=120f)select(index-1)},
      onDragCancel={swipeX=0f}
     )
    }
-   .pointerInput(index,viewport){detectTransformGestures{centroid,pan,scale,_->val next=(zoom*scale).coerceIn(1f,8f);val ratio=next/zoom;val cx=centroid.x-viewport.width/2f;val cy=centroid.y-viewport.height/2f;x=(x-cx)*ratio+cx+pan.x;y=(y-cy)*ratio+cy+pan.y;zoom=next}},
-   contentAlignment=Alignment.Center){
-   loaded.first?.let{Image(it.asImageBitmap(),"原始检查报告",Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y})}?:Text(loaded.second?:"正在读取原图…")
+   .pointerInput(index,viewport){
+    detectTapGestures(onDoubleTap={tap->
+     if(zoom>1.05f){zoom=1f;x=0f;y=0f}
+     else if(viewport.width>0&&viewport.height>0){
+      val target=2.5f
+      x=-(tap.x-viewport.width/2f)*(target-1f)
+      y=-(tap.y-viewport.height/2f)*(target-1f)
+      zoom=target
+     }
+    })
+   }
+   .pointerInput(index,viewport){
+    detectTransformGestures{centroid,pan,scale,_->
+     val next=(zoom*scale).coerceIn(1f,8f)
+     val ratio=next/zoom
+     val cx=centroid.x-viewport.width/2f
+     val cy=centroid.y-viewport.height/2f
+     x=(x-cx)*ratio+cx+pan.x
+     y=(y-cy)*ratio+cy+pan.y
+     zoom=next
+     if(zoom<=1.01f){x=0f;y=0f}
+    }
+   },contentAlignment=Alignment.Center){
+    if(loaded.first!=null)Image(loaded.first!!.asImageBitmap(),"图片",Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y},contentScale=androidx.compose.ui.layout.ContentScale.Fit)
+    else Column(horizontalAlignment=Alignment.CenterHorizontally){
+     Text(loaded.second?:"正在读取原图…")
+     if(loaded.second!=null)TextButton({retry++}){Text("重试")}
+    }
+   }
   }
  }
 }
