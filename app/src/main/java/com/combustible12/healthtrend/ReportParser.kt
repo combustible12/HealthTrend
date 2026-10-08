@@ -43,7 +43,7 @@ object ReportParser {
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
   if(identity in metricIdentityKeys)return identity!!
   val label=name.trim().replace('：',':').replace('／','/')
-  val leading=label.substringBefore(' ').substringBefore('\\t').trim().trimEnd(':')
+  val leading=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
   val code=normalizeCode(leading)
   if(code in metricIdentityKeys)return code
   val full=normalizeCode(label)
