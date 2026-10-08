@@ -174,7 +174,11 @@ class HealthStore(private val context:Context) {
    require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
    require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
    require(actual.all{it in expected}){"报告包含当前模板之外的项目，请重新核对"}
-   require(actual==expected.filter{it in actual.toSet()}){"报告项目顺序与当前模板不一致，请重新核对"}
+   // A manually extended template may place a new field between existing fields.
+   // Report results have stable identities; reorder only their list positions.
+   // Missing template fields remain absent until the user explicitly fills them.
+   // Never rewrite result IDs, values, units, reference ranges or historical reports.
+
   }
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}})
  }
