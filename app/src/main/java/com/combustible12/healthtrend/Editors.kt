@@ -177,9 +177,10 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 }
 @Composable fun EntryEditor(initial:HealthEntry,store:HealthStore,close:()->Unit,save:(HealthEntry)->Unit,delete:()->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
- var e by rememberSaveable(initial,stateSaver=diskStateSaver<HealthEntry>(context,"entry-editor")){mutableStateOf(initial)};var date by rememberSaveable{mutableStateOf(dateText(initial.occurredAtEpochMillis))};var end by rememberSaveable{mutableStateOf(initial.endAtEpochMillis?.let{dateText(it)}.orEmpty())};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)}
+ var e by rememberSaveable(initial,stateSaver=diskStateSaver<HealthEntry>(context,"entry-editor")){mutableStateOf(initial)};var date by rememberSaveable{mutableStateOf(dateText(initial.occurredAtEpochMillis))};var end by rememberSaveable{mutableStateOf(initial.endAtEpochMillis?.let{dateText(it)}.orEmpty())};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var removingImage by remember{mutableStateOf<Int?>(null)};var busy by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()){busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};e=e.copy(images=e.images+owned)}catch(x:Exception){error="原图保存失败：${x.message}"}finally{busy=false}}}}
+ val capture=rememberAttachmentCamera(onCaptured={uri->busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){store.ownImage(uri)};e=e.copy(images=e.images+owned)}catch(x:Exception){error="拍照保存失败：${x.message}"}finally{busy=false}}},onError={error=it})
  val valid=e.title.isNotBlank()&&parseDate(date)!=null&&(end.isBlank()||parseDate(end)?.let{it>=parseDate(date)!!}==true)&&!busy
  FullPage(e.kind.title,close,bottom={Row{Button({save(e.copy(occurredAtEpochMillis=preserveTimestamp(date,initial.occurredAtEpochMillis)!!,endAtEpochMillis=preserveTimestamp(end,initial.endAtEpochMillis)))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(store.entries().any{it.id==e.id})TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->ScrollablePageColumn(m,PaddingValues(16.dp),Arrangement.spacedBy(12.dp)){
  Field(e.title,{e=e.copy(title=it)},when(e.kind){EntryKind.SYMPTOM->"症状名称";EntryKind.MEDICAL->"病历标题";EntryKind.MEDICATION->"药品名称"});Field(date,{date=it},if(e.kind==EntryKind.MEDICATION)"开始时间 YYYY-MM-DD HH:mm"else"发生时间 YYYY-MM-DD HH:mm")
@@ -189,12 +190,13 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
   EntryKind.MEDICATION->{Field(e.dose,{e=e.copy(dose=it)},"每次剂量（注明单位）");Field(e.frequency,{e=e.copy(frequency=it)},"用药频率 / 时间");Field(e.route,{e=e.copy(route=it)},"使用方式");Field(end,{end=it},"结束时间（选填）YYYY-MM-DD HH:mm")}
  }
  OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(e.note.isNotEmpty())IconButton({e=e.copy(note="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
- OutlinedButton({picker.launch(arrayOf("image/*"))},enabled=!busy){Text("添加照片 / 原报告")}
+ Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton({picker.launch(arrayOf("image/*"))},enabled=!busy){Text("从相册选择")};OutlinedButton({capture()},enabled=!busy){Text("拍照")}}
  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
- e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({images(e.images)}){Text("查看第 ${i+1} 张原图")};IconButton({e=e.copy(images=e.images.filterIndexed{j,_->j!=i})}){Icon(Icons.Outlined.Close,"移除图片")}}}
+ e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({images(e.images)}){Text("查看第 ${i+1} 张原图")};IconButton({removingImage=i}){Icon(Icons.Outlined.Close,"移除图片")}}}
  if(error.isNotBlank())Text(error,color=Bad)
  }}
  if(deleting)DeleteConfirmation({deleting=false},delete)
+ removingImage?.let{target->DeleteConfirmation({removingImage=null},{e=e.copy(images=e.images.filterIndexed{j,_->j!=target});removingImage=null})}
 }
 @Composable fun SourceViewer(uris:List<String>,close:()->Unit){
  var index by rememberSaveable{mutableIntStateOf(0)};val context=LocalContext.current
