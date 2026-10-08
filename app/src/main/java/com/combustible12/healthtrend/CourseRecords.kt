@@ -142,7 +142,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
  Column(Modifier.padding(start=29.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-  images.withIndex().chunked(5).forEach{row->
+  images.withIndex().chunked(4).forEach{row->
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{(i,uri)->Box{
      CourseThumbnail(uri,Modifier.size(52.dp).clickable{open(i)})
