@@ -330,10 +330,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 
 @Composable fun ImageDocumentsPage(m:Modifier,open:(ImageDocument,Int,List<Int>)->Unit){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};var revision by remember{mutableIntStateOf(0)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")};var error by remember{mutableStateOf("")};var query by rememberSaveable{mutableStateOf("")};val scope=rememberCoroutineScope()
- val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);revision++;if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}}
+ val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);revision++;if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}},{error=it})
  val documents=runCatching{store.all()}.getOrElse{error=it.message.orEmpty();emptyList()};val hits=if(query.isBlank())emptyList()else runCatching{store.search(query)}.getOrDefault(emptyList())
  Screen(m,"图片资料",spacing=7.dp){
-  Button({picker.launch(arrayOf("image/*"))},Modifier.fillMaxWidth(),enabled=!busy,colors=ButtonDefaults.buttonColors(contentColor=Color.White)){Icon(Icons.Outlined.AddPhotoAlternate,null,tint=Color.White);Spacer(Modifier.width(8.dp));Text(if(busy)progress else "导入多张图片",color=Color.White)}
+  PhotoInputButtons(photoInput,!busy,"相册导入多张图片")
+  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(32.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(16.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("搜索图片中的文字",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
   if(query.isNotBlank()){
    if(hits.isEmpty())Paper{Text("没有找到相关内容")}
@@ -352,12 +353,12 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val thumbnailState=rememberLazyListState()
  LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
- val addImages=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
+ val addImages=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
   val hashes=existingImageHashes(context,document);val imported=importImagePages(context,store,uris,document.pages.size,hashes){progress=it}
   if(imported.pages.isNotEmpty()){val firstNew=document.pages.size;document=document.copy(pages=document.pages+imported.pages);onSaved(document);savedTitle=document.title;pageIndex=firstNew;matches=emptyList();matchPosition=0}
   val message=when{imported.duplicateCount>0&&imported.pages.isNotEmpty()->"已添加 ${imported.pages.size} 张，跳过 ${imported.duplicateCount} 张重复图片";imported.duplicateCount>0->"所选图片均已存在，无需重复添加";else->"已添加 ${imported.pages.size} 张图片"}
   android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
- }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}}
+ }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}},{message->android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()})
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
  val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
  val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
@@ -406,8 +407,9 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     )
     Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show()}}.padding(start=8.dp,top=5.dp,bottom=5.dp))
    }
-   OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
-    Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
+   Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){
+    TextButton({addImages.gallery()},enabled=!busy){Text("相册",fontSize=13.sp)}
+    TextButton({addImages.camera()},enabled=!busy){Text("拍照",fontSize=13.sp)}
    }
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
