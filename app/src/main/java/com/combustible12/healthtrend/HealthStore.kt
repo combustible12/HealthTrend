@@ -90,7 +90,7 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("UA","尿酸","μmol/L",155.0,357.0),
    LabFieldTemplate("ALT","丙氨酸氨基转移酶","U/L",7.0,40.0),
    LabFieldTemplate("AST","门冬氨酸氨基转移酶","U/L",13.0,35.0),
-   LabFieldTemplate("AST/ALT","AST:ALT","",null,null),
+   LabFieldTemplate("AST/ALT","AST/ALT","",null,null),
    LabFieldTemplate("GGT","γ-谷氨酰转肽酶","U/L",7.0,45.0),
    LabFieldTemplate("ALP","碱性磷酸酶","U/L",50.0,135.0),
    LabFieldTemplate("TP","总蛋白","g/L",65.0,85.0),
