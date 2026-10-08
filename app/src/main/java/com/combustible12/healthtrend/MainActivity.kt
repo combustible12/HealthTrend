@@ -100,7 +100,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("检查报告")}
  var recordsOpen by rememberSaveable{mutableStateOf(false)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
- var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)}
+ var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
  var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
@@ -140,7 +140,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
-    },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images.drop(index)+images.take(index)})
+    },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images;viewerStart=index})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
     4->Mine(m,templates,{template=it},store,{error=it},{revision++},{recordsOpen=true})
   }
@@ -163,9 +163,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);imageDocument=null})
- if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);courseRecord=null}},{images,index->viewer=images.drop(index)+images.take(index)})}
+ if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);courseRecord=null}},{images,index->viewer=images;viewerStart=index})}
  }
- if(viewer!=null)SourceViewer(viewer!!,{viewer=null})
+ if(viewer!=null)SourceViewer(viewer!!,{viewer=null},viewerStart)
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }

@@ -167,8 +167,9 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date);val valid=record.title.isNotBlank()&&selectedDate!=null&&!busy
+ val editorScroll=rememberScrollState()
  FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,bottom={Row(verticalAlignment=Alignment.CenterVertically){Button({onSave(record.copy(date=selectedDate!!))},Modifier.weight(1f),enabled=valid){Text("保存记录",color=Color.White)};if(exists)TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->
-  Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}

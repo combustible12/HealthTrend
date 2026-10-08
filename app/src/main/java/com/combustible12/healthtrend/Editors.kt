@@ -203,9 +203,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 /** Shared source-image viewer used by reports, entries and course records.
  * Image Documents retains its OCR-aware canvas; gestures and thumbnail navigation match here.
  */
-@Composable fun SourceViewer(uris:List<String>,close:()->Unit){
+@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0){
  if(uris.isEmpty()){LaunchedEffect(Unit){close()};return}
- var index by rememberSaveable(uris){mutableIntStateOf(0)}
+ var index by rememberSaveable(uris,initialIndex){mutableIntStateOf(initialIndex.coerceIn(uris.indices))}
  val context=LocalContext.current
  val listState=rememberLazyListState()
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
