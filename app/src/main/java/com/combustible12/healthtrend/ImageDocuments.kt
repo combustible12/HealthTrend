@@ -598,7 +598,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val context=LocalContext.current
  var viewport by remember{mutableStateOf(IntSize.Zero)}
  val gesture=rememberImageGestureState(page.id,viewport,page.imageWidth,page.imageHeight,onSwipePrevious,onSwipeNext,onSingleTap,onPinchIn)
- val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
+ var retry by remember(page.id){mutableIntStateOf(0)}
+ val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri,retry){
   value=withContext(Dispatchers.IO){
    val longNarrow=page.imageWidth<=2_000&&page.imageHeight>=8_000
    val maxPixels=if(longNarrow)28_000_000L else 16_000_000L
@@ -623,6 +624,9 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     drawImage(bitmap.asImageBitmap(),dstOffset=IntOffset(left,top),dstSize=IntSize(dw,dh))
     highlight?.let{b->val rectTop=top+b.top*fit;val rectLeft=left+b.left*fit;val rectWidth=(b.right-b.left)*fit;val rectHeight=(b.bottom-b.top)*fit;drawRect(Color(0x55FFD54F),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight));drawRect(Color(0xFFFFA000),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight),style=Stroke(width=(2f/gesture.zoom).coerceAtLeast(.5f)))}
    }
-  }else Text(loaded.second?:"正在读取原图…")
+  }else Column(horizontalAlignment=Alignment.CenterHorizontally){
+   Text(loaded.second?:"正在读取原图…")
+   if(loaded.second!=null)TextButton({retry++}){Text("重新加载")}
+  }
  }
 }
