@@ -99,10 +99,12 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->
   val units=remember(row.key,d.rows){(store.rememberedUnits(row.key)+d.rows.filter{it.key==row.key}.map{it.unit}).map{it.trim()}.filter{it.isNotBlank()}.distinct()}
-  val fixed=store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==row.key}==true
-  val existingResult=d.existing?.results?.any{it.id==row.id}==true
-  // Only original report rows have immutable identities. Newly added rows need an editable code.
-  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=fixed||existingResult)
+  // Derive locks from the original saved row, never from the code being typed.
+  // Otherwise entering an existing template code changes the editor structure mid-keystroke.
+  val originalResult=d.existing?.results?.firstOrNull{it.id==row.id}
+  val originalCode=originalResult?.metricKey
+  val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
+  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
  }
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
