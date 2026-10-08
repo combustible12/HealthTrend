@@ -104,6 +104,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
+ var rememberedDocumentPages by rememberSaveable{mutableStateOf<List<String>>(emptyList())}
+ fun rememberedPage(id:String):Int=rememberedDocumentPages.firstOrNull{it.startsWith("$id:")}?.substringAfterLast(":")?.toIntOrNull()?:0
+ fun rememberPage(id:String,index:Int){rememberedDocumentPages=(rememberedDocumentPages.filterNot{it.startsWith("$id:")}+"$id:$index").takeLast(300)}
  var imageDocumentPage by rememberSaveable{mutableIntStateOf(0)};var imageDocumentMatches by rememberSaveable{mutableStateOf<List<Int>>(emptyList())}
  val reports=remember(revision){runCatching{store.reports()}.getOrElse{error="历史数据读取失败：${it.message}";emptyList()}}
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
@@ -141,7 +144,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewer=images;viewerStart=index})
-    3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=page;imageDocumentMatches=matches}
+    3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,templates,{template=it},store,{error=it},{revision++},{recordsOpen=true})
   }
   }
@@ -162,7 +165,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
- if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);imageDocument=null})
+ if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);courseRecord=null}},{images,index->viewer=images;viewerStart=index})}
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null},viewerStart)

@@ -347,11 +347,11 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  }
 }
 
-@Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit){
+@Composable fun ImageDocumentViewer(initial:ImageDocument,initialPage:Int,initialMatches:List<Int>,onClose:()->Unit,onSaved:(ImageDocument)->Unit,onDelete:(ImageDocument)->Unit,onPageChanged:(Int)->Unit={}){
  val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};val scope=rememberCoroutineScope()
  var document by remember{mutableStateOf(initial)};var immersive by rememberSaveable{mutableStateOf(false)};var savedTitle by remember{mutableStateOf(initial.title)};var pageIndex by rememberSaveable{mutableIntStateOf(initialPage.coerceIn(document.pages.indices))};var matches by remember{mutableStateOf(initialMatches)};var matchPosition by rememberSaveable{mutableIntStateOf(0)};var confirmDeletePage by remember{mutableStateOf(false)};var confirmDeleteDocument by remember{mutableStateOf(false)};var confirmDiscard by remember{mutableStateOf(false)};var showGrid by rememberSaveable{mutableStateOf(false)};var showLinkEditor by remember{mutableStateOf(false)};var linkDraft by remember{mutableStateOf("")};var showNoteEditor by remember{mutableStateOf(false)};var noteDraft by remember{mutableStateOf("")};var busy by remember{mutableStateOf(false)};var reindexing by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")}
  val thumbnailState=rememberLazyListState()
- LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty())thumbnailState.animateScrollToItem(pageIndex)}
+ LaunchedEffect(pageIndex,document.pages.size){if(document.pages.isNotEmpty()){thumbnailState.animateScrollToItem(pageIndex);onPageChanged(pageIndex)}}
  val close={if(document.title!=savedTitle)confirmDiscard=true else onClose()}
  val addImages=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
   val hashes=existingImageHashes(context,document);val imported=importImagePages(context,store,uris,document.pages.size,hashes){progress=it}
