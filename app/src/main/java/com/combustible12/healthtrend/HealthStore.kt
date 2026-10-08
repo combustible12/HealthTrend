@@ -41,7 +41,7 @@ class HealthStore(private val context:Context) {
   val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
    versions.withIndex().maxWithOrNull(compareBy<IndexedValue<HospitalLabTemplate>>{it.value.confirmed}
     .thenBy{it.value.version}.thenBy{it.index})?.value
-  }.map(::repairXiacuBiochemistryTemplate).map(::ensureMaternalCbcRdwFields).toMutableList()
+  }.map(::repairXiacuBiochemistryTemplate).map(::ensureMaternalCbcRdwFields).map(::correctMaternalBiochemistryAstAlt).toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
   if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","肿瘤标志物",1,true,listOf(
    LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
@@ -144,6 +144,16 @@ class HealthStore(private val context:Context) {
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
  /** Resolve maternal CBC identities by measurement unit, not mutable display names. */
+ internal fun correctMaternalBiochemistryAstAlt(t:HospitalLabTemplate):HospitalLabTemplate {
+  if(t.hospitalKey.trim()!="福建省妇幼保健院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
+  // Replace only the erroneous built-in label; keep all other user-confirmed fields intact.
+  val corrected=t.fields.map{field->
+   if(field.metricKey=="AST/ALT"&&field.displayName.trim().equals("AST:ALT",ignoreCase=true))
+    field.copy(displayName="AST/ALT")
+   else field
+  }
+  return if(corrected==t.fields)t else t.copy(fields=corrected)
+ }
  internal fun ensureMaternalCbcRdwFields(t:HospitalLabTemplate):HospitalLabTemplate {
   if(t.hospitalKey.trim()!="福建省妇幼保健院" || t.reportType.trim()!="血常规" || t.systemKey.isNotBlank())return t
   val original=t.fields
