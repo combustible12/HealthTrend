@@ -152,7 +152,7 @@ class HealthStore(private val context:Context) {
      field.copy(displayName="谷丙转氨酶")
     else if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
     field.copy(displayName="谷草转氨酶")
-   else if(field.metricKey=="CKMB/CK" && field.displayName.trim() in setOf("CKMB/CK","CKMB:CK","待核对指标"))
+   else if(field.metricKey=="CKMB/CK" && field.displayName.trim() in setOf("CKMB/CK","CKMB:CK","待核对指标","肌酸激酶同工酶与肌酸激酶比值"))
      field.copy(displayName="肌酸激酶同工酶/肌酸激酶")
     else if(field.metricKey=="AST/ALT"&&field.displayName.trim() in setOf("AST:ALT","AST/ALT","谷草/谷丙比值","AST/ALT 谷草/谷丙"))
     field.copy(displayName="谷草/谷丙")
