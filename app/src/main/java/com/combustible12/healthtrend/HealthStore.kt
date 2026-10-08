@@ -180,7 +180,9 @@ class HealthStore(private val context:Context) {
    // Never rewrite result IDs, values, units, reference ranges or historical reports.
 
   }
-  write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+r).forEach{put(reportToJson(it))}})
+  val templateOrder=latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.fields?.mapIndexed{index,field->field.metricKey to index}?.toMap()
+  val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[it.metricKey]?:Int.MAX_VALUE})
+  write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
  }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
  private fun historyReplacementBatch(text:String):HistoryReplacementBatch{
