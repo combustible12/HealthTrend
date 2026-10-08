@@ -257,7 +257,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val globalNormalHospitalColors=hospitalColorMap(globalHospitalRows,false)
  val globalAbnormalHospitalColors=hospitalColorMap(globalHospitalRows,true)
  val weights=remember(weightVersion,revision){store.weightRecords()}
- val trendCategories=listOf("血常规","肝功能","肾功能","肿瘤标志物","体重")+reports.map{it.reportType}.distinct().filterNot{it in setOf("血常规","肝功能","肾功能","肿瘤标志物","体重")}
+ val fixedTrendCategories=listOf("血常规","肝功能","肾功能","尿常规","凝血功能","电解质及肾功能","肿瘤标志物","体重")
+  val trendCategories=fixedTrendCategories+reports.map{it.reportType}.distinct().filterNot{it in fixedTrendCategories||it=="SCC"}
  val categoryScroll=rememberScrollState()
  var categorySwipe by remember{mutableFloatStateOf(0f)}
  var trendPageDrag by remember{mutableFloatStateOf(0f)}
@@ -468,7 +469,8 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   "肝功能"->key in liver
   "肾功能"->key in kidney
   "血常规"->key in cbc||report.reportType=="血常规"
-  "肿瘤标志物"->report.reportType=="肿瘤标志物"
+  "肿瘤标志物"->report.reportType in setOf("肿瘤标志物","SCC")
+  "电解质及肾功能"->report.reportType=="电解质及肾功能"
   else->report.reportType==category
  }
 }

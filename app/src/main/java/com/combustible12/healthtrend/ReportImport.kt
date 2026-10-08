@@ -314,6 +314,11 @@ object ReportMetadata {
   val yearConflict=candidate.isNotBlank()&&administrativeDates.any{it.substring(5)==candidate.substring(5)&&it.substring(0,4)!=candidate.substring(0,4)}
   val date=candidate.takeUnless{yearConflict}.orEmpty()
   val explicit=when{
+   raw.contains("尿干化学分析")||raw.contains("尿常规")||raw.contains("尿液检验")->"尿常规"
+   raw.contains("凝血")||raw.contains("D-Dimer")&&raw.contains("APTT")->"凝血功能"
+   raw.contains("SCC")||raw.contains("鳞状细胞癌相关抗原")->"肿瘤标志物"
+   raw.contains("AFP")&&raw.contains("CA125")->"肿瘤标志物"
+   raw.contains("电解质")||raw.contains("临床生化")&&raw.contains("尿素")->"电解质及肾功能"
    raw.contains("血常规")||raw.contains("血细胞分析")->"血常规"
    raw.contains("生化")->"生化"
    raw.contains("肝功能")->"肝功能"
@@ -323,6 +328,8 @@ object ReportMetadata {
   }
   val keys=items.map{it.metricKey}.toSet()
   val inferred=when{
+   keys.intersect(setOf("AFP","CEA","CA199","CA125","SCC")).isNotEmpty()->"肿瘤标志物"
+   keys.intersect(setOf("PT","INR","APTT","FIB","TT","D-Dimer")).size>=2->"凝血功能"
    keys.intersect(setOf("WBC","NEUT#","HGB","PLT","RBC")).size>=2->"血常规"
    // A mixed chemistry panel must stay one panel instead of being split into
    // liver/kidney templates merely because it contains ALT or CREA.
