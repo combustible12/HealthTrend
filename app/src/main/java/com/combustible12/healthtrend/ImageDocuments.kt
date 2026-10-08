@@ -137,12 +137,9 @@ class ImageDocumentStore(private val context:Context){
   val parsed=runCatching{file.openRead().bufferedReader().use{reader->
    val array=JSONArray(reader.readText());(0 until array.length()).map{documentFromJson(array.getJSONObject(it))}
   }}.getOrElse{throw IllegalStateException("图片资料索引无法读取",it)}
-  val cleaned=parsed.mapNotNull{document->
-   val pages=document.pages.filter(::pageFileExists).mapIndexed{index,page->if(page.pageIndex==index)page else page.copy(pageIndex=index)}
-   if(pages.isEmpty())null else if(pages==document.pages)document else document.copy(pages=pages)
-  }
-  if(cleaned!=parsed)runCatching{write(cleaned)}
-  return cleaned.sortedByDescending{it.createdAt}
+  // Keep index entries even when an image file is temporarily unavailable.
+  // A failed read must never silently delete medical records or their metadata.
+  return parsed.sortedByDescending{it.createdAt}
  }
  @Synchronized fun save(document:ImageDocument){
   require(document.title.isNotBlank());require(document.pages.isNotEmpty())
