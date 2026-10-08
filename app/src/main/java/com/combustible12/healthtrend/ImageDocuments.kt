@@ -595,12 +595,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 ){
  val context=LocalContext.current
  var viewport by remember{mutableStateOf(IntSize.Zero)}
- var zoom by rememberSaveable(page.id){mutableFloatStateOf(1f)}
- var x by rememberSaveable(page.id){mutableFloatStateOf(0f)}
- var y by rememberSaveable(page.id){mutableFloatStateOf(0f)}
- var swipeX by remember(page.id){mutableFloatStateOf(0f)}
- var pinchScale by remember(page.id){mutableFloatStateOf(1f)}
- var freePan by rememberSaveable(page.id){mutableStateOf(false)}
+ val gesture=rememberImageGestureState(page.id,viewport,page.imageWidth,page.imageHeight,onSwipePrevious,onSwipeNext,onSingleTap,onPinchIn)
  val loaded by produceState<Pair<android.graphics.Bitmap?,String?>>(null to null,page.imageUri){
   value=withContext(Dispatchers.IO){
    val longNarrow=page.imageWidth<=2_000&&page.imageHeight>=8_000
@@ -610,79 +605,13 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     .fold({it to null},{null to "原图无法读取：${it.message}"})
   }
  }
- LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){zoom=2.2f;val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,zoom);x=focused.x;y=focused.y}}
+ LaunchedEffect(highlight,viewport){if(highlight!=null&&viewport.width>0&&viewport.height>0){val focused=focusTranslation(highlight,viewport.width,viewport.height,page.imageWidth,page.imageHeight,2.2f);gesture.focus(2.2f,focused.x,focused.y)}}
  Box(
-  modifier.clipToBounds().onSizeChanged{viewport=it}
-   .pointerInput(page.id,viewport){
-    detectTapGestures(onTap={onSingleTap()},onDoubleTap={tap->
-     if(viewport.width<=0||viewport.height<=0||page.imageWidth<=0||page.imageHeight<=0)return@detectTapGestures
-     if(zoom>1.05f){
-      zoom=1f;x=0f;y=0f;swipeX=0f;freePan=false
-     }else{
-      val fit=min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight)
-      val fittedWidth=page.imageWidth*fit
-      val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
-      val target=widthFill.coerceAtMost(32f)
-      if(target>1.01f){
-       val ratio=target/zoom
-       val cy=tap.y-viewport.height/2f
-       zoom=target
-       freePan=false
-       x=0f
-       y=transformedTranslation(y,cy,ratio,0f)
-       swipeX=0f
-      }
-     }
-    })
-   }
-   .pointerInput(page.id,viewport){
-   detectTransformGestures{centroid,pan,scale,_->
-    val fit=if(viewport.width>0&&viewport.height>0&&page.imageWidth>0&&page.imageHeight>0)min(viewport.width.toFloat()/page.imageWidth,viewport.height.toFloat()/page.imageHeight) else 1f
-    val fittedWidth=(page.imageWidth*fit).coerceAtLeast(1f)
-    val widthFill=(viewport.width/fittedWidth).coerceAtLeast(1f)
-    val maxZoom=maxOf(8f,widthFill*1.5f).coerceAtMost(32f)
-    val next=(zoom*scale).coerceIn(1f,maxZoom)
-    val isPinching=abs(scale-1f)>=.015f
-    val horizontallyOverflowing=fittedWidth*next>viewport.width+1f
-    if(isPinching&&scale>1.005f&&horizontallyOverflowing)freePan=true
-    if(isPinching&&!horizontallyOverflowing)freePan=false
-    if(zoom<=1.01f&&scale<.995f){
-     pinchScale*=scale
-     swipeX=0f
-     if(pinchScale<=.82f){pinchScale=1f;onPinchIn()}
-    }else{
-     if(scale>=1f)pinchScale=1f
-     val horizontal=abs(pan.x)>abs(pan.y)*1.15f
-     // Once pinch-zoom makes the image wider than the viewport, one-finger drag pans the image instead of paging.
-     if(horizontal&&!isPinching&&!freePan){
-      swipeX+=pan.x
-      val threshold=(viewport.width*.16f).coerceIn(56f,120f)
-      when{
-       swipeX>=threshold->{swipeX=0f;onSwipePrevious()}
-       swipeX<=-threshold->{swipeX=0f;onSwipeNext()}
-      }
-     }else{
-      swipeX=0f
-      val ratio=next/zoom
-      val cx=centroid.x-viewport.width/2f
-      val cy=centroid.y-viewport.height/2f
-      if(freePan){
-       x=transformedTranslation(x,cx,ratio,pan.x)
-       y=transformedTranslation(y,cy,ratio,pan.y)
-      }else{
-       // Double-tap width-fill reading is vertically locked.
-       x=0f
-       y=transformedTranslation(y,cy,ratio,pan.y)
-      }
-      zoom=next
-     }
-    }
-   }
-  },
+  modifier.clipToBounds().onSizeChanged{viewport=it}.then(gesture.modifier),
   contentAlignment=Alignment.Center
  ){
   val bitmap=loaded.first
-  if(bitmap!=null&&viewport.width>0&&viewport.height>0)Canvas(Modifier.fillMaxSize().graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=x;translationY=y}){
+  if(bitmap!=null&&viewport.width>0&&viewport.height>0)Canvas(Modifier.fillMaxSize().graphicsLayer{scaleX=gesture.zoom;scaleY=gesture.zoom;translationX=gesture.x;translationY=gesture.y}){
    val quarterTurn=page.rotationDegrees%180!=0
    val visualWidth=if(quarterTurn)page.imageHeight else page.imageWidth
    val visualHeight=if(quarterTurn)page.imageWidth else page.imageHeight
@@ -690,7 +619,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    val dw=(page.imageWidth*fit).roundToInt();val dh=(page.imageHeight*fit).roundToInt();val left=((size.width-dw)/2f).roundToInt();val top=((size.height-dh)/2f).roundToInt()
    withTransform({rotate(page.rotationDegrees.toFloat(),Offset(size.width/2f,size.height/2f))}){
     drawImage(bitmap.asImageBitmap(),dstOffset=IntOffset(left,top),dstSize=IntSize(dw,dh))
-    highlight?.let{b->val rectTop=top+b.top*fit;val rectLeft=left+b.left*fit;val rectWidth=(b.right-b.left)*fit;val rectHeight=(b.bottom-b.top)*fit;drawRect(Color(0x55FFD54F),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight));drawRect(Color(0xFFFFA000),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight),style=Stroke(width=(2f/zoom).coerceAtLeast(.5f)))}
+    highlight?.let{b->val rectTop=top+b.top*fit;val rectLeft=left+b.left*fit;val rectWidth=(b.right-b.left)*fit;val rectHeight=(b.bottom-b.top)*fit;drawRect(Color(0x55FFD54F),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight));drawRect(Color(0xFFFFA000),Offset(rectLeft,rectTop),Size(rectWidth,rectHeight),style=Stroke(width=(2f/gesture.zoom).coerceAtLeast(.5f)))}
    }
   }else Text(loaded.second?:"正在读取原图…")
  }
