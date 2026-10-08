@@ -4,6 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReportParserTest {
+  @Test fun maternalCbcRdwCvAndSdNeverSwapOnPaste(){
+   val template=HospitalLabTemplate("福建省妇幼保健院","血常规",1,true,listOf(
+    LabFieldTemplate("MCHC","平均血红蛋白浓度","g/L",316.0,354.0),
+    LabFieldTemplate("RDW-CV","红细胞分布宽度CV","%",12.2,15.0),
+    LabFieldTemplate("RDW-SD","红细胞分布宽度SD","fL",42.0,53.6),
+    LabFieldTemplate("PLT","血小板计数","10^9/L",125.0,350.0)
+   ))
+   val raw="""医院：福建省妇幼保健院
+检查类型：血常规
+检查日期：2026-09-07
+MCHC 平均血红蛋白浓度 334 g/L 316-354
+RDW-CV 红细胞分布宽度CV 11.9 % 12.2-15.0
+RDW-SD 红细胞分布宽度SD 38.50 fL 42.00-53.60
+PLT 血小板计数 252 10^9/L 125-350"""
+   val draft=pastedReportDraft(raw,template)
+   assertEquals(listOf("MCHC","RDW-CV","RDW-SD","PLT"),draft.rows.map{it.key})
+   assertEquals("11.9",draft.rows[1].text)
+   assertEquals("%",draft.rows[1].unit)
+   assertEquals("12.2",draft.rows[1].low)
+   assertEquals("38.50",draft.rows[2].text)
+   assertEquals("fL",draft.rows[2].unit)
+   assertEquals("42.0",draft.rows[2].low)
+  }
+
   @Test fun pastedChatReportUsesMetadataAndConfirmedTemplateSkeleton(){
   val template=HospitalLabTemplate("霞浦县中医院","生化",1,true,listOf(
    LabFieldTemplate("ALT","谷丙转氨酶","U/L",7.0,40.0),
