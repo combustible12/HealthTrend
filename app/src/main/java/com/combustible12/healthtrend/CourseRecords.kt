@@ -178,14 +178,17 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    Button({captureTarget="check";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加检查图片")}
+   Button({checkPicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("从相册添加检查图片")}
    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->removingImage="check" to i}
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    Button({captureTarget="medicine";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加药品图片")}
+   Button({medicinePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("从相册添加药品图片")}
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->removingImage="medicine" to i}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    Button({captureTarget="note";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加备注图片")}
+   Button({notePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("从相册添加备注图片")}
    if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->removingImage="note" to i}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
