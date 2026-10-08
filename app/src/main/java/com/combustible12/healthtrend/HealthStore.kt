@@ -22,6 +22,13 @@ class HealthStore(private val context:Context) {
     .thenBy{it.value.version}.thenBy{it.index})?.value
   }.map(::repairXiacuBiochemistryTemplate).toMutableList()
   if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
+  if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","肿瘤标志物",1,true,listOf(
+   LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
+   LabFieldTemplate("AFP","甲胎蛋白","ng/mL",0.0,7.0),
+   LabFieldTemplate("CA199","糖类抗原19-9","U/mL",0.0,30.0),
+   LabFieldTemplate("CA125","糖类抗原12-5","U/mL",0.0,25.0),
+   LabFieldTemplate("SCC","鳞状细胞癌相关抗原","ng/mL",0.0,1.5)
+  ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
