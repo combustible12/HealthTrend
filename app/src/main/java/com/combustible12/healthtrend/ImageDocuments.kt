@@ -411,8 +411,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
    }
    OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
     Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "从相册选择",fontSize=13.sp,maxLines=1)
-    OutlinedButton({capture()},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){Text("拍照",fontSize=13.sp)}
    }
+    OutlinedButton({capture()},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){Text("拍照",fontSize=13.sp)}
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
    TextButton({noteDraft=document.pages.firstOrNull{it.isTextPage()}?.fullText.orEmpty();showNoteEditor=true}){
