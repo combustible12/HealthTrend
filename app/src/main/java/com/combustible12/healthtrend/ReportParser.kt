@@ -39,8 +39,16 @@ object ReportParser {
   return if(validAlternative) ocr else expected
  }
  fun key(name:String):String {
+  // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
-  return identity?.takeIf{it in metricIdentityKeys} ?: "未识别"
+  if(identity in metricIdentityKeys)return identity!!
+  val label=name.trim().replace('：',':').replace('／','/')
+  val leading=label.substringBefore(' ').substringBefore('\\t').trim().trimEnd(':')
+  val code=normalizeCode(leading)
+  if(code in metricIdentityKeys)return code
+  val full=normalizeCode(label)
+  if(full in metricIdentityKeys)return full
+  return aliases.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: "未识别"
  }
  private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
  internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
