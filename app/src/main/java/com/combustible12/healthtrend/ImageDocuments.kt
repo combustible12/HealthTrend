@@ -410,7 +410,8 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     Text("保存",fontSize=12.sp,color=Accent,modifier=Modifier.clickable{if(document.title.isNotBlank()){onSaved(document);savedTitle=document.title;android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show()}}.padding(start=8.dp,top=5.dp,bottom=5.dp))
    }
    OutlinedButton({addImages.launch(arrayOf("image/*"))},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){
-    Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "添加图片",fontSize=13.sp,maxLines=1)
+    Icon(Icons.Outlined.AddPhotoAlternate,null,Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text(if(busy)progress.ifBlank{"处理中"} else "从相册选择",fontSize=13.sp,maxLines=1)
+    OutlinedButton({capture()},Modifier.height(40.dp),enabled=!busy,contentPadding=PaddingValues(horizontal=10.dp,vertical=0.dp)){Text("拍照",fontSize=13.sp)}
    }
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
