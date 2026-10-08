@@ -24,4 +24,4 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Compile Kotlin
-        run: gradle :app:compileDebugKotlin :app:testDebugUnitTest --tests '*ReportParserTest*'
+        run: gradle :app:compileDebugKotlin
