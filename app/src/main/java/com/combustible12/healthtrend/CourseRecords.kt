@@ -117,7 +117,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
     if(record.symptomText.isNotBlank())CourseTextRow(Icons.Outlined.MonitorHeart,record.symptomText,true)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
-    if(record.noteText.isNotBlank())CourseTextRow(Icons.Outlined.Notes,record.noteText,true)
+    if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view)
    }
   }
  }
@@ -156,9 +156,10 @@ private fun coursePhaseColors(phase:String)=when(phase){
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
- fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=if(target=="check")record.copy(checkImages=record.checkImages+owned)else record.copy(medicineImages=record.medicineImages+owned)}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
+ fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"check"->record.copy(checkImages=record.checkImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val checkPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("check",it)}
  val medicinePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("medicine",it)}
+ val notePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("note",it)}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
@@ -183,6 +184,8 @@ private fun coursePhaseColors(phase:String)=when(phase){
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->record=record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=i})}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   Button({notePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加备注图片")}
+   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->record=record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=i})}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }

@@ -66,6 +66,7 @@ data class CourseRecord(
  val medicineText:String="",
  val medicineImages:List<String> = emptyList(),
  val noteText:String="",
+ val noteImages:List<String> = emptyList(),
  val createdAt:Long=System.currentTimeMillis(),
  val updatedAt:Long=System.currentTimeMillis()
 ):java.io.Serializable
