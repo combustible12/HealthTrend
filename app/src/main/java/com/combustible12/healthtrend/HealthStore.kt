@@ -110,7 +110,7 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("LDH","乳酸脱氢酶","U/L",120.0,250.0),
    LabFieldTemplate("CK","肌酸激酶","U/L",40.0,200.0),
    LabFieldTemplate("CKMB","肌酸激酶同工酶","U/L",0.0,25.0),
-   LabFieldTemplate("CKMB/CK","CKMB/CK","",null,null),
+   LabFieldTemplate("CKMB/CK","肌酸激酶同工酶/肌酸激酶","",null,null),
    LabFieldTemplate("AG","阴离子间隙","",8.0,16.0),
    LabFieldTemplate("OSM","渗透压","",280.0,320.0)
   ))
@@ -152,7 +152,9 @@ class HealthStore(private val context:Context) {
      field.copy(displayName="谷丙转氨酶")
     else if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
     field.copy(displayName="谷草转氨酶")
-   else if(field.metricKey=="AST/ALT"&&field.displayName.trim() in setOf("AST:ALT","AST/ALT","谷草/谷丙比值","AST/ALT 谷草/谷丙"))
+   else if(field.metricKey=="CKMB/CK" && field.displayName.trim() in setOf("CKMB/CK","CKMB:CK","待核对指标"))
+     field.copy(displayName="肌酸激酶同工酶/肌酸激酶")
+    else if(field.metricKey=="AST/ALT"&&field.displayName.trim() in setOf("AST:ALT","AST/ALT","谷草/谷丙比值","AST/ALT 谷草/谷丙"))
     field.copy(displayName="谷草/谷丙")
    else field
   }
