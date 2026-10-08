@@ -234,6 +234,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val reportId=imageTargetReportId;imageTargetReportId=null
   if(reportId!=null&&uris.isNotEmpty()){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{imageBusy=false}}}
  }
+ val captureReportImage=rememberAttachmentCamera(onCaptured={uri->val reportId=imageTargetReportId;imageTargetReportId=null;if(reportId!=null){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,listOf(uri))};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="拍照保存失败：${x.message}"}finally{imageBusy=false}}}},onError={imageTargetReportId=null;imageError=it})
  fun fixedTrendTitle(metricKey:String):String?=when(metricKey){
   "WBC"->"白细胞";"NEUT#"->"中性粒细胞计数";"NEUT%"->"中性粒细胞百分比"
   "LYMPH#"->"淋巴细胞计数";"LYMPH%"->"淋巴细胞百分比";"MONO#"->"单核细胞计数";"MONO%"->"单核细胞百分比"
@@ -450,7 +451,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
    else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
   }},dismissButton={Row{
-   if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")} else TextButton({imageTargetReportId=r.id;imagePicker.launch(arrayOf("image/*"))},enabled=!imageBusy){Text("导入原报告")}
+   if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")}
+    TextButton({imageTargetReportId=r.id;imagePicker.launch(arrayOf("image/*"))},enabled=!imageBusy){Text("相册")}
+    TextButton({imageTargetReportId=r.id;captureReportImage()},enabled=!imageBusy){Text("拍照")}
    TextButton({selected=null;editing=false}){Text("关闭")}
   }})
  }
