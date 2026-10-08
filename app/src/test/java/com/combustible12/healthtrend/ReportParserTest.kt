@@ -4,6 +4,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReportParserTest {
+  @Test fun ratioCodePunctuationKeepsSingleMetricIdentity(){
+   assertEquals("AST/ALT",ReportParser.key("谷草谷丙（AST:ALT）"))
+   assertEquals("AST/ALT",ReportParser.key("谷草谷丙（AST/ALT）"))
+   assertEquals("A/G",ReportParser.key("白球比（A:G）"))
+   assertEquals("CKMB/CK",ReportParser.key("肌酸激酶比值（CKMB:CK）"))
+   val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("AST:ALT 谷草谷丙比值 1.14"))
+   assertEquals(1,parsed.size)
+   assertEquals("AST/ALT",parsed.single().metricKey)
+   assertEquals("1.14",parsed.single().textValue)
+  }
+
   @Test fun maternalCbcRdwCvAndSdNeverSwapOnPaste(){
    val template=HospitalLabTemplate("福建省妇幼保健院","血常规",1,true,listOf(
     LabFieldTemplate("MCHC","平均血红蛋白浓度","g/L",316.0,354.0),
