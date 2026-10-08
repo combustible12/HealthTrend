@@ -37,6 +37,24 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("CA199","CA-199","U/mL",0.0,37.0),
    LabFieldTemplate("SCC","鳞癌相关抗原测定","ng/mL",0.0,1.5)
   ))
+  if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="电解质及肾功能"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","电解质及肾功能",1,true,listOf(
+   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5),
+   LabFieldTemplate("CREA","肌酐","μmol/L",41,73),
+   LabFieldTemplate("UREA/CREA","尿素/肌酐","",null,null),
+   LabFieldTemplate("UA","尿酸","μmol/L",154.7,357),
+   LabFieldTemplate("GLU","葡萄糖","mmol/L",3.7,6.1),
+   LabFieldTemplate("K","钾","mmol/L",3.5,5.5),
+   LabFieldTemplate("NA","钠","mmol/L",135,145),
+   LabFieldTemplate("CL","氯","mmol/L",99,110),
+   LabFieldTemplate("HCO3","碳酸氢根","mmol/L",22,34),
+   LabFieldTemplate("CA","钙","mmol/L",2.1,2.7),
+   LabFieldTemplate("MG","镁","mmol/L",0.7,1.1),
+   LabFieldTemplate("PHOS","无机磷酸盐","mmol/L",0.85,1.51),
+   LabFieldTemplate("AG","阴离子间隙","mmol/L",8,16),
+   LabFieldTemplate("OSM","渗透压","mOsm/L",null,null),
+   LabFieldTemplate("CK","肌酸激酶","U/L",40,200),
+   LabFieldTemplate("CKMB","肌酸激酶MB亚型","U/L",0,24)
+  ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
