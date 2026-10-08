@@ -257,7 +257,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val globalNormalHospitalColors=hospitalColorMap(globalHospitalRows,false)
  val globalAbnormalHospitalColors=hospitalColorMap(globalHospitalRows,true)
  val weights=remember(weightVersion,revision){store.weightRecords()}
- val fixedTrendCategories=listOf("血常规","肝功能","肾功能","尿常规","凝血功能","电解质及肾功能","肿瘤标志物","体重")
+ val fixedTrendCategories=listOf("血常规","肝功能","肾功能","尿常规","凝血功能","电解质及肾功能","肿瘤标志物","甲状腺功能","传染病筛查","粪便常规","体重")
   val trendCategories=fixedTrendCategories+reports.map{it.reportType}.distinct().filterNot{it in fixedTrendCategories||it=="SCC"}
  val categoryScroll=rememberScrollState()
  var categorySwipe by remember{mutableFloatStateOf(0f)}

@@ -314,10 +314,15 @@ object ReportMetadata {
   val yearConflict=candidate.isNotBlank()&&administrativeDates.any{it.substring(5)==candidate.substring(5)&&it.substring(0,4)!=candidate.substring(0,4)}
   val date=candidate.takeUnless{yearConflict}.orEmpty()
   val explicit=when{
-   raw.contains("尿干化学分析")||raw.contains("尿常规")||raw.contains("尿液检验")->"尿常规"
+   raw.contains("乙肝二对半")||raw.contains("乙肝两对半")||raw.contains("HBsAg")||raw.contains("抗-HCV")||raw.contains("Anti-HCV")->"传染病筛查"
+   raw.contains("游离-T3")||raw.contains("游离-T4")||raw.contains("促甲状腺素")||raw.contains("FT3")&&raw.contains("FT4")->"甲状腺功能"
+   raw.contains("粪便常规")||raw.contains("粪便分析")->"粪便常规"
+   raw.contains("糖类抗原CA72")||raw.contains("CA72-4")||raw.contains("CA-153")||raw.contains("CA-199")||raw.contains("CA-125")->"肿瘤标志物"
+   raw.contains("尿液分析")||raw.contains("尿干化学分析")||raw.contains("尿常规")||raw.contains("尿液检验")->"尿常规"
    raw.contains("凝血")||raw.contains("D-Dimer")&&raw.contains("APTT")->"凝血功能"
    raw.contains("SCC")||raw.contains("鳞状细胞癌相关抗原")->"肿瘤标志物"
    raw.contains("AFP")&&raw.contains("CA125")->"肿瘤标志物"
+   raw.contains("常规生化全套")||raw.contains("生化全套")->"生化"
    raw.contains("电解质")||raw.contains("临床生化")&&raw.contains("尿素")->"电解质及肾功能"
    raw.contains("血常规")||raw.contains("血细胞分析")->"血常规"
    raw.contains("生化")->"生化"
