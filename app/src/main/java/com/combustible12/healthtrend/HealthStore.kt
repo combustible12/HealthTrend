@@ -88,7 +88,7 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("CREA","肌酐","μmol/L",41.0,73.0),
    LabFieldTemplate("UREA/CREA","尿素:肌酐","",10.0,20.0),
    LabFieldTemplate("UA","尿酸","μmol/L",155.0,357.0),
-   LabFieldTemplate("ALT","丙氨酸氨基转移酶","U/L",7.0,40.0),
+   LabFieldTemplate("ALT","谷丙转氨酶","U/L",7.0,40.0),
    LabFieldTemplate("AST","谷草转氨酶","U/L",13.0,35.0),
    LabFieldTemplate("AST/ALT","谷草/谷丙","",null,null),
    LabFieldTemplate("GGT","γ-谷氨酰转肽酶","U/L",7.0,45.0),
@@ -148,7 +148,9 @@ class HealthStore(private val context:Context) {
   if(t.hospitalKey.trim()!="福建省妇幼保健院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
   // Replace only the erroneous built-in label; keep all other user-confirmed fields intact.
   val corrected=t.fields.map{field->
-   if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
+   if(field.metricKey=="ALT" && field.displayName.trim() in setOf("丙氨酸氨基转移酶","谷丙氨酸氨基转移酶"))
+     field.copy(displayName="谷丙转氨酶")
+    else if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
     field.copy(displayName="谷草转氨酶")
    else if(field.metricKey=="AST/ALT"&&field.displayName.trim() in setOf("AST:ALT","AST/ALT","谷草/谷丙比值","AST/ALT 谷草/谷丙"))
     field.copy(displayName="谷草/谷丙")
