@@ -333,7 +333,7 @@ object ReportMetadata {
   }
   val keys=items.map{it.metricKey}.toSet()
   val inferred=when{
-   keys.intersect(setOf("AFP","CEA","CA199","CA125","SCC")).isNotEmpty()->"肿瘤标志物"
+   keys.intersect(setOf("AFP","CEA","CA199","CA125","CA153","CA724","CYFRA21-1","NSE","HE4","SCC")).isNotEmpty()->"肿瘤标志物"
    keys.intersect(setOf("PT","INR","APTT","FIB","TT","D-Dimer")).size>=2->"凝血功能"
    keys.intersect(setOf("WBC","NEUT#","HGB","PLT","RBC")).size>=2->"血常规"
    // A mixed chemistry panel must stay one panel instead of being split into
