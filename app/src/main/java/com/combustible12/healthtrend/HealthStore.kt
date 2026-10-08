@@ -90,7 +90,7 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("UA","尿酸","μmol/L",155.0,357.0),
    LabFieldTemplate("ALT","丙氨酸氨基转移酶","U/L",7.0,40.0),
    LabFieldTemplate("AST","谷草转氨酶","U/L",13.0,35.0),
-   LabFieldTemplate("AST/ALT","AST/ALT","",null,null),
+   LabFieldTemplate("AST/ALT","谷草/谷丙","",null,null),
    LabFieldTemplate("GGT","γ-谷氨酰转肽酶","U/L",7.0,45.0),
    LabFieldTemplate("ALP","碱性磷酸酶","U/L",50.0,135.0),
    LabFieldTemplate("TP","总蛋白","g/L",65.0,85.0),
@@ -150,8 +150,8 @@ class HealthStore(private val context:Context) {
   val corrected=t.fields.map{field->
    if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
     field.copy(displayName="谷草转氨酶")
-   else if(field.metricKey=="AST/ALT"&&field.displayName.trim().equals("AST:ALT",ignoreCase=true))
-    field.copy(displayName="AST/ALT")
+   else if(field.metricKey=="AST/ALT"&&field.displayName.trim() in setOf("AST:ALT","AST/ALT","谷草/谷丙比值","AST/ALT 谷草/谷丙"))
+    field.copy(displayName="谷草/谷丙")
    else field
   }
   return if(corrected==t.fields)t else t.copy(fields=corrected)
