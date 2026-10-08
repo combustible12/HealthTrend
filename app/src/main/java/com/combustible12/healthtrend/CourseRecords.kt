@@ -154,12 +154,13 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val context=LocalContext.current
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
- var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
+ var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var removingImage by remember{mutableStateOf<Pair<String,Int>?>(null)};var captureTarget by remember{mutableStateOf("check")}
  val scope=rememberCoroutineScope()
  fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"check"->record.copy(checkImages=record.checkImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val checkPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("check",it)}
  val medicinePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("medicine",it)}
  val notePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){addImages("note",it)}
+ val capture=rememberAttachmentCamera({uri->addImages(captureTarget,listOf(uri))},{error=it})
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
@@ -176,20 +177,21 @@ private fun coursePhaseColors(phase:String)=when(phase){
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
-   Button({checkPicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加检查图片")}
-   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->record=record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=i})}
+   Button({captureTarget="check";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加检查图片")}
+   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->removingImage="check" to i}
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
-   Button({medicinePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加药品图片")}
-   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->record=record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=i})}
+   Button({captureTarget="medicine";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加药品图片")}
+   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->removingImage="medicine" to i}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
-   Button({notePicker.launch(arrayOf("image/*"))},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("添加备注图片")}
-   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->record=record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=i})}
+   Button({captureTarget="note";capture()},enabled=!busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Icon(Icons.Outlined.AddPhotoAlternate,null);Spacer(Modifier.width(6.dp));Text("拍照添加备注图片")}
+   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->removingImage="note" to i}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
  }
+ if(removingImage!=null)DeleteConfirmation({removingImage=null}){val (kind,index)=removingImage!!;record=when(kind){"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};removingImage=null}
  if(deleting)DeleteConfirmation({deleting=false}){onDelete();deleting=false}
 }
 
