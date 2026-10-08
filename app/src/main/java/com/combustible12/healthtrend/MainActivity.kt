@@ -159,7 +159,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val t=existing?:store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
    val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
    val version=if(d.existing!=null&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey)d.existing.templateVersion else t.version
-   store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.map{x->x.copy(id=d.rows.singleOrNull{it.metricKey==x.metricKey}?.id ?: error("编辑项目身份不匹配：${x.metricKey}"),reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
+   store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.map{x->x.copy(id=d.rows.singleOrNull{it.key==x.metricKey}?.id ?: error("编辑项目身份不匹配：${x.metricKey}"),reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
   }},{viewer=it})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
