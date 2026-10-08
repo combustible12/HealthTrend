@@ -55,6 +55,44 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("CK","肌酸激酶","U/L",40,200),
    LabFieldTemplate("CKMB","肌酸激酶MB亚型","U/L",0,24)
   ))
+  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","生化",1,true,listOf(
+   LabFieldTemplate("K","钾","mmol/L",3.5,5.3),
+   LabFieldTemplate("NA","钠","mmol/L",137,147),
+   LabFieldTemplate("CL","氯","mmol/L",99,110),
+   LabFieldTemplate("CA","钙","mmol/L",2.11,2.52),
+   LabFieldTemplate("HCO3","血清碳酸氢盐HCO3","mmol/L",22,29),
+   LabFieldTemplate("MG","镁","mmol/L",0.65,1.25),
+   LabFieldTemplate("PHOS","磷","mmol/L",0.85,1.51),
+   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5),
+   LabFieldTemplate("CREA","肌酐","μmol/L",41,73),
+   LabFieldTemplate("UREA/CREA","尿素:肌酐","",10,20),
+   LabFieldTemplate("UA","尿酸","μmol/L",155,357),
+   LabFieldTemplate("ALT","丙氨酸氨基转移酶","U/L",7,40),
+   LabFieldTemplate("AST","门冬氨酸氨基转移酶","U/L",13,35),
+   LabFieldTemplate("AST/ALT","AST:ALT","",null,null),
+   LabFieldTemplate("GGT","γ-谷氨酰转肽酶","U/L",7,45),
+   LabFieldTemplate("ALP","碱性磷酸酶","U/L",50,135),
+   LabFieldTemplate("TP","总蛋白","g/L",65,85),
+   LabFieldTemplate("ALB","白蛋白","g/L",40,55),
+   LabFieldTemplate("GLOB","球蛋白","g/L",20,40),
+   LabFieldTemplate("A/G","白蛋白/球蛋白","",1.2,2.4),
+   LabFieldTemplate("TBIL","总胆红素","μmol/L",0,21),
+   LabFieldTemplate("DBIL","直接胆红素","μmol/L",0,8),
+   LabFieldTemplate("IBIL","非结合胆红素","μmol/L",1.7,17),
+   LabFieldTemplate("GLU","葡萄糖","mmol/L",3.6,6.1),
+   LabFieldTemplate("TG","甘油三酯","mmol/L",0,1.7),
+   LabFieldTemplate("CHOL","总胆固醇","mmol/L",0,5.2),
+   LabFieldTemplate("APOA1","载脂蛋白-A1","g/L",1.2,1.6),
+   LabFieldTemplate("APOB","载脂蛋白-B","g/L",0.6,1.2),
+   LabFieldTemplate("HDLC","高密度脂蛋白胆固醇","mmol/L",1.29,1.55),
+   LabFieldTemplate("LDLC","低密度脂蛋白胆固醇","mmol/L",0,3.12),
+   LabFieldTemplate("LDH","乳酸脱氢酶","U/L",120,250),
+   LabFieldTemplate("CK","肌酸激酶","U/L",40,200),
+   LabFieldTemplate("CKMB","肌酸激酶同工酶","U/L",0,25),
+   LabFieldTemplate("CKMB/CK","CKMB/CK","",null,null),
+   LabFieldTemplate("AG","阴离子间隙","",8,16),
+   LabFieldTemplate("OSM","渗透压","",280,320)
+  ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
