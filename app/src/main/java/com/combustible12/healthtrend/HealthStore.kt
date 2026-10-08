@@ -93,6 +93,32 @@ class HealthStore(private val context:Context) {
    LabFieldTemplate("AG","阴离子间隙","",8,16),
    LabFieldTemplate("OSM","渗透压","",280,320)
   ))
+  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="血常规"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","血常规",1,true,listOf(
+   LabFieldTemplate("WBC","白细胞计数","10^9/L",3.5,9.5),
+   LabFieldTemplate("NEUT%","中性粒细胞%","%",40,75),
+   LabFieldTemplate("LYMPH%","淋巴细胞%","%",20,50),
+   LabFieldTemplate("MONO%","单核细胞%","%",3,10),
+   LabFieldTemplate("EOS%","嗜酸性粒细胞%","%",0.4,8),
+   LabFieldTemplate("BASO%","嗜碱性粒细胞%","%",0,1),
+   LabFieldTemplate("NEUT#","中性粒细胞绝对数","10^9/L",1.8,6.3),
+   LabFieldTemplate("LYMPH#","淋巴细胞绝对数","10^9/L",1.1,3.2),
+   LabFieldTemplate("MONO#","单核细胞绝对数","10^9/L",0.13,0.76),
+   LabFieldTemplate("EOS#","嗜酸性粒细胞绝对数","10^9/L",0.02,0.52),
+   LabFieldTemplate("BASO#","嗜碱性粒细胞绝对数","10^9/L",0,0.05),
+   LabFieldTemplate("RBC","红细胞计数","10^12/L",3.8,5.1),
+   LabFieldTemplate("HGB","血红蛋白","g/L",115,150),
+   LabFieldTemplate("HCT","红细胞压积","%",35,45),
+   LabFieldTemplate("MCV","平均红细胞体积","fL",82,100),
+   LabFieldTemplate("MCH","平均血红蛋白含量","pg",27,34),
+   LabFieldTemplate("MCHC","平均血红蛋白浓度","g/L",316,354),
+   LabFieldTemplate("RDW","红细胞体积分布宽度","%",12.2,15),
+   LabFieldTemplate("RDW-SD","红细胞体积分布宽度","fL",42,53.6),
+   LabFieldTemplate("PLT","血小板计数","10^9/L",125,350),
+   LabFieldTemplate("MPV","平均血小板体积","fL",9.2,12.1),
+   LabFieldTemplate("PCT","血小板压积","%",0.19,0.4),
+   LabFieldTemplate("PDW","血小板分布宽度","fL",9.6,15.2),
+   LabFieldTemplate("P-LCR","大血小板","%",19.6,42.6)
+  ))
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
