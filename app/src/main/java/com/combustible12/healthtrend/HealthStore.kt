@@ -143,22 +143,26 @@ class HealthStore(private val context:Context) {
   val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
   if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
  }
- /** Insert only the missing CV field in the maternal CBC template; preserve all other user edits. */
+ /** Resolve maternal CBC identities by measurement unit, not mutable display names. */
  internal fun ensureMaternalCbcRdwFields(t:HospitalLabTemplate):HospitalLabTemplate {
   if(t.hospitalKey.trim()!="福建省妇幼保健院" || t.reportType.trim()!="血常规" || t.systemKey.isNotBlank())return t
-  val fields=t.fields.toMutableList()
-  val sd=fields.indexOfFirst{it.metricKey=="RDW-SD"}
-  if(sd<0)return t
-  val cv=fields.indexOfFirst{it.metricKey=="RDW-CV" || (it.metricKey=="RDW" && it.unit=="%")}
-  if(cv>=0){
-   // Keep legacy RDW identity and existing results untouched; only correct display ordering.
-   val existing=fields.removeAt(cv)
-   val sdNow=fields.indexOfFirst{it.metricKey=="RDW-SD"}
-   fields.add(sdNow,existing)
+  val original=t.fields
+  val candidates=original.withIndex().filter{(_,f)->f.metricKey in setOf("RDW","RDW-CV","RDW-SD")}
+  // Never guess when a legacy template has multiple entries with the same unit.
+  if(candidates.count{displayLabUnit(it.value.unit)=="fL"}>1 || candidates.count{displayLabUnit(it.value.unit)=="%"}>1)return t
+  val sd=candidates.singleOrNull{displayLabUnit(it.value.unit)=="fL"}
+  val cv=candidates.singleOrNull{displayLabUnit(it.value.unit)=="%"}
+  if(sd==null)return t
+  val fields=original.toMutableList()
+  fields[sd.index]=sd.value.copy(metricKey="RDW-SD",displayName="红细胞分布宽度SD")
+  if(cv!=null){
+   fields[cv.index]=cv.value.copy(metricKey="RDW-CV",displayName="红细胞分布宽度CV")
+   val moved=fields.removeAt(cv.index)
+   fields.add(fields.indexOfFirst{it.metricKey=="RDW-SD"},moved)
   }else{
    fields.add(fields.indexOfFirst{it.metricKey=="RDW-SD"},LabFieldTemplate("RDW-CV","红细胞分布宽度CV","%",12.2,15.0))
   }
-  return if(fields==t.fields)t else t.copy(fields=fields)
+  return if(fields==original)t else t.copy(fields=fields)
  }
  internal fun repairXiacuBiochemistryTemplate(t:HospitalLabTemplate):HospitalLabTemplate{
   if(t.hospitalKey.trim()!="霞浦县中医院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
