@@ -199,8 +199,8 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  if(deleting)DeleteConfirmation({deleting=false},delete)
  removingImage?.let{target->DeleteConfirmation({removingImage=null},{e=e.copy(images=e.images.filterIndexed{j,_->j!=target});removingImage=null})}
 }
-@Composable fun SourceViewer(uris:List<String>,close:()->Unit){
- var index by rememberSaveable{mutableIntStateOf(0)};val context=LocalContext.current
+@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0){
+ var index by rememberSaveable(uris,initialIndex){mutableIntStateOf(initialIndex.coerceIn(0,(uris.size-1).coerceAtLeast(0)))};val context=LocalContext.current
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
  var zoom by rememberSaveable(index){mutableFloatStateOf(1f)};var x by rememberSaveable(index){mutableFloatStateOf(0f)};var y by rememberSaveable(index){mutableFloatStateOf(0f)}
  var swipeX by remember(index){mutableFloatStateOf(0f)}
