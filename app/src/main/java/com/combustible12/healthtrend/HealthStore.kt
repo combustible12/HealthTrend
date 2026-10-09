@@ -239,7 +239,14 @@ class HealthStore(private val context:Context) {
   return reports
  }
  @Synchronized fun saveReport(input:LabReport){
-  val r=normalizeMaternalRdw(input)
+  val normalized=normalizeMaternalRdw(input)
+  // Report editors can hold an older snapshot than an attachment import.
+  // Keep persisted images when that snapshot is saved; never silently discard them.
+  val persisted=reports().firstOrNull{it.id==normalized.id}
+  val existingImages=persisted?.sourceImages.orEmpty()
+  val r=if(existingImages.isEmpty())normalized else normalized.copy(
+   sourceImages=(existingImages+normalized.sourceImages).distinctBy{it.uri}
+  )
   require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
   require(r.results.all{it.metricKey.isNotBlank()&&it.reportId==r.id&&it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效"}
   require(r.results.map{it.metricKey}.distinct().size==r.results.size){"报告存在重复项目 ID"}
