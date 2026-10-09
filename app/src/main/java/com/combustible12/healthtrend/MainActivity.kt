@@ -134,7 +134,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   if(id!=null&&uris.isNotEmpty()){
    attachingReportImage=true
    attachScope.launch{
-    try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(id,uris)};revision++}
+    try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(id,uris)};revision++;if(viewerReportId==id){viewer=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri};viewerStart=(viewer?.lastIndex?:0).coerceAtLeast(0)}}
     catch(e:Exception){error="原图保存失败：${e.message}"}
     finally{attachingReportImage=false}
    }
