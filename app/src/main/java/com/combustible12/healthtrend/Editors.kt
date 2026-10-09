@@ -207,9 +207,10 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 /** Shared source-image viewer used by reports, entries and course records.
  * Image Documents retains its OCR-aware canvas; gestures and thumbnail navigation match here.
  */
-@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0){
+@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0,onReplace:((Int)->Unit)?=null,onRemove:((Int)->Unit)?=null,onMove:((Int,Int)->Unit)?=null,onAdd:(()->Unit)?=null){
  if(uris.isEmpty()){LaunchedEffect(Unit){close()};return}
  var index by rememberSaveable(uris,initialIndex){mutableIntStateOf(initialIndex.coerceIn(uris.indices))}
+ var confirmRemoval by remember{mutableStateOf(false)}
  val context=LocalContext.current
  val listState=rememberLazyListState()
  var viewport by remember{mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)}
@@ -232,6 +233,17 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
      }
     }
    }
+   if(onReplace!=null||onRemove!=null||onAdd!=null||onMove!=null){
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+     if(onReplace!=null)TextButton({onReplace(index)}){Text("更换")}
+     if(onAdd!=null)TextButton(onAdd){Text("添加")}
+     if(onRemove!=null)TextButton({confirmRemoval=true}){Text("删除",color=Bad)}
+     if(onMove!=null){
+      TextButton({onMove(index,index-1)},enabled=index>0){Text("前移")}
+      TextButton({onMove(index,index+1)},enabled=index<uris.lastIndex){Text("后移")}
+     }
+    }
+   }
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
     TextButton({select(index-1)},enabled=index>0){Text("上一张")}
     TextButton({gesture.reset()}){Text("重置缩放")}
@@ -247,5 +259,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
     }
    }
   }
+ if(confirmRemoval)AlertDialog(onDismissRequest={confirmRemoval=false},title={Text("删除这张原图？")},text={Text("仅删除这份报告中的图片关联，不影响检查数据和趋势。")},confirmButton={TextButton({confirmRemoval=false;onRemove?.invoke(index)}){Text("删除",color=Bad)}},dismissButton={TextButton({confirmRemoval=false}){Text("取消")}})
+
 }
 fun shareText(context:Context,title:String,text:String){context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,title).putExtra(Intent.EXTRA_TEXT,text),"分享"))}
