@@ -720,7 +720,6 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
  val types=reports.map{it.reportType}.distinct().sorted()
  val filters=listOf("全部")+types
  Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
- Row(Modifier.horizontalScroll(rememberScrollState())){EntryKind.entries.forEach{k->TextButton({add(k)}){Text("+ ${k.title}")}}}
  val visible=reports.filter{filter=="全部"||it.reportType==filter}
  val grouped=visible.groupBy{it.reportType}.toList().sortedBy{it.first}
  if(grouped.isEmpty())Paper{Text("暂无检查报告")}
@@ -733,10 +732,7 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
    }
   }
  }
- if(filter=="全部"&&entries.isNotEmpty()){
-  Text("其他记录",fontWeight=FontWeight.Bold,fontSize=18.sp)
-  entries.sortedByDescending{it.occurredAtEpochMillis}.forEach{e->Paper(Modifier.clickable{edit(e)}){Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted,fontSize=12.sp);if(e.note.isNotBlank())Text(e.note)}}
- }
+
 }}
 @Composable fun SymptomReport(entries:List<HealthEntry>){
  var start by rememberSaveable{mutableStateOf(LocalDate.now().minusDays(30).toString())};var end by rememberSaveable{mutableStateOf(LocalDate.now().toString())}
