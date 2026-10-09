@@ -359,6 +359,15 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   val message=when{imported.duplicateCount>0&&imported.pages.isNotEmpty()->"已添加 ${imported.pages.size} 张，跳过 ${imported.duplicateCount} 张重复图片";imported.duplicateCount>0->"所选图片均已存在，无需重复添加";else->"已添加 ${imported.pages.size} 张图片"}
   android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()
  }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"添加图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}},{message->android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()})
+ val replaceImages=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
+  val old=document.pages[pageIndex]
+  if(old.isTextPage())error("说明页不能替换成图片")
+  val imported=importImagePages(context,store,listOf(uris.first()),old.pageIndex,emptySet()){progress=it}
+  val newPage=imported.pages.firstOrNull()?:error("新图片导入失败")
+  // A replacement is a new image identity: never reuse OCR blocks, hashes or search index.
+  val updated=document.copy(pages=document.pages.map{if(it.id==old.id)newPage.copy(pageIndex=old.pageIndex,sourceUrl=old.sourceUrl) else it})
+  store.save(updated);document=updated;onSaved(updated);savedTitle=updated.title
+ }catch(t:Throwable){if(t is CancellationException)throw t;android.widget.Toast.makeText(context,"更换图片失败：${t.message}",android.widget.Toast.LENGTH_LONG).show()}finally{busy=false;progress=""}}}},{message->android.widget.Toast.makeText(context,message,android.widget.Toast.LENGTH_LONG).show()})
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
  val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
  val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
@@ -367,6 +376,10 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
    Text(if(page.isTextPage())"删说明" else "删当前图",fontSize=14.sp,color=Bad,modifier=Modifier.clickable{confirmDeletePage=true}.padding(horizontal=3.dp,vertical=1.dp))
+   if(!page.isTextPage()){
+    Spacer(Modifier.width(16.dp))
+    Text("更换",fontSize=14.sp,color=Accent,modifier=Modifier.clickable(enabled=!busy){replaceImages.gallery()}.padding(horizontal=3.dp,vertical=1.dp))
+   }
    if(!page.isTextPage()){
     Spacer(Modifier.width(20.dp))
     Text("旋转",fontSize=14.sp,color=Accent,modifier=Modifier.clickable{
