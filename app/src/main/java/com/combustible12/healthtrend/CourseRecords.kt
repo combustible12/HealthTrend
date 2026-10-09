@@ -140,12 +140,13 @@ private fun coursePhaseColors(phase:String)=when(phase){
  }
 }
 
-@Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null){
+@Composable private fun CourseThumbnails(images:List<String>,open:(Int)->Unit,remove:((Int)->Unit)?=null,replace:((Int)->Unit)?=null){
  Column(Modifier.padding(start=29.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   images.withIndex().chunked(4).forEach{row->
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{(i,uri)->Box{
      CourseThumbnail(uri,Modifier.size(52.dp).clickable{open(i)})
+     if(replace!=null)Surface(onClick={replace(i)},modifier=Modifier.align(Alignment.BottomEnd).offset(x=5.dp,y=5.dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Edit,"更换图片",Modifier.padding(4.dp),tint=Accent)}
      if(remove!=null)Surface(onClick={remove(i)},modifier=Modifier.align(Alignment.TopEnd).offset(x=5.dp,y=(-5).dp).size(22.dp),shape=CircleShape,color=Color.White,shadowElevation=2.dp){Icon(Icons.Outlined.Close,"移除图片",Modifier.padding(4.dp),tint=Muted)}
     }}
    }
@@ -199,15 +200,15 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
-   if(record.checkImages.isNotEmpty())Column{CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->pendingImageRemoval="check" to i};TextButton({pendingImageReplace="check" to 0;replaceInput.gallery()},enabled=!busy){Text("更换检查图片（首张）")}}
+   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
-   if(record.medicineImages.isNotEmpty())Column{CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->pendingImageRemoval="medicine" to i};TextButton({pendingImageReplace="medicine" to 0;replaceInput.gallery()},enabled=!busy){Text("更换药品图片（首张）")}}
+   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
-   if(record.noteImages.isNotEmpty())Column{CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->pendingImageRemoval="note" to i};TextButton({pendingImageReplace="note" to 0;replaceInput.gallery()},enabled=!busy){Text("更换备注图片（首张）")}}
+   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
