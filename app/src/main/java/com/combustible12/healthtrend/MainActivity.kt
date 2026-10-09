@@ -444,7 +444,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    ){DatePicker(state=weightPickerState)}
   }
  }
- selected?.let{(r,x)->
+ selected?.let{(selectedReport,selectedResult)->
+  // Trend points may hold an older report snapshot. Resolve the persisted report
+  // each time the dialog is shown so attachment status is never taken from stale data.
+  val r=store.reports().firstOrNull{it.id==selectedReport.id}?:selectedReport
+  val x=r.results.firstOrNull{it.id==selectedResult.id}?:selectedResult
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(labDisplayTitle(x.rawName,x.metricKey));IconButton({selected=null;openCourse(r.testedAtEpochMillis)}){Icon(Icons.Outlined.Timeline,"打开当天病程",tint=Accent)}}},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
