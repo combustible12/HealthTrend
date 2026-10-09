@@ -214,7 +214,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    viewer=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}
    viewerStart=to
   }}else null,
-  onAdd=if(viewerReportId!=null){{attachReportId=viewerReportId;attachPicker.launch(arrayOf("image/*"))}}else null
+  onAdd=if(viewerReportId!=null){{attachReportId=viewerReportId;attachPicker.launch(arrayOf("image/*"))}}else null,
+  reportInfo=viewerReportId?.let{id->reports.firstOrNull{it.id==id}}
  )
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
