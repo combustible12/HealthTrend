@@ -184,7 +184,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
-  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewerReportId=null;viewer=it},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
@@ -748,7 +748,7 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(List<String>)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
+@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(LabReport)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
  val types=reports.map{it.reportType}.distinct().sorted()
  val filters=listOf("全部")+types
  Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
@@ -759,7 +759,7 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
   Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)
   items.sortedByDescending{it.testedAtEpochMillis}.chunked(2).forEach{pair->
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Top){
-    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},viewImages,{addImage(r)})}}
+    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},{viewImages(r)},{addImage(r)})}}
     if(pair.size==1)Spacer(Modifier.weight(1f))
    }
   }
