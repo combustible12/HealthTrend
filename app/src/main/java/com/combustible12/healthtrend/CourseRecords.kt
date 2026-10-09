@@ -165,8 +165,19 @@ private fun coursePhaseColors(phase:String)=when(phase){
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
+ var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
  val scope=rememberCoroutineScope()
  fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"check"->record.copy(checkImages=record.checkImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
+ val replaceInput=rememberPhotoInput({uris->
+  val target=pendingImageReplace
+  pendingImageReplace=null
+  if(target!=null&&uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{
+   val owned=withContext(Dispatchers.IO){store.ownImage(uris.first())}
+   val (kind,index)=target
+   fun replaced(items:List<String>):List<String>{require(index in items.indices);return items.toMutableList().also{it[index]=owned}}
+   record=when(kind){"check"->record.copy(checkImages=replaced(record.checkImages));"medicine"->record.copy(medicineImages=replaced(record.medicineImages));else->record.copy(noteImages=replaced(record.noteImages))}
+  }catch(e:Exception){error="更换图片失败：${e.message}"}finally{busy=false}}}
+ },{error=it})
  val checkInput=rememberPhotoInput({addImages("check",it)},{error=it})
  val medicineInput=rememberPhotoInput({addImages("medicine",it)},{error=it})
  val noteInput=rememberPhotoInput({addImages("note",it)},{error=it})
@@ -188,15 +199,15 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
-   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->pendingImageRemoval="check" to i}
+   if(record.checkImages.isNotEmpty())Column{CourseThumbnails(record.checkImages,{onView(record.checkImages,it)}){i->pendingImageRemoval="check" to i};TextButton({pendingImageReplace="check" to 0;replaceInput.gallery()},enabled=!busy){Text("更换检查图片（首张）")}}
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
-   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->pendingImageRemoval="medicine" to i}
+   if(record.medicineImages.isNotEmpty())Column{CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)}){i->pendingImageRemoval="medicine" to i};TextButton({pendingImageReplace="medicine" to 0;replaceInput.gallery()},enabled=!busy){Text("更换药品图片（首张）")}}
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
-   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->pendingImageRemoval="note" to i}
+   if(record.noteImages.isNotEmpty())Column{CourseThumbnails(record.noteImages,{onView(record.noteImages,it)}){i->pendingImageRemoval="note" to i};TextButton({pendingImageReplace="note" to 0;replaceInput.gallery()},enabled=!busy){Text("更换备注图片（首张）")}}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
