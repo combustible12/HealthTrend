@@ -333,6 +333,17 @@ class HealthStore(private val context:Context) {
   val start=r.sourceImages.size
   val owned=uris.mapIndexed{i,uri->ReportImage(ownImage(uri),start+i,now)}
   saveReport(r.copy(sourceImages=r.sourceImages+owned))
+  // Verify the durable record rather than trusting the in-memory update.
+  // Do not delete copied images on failure: they may be the only surviving originals.
+  val saved=reports().firstOrNull{it.id==reportId}
+   ?:error("原图关联验证失败：报告不存在")
+  check(owned.all{image->saved.sourceImages.any{it.uri==image.uri}}){
+   "原图关联验证失败：重新读取报告后未找到新图片"
+  }
+  check(owned.all{image->
+   val path=Uri.parse(image.uri).path
+   path!=null && File(path).isFile && File(path).length()>0L
+  }){"原图文件验证失败：图片不存在或为空"}
  }
 
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
