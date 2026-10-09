@@ -351,6 +351,43 @@ class HealthStore(private val context:Context) {
   }){"原图文件验证失败：图片不存在或为空"}
  }
 
+ /** Explicit attachment edits use the existing report store, without changing lab results.
+  * Do not call saveReport: its stale-editor protection intentionally merges old attachments. */
+ @Synchronized fun updateReportImages(reportId:String,images:List<ReportImage>){
+  val current=reports().firstOrNull{it.id==reportId}?:error("报告不存在")
+  require(images.map{it.uri}.distinct().size==images.size){"重复原图"}
+  val updated=current.copy(sourceImages=images.mapIndexed{index,image->image.copy(pageIndex=index)})
+  val original=read("reports").toString()
+  write("reports",JSONArray().apply{(reports().filterNot{it.id==reportId}+updated).forEach{put(reportToJson(it))}})
+  val actual=reports().firstOrNull{it.id==reportId}?.sourceImages?.map{it.uri}
+  if(actual!=updated.sourceImages.map{it.uri}){
+   runCatching{write("reports",JSONArray(original))}
+   error("原图更新验证失败，已尝试恢复原记录")
+  }
+ }
+ @Synchronized fun replaceReportImage(reportId:String,index:Int,uri:Uri){
+  val current=reports().firstOrNull{it.id==reportId}?:error("报告不存在")
+  require(index in current.sourceImages.indices){"原图序号无效"}
+  val owned=ownImage(uri)
+  val path=Uri.parse(owned).path
+  check(path!=null&&File(path).isFile&&File(path).length()>0){"新原图文件保存失败"}
+  val updated=current.sourceImages.toMutableList()
+  updated[index]=ReportImage(owned,index,System.currentTimeMillis())
+  updateReportImages(reportId,updated)
+ }
+ @Synchronized fun removeReportImage(reportId:String,index:Int){
+  val current=reports().firstOrNull{it.id==reportId}?:error("报告不存在")
+  require(index in current.sourceImages.indices){"原图序号无效"}
+  updateReportImages(reportId,current.sourceImages.filterIndexed{i,_->i!=index})
+ }
+ @Synchronized fun moveReportImage(reportId:String,from:Int,to:Int){
+  val current=reports().firstOrNull{it.id==reportId}?:error("报告不存在")
+  require(from in current.sourceImages.indices&&to in current.sourceImages.indices){"原图序号无效"}
+  val items=current.sourceImages.toMutableList()
+  items.add(to,items.removeAt(from))
+  updateReportImages(reportId,items)
+ }
+
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
