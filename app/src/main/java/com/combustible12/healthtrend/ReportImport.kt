@@ -185,6 +185,8 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
    comparator=source.comparator
  )
  }
+ val used=matched.map{it.metricKey}.toSet()
+ return matched + items.filter{it.metricKey !in used}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
 }
 
 /**
