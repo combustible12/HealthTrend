@@ -265,6 +265,11 @@ class HealthStore(private val context:Context) {
   val templateOrder=latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.fields?.mapIndexed{index,field->field.metricKey to index}?.toMap()
   val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[it.metricKey]?:Int.MAX_VALUE})
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
+  // Both newly created and edited reports must persist their source images.
+  val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
+  check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
+   "报告保存验证失败：原图关联未持久化"
+  }
  }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
  private fun historyReplacementBatch(text:String):HistoryReplacementBatch{
