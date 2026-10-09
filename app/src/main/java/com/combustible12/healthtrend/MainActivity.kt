@@ -109,8 +109,25 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  fun rememberPage(id:String,index:Int){rememberedDocumentPages=(rememberedDocumentPages.filterNot{it.startsWith("$id:")}+"$id:$index").takeLast(300)}
  var imageDocumentPage by rememberSaveable{mutableIntStateOf(0)};var imageDocumentMatches by rememberSaveable{mutableStateOf<List<Int>>(emptyList())}
  var attachReportId by remember{mutableStateOf<String?>(null)}
+ var viewerReportId by remember{mutableStateOf<String?>(null)}
+ var replaceImageIndex by remember{mutableStateOf<Int?>(null)}
  val attachScope=rememberCoroutineScope()
  var attachingReportImage by remember{mutableStateOf(false)}
+ val replacePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+  val id=viewerReportId;val index=replaceImageIndex;replaceImageIndex=null
+  if(uri!=null&&id!=null&&index!=null&&!attachingReportImage){
+   attachingReportImage=true
+   attachScope.launch{
+    try{
+     withContext(kotlinx.coroutines.Dispatchers.IO){store.replaceReportImage(id,index,uri)}
+     revision++
+     viewer=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}
+     viewerStart=index
+    }catch(e:Exception){error="更换原图失败：${e.message}"}
+    finally{attachingReportImage=false}
+   }
+  }
+ }
  val attachPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->
   val id=attachReportId
   attachReportId=null
@@ -167,7 +184,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
-  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewer=it},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewerReportId=null;viewer=it},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
@@ -177,13 +194,28 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.map{x->x.copy(id=d.rows.singleOrNull{it.key==x.metricKey}?.id ?: error("编辑项目身份不匹配：${x.metricKey}"),reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
    draft=null
   }},{viewer=it})
- if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
+ if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);courseRecord=null}},{images,index->viewer=images;viewerStart=index})}
  }
- if(viewer!=null)SourceViewer(viewer!!,{viewer=null},viewerStart)
+ if(viewer!=null)SourceViewer(viewer!!,{viewer=null;viewerReportId=null},viewerStart,
+  onReplace=if(viewerReportId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
+  onRemove=if(viewerReportId!=null){{index->
+   val id=viewerReportId!!
+   change{store.removeReportImage(id,index)}
+   val images=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}.orEmpty()
+   if(images.isEmpty()){viewer=null;viewerReportId=null}else{viewer=images;viewerStart=index.coerceAtMost(images.lastIndex)}
+  }}else null,
+  onMove=if(viewerReportId!=null){{from,to->
+   val id=viewerReportId!!
+   change{store.moveReportImage(id,from,to)}
+   viewer=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}
+   viewerStart=to
+  }}else null,
+  onAdd=if(viewerReportId!=null){{attachReportId=viewerReportId;attachPicker.launch(arrayOf("image/*"))}}else null
+ )
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }
