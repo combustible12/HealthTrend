@@ -108,6 +108,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  fun rememberedPage(id:String):Int=rememberedDocumentPages.firstOrNull{it.startsWith("$id:")}?.substringAfterLast(":")?.toIntOrNull()?:0
  fun rememberPage(id:String,index:Int){rememberedDocumentPages=(rememberedDocumentPages.filterNot{it.startsWith("$id:")}+"$id:$index").takeLast(300)}
  var imageDocumentPage by rememberSaveable{mutableIntStateOf(0)};var imageDocumentMatches by rememberSaveable{mutableStateOf<List<Int>>(emptyList())}
+ var attachReportId by remember{mutableStateOf<String?>(null)}
+ val attachScope=rememberCoroutineScope()
+ var attachingReportImage by remember{mutableStateOf(false)}
+ val attachPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){uris->
+  val id=attachReportId
+  attachReportId=null
+  if(id!=null&&uris.isNotEmpty()){
+   attachingReportImage=true
+   attachScope.launch{
+    try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(id,uris)};revision++}
+    catch(e:Exception){error="原图保存失败：${e.message}"}
+    finally{attachingReportImage=false}
+   }
+  }
+ }
  val reports=remember(revision){runCatching{store.reports()}.getOrElse{error="历史数据读取失败：${it.message}";emptyList()}}
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
@@ -152,7 +167,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
-  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewer=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewer=it},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
@@ -225,7 +240,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){BasicTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp).background(Color.White,RoundedCornerShape(14.dp)).padding(14.dp),textStyle=LocalTextStyle.current.copy(color=Ink,fontSize=16.sp))}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
-@Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+@Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
@@ -701,7 +716,7 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(List<String>)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
+@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(List<String>)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
  val types=reports.map{it.reportType}.distinct().sorted()
  val filters=listOf("全部")+types
  Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
@@ -713,7 +728,7 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
   Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)
   items.sortedByDescending{it.testedAtEpochMillis}.chunked(2).forEach{pair->
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Top){
-    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},viewImages)}}
+    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},viewImages,{addImage(r)})}}
     if(pair.size==1)Spacer(Modifier.weight(1f))
    }
   }
