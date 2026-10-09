@@ -165,7 +165,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }){
   when(tab){
    0->Home(m,reports,entries,importer,{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2})
-   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{viewer=it},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
+   1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{uris->viewerReportId=reports.firstOrNull{r->r.sourceImages.map{it.uri}==uris}?.id;viewer=uris},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
