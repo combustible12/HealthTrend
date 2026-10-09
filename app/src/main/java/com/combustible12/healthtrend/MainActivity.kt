@@ -97,7 +97,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun App(){
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
- var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("检查报告")}
+ var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
  var recordsOpen by rememberSaveable{mutableStateOf(false)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
@@ -152,7 +152,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
-  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{viewer=it},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
@@ -225,7 +225,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){BasicTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp).background(Color.White,RoundedCornerShape(14.dp)).padding(14.dp),textStyle=LocalTextStyle.current.copy(color=Ink,fontSize=16.sp))}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
-@Composable fun ReportCard(r:LabReport,open:()->Unit){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold);Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"已保存报告原图" else "未保存报告原图",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+@Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
@@ -701,13 +701,26 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
- Row(Modifier.horizontalScroll(rememberScrollState())){(listOf("全部","检查报告")+EntryKind.entries.map{it.title}+"症状报告").forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
- if(filter=="症状报告"){SymptomReport(entries.filter{it.kind==EntryKind.SYMPTOM})}else{
-  Row(Modifier.horizontalScroll(rememberScrollState())){EntryKind.entries.forEach{k->TextButton({add(k)}){Text("+ ${k.title}")}}}
-  val events=(reports.filter{filter=="全部"||filter=="检查报告"}.map{Triple(it.testedAtEpochMillis,it,null as HealthEntry?)}+entries.filter{filter=="全部"||it.kind.title==filter}.map{Triple(it.occurredAtEpochMillis,null as LabReport?,it)}).sortedByDescending{it.first}
-  if(events.isEmpty())Paper{Text("暂无记录")}
-  events.forEach{(_,r,e)->if(r!=null)ReportCard(r){open(r)}else if(e!=null)Paper(Modifier.clickable{edit(e)}){Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted,fontSize=12.sp);if(e.kind==EntryKind.SYMPTOM)Text("程度 ${e.severity}/10 · ${e.frequency} · ${e.duration}");if(e.kind==EntryKind.MEDICATION)Text(listOf(e.dose,e.route,e.frequency).filter{it.isNotBlank()}.joinToString(" · "));if(e.hospital.isNotBlank())Text(e.hospital);if(e.note.isNotBlank())Text(e.note);if(e.images.isNotEmpty())Text("${e.images.size} 张原图",color=Accent)}}
+@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(List<String>)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
+ val types=reports.map{it.reportType}.distinct().sorted()
+ val filters=listOf("全部")+types
+ Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+ Row(Modifier.horizontalScroll(rememberScrollState())){EntryKind.entries.forEach{k->TextButton({add(k)}){Text("+ ${k.title}")}}}
+ val visible=reports.filter{filter=="全部"||it.reportType==filter}
+ val grouped=visible.groupBy{it.reportType}.toList().sortedBy{it.first}
+ if(grouped.isEmpty())Paper{Text("暂无检查报告")}
+ grouped.forEach{(type,items)->
+  Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)
+  items.sortedByDescending{it.testedAtEpochMillis}.chunked(2).forEach{pair->
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Top){
+    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},viewImages)}}
+    if(pair.size==1)Spacer(Modifier.weight(1f))
+   }
+  }
+ }
+ if(filter=="全部"&&entries.isNotEmpty()){
+  Text("其他记录",fontWeight=FontWeight.Bold,fontSize=18.sp)
+  entries.sortedByDescending{it.occurredAtEpochMillis}.forEach{e->Paper(Modifier.clickable{edit(e)}){Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted,fontSize=12.sp);if(e.note.isNotBlank())Text(e.note)}}
  }
 }}
 @Composable fun SymptomReport(entries:List<HealthEntry>){
