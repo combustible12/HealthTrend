@@ -147,7 +147,23 @@ class HealthStore(private val context:Context) {
  internal fun correctMaternalBiochemistryAstAlt(t:HospitalLabTemplate):HospitalLabTemplate {
   if(t.hospitalKey.trim()!="福建省妇幼保健院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
   // Replace only the erroneous built-in label; keep all other user-confirmed fields intact.
-  val corrected=t.fields.map{field->
+  // Repair only two unambiguous legacy placeholders in the confirmed 36-row layout.
+  // Never infer identities from position for shortened or reordered user templates.
+  val expectedAt=mapOf(13 to ("AST/ALT" to "谷草/谷丙"),33 to ("CKMB/CK" to "肌酸激酶同工酶/肌酸激酶"))
+  val safeLayout=t.fields.size==36 &&
+    t.fields.getOrNull(12)?.metricKey=="AST" &&
+    t.fields.getOrNull(14)?.metricKey=="GGT" &&
+    t.fields.getOrNull(32)?.metricKey=="CKMB" &&
+    t.fields.getOrNull(34)?.metricKey=="AG"
+  val repaired=if(safeLayout)t.fields.mapIndexed{index,field->
+    val target=expectedAt[index]
+    val placeholder=field.displayName.trim() in setOf("待核对指标","") &&
+      (field.metricKey.isBlank() || field.metricKey.startsWith("UNKNOWN",true) || field.metricKey.startsWith("UNMATCHED",true))
+    if(target!=null && placeholder && t.fields.none{it.metricKey==target.first})
+      field.copy(metricKey=target.first,displayName=target.second)
+    else field
+  } else t.fields
+  val corrected=repaired.map{field->
    if(field.metricKey=="ALT" && field.displayName.trim() in setOf("丙氨酸氨基转移酶","谷丙氨酸氨基转移酶"))
      field.copy(displayName="谷丙转氨酶")
     else if(field.metricKey=="AST" && field.displayName.trim() in setOf("门冬氨酸氨基转移酶","天门冬氨酸氨基转移酶"))
