@@ -79,7 +79,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 }
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
- var d by rememberSaveable(initial,stateSaver=diskStateSaver<ReportDraft>(context,"report-editor")){mutableStateOf(initial)}
+ var d by remember(initial){mutableStateOf(initial)}
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
