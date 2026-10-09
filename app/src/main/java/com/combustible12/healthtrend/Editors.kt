@@ -207,7 +207,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
 /** Shared source-image viewer used by reports, entries and course records.
  * Image Documents retains its OCR-aware canvas; gestures and thumbnail navigation match here.
  */
-@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0,onReplace:((Int)->Unit)?=null,onRemove:((Int)->Unit)?=null,onMove:((Int,Int)->Unit)?=null,onAdd:(()->Unit)?=null){
+@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0,onReplace:((Int)->Unit)?=null,onRemove:((Int)->Unit)?=null,onMove:((Int,Int)->Unit)?=null,onAdd:(()->Unit)?=null,reportInfo:LabReport?=null){
  if(uris.isEmpty()){LaunchedEffect(Unit){close()};return}
  var index by rememberSaveable(uris,initialIndex){mutableIntStateOf(initialIndex.coerceIn(uris.indices))}
  var confirmRemoval by remember{mutableStateOf(false)}
@@ -222,7 +222,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  }
  val bitmap=loaded.first
  val gesture=rememberImageGestureState(index,viewport,bitmap?.width?:0,bitmap?.height?:0,{select(index-1)},{select(index+1)})
- FullPage("图片 ${index+1}/${uris.size}",close,bottom={
+ FullPage(if(reportInfo!=null)"${reportInfo.reportType} · 图片 ${index+1}/${uris.size}" else "图片 ${index+1}/${uris.size}",close,bottom={
   Column{
    LazyRow(Modifier.fillMaxWidth().height(64.dp),state=listState,horizontalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(horizontal=8.dp)){
     itemsIndexed(uris){i,uri->
@@ -251,13 +251,19 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
    }
   }
  }){m->
-  Box(m.clipToBounds().onSizeChanged{viewport=it}.then(gesture.modifier),contentAlignment=Alignment.Center){
+  Column(m){
+   if(reportInfo!=null)Column(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+    Text(reportInfo.hospitalKey,color=Ink,fontSize=14.sp)
+    Text(dateText(reportInfo.testedAtEpochMillis),color=Muted,fontSize=13.sp)
+   }
+   Box(Modifier.weight(1f).fillMaxWidth().clipToBounds().onSizeChanged{viewport=it}.then(gesture.modifier),contentAlignment=Alignment.Center){
     if(loaded.first!=null)Image(loaded.first!!.asImageBitmap(),"图片",Modifier.fillMaxSize().graphicsLayer{scaleX=gesture.zoom;scaleY=gesture.zoom;translationX=gesture.x;translationY=gesture.y},contentScale=androidx.compose.ui.layout.ContentScale.Fit)
     else Column(horizontalAlignment=Alignment.CenterHorizontally){
      Text(loaded.second?:"正在读取原图…")
      if(loaded.second!=null)TextButton({retry++}){Text("重试")}
     }
    }
+  }
   }
  if(confirmRemoval)AlertDialog(onDismissRequest={confirmRemoval=false},title={Text("删除这张原图？")},text={Text("仅删除这份报告中的图片关联，不影响检查数据和趋势。")},confirmButton={TextButton({confirmRemoval=false;onRemove?.invoke(index)}){Text("删除",color=Bad)}},dismissButton={TextButton({confirmRemoval=false}){Text("取消")}})
 
