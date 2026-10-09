@@ -105,8 +105,10 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):Re
  // are emitted, so a 15-item report remains exactly 15 items.
  val resolved=if(template!=null){
   val byKey=parsed.groupBy{it.metricKey}
-  template.fields.mapNotNull{field->
+  val used=mutableSetOf<Int>()
+  val matched=template.fields.mapNotNull{field->
    val source=byKey[field.metricKey]?.singleOrNull() ?: return@mapNotNull null
+   used.add(parsed.indexOf(source))
    if(source.textValue.isBlank())return@mapNotNull null
    ParsedLabResult(
     metricKey=field.metricKey,displayName=field.displayName,value=source.value,
@@ -115,6 +117,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):Re
     textValue=source.textValue,comparator=source.comparator
    )
   }
+  matched + parsed.filterIndexed{index,_->index !in used}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
  }else parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=normalized,
@@ -165,7 +168,7 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
  val matches=matchTemplateRows(template.fields,items)
  // A template is an identity/fixed-field skeleton, not a checklist for every visit.
  // Only metrics that are actually present in this report become visit results.
- return template.fields.mapIndexedNotNull{index,field->
+ val matched=template.fields.mapIndexedNotNull{index,field->
   val source=matches[index] ?: return@mapIndexedNotNull null
   val reliable=templateResultIsIndependent(source,field)
   if(!reliable)return@mapIndexedNotNull null
@@ -221,7 +224,7 @@ internal fun templateResultIsIndependent(source:ParsedLabResult,field:LabFieldTe
 }
 
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
- if(p.metricKey.isBlank()||p.textValue.isBlank())return true
+ if(p.metricKey.isBlank()||p.metricKey.startsWith("待核对:")||p.textValue.isBlank())return true
  val field=template?.takeIf{it.confirmed}?.fields?.firstOrNull{it.metricKey==p.metricKey}
  // Only a confirmed hospital template is authoritative for unit/range; drafts/unconfirmed
  // templates must never suppress explicit OCR review.
