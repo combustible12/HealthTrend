@@ -80,6 +80,18 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
  var d by remember(initial){mutableStateOf(initial)}
+ var pendingDraftReplace by remember{mutableStateOf<Int?>(null)}
+ var draftImageError by remember{mutableStateOf("")}
+ val draftImageInput=rememberPhotoInput({uris->
+  if(uris.isNotEmpty()){
+   try{
+    val owned=uris.map{store.ownImage(it)}
+    val index=pendingDraftReplace;pendingDraftReplace=null
+    d=if(index!=null&&index in d.images.indices)d.copy(images=d.images.toMutableList().also{it[index]=owned.first()})
+      else d.copy(images=d.images+owned)
+   }catch(e:Exception){draftImageError="原图导入失败：${e.message}"}
+  }
+ },{draftImageError=it})
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
@@ -87,7 +99,15 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
-  if(d.images.isNotEmpty())run{TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}}
+  PhotoInputButtons(draftImageInput,true,"添加报告原图")
+  if(d.images.isNotEmpty())TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}
+  d.images.forEachIndexed{i,_->Row(verticalAlignment=Alignment.CenterVertically){
+   Text("第 ${i+1} 张",modifier=Modifier.weight(1f),color=Muted)
+   TextButton({pendingDraftReplace=i;draftImageInput.gallery()}){Text("更换")}
+   TextButton({d=d.copy(images=d.images.filterIndexed{j,_->j!=i})}){Text("移除",color=Bad)}
+  }}
+  if(draftImageError.isNotBlank())Text(draftImageError,color=Bad)
+
   val activeTemplate=store.latestTemplate(d.hospital,d.type,d.system)
   d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)}
   run{
