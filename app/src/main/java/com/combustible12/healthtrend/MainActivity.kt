@@ -116,7 +116,18 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val attachScope=rememberCoroutineScope()
  var attachingReportImage by remember{mutableStateOf(false)}
  val replacePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
-  val id=viewerReportId;val index=replaceImageIndex;replaceImageIndex=null
+  val id=viewerReportId;val courseId=viewerCourseRecordId;val courseKind=viewerCourseKind;val index=replaceImageIndex;replaceImageIndex=null
+  if(uri!=null&&id==null&&courseId!=null&&courseKind!=null&&index!=null&&!attachingReportImage){
+   attachingReportImage=true
+   attachScope.launch{try{
+    val owned=withContext(kotlinx.coroutines.Dispatchers.IO){store.ownImage(uri)}
+    val current=store.courseRecords().firstOrNull{it.id==courseId}?:error("病程记录不存在")
+    fun changed(items:List<String>)=items.toMutableList().also{require(index in it.indices);it[index]=owned}
+    val updated=when(courseKind){"check"->current.copy(checkImages=changed(current.checkImages));"medicine"->current.copy(medicineImages=changed(current.medicineImages));else->current.copy(noteImages=changed(current.noteImages))}
+    store.saveCourseRecord(updated);revision++
+    viewer=when(courseKind){"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=index
+   }catch(e:Exception){error="更换图片失败：${e.message}"}finally{attachingReportImage=false}}
+  }
   if(uri!=null&&id!=null&&index!=null&&!attachingReportImage){
    attachingReportImage=true
    attachScope.launch{
@@ -208,12 +219,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index})}
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null;viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null},viewerStart,
-  onReplace=if(viewerReportId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
+  onReplace=if(viewerReportId!=null||viewerCourseRecordId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
   onRemove=if(viewerReportId!=null){{index->
    val id=viewerReportId!!
    change{store.removeReportImage(id,index)}
    val images=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}.orEmpty()
    if(images.isEmpty()){viewer=null;viewerReportId=null}else{viewer=images;viewerStart=index.coerceAtMost(images.lastIndex)}
+  }}else if(viewerCourseRecordId!=null){{index->
+   val id=viewerCourseRecordId!!;val kind=viewerCourseKind!!
+   change{
+    val current=store.courseRecords().first{it.id==id}
+    val updated=when(kind){"check"->current.copy(checkImages=current.checkImages.filterIndexed{i,_->i!=index});"medicine"->current.copy(medicineImages=current.medicineImages.filterIndexed{i,_->i!=index});else->current.copy(noteImages=current.noteImages.filterIndexed{i,_->i!=index})}
+    store.saveCourseRecord(updated)
+    val images=when(kind){"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages}
+    if(images.isEmpty()){viewer=null;viewerCourseRecordId=null;viewerCourseKind=null}else{viewer=images;viewerStart=index.coerceAtMost(images.lastIndex)}
+   }
   }}else null,
   onMove=if(viewerReportId!=null){{from,to->
    val id=viewerReportId!!
