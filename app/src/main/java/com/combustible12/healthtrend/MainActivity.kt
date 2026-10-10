@@ -123,9 +123,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val owned=withContext(kotlinx.coroutines.Dispatchers.IO){store.ownImage(uri)}
     val current=store.courseRecords().firstOrNull{it.id==courseId}?:error("病程记录不存在")
     fun changed(items:List<String>)=items.toMutableList().also{require(index in it.indices);it[index]=owned}
-    val updated=when(courseKind){"check"->current.copy(checkImages=changed(current.checkImages));"medicine"->current.copy(medicineImages=changed(current.medicineImages));else->current.copy(noteImages=changed(current.noteImages))}
+    val updated=when(courseKind){"symptom"->current.copy(symptomImages=changed(current.symptomImages));"check"->current.copy(checkImages=changed(current.checkImages));"medicine"->current.copy(medicineImages=changed(current.medicineImages));else->current.copy(noteImages=changed(current.noteImages))}
     store.saveCourseRecord(updated);revision++
-    viewer=when(courseKind){"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=index
+    viewer=when(courseKind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=index
    }catch(e:Exception){error="更换图片失败：${e.message}"}finally{attachingReportImage=false}}
   }
   if(uri!=null&&id!=null&&index!=null&&!attachingReportImage){
@@ -153,6 +153,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
  }
+ val viewerAddInput=rememberPhotoInput({uris->
+  if(uris.isNotEmpty()&&!attachingReportImage){attachingReportImage=true;attachScope.launch{try{
+   val reportId=viewerReportId;val courseId=viewerCourseRecordId;val kind=viewerCourseKind
+   if(reportId!=null){
+    withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};revision++
+    viewer=store.reports().firstOrNull{it.id==reportId}?.sourceImages?.map{it.uri};viewerStart=(viewer?.lastIndex?:0).coerceAtLeast(0)
+   }else if(courseId!=null&&kind!=null){
+    val owned=withContext(kotlinx.coroutines.Dispatchers.IO){uris.map{store.ownImage(it)}}
+    val current=store.courseRecords().firstOrNull{it.id==courseId}?:error("病程记录不存在")
+    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages+owned);"check"->current.copy(checkImages=current.checkImages+owned);"medicine"->current.copy(medicineImages=current.medicineImages+owned);else->current.copy(noteImages=current.noteImages+owned)}
+    store.saveCourseRecord(updated);revision++
+    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=(viewer?.lastIndex?:0).coerceAtLeast(0)
+   }
+  }catch(e:Exception){error="图片保存失败：${e.message}"}finally{attachingReportImage=false}}}
+ },{error=it})
  val reports=remember(revision){runCatching{store.reports()}.getOrElse{error="历史数据读取失败：${it.message}";emptyList()}}
  val entries=remember(revision){runCatching{store.entries()}.getOrElse{error="历史记录读取失败：${it.message}";emptyList()}}
  val templates=remember(revision){runCatching{store.templates()}.getOrElse{error="模板读取失败：${it.message}";emptyList()}}
@@ -188,7 +203,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
-    },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index})
+    },{record->change{store.deleteCourseRecord(record.id)}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,templates,{template=it},store,{error=it},{revision++},{recordsOpen=true})
   }
@@ -229,9 +244,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val id=viewerCourseRecordId!!;val kind=viewerCourseKind!!
    change{
     val current=store.courseRecords().first{it.id==id}
-    val updated=when(kind){"check"->current.copy(checkImages=current.checkImages.filterIndexed{i,_->i!=index});"medicine"->current.copy(medicineImages=current.medicineImages.filterIndexed{i,_->i!=index});else->current.copy(noteImages=current.noteImages.filterIndexed{i,_->i!=index})}
+    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages.filterIndexed{i,_->i!=index});"check"->current.copy(checkImages=current.checkImages.filterIndexed{i,_->i!=index});"medicine"->current.copy(medicineImages=current.medicineImages.filterIndexed{i,_->i!=index});else->current.copy(noteImages=current.noteImages.filterIndexed{i,_->i!=index})}
     store.saveCourseRecord(updated)
-    val images=when(kind){"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages}
+    val images=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages}
     if(images.isEmpty()){viewer=null;viewerCourseRecordId=null;viewerCourseKind=null}else{viewer=images;viewerStart=index.coerceAtMost(images.lastIndex)}
    }
   }}else null,
@@ -240,9 +255,20 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    change{store.moveReportImage(id,from,to)}
    viewer=store.reports().firstOrNull{it.id==id}?.sourceImages?.map{it.uri}
    viewerStart=to
+  }}else if(viewerCourseRecordId!=null&&viewerCourseKind!=null){{from,to->
+   val id=viewerCourseRecordId!!;val kind=viewerCourseKind!!
+   change{
+    val current=store.courseRecords().first{it.id==id}
+    fun moved(items:List<String>):List<String>{if(from !in items.indices||to !in items.indices)return items;return items.toMutableList().also{val item=it.removeAt(from);it.add(to,item)}}
+    val updated=when(kind){"symptom"->current.copy(symptomImages=moved(current.symptomImages));"check"->current.copy(checkImages=moved(current.checkImages));"medicine"->current.copy(medicineImages=moved(current.medicineImages));else->current.copy(noteImages=moved(current.noteImages))}
+    store.saveCourseRecord(updated)
+    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=to
+   }
   }}else null,
-  onAdd=if(viewerReportId!=null){{attachReportId=viewerReportId;attachPicker.launch(arrayOf("image/*"))}}else null,
-  reportInfo=viewerReportId?.let{id->reports.firstOrNull{it.id==id}}
+  onAdd=if(viewerReportId!=null||viewerCourseRecordId!=null){{viewerAddInput.gallery()}}else null,
+  onAddCamera=if(viewerReportId!=null||viewerCourseRecordId!=null){{viewerAddInput.camera()}}else null,
+  reportInfo=viewerReportId?.let{id->reports.firstOrNull{it.id==id}},
+  removalMessage=if(viewerReportId!=null)"仅删除这份报告中的图片关联，不影响检查数据和趋势。" else "仅从这条病程记录移除当前图片，不影响其他内容。"
  )
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
