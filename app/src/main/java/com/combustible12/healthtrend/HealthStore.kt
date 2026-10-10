@@ -477,8 +477,23 @@ class HealthStore(private val context:Context) {
  private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
- private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("symptomText",r.symptomText).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
- private fun courseRecordFromJson(o:JSONObject)=CourseRecord(o.getString("id"),o.getLong("date"),o.optString("phase","观察"),o.getString("title"),o.optString("symptomText"),o.optString("checkText"),o.optJSONArray("checkImages").stringList(),o.optString("medicineText"),o.optJSONArray("medicineImages").stringList(),o.optString("noteText"),o.optJSONArray("noteImages").stringList(),o.optLong("createdAt",o.getLong("date")),o.optLong("updatedAt",o.getLong("date")))
+ private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("symptomText",r.symptomText).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
+ private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
+  id=o.getString("id"),
+  date=o.getLong("date"),
+  phase=o.optString("phase","观察"),
+  title=o.getString("title"),
+  symptomText=o.optString("symptomText"),
+  symptomImages=o.optJSONArray("symptomImages").stringList(),
+  checkText=o.optString("checkText"),
+  checkImages=o.optJSONArray("checkImages").stringList(),
+  medicineText=o.optString("medicineText"),
+  medicineImages=o.optJSONArray("medicineImages").stringList(),
+  noteText=o.optString("noteText"),
+  noteImages=o.optJSONArray("noteImages").stringList(),
+  createdAt=o.optLong("createdAt",o.getLong("date")),
+  updatedAt=o.optLong("updatedAt",o.getLong("date"))
+ )
 }
 /** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */
 fun applyRememberedTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=items.map{p->
