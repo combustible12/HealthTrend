@@ -167,6 +167,8 @@ private fun coursePhaseColors(phase:String)=when(phase){
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
+ var viewingKind by rememberSaveable{mutableStateOf<String?>(null)}
+ var viewingIndex by rememberSaveable{mutableIntStateOf(0)}
  val scope=rememberCoroutineScope()
  fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"symptom"->record.copy(symptomImages=record.symptomImages+owned);"check"->record.copy(checkImages=record.checkImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val replaceInput=rememberPhotoInput({uris->
@@ -199,22 +201,46 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
-   if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{onView(record.symptomImages,it)},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
+   if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
-   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{onView(record.checkImages,it)},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
+   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
-   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{onView(record.medicineImages,it)},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
+   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{i->viewingKind="medicine";viewingIndex=i},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
    OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
-   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{onView(record.noteImages,it)},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
+   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{i->viewingKind="note";viewingIndex=i},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
+ }
+ val activeViewingKind=viewingKind
+ if(activeViewingKind!=null){
+  val currentImages=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"medicine"->record.medicineImages;else->record.noteImages}
+  if(currentImages.isNotEmpty())SourceViewer(
+   currentImages,
+   {viewingKind=null},
+   viewingIndex.coerceIn(currentImages.indices),
+   onReplace={i->pendingImageReplace=activeViewingKind to i;replaceInput.gallery()},
+   onRemove={i->
+    fun removed(items:List<String>)=items.filterIndexed{j,_->j!=i}
+    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=removed(record.symptomImages));"check"->record.copy(checkImages=removed(record.checkImages));"medicine"->record.copy(medicineImages=removed(record.medicineImages));else->record.copy(noteImages=removed(record.noteImages))}
+    val next=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"medicine"->record.medicineImages;else->record.noteImages}
+    if(next.isEmpty())viewingKind=null else viewingIndex=i.coerceAtMost(next.lastIndex)
+   },
+   onMove={from,to->
+    fun moved(items:List<String>):List<String>{if(from !in items.indices||to !in items.indices)return items;return items.toMutableList().also{val item=it.removeAt(from);it.add(to,item)}}
+    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=moved(record.symptomImages));"check"->record.copy(checkImages=moved(record.checkImages));"medicine"->record.copy(medicineImages=moved(record.medicineImages));else->record.copy(noteImages=moved(record.noteImages))}
+    viewingIndex=to
+   },
+   onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"medicine"->medicineInput.gallery();else->noteInput.gallery()}},
+   onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"medicine"->medicineInput.camera();else->noteInput.camera()}},
+   removalMessage="仅修改当前病程编辑草稿，取消编辑不会更改已保存的原图。"
+  )
  }
  if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=when(kind){"symptom"->record.copy(symptomImages=record.symptomImages.filterIndexed{j,_->j!=index});"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
  if(deleting)DeleteConfirmation({deleting=false}){onDelete();deleting=false}
