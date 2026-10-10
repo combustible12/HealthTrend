@@ -81,6 +81,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  val context=LocalContext.current
  var d by remember(initial){mutableStateOf(initial)}
  var pendingDraftReplace by remember{mutableStateOf<Int?>(null)}
+ var viewingDraftImage by rememberSaveable{mutableStateOf<Int?>(null)}
  var draftImageError by remember{mutableStateOf("")}
  val draftImageInput=rememberPhotoInput({uris->
   if(uris.isNotEmpty()){
@@ -100,7 +101,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   PhotoInputButtons(draftImageInput,true,"添加报告原图")
-  if(d.images.isNotEmpty())TextButton({images(d.images)}){Text("查看原报告 · ${d.images.size} 页")}
+  if(d.images.isNotEmpty())TextButton({viewingDraftImage=0}){Text("查看原报告 · ${d.images.size} 页")}
   d.images.forEachIndexed{i,_->Row(verticalAlignment=Alignment.CenterVertically){
    Text("第 ${i+1} 张",modifier=Modifier.weight(1f),color=Muted)
    TextButton({pendingDraftReplace=i;draftImageInput.gallery()}){Text("更换")}
@@ -126,6 +127,22 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
   MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
  }
+ if(viewingDraftImage!=null&&d.images.isNotEmpty())SourceViewer(
+  d.images,
+  {viewingDraftImage=null},
+  viewingDraftImage!!.coerceIn(d.images.indices),
+  onReplace={i->pendingDraftReplace=i;draftImageInput.gallery()},
+  onRemove={i->
+   val next=d.images.filterIndexed{j,_->j!=i};d=d.copy(images=next)
+   if(next.isEmpty())viewingDraftImage=null else viewingDraftImage=i.coerceAtMost(next.lastIndex)
+  },
+  onMove={from,to->
+   if(from in d.images.indices&&to in d.images.indices){val moved=d.images.toMutableList();val item=moved.removeAt(from);moved.add(to,item);d=d.copy(images=moved);viewingDraftImage=to}
+  },
+  onAdd={draftImageInput.gallery()},
+  onAddCamera={draftImageInput.camera()},
+  removalMessage="仅修改当前检查报告草稿，取消编辑不会更改已保存的原图。"
+ )
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
  Row{Text(labDisplayTitle(r.name,r.key).ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
@@ -215,6 +232,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
   }catch(x:Exception){error="更换图片失败：${x.message}"}finally{busy=false}}}
  },{error=it})
  var pendingImageRemoval by remember{mutableStateOf<Int?>(null)}
+ var viewingImage by rememberSaveable{mutableStateOf<Int?>(null)}
  val valid=e.title.isNotBlank()&&parseDate(date)!=null&&(end.isBlank()||parseDate(end)?.let{it>=parseDate(date)!!}==true)&&!busy
  FullPage(e.kind.title,close,bottom={Row{Button({save(e.copy(occurredAtEpochMillis=preserveTimestamp(date,initial.occurredAtEpochMillis)!!,endAtEpochMillis=preserveTimestamp(end,initial.endAtEpochMillis)))},Modifier.weight(1f),enabled=valid){Text("保存记录")};if(store.entries().any{it.id==e.id})TextButton({deleting=true}){Text("删除",color=Bad)}}}){m->ScrollablePageColumn(m,PaddingValues(16.dp),Arrangement.spacedBy(12.dp)){
  Field(e.title,{e=e.copy(title=it)},when(e.kind){EntryKind.SYMPTOM->"症状名称";EntryKind.MEDICAL->"病历标题";EntryKind.MEDICATION->"药品名称"});Field(date,{date=it},if(e.kind==EntryKind.MEDICATION)"开始时间 YYYY-MM-DD HH:mm"else"发生时间 YYYY-MM-DD HH:mm")
@@ -226,16 +244,32 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
  OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(e.note.isNotEmpty())IconButton({e=e.copy(note="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
  PhotoInputButtons(photoInput,!busy,"相册添加照片")
  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
- e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({images(e.images)}){Text("查看第 ${i+1} 张原图")};IconButton({pendingImageReplace=i;replaceInput.gallery()},enabled=!busy){Icon(Icons.Outlined.Edit,"更换图片")};IconButton({pendingImageRemoval=i}){Icon(Icons.Outlined.Close,"移除图片")}}}
+ e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({viewingImage=i}){Text("查看第 ${i+1} 张原图")};IconButton({pendingImageReplace=i;replaceInput.gallery()},enabled=!busy){Icon(Icons.Outlined.Edit,"更换图片")};IconButton({pendingImageRemoval=i}){Icon(Icons.Outlined.Close,"移除图片")}}}
  if(error.isNotBlank())Text(error,color=Bad)
  }}
  if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅修改当前编辑草稿，取消编辑不会删除已保存的原图。")},confirmButton={TextButton({val index=pendingImageRemoval!!;e=e.copy(images=e.images.filterIndexed{j,_->j!=index});pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
+ if(viewingImage!=null&&e.images.isNotEmpty())SourceViewer(
+  e.images,
+  {viewingImage=null},
+  viewingImage!!.coerceIn(e.images.indices),
+  onReplace={i->pendingImageReplace=i;replaceInput.gallery()},
+  onRemove={i->
+   val next=e.images.filterIndexed{j,_->j!=i};e=e.copy(images=next)
+   if(next.isEmpty())viewingImage=null else viewingImage=i.coerceAtMost(next.lastIndex)
+  },
+  onMove={from,to->
+   if(from in e.images.indices&&to in e.images.indices){val moved=e.images.toMutableList();val item=moved.removeAt(from);moved.add(to,item);e=e.copy(images=moved);viewingImage=to}
+  },
+  onAdd={photoInput.gallery()},
+  onAddCamera={photoInput.camera()},
+  removalMessage="仅修改当前编辑草稿，取消编辑不会删除已保存的原图。"
+ )
  if(deleting)DeleteConfirmation({deleting=false},delete)
 }
 /** Shared source-image viewer used by reports, entries and course records.
  * Image Documents retains its OCR-aware canvas; gestures and thumbnail navigation match here.
  */
-@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0,onReplace:((Int)->Unit)?=null,onRemove:((Int)->Unit)?=null,onMove:((Int,Int)->Unit)?=null,onAdd:(()->Unit)?=null,reportInfo:LabReport?=null){
+@Composable fun SourceViewer(uris:List<String>,close:()->Unit,initialIndex:Int=0,onReplace:((Int)->Unit)?=null,onRemove:((Int)->Unit)?=null,onMove:((Int,Int)->Unit)?=null,onAdd:(()->Unit)?=null,onAddCamera:(()->Unit)?=null,reportInfo:LabReport?=null,removalMessage:String="仅移除当前图片，不影响其他记录。"){
  if(uris.isEmpty()){LaunchedEffect(Unit){close()};return}
  var index by rememberSaveable(uris,initialIndex){mutableIntStateOf(initialIndex.coerceIn(uris.indices))}
  var confirmRemoval by remember{mutableStateOf(false)}
@@ -261,10 +295,11 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
      }
     }
    }
-   if(onReplace!=null||onRemove!=null||onAdd!=null||onMove!=null){
+   if(onReplace!=null||onRemove!=null||onAdd!=null||onAddCamera!=null||onMove!=null){
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      if(onReplace!=null)TextButton({onReplace(index)}){Text("更换")}
-     if(onAdd!=null)TextButton(onAdd){Text("添加")}
+     if(onAdd!=null)TextButton(onAdd){Text("相册添加")}
+     if(onAddCamera!=null)TextButton(onAddCamera){Text("直接拍照")}
      if(onRemove!=null)TextButton({confirmRemoval=true}){Text("删除",color=Bad)}
      if(onMove!=null){
       TextButton({onMove(index,index-1)},enabled=index>0){Text("前移")}
@@ -293,7 +328,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyLi
    }
   }
   }
- if(confirmRemoval)AlertDialog(onDismissRequest={confirmRemoval=false},title={Text("删除这张原图？")},text={Text("仅删除这份报告中的图片关联，不影响检查数据和趋势。")},confirmButton={TextButton({confirmRemoval=false;onRemove?.invoke(index)}){Text("删除",color=Bad)}},dismissButton={TextButton({confirmRemoval=false}){Text("取消")}})
+ if(confirmRemoval)AlertDialog(onDismissRequest={confirmRemoval=false},title={Text("删除这张图片？")},text={Text(removalMessage)},confirmButton={TextButton({confirmRemoval=false;onRemove?.invoke(index)}){Text("删除",color=Bad)}},dismissButton={TextButton({confirmRemoval=false}){Text("取消")}})
 
 }
 fun shareText(context:Context,title:String,text:String){context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,title).putExtra(Intent.EXTRA_TEXT,text),"分享"))}
