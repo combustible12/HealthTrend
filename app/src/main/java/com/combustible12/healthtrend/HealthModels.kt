@@ -5,12 +5,20 @@ import java.util.UUID
 fun newId(): String = UUID.randomUUID().toString()
 /** Stable metric identity shared by import, templates, reports and trends.
  * Only explicit, unambiguous aliases are mapped. Historical records remain untouched. */
-fun canonicalMetricKey(raw:String):String=MetricDictionary.canonical(raw.replace("／","/"))
+/** Shared canonical metric identity, preserving compound-code distinctions. */
+fun canonicalMetricKey(raw:String):String=MetricDictionary.canonical(raw)
 
-/** Registry of complete metric-code aliases; no substring matching. */
 object MetricDictionary {
- val aliases=mapOf("CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA","UREA/CR" to "UREA/CREA","PI" to "PHOS","PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB")
- fun canonical(code:String):String=aliases[code.trim().uppercase()]?:code.trim().uppercase()
+ private val aliases=mapOf(
+  "CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA",
+  "UREA/CR" to "UREA/CREA","PI" to "PHOS","P" to "PHOS",
+  "PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB"
+ )
+ fun canonical(raw:String):String {
+  val code=raw.trim().uppercase().replace('／','/').replace('％','%')
+  val compound=if(code in setOf("AST:ALT","A:G","CKMB:CK"))code.replace(':','/') else code
+  return aliases[compound]?:compound
+ }
 }
 
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
