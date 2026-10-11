@@ -81,11 +81,14 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-CV|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|CREA|CRE|UREA|UA|LDH|SCC|AFP|CEA|CA125|CA153|CA199|CA724|CYFRA21-1|NSE|HE4|UREA/CREA|GLU|HCO3|PHOS|CKMB/CK|CKMB|CHOL|APOA1|APOB|HDLC|LDLC|OSM|MG|AG|TG|CK|NA|CL|CA|K)(?![A-Za-z])")
+ private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-CV|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|UREA/CREA|UREA/CR|CREA|CRE|UREA|UA|LDH|SCC|AFP|CEA|CA125|CA153|CA199|CA724|CYFRA21-1|NSE|HE4|GLU|HCO3|PHOS|CKMB/CK|CKMB|CHOL|APOA1|APOB|HDLC|LDLC|OSM|MG|AG|TG|CK|NA|CL|CA|K)(?![A-Za-z])")
  private fun segments(text:String)=text.lines().flatMap{raw->
   // A bound clipboard row starts with "(CODE)". It is already one complete metric row;
   // never rescan its Chinese name for additional code-like substrings.
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
+  // One explicit clipboard row is one atomic metric. Never split UREA/CREA into UREA and CREA.
+  val token=raw.trim().substringBefore(' ').substringBefore('\t').trim()
+  if(canonicalMetricKey(token) in metricIdentityKeys)return@flatMap listOf(raw)
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
  }
