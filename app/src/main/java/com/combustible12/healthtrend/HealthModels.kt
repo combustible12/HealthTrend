@@ -5,14 +5,7 @@ import java.util.UUID
 fun newId(): String = UUID.randomUUID().toString()
 /** Stable metric identity shared by import, templates, reports and trends.
  * Only explicit, unambiguous aliases are mapped. Historical records remain untouched. */
-fun canonicalMetricKey(raw:String):String = when(raw.trim().uppercase().replace("／","/")){
- "CR","CREAT","CREATININE" -> "CREA"
- "UREA/CR" -> "UREA/CREA"
- "PI","P","PHOSPHATE" -> "PHOS"
- "CK-MB","CK_MB" -> "CKMB"
- "AMY" -> "AMY"
- else -> raw.trim().uppercase().replace("／","/")
-}
+fun canonicalMetricKey(raw:String):String=MetricDictionary.canonical(raw.replace("／","/"))
 
 /** Registry of complete metric-code aliases; no substring matching. */
 object MetricDictionary {
