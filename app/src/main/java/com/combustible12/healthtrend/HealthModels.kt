@@ -3,6 +3,17 @@ package com.combustible12.healthtrend
 import java.util.UUID
 
 fun newId(): String = UUID.randomUUID().toString()
+/** Stable metric identity shared by import, templates, reports and trends.
+ * Only explicit, unambiguous aliases are mapped. Historical records remain untouched. */
+fun canonicalMetricKey(raw:String):String = when(raw.trim().uppercase().replace("／","/")){
+ "CR","CREAT","CREATININE" -> "CREA"
+ "UREA/CR" -> "UREA/CREA"
+ "PI","P","PHOSPHATE" -> "PHOS"
+ "CK-MB","CK_MB" -> "CKMB"
+ "AMY" -> "AMY"
+ else -> raw.trim().uppercase().replace("／","/")
+}
+
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
  val raw=name.trim()
@@ -48,7 +59,7 @@ data class LabResult(
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
 /** Exact stored identity and compatible measurement scope; no name/code rewriting. */
 data class TrendSeriesIdentity(val hospital:String,val type:String,val metricKey:String,val unit:String)
-fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,result.metricKey,result.normalizedUnit)
+fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,canonicalMetricKey(result.metricKey),result.normalizedUnit)
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
 data class HealthEntry(
  val id:String=newId(),val kind:EntryKind,val title:String,val occurredAtEpochMillis:Long,
