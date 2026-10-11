@@ -40,21 +40,17 @@ object ReportParser {
   return if(validAlternative) ocr else expected
  }
  fun key(name:String):String {
-  val label=name.trim().replace('／','/')
-  // Explicit parenthesized identity and first code token must match the dictionary exactly.
-  val parenthesized=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(label).map{it.groupValues[1]}.lastOrNull()
-  if(parenthesized!=null){
-   val k=canonicalMetricKey(normalizeCode(parenthesized))
-   if(k in metricIdentityKeys)return k
-  }
-  val first=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
-  val leading=canonicalMetricKey(normalizeCode(first))
-  if(leading in metricIdentityKeys)return leading
-  val full=canonicalMetricKey(normalizeCode(label))
-  if(full in metricIdentityKeys)return full
-  val named=chemistryNames[label]?:aliases[label]
-  if(named!=null)return named
-  return "未识别"
+  // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
+  val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
+  if(identity in metricIdentityKeys)return canonicalMetricKey(identity!!)
+  if(identity!=null && canonicalMetricKey(identity) in metricIdentityKeys)return canonicalMetricKey(identity)
+  val label=name.trim().replace('：',':').replace('／','/')
+  val leading=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
+  val code=normalizeCode(leading)
+  if(canonicalMetricKey(code) in metricIdentityKeys)return canonicalMetricKey(code)
+  val full=normalizeCode(label)
+  if(canonicalMetricKey(full) in metricIdentityKeys)return canonicalMetricKey(full)
+  return chemistryNames.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: aliases.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: "未识别"
  }
  private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","AMY","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
  internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
@@ -85,11 +81,23 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- // Codes are atomic tokens: slash, dash, # and % belong to the identity.
- // Match longest codes first and require both ends to be complete token boundaries.
- // Clipboard import is line-oriented. Never split an unknown or compound metric
- // by searching for familiar codes inside its name.
- private fun segments(text:String)=text.lines().filter{it.isNotBlank()}
+ // Only whole known codes are candidates. Compound identities are indivisible.
+ private val knownCode=Regex(
+  "(?i)(?<![A-Za-z0-9/#%\\-])(?:"+
+  (metricIdentityKeys+setOf("UREA/CR","CRE","CR","PI","CK-MB"))
+   .sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}+
+  ")(?![A-Za-z0-9/#%\\-])"
+ )
+ private fun segments(text:String)=text.lines().flatMap{raw->
+  // A bound clipboard row starts with "(CODE)". It is already one complete metric row;
+  // never rescan its Chinese name for additional code-like substrings.
+  if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
+  // One explicit clipboard row is one atomic metric. Never split UREA/CREA into UREA and CREA.
+  val token=raw.trim().substringBefore(' ').substringBefore('\t').trim()
+  if(canonicalMetricKey(token) in metricIdentityKeys)return@flatMap listOf(raw)
+  val hits=knownCode.findAll(raw).toList()
+  if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
+ }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
