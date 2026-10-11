@@ -792,4 +792,44 @@ P-LCR 大小血小板数目 59 30-90 10^9/L
 
 
 
+ @Test fun oncologyChemistrySixteenRowsRemainDistinctAndCreatinineCanTrend(){
+  val raw="""UREA 尿素 6.18 mmol/L 2.6-7.5
+CREA 肌酐 45 μmol/L 41-73
+UREA/CREA 尿素/肌酐 0.137
+UA 尿酸 298 μmol/L 154.7-357.0
+GLU 葡萄糖 4.41 mmol/L 3.70-6.10
+K 钾 4.21 mmol/L 3.50-5.50
+NA 钠 138 mmol/L 135-145
+CL 氯 102.5 mmol/L 99.0-110.0
+HCO3 碳酸氢根 28.6 mmol/L 22.0-34.0
+CA 钙 2.39 mmol/L 2.10-2.70
+MG 镁 0.95 mmol/L 0.70-1.10
+PHOS 无机磷酸盐 1.58 mmol/L 0.85-1.51
+AG 阴离子间隙 11.11 mOsm/L 8.00-16.00
+AMY 淀粉酶 268.13
+CK 肌酸激酶 66 U/L 40-200
+CKMB 肌酸激酶MB亚型 12 U/L 0-24"""
+  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(raw))
+  assertEquals("rows: ${parsed.map{it.metricKey}}",16,parsed.size)
+  assertEquals("duplicate metric keys",16,parsed.map{it.metricKey}.distinct().size)
+  assertEquals("CREA",ReportParser.key("Cr 肌酐"))
+  assertEquals("UREA/CREA",ReportParser.key("UREA/Cr 尿素/肌酐"))
+  assertNotEquals(ReportParser.key("Cr 肌酐"),ReportParser.key("UREA/Cr 尿素/肌酐"))
+  assertEquals("45",parsed.single{it.metricKey=="CREA"}.textValue)
+  assertEquals("0.137",parsed.single{it.metricKey=="UREA/CREA"}.textValue)
+  assertEquals("CREA",canonicalMetricKey("Cr"))
+  assertEquals("CREA",canonicalMetricKey("CREA"))
+  assertNotEquals(canonicalMetricKey("Cr"),canonicalMetricKey("UREA/Cr"))
+ }
+ @Test fun compoundMetricCodesAreAtomic(){
+  assertEquals("AST",ReportParser.key("AST 谷草转氨酶"))
+  assertEquals("AST/ALT",ReportParser.key("AST/ALT 谷草/谷丙"))
+  assertEquals("CKMB/CK",ReportParser.key("CKMB/CK 肌酸激酶比值"))
+  assertEquals("A/G",ReportParser.key("A/G 白球比"))
+  assertEquals("RDW-CV",ReportParser.key("RDW-CV 红细胞分布宽度CV"))
+  assertEquals("NEUT#",ReportParser.key("NEUT# 中性粒细胞计数"))
+  assertEquals("NEUT%",ReportParser.key("NEUT% 中性粒细胞百分比"))
+  assertEquals(2,ReportParser.parse("AST 谷草转氨酶 22 U/L 13-35\\nAST/ALT 谷草/谷丙 0.88").size)
+ }
+
 }
