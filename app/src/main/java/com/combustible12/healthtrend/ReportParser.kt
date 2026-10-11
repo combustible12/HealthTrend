@@ -83,21 +83,9 @@ object ReportParser {
  }
  // Codes are atomic tokens: slash, dash, # and % belong to the identity.
  // Match longest codes first and require both ends to be complete token boundaries.
- private val knownCode=Regex(
-  "(?i)(?<![A-Za-z0-9/#%\\-])(?:"+
-   metricIdentityKeys.sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}+
-   "|UREA/CR|CR|PI|CK-MB)(?![A-Za-z0-9/#%\\-])"
- )
- private fun segments(text:String)=text.lines().flatMap{raw->
-  if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
-  val token=raw.trim().substringBefore(' ').substringBefore('\\t').trim()
-  if(canonicalMetricKey(token) in metricIdentityKeys)return@flatMap listOf(raw)
-  val hits=knownCode.findAll(raw).toList()
-  if(hits.size<2) listOf(raw) else hits.indices.map{i->
-   raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length)
-    .trim().replace(Regex("^\\d+[.、]?\\s*"),"")
-  }
- }
+ // Clipboard import is line-oriented. Never split an unknown or compound metric
+ // by searching for familiar codes inside its name.
+ private fun segments(text:String)=text.lines().filter{it.isNotBlank()}
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
