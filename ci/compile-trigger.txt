@@ -1,1 +1,1 @@
-compile-canonical-metric-identity-01c448b-20261012
+compile-compound-identity-89cdc91-20261012
