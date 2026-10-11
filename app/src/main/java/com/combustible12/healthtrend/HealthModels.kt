@@ -14,6 +14,12 @@ fun canonicalMetricKey(raw:String):String = when(raw.trim().uppercase().replace(
  else -> raw.trim().uppercase().replace("／","/")
 }
 
+/** Registry of complete metric-code aliases; no substring matching. */
+object MetricDictionary {
+ val aliases=mapOf("CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA","UREA/CR" to "UREA/CREA","PI" to "PHOS","PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB")
+ fun canonical(code:String):String=aliases[code.trim().uppercase()]?:code.trim().uppercase()
+}
+
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
  val raw=name.trim()
