@@ -339,7 +339,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val reportId=imageTargetReportId;imageTargetReportId=null
   if(reportId!=null&&uris.isNotEmpty()){imageBusy=true;imageScope.launch{try{withContext(kotlinx.coroutines.Dispatchers.IO){store.addReportImages(reportId,uris)};val refreshed=store.reports().firstOrNull{it.id==reportId};if(refreshed!=null){val old=selected?.second;val freshResult=old?.let{o->refreshed.results.firstOrNull{it.id==o.id}};if(freshResult!=null)selected=refreshed to freshResult}}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{imageBusy=false}}}
  }
- fun fixedTrendTitle(metricKey:String):String?=when(metricKey){
+ fun fixedTrendTitle(metricKey:String):String?=when(canonicalMetricKey(metricKey)){
   "WBC"->"白细胞";"NEUT#"->"中性粒细胞计数";"NEUT%"->"中性粒细胞百分比"
   "LYMPH#"->"淋巴细胞计数";"LYMPH%"->"淋巴细胞百分比";"MONO#"->"单核细胞计数";"MONO%"->"单核细胞百分比"
   "EOS#"->"嗜酸性粒细胞计数";"EOS%"->"嗜酸性粒细胞百分比";"BASO#"->"嗜碱性粒细胞计数";"BASO%"->"嗜碱性粒细胞百分比"
@@ -349,10 +349,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "NRBC%"->"有核红细胞比率";"NRBC#"->"有核红细胞计数";"P-LCC"->"大血小板数目"
   "TP"->"总蛋白";"ALB"->"白蛋白";"GLOB"->"球蛋白";"A/G"->"白球比";"TBIL"->"总胆红素";"DBIL"->"直接胆红素";"IBIL"->"间接胆红素"
   "ALT"->"谷丙转氨酶";"AST"->"谷草转氨酶";"AST/ALT"->"谷草/谷丙";"GGT"->"谷氨酰转肽酶";"ALP"->"碱性磷酸酶";"CHE"->"胆碱酯酶"
-  "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸"
+  "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸";"UREA/CREA"->"尿素/肌酐";"AMY"->"淀粉酶";"CKMB"->"肌酸激酶MB亚型";"CK"->"肌酸激酶";"PHOS"->"无机磷酸盐"
   else->null
  }
- val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->result.metricKey}
+ val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->canonicalMetricKey(result.metricKey)}
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
@@ -408,7 +408,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
     var meaningDetail by remember{mutableStateOf(false)}
-    val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{it.metricKey==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
+    val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val fixedTitle=labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
@@ -476,7 +476,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=compatiblePoints.map{it.second.textValue},
-      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff&&r.results.any{x->x.metricKey==key}}.map{it.testedAtEpochMillis},
+      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff&&r.results.any{x->canonicalMetricKey(x.metricKey)==key}}.map{it.testedAtEpochMillis},
       onShowPreview={previewSeries=compatiblePoints}
      )
     }
