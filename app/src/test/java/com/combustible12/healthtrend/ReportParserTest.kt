@@ -829,7 +829,8 @@ CKMB 肌酸激酶MB亚型 12 U/L 0-24"""
   assertEquals("RDW-CV",ReportParser.key("RDW-CV 红细胞分布宽度CV"))
   assertEquals("NEUT#",ReportParser.key("NEUT# 中性粒细胞计数"))
   assertEquals("NEUT%",ReportParser.key("NEUT% 中性粒细胞百分比"))
-  assertEquals(2,ReportParser.parse("AST 谷草转氨酶 22 U/L 13-35\\nAST/ALT 谷草/谷丙 0.88").size)
+  assertEquals(2,ReportParser.parse("""AST 谷草转氨酶 22 U/L 13-35
+AST/ALT 谷草/谷丙 0.88""").size)
  }
 
 }
