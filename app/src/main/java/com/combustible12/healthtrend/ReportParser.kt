@@ -47,7 +47,7 @@ object ReportParser {
    val k=canonicalMetricKey(normalizeCode(parenthesized))
    if(k in metricIdentityKeys)return k
   }
-  val first=label.substringBefore(' ').substringBefore('\\t').trim().trimEnd(':')
+  val first=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
   val leading=canonicalMetricKey(normalizeCode(first))
   if(leading in metricIdentityKeys)return leading
   val full=canonicalMetricKey(normalizeCode(label))
