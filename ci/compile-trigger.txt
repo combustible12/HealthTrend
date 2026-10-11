@@ -1,1 +1,1 @@
-compile-dictionary-exact-36a5a02-20261012
+compile-dictionary-verify-aa40f68-20261012
