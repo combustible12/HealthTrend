@@ -22,7 +22,10 @@ fun labDisplayTitle(name:String,key:String):String{
  // never let AST partially strip AST/ALT.
  val prefix=Regex("^\\s*"+Regex.escape(key)+"(?=\\s|$)",RegexOption.IGNORE_CASE)
  val wrapped=Regex("[（(]\\s*"+Regex.escape(key)+"\\s*[）)]",RegexOption.IGNORE_CASE)
- return raw.replace(wrapped,"").replace(prefix,"").replace(Regex("\\s+")," ").trim()
+ val cleaned=raw.replace(wrapped,"").replace(prefix,"").trim()
+ val first=cleaned.substringBefore(' ').trim()
+ val withoutAlias=if(first!=cleaned && canonicalMetricKey(first)==canonicalMetricKey(key))cleaned.substringAfter(' ').trim() else cleaned
+ return withoutAlias.replace(Regex("\\s+")," ").trim()
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
