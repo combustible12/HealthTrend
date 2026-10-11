@@ -81,16 +81,22 @@ object ReportParser {
   }
   return (if(base in differentialBases&&marker.isNotEmpty())base+marker else c).let{if(it=="CRE")"CREA" else it}
  }
- private val knownCode=Regex("(?i)(?<![A-Za-z])(?:AST/ALT(?![A-Za-z])|AST(?!/?ALT)(?![A-Za-z])|A/G|[#%](?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)|(?:NEUT|LYMPH|MONO|EOS|BASO|NRBC)[#%]|WBC|RBC|HGB|HCT|MCV|MCHC|MCH|RDW-CV|RDW-SD|RDW|PLT|MPV|PDW|PCT|P-LCR|P-LCC|TP|GLOB|DBIL|IBIL|GGT|ALP|CHE|TBA|PA|ALT|TBIL|ALB|UREA/CREA|UREA/CR|CREA|CRE|UREA|UA|LDH|SCC|AFP|CEA|CA125|CA153|CA199|CA724|CYFRA21-1|NSE|HE4|GLU|HCO3|PHOS|CKMB/CK|CKMB|CHOL|APOA1|APOB|HDLC|LDLC|OSM|MG|AG|TG|CK|NA|CL|CA|K)(?![A-Za-z])")
+ // Codes are atomic tokens: slash, dash, # and % belong to the identity.
+ // Match longest codes first and require both ends to be complete token boundaries.
+ private val knownCode=Regex(
+  "(?i)(?<![A-Za-z0-9/#%\\-])(?:"+
+   metricIdentityKeys.sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}+
+   "|UREA/CR|CR|PI|CK-MB)(?![A-Za-z0-9/#%\\-])"
+ )
  private fun segments(text:String)=text.lines().flatMap{raw->
-  // A bound clipboard row starts with "(CODE)". It is already one complete metric row;
-  // never rescan its Chinese name for additional code-like substrings.
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
-  // One explicit clipboard row is one atomic metric. Never split UREA/CREA into UREA and CREA.
-  val token=raw.trim().substringBefore(' ').substringBefore('\t').trim()
+  val token=raw.trim().substringBefore(' ').substringBefore('\\t').trim()
   if(canonicalMetricKey(token) in metricIdentityKeys)return@flatMap listOf(raw)
   val hits=knownCode.findAll(raw).toList()
-  if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
+  if(hits.size<2) listOf(raw) else hits.indices.map{i->
+   raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length)
+    .trim().replace(Regex("^\\d+[.、]?\\s*"),"")
+  }
  }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
