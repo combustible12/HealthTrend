@@ -42,16 +42,17 @@ object ReportParser {
  fun key(name:String):String {
   // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
-  if(identity in metricIdentityKeys)return identity!!
+  if(identity in metricIdentityKeys)return canonicalMetricKey(identity!!)
+  if(identity!=null && canonicalMetricKey(identity) in metricIdentityKeys)return canonicalMetricKey(identity)
   val label=name.trim().replace('：',':').replace('／','/')
   val leading=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
   val code=normalizeCode(leading)
-  if(code in metricIdentityKeys)return code
+  if(canonicalMetricKey(code) in metricIdentityKeys)return canonicalMetricKey(code)
   val full=normalizeCode(label)
-  if(full in metricIdentityKeys)return full
+  if(canonicalMetricKey(full) in metricIdentityKeys)return canonicalMetricKey(full)
   return chemistryNames.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: aliases.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: "未识别"
  }
- private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
+ private val metricIdentityKeys=setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","AMY","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
  internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
@@ -60,7 +61,7 @@ object ReportParser {
   // Identity is exact: AST != AST/ALT, NEUT# != NEUT%, P-LCR != P-LCC.
   val token=trimmed.substringBefore(' ').substringBefore('\t').trim()
   val explicit=normalizeCode(token)
-  if(explicit in metricIdentityKeys)"（$explicit） "+trimmed.removePrefix(token).trimStart() else line
+  if(canonicalMetricKey(explicit) in metricIdentityKeys)"（${canonicalMetricKey(explicit)}） "+trimmed.removePrefix(token).trimStart() else line
  }
  private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
