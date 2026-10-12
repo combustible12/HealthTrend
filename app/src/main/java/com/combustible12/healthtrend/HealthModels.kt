@@ -82,6 +82,8 @@ data class CourseRecord(
  val phase:String="观察",
  val title:String="",
  val symptomText:String="",
+ val systolic:Int?=null,
+ val diastolic:Int?=null,
  val symptomImages:List<String> = emptyList(),
  val checkText:String="",
  val checkImages:List<String> = emptyList(),
