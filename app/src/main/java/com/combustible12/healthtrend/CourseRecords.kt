@@ -89,15 +89,24 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
  }
 }
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
- Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
-  Row(verticalAlignment=Alignment.CenterVertically){
-   OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.width(115.dp),placeholder={Text("时间 HH:mm")},singleLine=true)
+ Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Row(verticalAlignment=Alignment.Bottom){
+   Column(Modifier.width(135.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+    Text("时间",fontSize=12.sp,color=Muted)
+    OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("HH:mm")})
+   }
    Spacer(Modifier.weight(1f))
    if(onRemove!=null)IconButton(onRemove){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-   OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),placeholder={Text("高压 mmHg")},singleLine=true)
-   OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),placeholder={Text("低压 mmHg")},singleLine=true)
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+    Text("高压 mmHg",fontSize=12.sp,color=Muted)
+    OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth(),singleLine=true)
+   }
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+    Text("低压 mmHg",fontSize=12.sp,color=Muted)
+    OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth(),singleLine=true)
+   }
   }
   PressureReadingView(reading.time,reading.systolic,reading.diastolic,true)
  }
