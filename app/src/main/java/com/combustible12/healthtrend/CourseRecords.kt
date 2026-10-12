@@ -110,7 +110,14 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
   Card(onClick=onOpen,modifier=Modifier.weight(1f),shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(start=16.dp,top=14.dp,end=12.dp,bottom=14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",Modifier.weight(1f).padding(top=4.dp),fontWeight=FontWeight.Bold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Row(Modifier.weight(1f).padding(top=2.dp),verticalAlignment=Alignment.CenterVertically){
+      val weekday=listOf("一","二","三","四","五","六","日")[Instant.ofEpochMilli(record.date).atZone(ZoneId.systemDefault()).dayOfWeek.value-1]
+      Box(Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(phaseColors.first),contentAlignment=Alignment.Center){
+       Text(weekday,fontSize=13.sp,fontWeight=FontWeight.Bold,color=phaseColors.second)
+      }
+      Spacer(Modifier.width(8.dp))
+      Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",fontWeight=FontWeight.Bold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     }
      Spacer(Modifier.width(6.dp))
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
