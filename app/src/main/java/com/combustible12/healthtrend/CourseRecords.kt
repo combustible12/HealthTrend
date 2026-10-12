@@ -37,6 +37,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.time.ZoneId
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
@@ -77,6 +79,26 @@ private val pressureRangeTexts=listOf("<90/<60","90–119/60–79","120–139/80
  }
 }
 
+@Composable private fun PressureReadingView(time:String,systolic:Int?,diastolic:Int?,detailed:Boolean){
+ Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+  if(time.isNotBlank())Text(time,fontSize=11.sp,color=Muted)
+  systolic?.let{sys->diastolic?.let{dia->CoursePressureStrip(sys,dia,detailed)}}
+ }
+}
+@Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
+ Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically){
+   OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.width(115.dp),label={Text("时间")},singleLine=true,placeholder={Text("HH:mm")})
+   Spacer(Modifier.weight(1f))
+   if(onRemove!=null)IconButton(onRemove){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
+  }
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),label={Text("高压 mmHg")},singleLine=true)
+   OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),label={Text("低压 mmHg")},singleLine=true)
+  }
+  PressureReadingView(reading.time,reading.systolic,reading.diastolic,true)
+ }
+}
 @Composable fun CourseRecordsPage(
  modifier:Modifier,
  records:List<CourseRecord>,
@@ -150,7 +172,8 @@ private val pressureRangeTexts=listOf("<90/<60","90–119/60–79","120–139/80
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
-    record.systolic?.let{sys->record.diastolic?.let{dia->CoursePressureStrip(sys,dia,false)}}
+    if(record.systolic!=null||record.diastolic!=null)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,false)
+    record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,false)}
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
@@ -236,11 +259,11 @@ private fun coursePhaseColors(phase:String)=when(phase){
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压")
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    OutlinedTextField(record.systolic?.toString().orEmpty(),{v->record=record.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull())},Modifier.weight(1f),label={Text("高压 mmHg")},singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent))
-    OutlinedTextField(record.diastolic?.toString().orEmpty(),{v->record=record.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull())},Modifier.weight(1f),label={Text("低压 mmHg")},singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent))
+   PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic)})
+   record.additionalPressures.forEachIndexed{index,reading->
+    PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
    }
-   record.systolic?.let{sys->record.diastolic?.let{dia->CoursePressureStrip(sys,dia,true)}}
+   TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))}){Icon(Icons.Outlined.Add,null);Text("添加一组血压")}
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
