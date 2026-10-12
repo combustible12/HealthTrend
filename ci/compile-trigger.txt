@@ -1,1 +1,1 @@
-verify-restore-ocr-and-atomic-code-e94f41a-20261012
+compile-course-weekday-20261012-0849
