@@ -255,7 +255,8 @@ class HealthStore(private val context:Context) {
    val actual=r.results.map{it.metricKey}
    require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
    require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
-   require(actual.all{it in expected}){"报告包含当前模板之外的项目，请重新核对"}
+   // New, user-reviewed report metrics may be saved without mutating the confirmed template.
+   // Known template fields remain authoritative; unknown metrics stay report-local.
    // A manually extended template may place a new field between existing fields.
    // Report results have stable identities; reorder only their list positions.
    // Missing template fields remain absent until the user explicitly fills them.
