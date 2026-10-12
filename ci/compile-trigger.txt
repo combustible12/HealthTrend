@@ -1,1 +1,2 @@
 compile-compact-pressure-fields-20261012-2
+Review imported metric matching and new-item confirmation (2026-10-13).
