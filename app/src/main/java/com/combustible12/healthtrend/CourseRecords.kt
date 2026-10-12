@@ -68,12 +68,12 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
    pressureLabels.forEachIndexed{index,_->
     val active=index==selected
-    Box(Modifier.weight(1f).height(36.dp).clip(RoundedCornerShape(9.dp))
+    Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp))
      .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
-     if(active)Text("$systolic/$diastolic",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Color.Black,maxLines=1)
-     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxHeight().padding(vertical=2.dp)){
+     if(active)Text("$systolic/$diastolic",fontSize=12.sp,fontWeight=FontWeight.Bold,color=if(index==3)Color.White else Color.Black,maxLines=1)
+     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxHeight()){
       Text(pressureRangeTexts[index].first,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=10.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
-      Text(pressureRangeTexts[index].second,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=if(showRanges)12.sp else 11.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
+      Text(pressureRangeTexts[index].second,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=10.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
      }
     }
    }
