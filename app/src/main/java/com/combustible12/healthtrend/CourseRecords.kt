@@ -57,26 +57,25 @@ internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic<90||diastolic<60->0
  else->1
 }
+private val pressureRangeTexts=listOf("<90/<60","90–119/60–79","120–139/80–89","≥140/≥90")
 @Composable private fun CoursePressureStrip(systolic:Int,diastolic:Int,showRanges:Boolean){
  val selected=bloodPressureBand(systolic,diastolic)
  Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-   pressureLabels.forEachIndexed{index,label->
+   pressureLabels.forEachIndexed{index,_->
     val active=index==selected
     Box(Modifier.weight(1f).height(if(showRanges)42.dp else 29.dp).clip(RoundedCornerShape(9.dp))
      .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
      if(active)Text("$systolic/$diastolic",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Color.Black,maxLines=1)
-     else if(showRanges)Text(label,fontSize=10.sp,color=Color.DarkGray,maxLines=1)
+     else Text(pressureRangeTexts[index],fontSize=if(showRanges)10.sp else 9.sp,color=Color(0xFF999999),maxLines=1)
     }
    }
   }
   if(showRanges){
-   Text("高压：<90 / 90–119 / 120–139 / ≥140    低压：<60 / 60–79 / 80–89 / ≥90",fontSize=10.sp,color=Muted)
-   Text("单位 mmHg；按高压或低压中风险较高的一项着色",fontSize=10.sp,color=Muted)
+   Text("高压/低压（mmHg），按较高风险档位着色",fontSize=10.sp,color=Muted)
   }
  }
 }
-
 
 @Composable fun CourseRecordsPage(
  modifier:Modifier,
