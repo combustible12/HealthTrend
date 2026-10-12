@@ -48,6 +48,35 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
 private val coursePhases=listOf("化疗日","恢复期","观察","其他")
+private val pressureColors=listOf(Color(0xFF4BB5F6),Color(0xFF65D67A),Color(0xFFFFD64B),Color(0xFFFF6267))
+private val pressureLabels=listOf("低血压","理想血压","偏高预警","高血压")
+/** A high reading in either component determines the higher risk category. */
+internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
+ systolic>=140||diastolic>=90->3
+ systolic>=120||diastolic>=80->2
+ systolic<90||diastolic<60->0
+ else->1
+}
+@Composable private fun CoursePressureStrip(systolic:Int,diastolic:Int,showRanges:Boolean){
+ val selected=bloodPressureBand(systolic,diastolic)
+ Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+   pressureLabels.forEachIndexed{index,label->
+    val active=index==selected
+    Box(Modifier.weight(1f).height(if(showRanges)42.dp else 29.dp).clip(RoundedCornerShape(9.dp))
+     .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
+     if(active)Text("$systolic/$diastolic",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Color.Black,maxLines=1)
+     else if(showRanges)Text(label,fontSize=10.sp,color=Color.DarkGray,maxLines=1)
+    }
+   }
+  }
+  if(showRanges){
+   Text("高压：<90 / 90–119 / 120–139 / ≥140    低压：<60 / 60–79 / 80–89 / ≥90",fontSize=10.sp,color=Muted)
+   Text("单位 mmHg；按高压或低压中风险较高的一项着色",fontSize=10.sp,color=Muted)
+  }
+ }
+}
+
 
 @Composable fun CourseRecordsPage(
  modifier:Modifier,
@@ -122,6 +151,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
+    if(record.systolic!=null&&record.diastolic!=null)CoursePressureStrip(record.systolic,record.diastolic,false)
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
@@ -206,6 +236,12 @@ private fun coursePhaseColors(phase:String)=when(phase){
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
+   CourseEditorHeading(Icons.Outlined.Favorite,"血压")
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    OutlinedTextField(record.systolic?.toString().orEmpty(),{v->record=record.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull())},Modifier.weight(1f),label={Text("高压 mmHg")},singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent))
+    OutlinedTextField(record.diastolic?.toString().orEmpty(),{v->record=record.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull())},Modifier.weight(1f),label={Text("低压 mmHg")},singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent))
+   }
+   if(record.systolic!=null&&record.diastolic!=null)CoursePressureStrip(record.systolic,record.diastolic,true)
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
