@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -66,11 +68,11 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
    pressureLabels.forEachIndexed{index,_->
     val active=index==selected
-    Box(Modifier.weight(1f).height(if(showRanges)42.dp else 34.dp).clip(RoundedCornerShape(9.dp))
+    Box(Modifier.weight(1f).height(if(showRanges)36.dp else 36.dp).clip(RoundedCornerShape(9.dp))
      .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
      if(active)Text("$systolic/$diastolic",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Color.Black,maxLines=1)
-     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(0.dp)){
-      Text(pressureRangeTexts[index].first,fontSize=if(showRanges)11.sp else 9.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
+     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxHeight()){
+      Text(pressureRangeTexts[index].first,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=if(showRanges)12.sp else 11.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
       Text(pressureRangeTexts[index].second,fontSize=if(showRanges)11.sp else 9.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
      }
     }
@@ -88,24 +90,34 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
   systolic?.let{sys->diastolic?.let{dia->CoursePressureStrip(sys,dia,detailed)}}
  }
 }
+@Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String=""){
+ Box(modifier.height(34.dp).clip(RoundedCornerShape(7.dp)).border(1.dp,Color(0xFFAAAAAA),RoundedCornerShape(7.dp)).background(Color.White).padding(horizontal=12.dp),contentAlignment=Alignment.CenterStart){
+  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=16.sp,color=Ink),decorationBox={inner->
+   Box(contentAlignment=Alignment.CenterStart){
+    if(value.isEmpty()&&hint.isNotBlank())Text(hint,fontSize=13.sp,color=Muted)
+    inner()
+   }
+  })
+ }
+}
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
- Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+ Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
   Row(verticalAlignment=Alignment.Bottom){
-   Column(Modifier.width(135.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   Column(Modifier.width(135.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
     Text("时间",fontSize=12.sp,color=Muted)
-    OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("HH:mm")})
+    CompactPressureField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.fillMaxWidth(),"HH:mm")
    }
    Spacer(Modifier.weight(1f))
    if(onRemove!=null)IconButton(onRemove){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
     Text("高压 mmHg",fontSize=12.sp,color=Muted)
-    OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth(),singleLine=true)
+    CompactPressureField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
    }
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
     Text("低压 mmHg",fontSize=12.sp,color=Muted)
-    OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth(),singleLine=true)
+    CompactPressureField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
    }
   }
   PressureReadingView(reading.time,reading.systolic,reading.diastolic,true)
