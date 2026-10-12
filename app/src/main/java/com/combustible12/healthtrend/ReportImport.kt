@@ -104,12 +104,10 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):Re
  // The confirmed template still owns name/order/unit/reference, and only pasted metrics
  // are emitted, so a 15-item report remains exactly 15 items.
  val resolved=if(template!=null){
-  val byKey=parsed.groupBy{it.metricKey}
-  val used=mutableSetOf<Int>()
-  val matched=template.fields.mapNotNull{field->
-   val source=byKey[field.metricKey]?.singleOrNull() ?: return@mapNotNull null
-   used.add(parsed.indexOf(source))
-   if(source.textValue.isBlank())return@mapNotNull null
+  val matches=matchTemplateRows(template.fields,parsed)
+  val matched=template.fields.mapIndexedNotNull{index,field->
+   val source=matches[index] ?: return@mapIndexedNotNull null
+   if(source.textValue.isBlank())return@mapIndexedNotNull null
    ParsedLabResult(
     metricKey=field.metricKey,displayName=field.displayName,value=source.value,
     unit=displayLabUnit(field.unit),referenceLow=field.referenceLow,referenceHigh=field.referenceHigh,
@@ -117,7 +115,8 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):Re
     textValue=source.textValue,comparator=source.comparator
    )
   }
-  matched + parsed.filterIndexed{index,_->index !in used}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
+  val consumed=matches.values.toSet()
+  matched + parsed.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
  }else parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=normalized,
@@ -185,8 +184,8 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
    comparator=source.comparator
  )
  }
- val used=matched.map{it.metricKey}.toSet()
- return matched + items.filter{it.metricKey !in used}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
+ val consumed=matches.values.toSet()
+ return matched + items.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
 }
 
 /**
