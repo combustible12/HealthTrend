@@ -42,6 +42,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -70,7 +71,7 @@ private val coursePhases=listOf("化疗日","恢复期","观察","其他")
  Box(modifier.fillMaxSize()){
   Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
    Spacer(Modifier.height(12.dp))
-   Text("病程记录",fontSize=28.sp,fontWeight=FontWeight.Bold)
+   Text("病程记录",modifier=Modifier.fillMaxWidth().pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
    Spacer(Modifier.height(12.dp))
    Surface(shape=RoundedCornerShape(18.dp),color=Color.White){
     Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
