@@ -24,4 +24,7 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Compile Kotlin
-        run: gradle :app:compileDebugKotlin :app:testDebugUnitTest
+        run: gradle :app:compileDebugKotlin
+      - name: Run regression tests
+        if: always()
+        run: gradle :app:testDebugUnitTest
