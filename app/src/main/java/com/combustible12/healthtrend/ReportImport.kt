@@ -196,14 +196,34 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
  * several similarly named template fields.
  */
 internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLabResult>):Map<Int,ParsedLabResult>{
- // A confirmed template owns metric identity. OCR may only provide a value to the
- // exact same canonical metric key. Names and row position are never allowed to
- // override identity; ambiguous duplicates stay empty for explicit review.
- val byKey=items.groupBy{it.metricKey}
- return fields.mapIndexedNotNull{index,field->
-  val key=field.metricKey
-  byKey[key]?.singleOrNull()?.let{index to it}
- }.toMap()
+ // Match exact codes first. Use a Chinese name/alias only when it identifies
+ // exactly one field and exactly one source. Never guess by row position.
+ fun chinese(name:String)=name.trim().replace(Regex("(?i)^[A-Z][A-Z0-9/#%+.-]*\\s+(?=[\\p{IsHan}])"),"")
+ val assigned=mutableMapOf<Int,ParsedLabResult>()
+ val used=mutableSetOf<Int>()
+ fields.forEachIndexed{index,field->
+  val candidates=items.indices.filter{it !in used && items[it].metricKey==field.metricKey}
+  if(candidates.size==1){assigned[index]=items[candidates.single()];used.add(candidates.single())}
+ }
+ fields.forEachIndexed{index,field->
+  if(index in assigned)return@forEachIndexed
+  val targetName=chinese(field.displayName)
+  val candidates=items.indices.filter{itemIndex->
+   if(itemIndex in used)return@filter false
+   val source=items[itemIndex]
+   val sourceName=chinese(source.displayName)
+   sourceName.isNotBlank()&&sourceName.any{it.code in 0x3400..0x9FFF}&&
+    (sourceName==targetName||ReportParser.key(sourceName)==field.metricKey)
+  }
+  val competingFields=fields.indices.count{other->
+   other !in assigned && (chinese(fields[other].displayName)==targetName ||
+    ReportParser.key(chinese(fields[other].displayName))==field.metricKey)
+  }
+  if(candidates.size==1&&competingFields==1){
+   assigned[index]=items[candidates.single()];used.add(candidates.single())
+  }
+ }
+ return assigned
 }
 
 /**
