@@ -144,7 +144,15 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
    Spacer(Modifier.height(12.dp))
    Text("病程记录",modifier=Modifier.fillMaxWidth().pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
    Spacer(Modifier.height(12.dp))
-   OutlinedTextField(search,{search=it},Modifier.fillMaxWidth().padding(top=6.dp).height(48.dp),singleLine=true,leadingIcon={Icon(Icons.Outlined.Search,null)},trailingIcon={if(search.isNotEmpty())IconButton({search=""}){Icon(Icons.Outlined.Clear,"清空搜索")}},shape=RoundedCornerShape(12.dp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   Row(Modifier.fillMaxWidth().padding(top=6.dp).height(36.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
+    Icon(Icons.Outlined.Search,null,tint=Muted,modifier=Modifier.size(20.dp))
+    Spacer(Modifier.width(10.dp))
+    Box(Modifier.weight(1f),contentAlignment=Alignment.CenterStart){
+     if(search.isEmpty())Text("搜索病程记录",fontSize=14.sp,color=Muted)
+     BasicTextField(search,{search=it},modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=14.sp,color=Ink))
+    }
+    if(search.isNotEmpty())IconButton({search=""},modifier=Modifier.size(28.dp)){Icon(Icons.Outlined.Clear,"清空搜索",modifier=Modifier.size(18.dp))}
+   }
    Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
    }
