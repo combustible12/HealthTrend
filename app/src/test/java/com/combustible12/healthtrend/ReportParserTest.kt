@@ -833,4 +833,34 @@ CKMB 肌酸激酶MB亚型 12 U/L 0-24"""
 AST/ALT 谷草/谷丙 0.88""").size)
  }
 
+ @Test fun newBiochemistryMetricsRemainReviewableWithoutChangingTemplate(){
+  val template=HospitalLabTemplate("福建省肿瘤医院","生化",1,true,listOf(
+   LabFieldTemplate("CREA","肌酐","umol/L",41.0,73.0),
+   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5)
+  ))
+  val draft=pastedReportDraft("""福建省肿瘤医院
+生化
+2026-10-12
+UREA 尿素 4.60 mmol/L 2.6-7.5
+CREA 肌酐 36 umol/L 41-73
+UREA/CREA 尿素/肌酐 0.128 - -
+HCO3 碳酸氢根 31.5 mmol/L 22.0-34.0""",template)
+  assertEquals(4,draft.rows.size)
+  assertEquals("4.60",draft.rows.single{it.key=="UREA"}.text)
+  assertEquals("36",draft.rows.single{it.key=="CREA"}.text)
+  val extra=draft.rows.filter{it.key.startsWith("待核对:")}
+  assertEquals(2,extra.size)
+  assertTrue(extra.all{it.uncertain})
+  assertFalse(draft.valid())
+  assertEquals(2,template.fields.size)
+ }
+ @Test fun chineseNamesHideLeadingCodesButPreserveEmbeddedLetters(){
+  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("""UREA/CREA 尿素/肌酐 0.128
+RDW-CV 红细胞分布宽度CV 12.3 % 11-15
+ALT 谷丙转氨酶 18 U/L 7-40"""))
+  assertEquals("尿素/肌酐",parsed.single{it.metricKey=="UREA/CREA"}.displayName)
+  assertEquals("红细胞分布宽度CV",parsed.single{it.metricKey=="RDW-CV"}.displayName)
+  assertEquals("谷丙转氨酶",parsed.single{it.metricKey=="ALT"}.displayName)
+ }
+
 }
