@@ -53,7 +53,7 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()&&!it.uncertain&&it.name!="待核对"&&it.name.any{ch->ch.code in 0x3400..0x9FFF}}
+ fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()&&(existing!=null||(!it.uncertain&&it.name!="待核对"&&it.name.any{ch->ch.code in 0x3400..0x9FFF}))}&&rows.map{it.key.removePrefix("待核对:")}.distinct().size==rows.size
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -129,7 +129,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val originalResult=d.existing?.results?.firstOrNull{it.id==row.id}
   val originalCode=originalResult?.metricKey
   val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
-  MetricEditor(row,{changed->d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
+  MetricEditor(row,{changed->val confirmed=if(!changed.uncertain&&changed.key.startsWith("待核对:"))changed.copy(key=changed.key.removePrefix("待核对:")) else changed;d=d.copy(rows=d.rows.map{if(it.id==confirmed.id)confirmed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
  }
  if(viewingDraftImage!=null&&d.images.isNotEmpty())SourceViewer(
   d.images,
