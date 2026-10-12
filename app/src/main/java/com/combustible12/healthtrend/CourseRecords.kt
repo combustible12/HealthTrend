@@ -144,14 +144,6 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
    Spacer(Modifier.height(12.dp))
    Text("病程记录",modifier=Modifier.fillMaxWidth().pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
    Spacer(Modifier.height(12.dp))
-   Surface(shape=RoundedCornerShape(18.dp),color=Color.White){
-    Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
-     Icon(Icons.Outlined.Timeline,null,tint=Accent)
-     Spacer(Modifier.width(8.dp))
-     Text("当前阶段：${if(filter=="全部")"全部" else filter}",Modifier.weight(1f),fontWeight=FontWeight.Medium)
-     Text("共 ${shown.size} 条记录",color=Muted,fontSize=12.sp)
-    }
-   }
    OutlinedTextField(search,{search=it},Modifier.fillMaxWidth().padding(top=6.dp).height(48.dp),singleLine=true,leadingIcon={Icon(Icons.Outlined.Search,null)},trailingIcon={if(search.isNotEmpty())IconButton({search=""}){Icon(Icons.Outlined.Clear,"清空搜索")}},shape=RoundedCornerShape(12.dp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
