@@ -114,7 +114,9 @@ object ReportParser {
   // A stable name-scoped identity prevents unrelated unknown rows from colliding.
   val safeIdentity=if(kIdentity=="未识别")"待核对:"+parsedName else kIdentity
   val identityPattern=Regex("[（(]\\s*"+Regex.escape(safeIdentity)+"\\s*[）)]",RegexOption.IGNORE_CASE)
-  val name=parsedName.replace(identityPattern,"").replace(Regex("\\s+")," ").trim().ifBlank{kIdentity}
+  val withoutIdentity=parsedName.replace(identityPattern,"").replace(Regex("\\s+")," ").trim()
+  // Codes are internal identities; show the Chinese label without a leading analyzer code.
+  val name=withoutIdentity.replace(Regex("(?i)^[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim().ifBlank{kIdentity}
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?\\d+(?:\\.\\d+)?)").find(suffix)
