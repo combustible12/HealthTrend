@@ -76,6 +76,8 @@ data class HealthEntry(
  val note:String="",val hospital:String="",val category:String="",val severity:Int=0,val frequency:String="",val duration:String="",
  val dose:String="",val route:String="",val endAtEpochMillis:Long?=null,val images:List<String> = emptyList()
 ):java.io.Serializable
+data class BloodPressureReading(val time:String="",val systolic:Int?=null,val diastolic:Int?=null):java.io.Serializable
+
 data class CourseRecord(
  val id:String=newId(),
  val date:Long=System.currentTimeMillis(),
@@ -84,6 +86,8 @@ data class CourseRecord(
  val symptomText:String="",
  val systolic:Int?=null,
  val diastolic:Int?=null,
+ val pressureTime:String="",
+ val additionalPressures:List<BloodPressureReading> = emptyList(),
  val symptomImages:List<String> = emptyList(),
  val checkText:String="",
  val checkImages:List<String> = emptyList(),
