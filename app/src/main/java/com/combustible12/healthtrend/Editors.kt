@@ -53,7 +53,7 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()}
+ fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()&&!it.uncertain&&it.name!="待核对"&&it.name.any{ch->ch.code in 0x3400..0x9FFF}}
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -110,7 +110,11 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   if(draftImageError.isNotBlank())Text(draftImageError,color=Bad)
 
   val activeTemplate=store.latestTemplate(d.hospital,d.type,d.system)
-  d.rows.forEachIndexed{i,r->LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)}
+  d.rows.forEachIndexed{i,r->
+   Column { if(r.uncertain||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+    LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)
+   }
+  }
   run{
    if(activeTemplate==null||structureUnlocked)OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")}
    else TextButton({structureUnlocked=true}){Text("本次报告项目有变化")}
