@@ -196,7 +196,7 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
      Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
-    Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
+    Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
      if(record.systolic!=null||record.diastolic!=null)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,false)
      record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,false)}
     }
