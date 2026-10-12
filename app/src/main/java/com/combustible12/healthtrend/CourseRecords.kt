@@ -102,15 +102,11 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
 }
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
  Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
-  Row(verticalAlignment=Alignment.Bottom){
-   Column(Modifier.width(135.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Bottom){
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
     Text("时间",fontSize=12.sp,color=Muted)
     CompactPressureField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.fillMaxWidth(),"HH:mm")
    }
-   Spacer(Modifier.weight(1f))
-   if(onRemove!=null)IconButton(onRemove){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
-  }
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
     Text("高压 mmHg",fontSize=12.sp,color=Muted)
     CompactPressureField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
@@ -119,6 +115,7 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
     Text("低压 mmHg",fontSize=12.sp,color=Muted)
     CompactPressureField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
    }
+   if(onRemove!=null)IconButton(onRemove,modifier=Modifier.size(34.dp)){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
   }
   PressureReadingView(reading.time,reading.systolic,reading.diastolic,true)
  }
