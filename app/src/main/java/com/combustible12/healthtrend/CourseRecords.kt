@@ -85,7 +85,7 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
 }
 
 @Composable private fun PressureReadingView(time:String,systolic:Int?,diastolic:Int?,detailed:Boolean){
- Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+ Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
   if(time.isNotBlank())Text(time,fontSize=11.sp,color=Muted)
   systolic?.let{sys->diastolic?.let{dia->CoursePressureStrip(sys,dia,detailed)}}
  }
