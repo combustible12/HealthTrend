@@ -59,17 +59,20 @@ internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic<90||diastolic<60->0
  else->1
 }
-private val pressureRangeTexts=listOf("<90/<60","90–119/60–79","120–139/80–89","≥140/≥90")
+private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79","120–139" to "80–89","≥140" to "≥90")
 @Composable private fun CoursePressureStrip(systolic:Int,diastolic:Int,showRanges:Boolean){
  val selected=bloodPressureBand(systolic,diastolic)
  Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
    pressureLabels.forEachIndexed{index,_->
     val active=index==selected
-    Box(Modifier.weight(1f).height(if(showRanges)42.dp else 29.dp).clip(RoundedCornerShape(9.dp))
+    Box(Modifier.weight(1f).height(if(showRanges)42.dp else 34.dp).clip(RoundedCornerShape(9.dp))
      .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
      if(active)Text("$systolic/$diastolic",fontSize=13.sp,fontWeight=FontWeight.Bold,color=Color.Black,maxLines=1)
-     else Text(pressureRangeTexts[index],fontSize=if(showRanges)10.sp else 9.sp,color=Color(0xFF999999),maxLines=1)
+     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(0.dp)){
+      Text(pressureRangeTexts[index].first,fontSize=if(showRanges)11.sp else 9.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
+      Text(pressureRangeTexts[index].second,fontSize=if(showRanges)11.sp else 9.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
+     }
     }
    }
   }
@@ -88,13 +91,13 @@ private val pressureRangeTexts=listOf("<90/<60","90–119/60–79","120–139/80
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
  Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
   Row(verticalAlignment=Alignment.CenterVertically){
-   OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.width(115.dp),label={Text("时间")},singleLine=true,placeholder={Text("HH:mm")})
+   OutlinedTextField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.width(115.dp),placeholder={Text("时间 HH:mm")},singleLine=true)
    Spacer(Modifier.weight(1f))
    if(onRemove!=null)IconButton(onRemove){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-   OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),label={Text("高压 mmHg")},singleLine=true)
-   OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),label={Text("低压 mmHg")},singleLine=true)
+   OutlinedTextField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),placeholder={Text("高压 mmHg")},singleLine=true)
+   OutlinedTextField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.weight(1f),placeholder={Text("低压 mmHg")},singleLine=true)
   }
   PressureReadingView(reading.time,reading.systolic,reading.diastolic,true)
  }
