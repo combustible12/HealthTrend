@@ -414,6 +414,9 @@ class HealthStore(private val context:Context) {
   val builtin=ReportParser.key(alias)
   require(builtin=="未识别"||builtin==metricKey){"该名称已经对应其他指标：$builtin"}
   val current=metricAliases().toMutableMap()
+  require(preferredMetricNames().none{(key,name)->name==alias&&key!=canonicalMetricKey(metricKey)}){
+   "该名称已经是其他指标的正式名称"
+  }
   current[alias]=metricKey
   write("metric_aliases",JSONArray().apply{current.toSortedMap().forEach{(name,key)->
    put(JSONObject().put("alias",name).put("metricKey",key))
