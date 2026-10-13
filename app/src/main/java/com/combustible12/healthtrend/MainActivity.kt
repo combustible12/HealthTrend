@@ -329,7 +329,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
- var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")}
+ var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
  var imageError by remember{mutableStateOf<String?>(null)};var imageBusy by remember{mutableStateOf(false)}
@@ -385,11 +385,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
   if(category=="体重"&&query.isBlank()){
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({weightText="";weightDate=java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}){Text("+ 记录体重")}}
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({editingWeight=null;weightText="";weightDate=java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
     val w=weights.last()
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Text("体重",fontWeight=FontWeight.Bold,fontSize=16.sp);Row(verticalAlignment=Alignment.Bottom){Text(String.format(java.util.Locale.US,"%.1f",w.kilograms),fontWeight=FontWeight.Bold,fontSize=20.sp,color=Good);Spacer(Modifier.width(4.dp));Text("kg",fontSize=11.sp,color=Good)}}
-    Spark(points=weights.map{it.measuredAtEpochMillis to it.kilograms},color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={},metricKey="WEIGHT",pointDescriptions=weights.map{"体重 "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=weights.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},onShowPreview={})
+    Spark(points=weights.map{it.measuredAtEpochMillis to it.kilograms},color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={index->weights.getOrNull(index)?.let{editingWeight=it;weightText=it.kilograms.toString();weightDate=java.time.Instant.ofEpochMilli(it.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}},metricKey="WEIGHT",pointDescriptions=weights.map{"体重 "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=weights.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},onShowPreview={})
    }
   }
   val searching=query.isNotBlank()
@@ -507,7 +507,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   var showWeightDatePicker by remember{mutableStateOf(false)}
   AlertDialog(
    onDismissRequest={showWeight=false},
-   title={Text("记录体重")},
+   title={Text(if(editingWeight==null)"记录体重" else "修改体重")},
    text={
     Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
      Row(
@@ -530,8 +530,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
    },
-   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(measuredAtEpochMillis=at,kilograms=kg));weightVersion++;showWeight=false}}){Text("保存")}},
-   dismissButton={TextButton({showWeight=false}){Text("取消")}}
+   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},
+   dismissButton={Row { if(editingWeight!=null)TextButton({deletingWeight=editingWeight;showWeight=false}){Text("删除",color=Bad)};TextButton({editingWeight=null;showWeight=false}){Text("取消")} }}
   )
   if(showWeightDatePicker){
    DatePickerDialog(
@@ -545,6 +545,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     dismissButton={TextButton({showWeightDatePicker=false}){Text("取消")}}
    ){DatePicker(state=weightPickerState)}
   }
+ }
+ if(deletingWeight!=null){
+  AlertDialog(onDismissRequest={deletingWeight=null},title={Text("删除体重记录？")},text={Text("删除后将从体重趋势中移除这条记录。")},confirmButton={TextButton({deletingWeight?.let{store.deleteWeight(it.id);weightVersion++};deletingWeight=null;editingWeight=null}){Text("确认删除",color=Bad)}},dismissButton={TextButton({deletingWeight=null}){Text("取消")}})
  }
  selected?.let{(selectedReport,selectedResult)->
   // Trend points may hold an older report snapshot. Resolve the persisted report
