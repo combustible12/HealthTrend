@@ -390,6 +390,45 @@ class HealthStore(private val context:Context) {
  }
 
  fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
+ /** User aliases are separate from hospital templates and historical report snapshots. */
+ @Synchronized fun metricAliases():Map<String,String>{
+  val data=read("metric_aliases")
+  return (0 until data.length()).mapNotNull { index ->
+   val row=data.optJSONObject(index) ?: return@mapNotNull null
+   val alias=row.optString("alias").trim()
+   val key=row.optString("metricKey").trim()
+   if(alias.isBlank()||key.isBlank())null else alias to key
+  }.toMap()
+ }
+ @Synchronized fun saveMetricAlias(aliasInput:String,metricKeyInput:String){
+  val alias=aliasInput.trim()
+  val metricKey=metricKeyInput.trim()
+  require(alias.isNotBlank()&&metricKey.isNotBlank()){"别名和项目代码不能为空"}
+  require(!alias.contains('\n')&&!metricKey.contains('\n')){"别名或代码不能包含换行"}
+  val builtin=ReportParser.key(alias)
+  require(builtin=="未识别"||builtin==metricKey){"该名称已经对应其他指标：$builtin"}
+  val current=metricAliases().toMutableMap()
+  require(current[alias]==null||current[alias]==metricKey){"该别名已经指向其他指标"}
+  current[alias]=metricKey
+  write("metric_aliases",JSONArray().apply{current.toSortedMap().forEach{(name,key)->
+   put(JSONObject().put("alias",name).put("metricKey",key))
+  }})
+ }
+ @Synchronized fun deleteMetricAlias(alias:String){
+  val current=metricAliases().toMutableMap()
+  current.remove(alias.trim())
+  write("metric_aliases",JSONArray().apply{current.toSortedMap().forEach{(name,key)->
+   put(JSONObject().put("alias",name).put("metricKey",key))
+  }})
+ }
+ /** Only exact aliases are resolved; never fuzzy-merge two different lab identities. */
+ fun resolveMetricKey(label:String):String {
+  val builtin=ReportParser.key(label)
+  if(builtin!="未识别")return builtin
+  return metricAliases()[label.trim()] ?: "未识别"
+ }
+ fun metricAliasNames(metricKey:String):List<String> =
+  metricAliases().filterValues{it==metricKey}.keys.sorted()
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
