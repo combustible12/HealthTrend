@@ -211,7 +211,10 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
    if(itemIndex in used)return@filter false
    val source=items[itemIndex]
    val sourceName=chinese(source.displayName)
-   sourceName.isNotBlank()&&sourceName.any{it.code in 0x3400..0x9FFF}&&
+   // Never remap a known explicit code to a different template identity by name.
+   val unresolved=source.metricKey.isBlank()||source.metricKey=="未识别"||
+    source.metricKey.startsWith("待核对:")
+   unresolved && sourceName.isNotBlank()&&sourceName.any{it.code in 0x3400..0x9FFF}&&
     (sourceName==targetName||ReportParser.key(sourceName)==field.metricKey)
   }
   val competingFields=fields.indices.count{other->
