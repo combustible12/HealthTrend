@@ -465,7 +465,18 @@ class HealthStore(private val context:Context) {
  fun resolveMetricKey(label:String):String {
   val builtin=ReportParser.key(label)
   if(builtin!="未识别")return builtin
-  return metricAliases()[label.trim()] ?: preferredMetricNames().entries.firstOrNull{it.value==label.trim()}?.key ?: "未识别"
+  val clean=label.trim().replace('：',':').replace('／','/')
+  val aliases=metricAliases()
+  val preferred=preferredMetricNames()
+  // Explicit project code has already been handled by ReportParser.key().
+  // Only whole-name matches are allowed, including a pasted name followed by
+  // a result number; never infer identity from a substring of another metric.
+  fun matches(name:String):Boolean = clean==name ||
+   clean.startsWith("$name ") || clean.startsWith("$name\t") ||
+   clean.startsWith("$name（") || clean.startsWith("$name(")
+  val matches=(aliases.filterKeys(::matches).values+
+   preferred.filterValues(::matches).keys).map(::canonicalMetricKey).distinct()
+  return matches.singleOrNull() ?: "未识别"
  }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{it==metricKey}.keys.sorted()
