@@ -412,7 +412,9 @@ class HealthStore(private val context:Context) {
    "项目代码不存在，请先在报告中确认并保存该指标"
   }
   val builtin=ReportParser.key(alias)
-  require(builtin=="未识别"||builtin==metricKey){"该名称已经对应其他指标：$builtin"}
+  require(builtin=="未识别"||canonicalMetricKey(builtin)==canonicalMetricKey(metricKey)){"该名称已经对应其他指标：$builtin"}
+  val owners=metricCatalogue().filter{(key,names)->canonicalMetricKey(key)!=canonicalMetricKey(metricKey)&&alias in names}.keys
+  require(owners.isEmpty()){"该名称已属于其他指标：${owners.joinToString("、")}"}
   val current=metricAliases().toMutableMap()
   require(preferredMetricNames().none{(key,name)->name==alias&&key!=canonicalMetricKey(metricKey)}){
    "该名称已经是其他指标的正式名称"
@@ -483,7 +485,14 @@ class HealthStore(private val context:Context) {
    clean.startsWith("$name（") || clean.startsWith("$name(")
   val matches=(aliases.filterKeys(::matches).values+
    preferred.filterValues(::matches).keys).map(::canonicalMetricKey).distinct()
-  return matches.singleOrNull() ?: "未识别"
+  if(matches.size!=1)return "未识别"
+  // Existing template and report names can have conflicting identities. Refuse
+  // automatic merges in that case; leave the row available for human review.
+  val resolved=matches.single()
+  val candidates=metricCatalogue().filter{(key,names)->
+   canonicalMetricKey(key)!=resolved && names.any(::matches)
+  }
+  return if(candidates.isEmpty())resolved else "未识别"
  }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{it==metricKey}.keys.sorted()
