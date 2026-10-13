@@ -186,7 +186,11 @@ internal fun templateDrivenResults(items:List<ParsedLabResult>,template:Hospital
    comparator=source.comparator
  )
  }
- val consumed=matches.values.toSet()
+ // A template candidate rejected by the independent-result check is not
+ // consumed: retain its raw source for review rather than silently losing it.
+ val consumed=matches.filter{(index,source)->
+  templateResultIsIndependent(source,template.fields[index])
+ }.values.toSet()
  return matched + items.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
 }
 
