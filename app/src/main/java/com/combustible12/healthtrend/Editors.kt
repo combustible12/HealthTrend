@@ -328,7 +328,11 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
   if(!row.valid())problems+="${title}：名称、代码、结果或参考范围无效"
   else if(d.existing==null && (row.key.startsWith("待核对:")||row.name=="待核对"||row.name.none{it.code in 0x3400..0x9FFF}))problems+="${title}：需要确认中文名称和项目身份"
  }
- if(d.rows.map{it.key.removePrefix("待核对:")}.distinct().size!=d.rows.size)problems+="项目代码重复"
+ val identities=d.rows.map{canonicalMetricKey(it.key.removePrefix("待核对:").trim())}
+ if(identities.distinct().size!=identities.size)problems+="项目代码重复"
+ // A source report can include two measurements of the same canonical metric
+ // only if the user explicitly separates them; do not silently overwrite one.
+ if(d.rows.any{it.key=="未识别"||it.key.isBlank()})problems+="存在未确认的项目代码"
  return problems.distinct()
 }
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
