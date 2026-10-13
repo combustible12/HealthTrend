@@ -434,6 +434,7 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteEntry(id:String){write("entries",JSONArray().apply{entries().filterNot{it.id==id}.forEach{put(entryToJson(it))}})}
  @Synchronized fun weightRecords()=rows(read("weights")){o->WeightRecord(o.getString("id"),o.getLong("date"),o.getDouble("kg"))}.sortedBy{it.measuredAtEpochMillis}
  @Synchronized fun saveWeight(record:WeightRecord){require(record.kilograms>0&&record.kilograms.isFinite());write("weights",JSONArray().apply{(weightRecords().filterNot{it.id==record.id}+record).sortedBy{it.measuredAtEpochMillis}.forEach{put(JSONObject().put("id",it.id).put("date",it.measuredAtEpochMillis).put("kg",it.kilograms))}})}
+ @Synchronized fun deleteWeight(id:String){write("weights",JSONArray().apply{weightRecords().filterNot{it.id==id}.forEach{put(JSONObject().put("id",it.id).put("date",it.measuredAtEpochMillis).put("kg",it.kilograms))}})}
  @Synchronized fun courseRecords()=rows(read("course_records"),::courseRecordFromJson).sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
  @Synchronized fun saveCourseRecord(record:CourseRecord){
   require(record.title.isNotBlank())
