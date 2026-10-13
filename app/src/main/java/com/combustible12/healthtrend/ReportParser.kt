@@ -79,7 +79,7 @@ object ReportParser {
  }
  private fun normalizeCode(raw:String):String{
   val c=raw.uppercase().replace("％","%").replace('：',':').replace('／','/').trim().let{code->
-   if(code in setOf("AST:ALT","A:G","CKMB:CK"))code.replace(':','/') else code
+   if(code in setOf("AST:ALT","ALT:AST","A:G","CKMB:CK"))code.replace(':','/') else code
   }
   val base=c.trimStart('#','%').trimEnd('#','%')
   val marker=when{
