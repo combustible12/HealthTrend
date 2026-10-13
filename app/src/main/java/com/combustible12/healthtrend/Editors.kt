@@ -93,9 +93,29 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    }catch(e:Exception){draftImageError="原图导入失败：${e.message}"}
   }
  },{draftImageError=it})
+ // Match only unambiguous OCR identities to the active confirmed template.
+ // A report import must never overwrite the template's metadata.
+ LaunchedEffect(d.hospital,d.type,d.system) {
+  val template=store.latestTemplate(d.hospital,d.type,d.system)
+  if(template!=null){
+   val reconciled=d.rows.map { row ->
+    val code=row.key.removePrefix("待核对:").trim()
+    val name=row.name.trim()
+    val matches=template.fields.filter { field ->
+     (code.isNotBlank() && code==field.metricKey) ||
+      (name.isNotBlank() && name!="待核对" && name==field.displayName.trim())
+    }
+    if(matches.size==1 && row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()!=null){
+     val field=matches.single()
+     row.copy(key=field.metricKey,name=field.displayName,uncertain=false)
+    } else row
+   }
+   if(reconciled!=d.rows)d=d.copy(rows=reconciled)
+  }
+ }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Button({save(d)},Modifier.fillMaxWidth(),enabled=d.valid()){Text("保存")}}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
@@ -176,7 +196,19 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
  }
 }
 
-fun reportValidationProblems(d:ReportDraft):List<String> = if(d.valid()) emptyList() else listOf("invalid")
+fun reportValidationProblems(d:ReportDraft):List<String> {
+ val problems=mutableListOf<String>()
+ if(d.hospital.isBlank())problems+="请填写医院"
+ if(parseDate(d.date)==null)problems+="请填写有效检查日期"
+ if(d.rows.isEmpty())problems+="报告没有指标"
+ d.rows.forEachIndexed { index,row ->
+  val title=row.name.ifBlank { "第${index+1}项" }
+  if(!row.valid())problems+="${title}：名称、代码、结果或参考范围无效"
+  else if(d.existing==null && (row.uncertain||row.name=="待核对"||row.name.none{it.code in 0x3400..0x9FFF}))problems+="${title}：需要核对"
+ }
+ if(d.rows.map{it.key.removePrefix("待核对:")}.distinct().size!=d.rows.size)problems+="项目代码重复"
+ return problems.distinct()
+}
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
