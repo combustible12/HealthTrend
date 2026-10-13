@@ -270,11 +270,13 @@ fun retargetImportedDraft(
  if(d.existing!=null||(hospital==d.hospital&&type==d.type&&system==d.system))return next
  val target=store.latestTemplate(hospital,type,system)
  if(d.ocr.isBlank()){
-  if(target==null)return next
-  val current=d.rows.associateBy{it.key.ifBlank{ReportParser.key(it.name)}}
-  return next.copy(rows=target.fields.map{field->
-   current[field.metricKey]?:DraftRow(name=field.displayName,key=field.metricKey,unit=field.unit,
-    low=field.referenceLow?.toString().orEmpty(),high=field.referenceHigh?.toString().orEmpty())
+  // Manual drafts have no source rows to reparse. Switching hospital must not
+  // fabricate every metric from the target template or discard manually entered data.
+  // Preserve only actual entered rows, with their exact result and source metadata.
+  return next.copy(rows=d.rows.map{row->
+   val key=if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:"))
+    store.resolveMetricKey(row.name) else row.key
+   if(key=="未识别")row else row.copy(key=key)
   })
  }
  val original=store.reconcileParsedMetrics(ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(d.ocr)))
