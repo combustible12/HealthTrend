@@ -394,7 +394,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }
   val searching=query.isNotBlank()
   val filtered=all.filter{(key,list)->
-   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)}
+   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)} || store.metricAliasNames(key).any{it.contains(query,true)}
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
@@ -407,6 +407,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val latestStatus=latest.status()
    val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
+    val metricAliases=store.metricAliasNames(key)
+    if(metricAliases.isNotEmpty()){
+     val matchedAliases=if(searching)metricAliases.filter{it.contains(query,true)} else emptyList()
+     val note=if(matchedAliases.isNotEmpty())"匹配别名："+matchedAliases.joinToString("、") else "别名："+metricAliases.joinToString("、")
+     Text(note,color=Muted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
+    }
     var meaningDetail by remember{mutableStateOf(false)}
     val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
