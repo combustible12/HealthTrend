@@ -95,7 +95,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  },{draftImageError=it})
  // Match only unambiguous OCR identities to the active confirmed template.
  // A report import must never overwrite the template's metadata.
- LaunchedEffect(d.hospital,d.type,d.system) {
+ LaunchedEffect(d.hospital,d.type,d.system,d.rows) {
   val template=store.latestTemplate(d.hospital,d.type,d.system)
   if(template!=null){
    val reconciled=d.rows.map { row ->
