@@ -169,6 +169,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
      savedAliases.forEach{(name,key)->
       Row(verticalAlignment=Alignment.CenterVertically){
        Text("$name → $key",modifier=Modifier.weight(1f),fontSize=13.sp)
+       TextButton({aliasInput=name;aliasKeyInput=key;aliasError=""}){Text("修改")}
        TextButton({store.deleteMetricAlias(name);aliasRevision++}){Text("删除")}
       }
      }
@@ -177,7 +178,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    confirmButton={TextButton({
     try{store.saveMetricAlias(aliasInput,aliasKeyInput);aliasInput="";aliasKeyInput="";aliasError="";aliasRevision++}
     catch(e:IllegalArgumentException){aliasError=e.message.orEmpty()}
-   }){Text("添加别名")}},
+   }){Text(if(savedAliases.containsKey(aliasInput.trim()))"保存修改" else "添加别名")}},
    dismissButton={TextButton({showAliasManager=false}){Text("关闭")}}
   )
  }
