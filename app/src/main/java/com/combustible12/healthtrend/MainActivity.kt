@@ -393,8 +393,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    }
   }
   val searching=query.isNotBlank()
+  // Load the editable dictionary once per render, not once for every trend row.
+  val savedAliases=remember(revision){store.metricAliases()}
+  val preferredNames=remember(revision){store.preferredMetricNames()}
+  val aliasIndex=remember(revision){savedAliases.entries.groupBy({canonicalMetricKey(it.value)},{it.key})}
+  val builtInIndex=remember{ReportParser.builtInMetricKeys().associateWith{ReportParser.builtInAliasNames(it)}}
+  fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()).distinct()
   val filtered=all.filter{(key,list)->
-   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)} || store.metricAliasNames(key).any{it.contains(query,true)} || ReportParser.builtInAliasNames(key).any{it.contains(query,true)} || store.preferredMetricName(key)?.contains(query,true)==true
+   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)} || aliasesFor(key).any{it.contains(query,true)} || preferredNames[key]?.contains(query,true)==true
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
@@ -407,17 +413,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val latestStatus=latest.status()
    val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
-    val metricAliases=(store.metricAliasNames(key)+ReportParser.builtInAliasNames(key)).distinct()
+    val metricAliases=aliasesFor(key)
     if(metricAliases.isNotEmpty()){
      val matchedAliases=if(searching)metricAliases.filter{it.contains(query,true)} else emptyList()
-     val note=if(matchedAliases.isNotEmpty())"匹配别名："+matchedAliases.joinToString("、") else "别名："+metricAliases.joinToString("、")
-     Text(note,color=Muted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
+     val canonicalTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
+     val others=metricAliases.filterNot{it in matchedAliases || it==canonicalTitle}
+     val note=if(matchedAliases.isNotEmpty())
+      "搜索“${matchedAliases.joinToString("、")}”，对应“$canonicalTitle（$key）”"+if(others.isEmpty())"" else "；其他别名："+others.joinToString("、")
+      else "其他别名："+metricAliases.filterNot{it==canonicalTitle}.joinToString("、")
+     if(note!="其他别名：")Text(note,color=Muted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
     }
     var meaningDetail by remember{mutableStateOf(false)}
     val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      val fixedTitle=store.preferredMetricName(key)?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
+      val fixedTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
       Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{meaningDetail=true})}
      }
