@@ -405,10 +405,15 @@ class HealthStore(private val context:Context) {
   val metricKey=metricKeyInput.trim()
   require(alias.isNotBlank()&&metricKey.isNotBlank()){"别名和项目代码不能为空"}
   require(!alias.contains('\n')&&!metricKey.contains('\n')){"别名或代码不能包含换行"}
+  val validKeys=(templates().flatMap{it.fields.map{f->f.metricKey}}+
+   reports().flatMap{it.results.map{result->result.metricKey}})
+   .toSet()
+  require(metricKey in validKeys || ReportParser.key(metricKey)==metricKey){
+   "项目代码不存在，请先在报告中确认并保存该指标"
+  }
   val builtin=ReportParser.key(alias)
   require(builtin=="未识别"||builtin==metricKey){"该名称已经对应其他指标：$builtin"}
   val current=metricAliases().toMutableMap()
-  require(current[alias]==null||current[alias]==metricKey){"该别名已经指向其他指标"}
   current[alias]=metricKey
   write("metric_aliases",JSONArray().apply{current.toSortedMap().forEach{(name,key)->
    put(JSONObject().put("alias",name).put("metricKey",key))
