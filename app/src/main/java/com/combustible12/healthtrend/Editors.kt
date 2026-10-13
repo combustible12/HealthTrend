@@ -53,7 +53,7 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
 }
 data class ReportDraft(val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
- fun valid()=hospital.isNotBlank()&&parseDate(date)!=null&&rows.isNotEmpty()&&rows.all{it.valid()&&(existing!=null||(!it.uncertain&&it.name!="待核对"&&it.name.any{ch->ch.code in 0x3400..0x9FFF}))}&&rows.map{it.key.removePrefix("待核对:")}.distinct().size==rows.size
+ fun valid()=reportValidationProblems(this).isEmpty()
  companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
 }
 val LocalPageVisible=staticCompositionLocalOf{true}
@@ -131,7 +131,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 
   val activeTemplate=store.latestTemplate(d.hospital,d.type,d.system)
   d.rows.forEachIndexed{i,r->
-   Column { if(r.uncertain||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+   Column { if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
     LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)
    }
   }
@@ -204,7 +204,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
  d.rows.forEachIndexed { index,row ->
   val title=row.name.ifBlank { "第${index+1}项" }
   if(!row.valid())problems+="${title}：名称、代码、结果或参考范围无效"
-  else if(d.existing==null && (row.uncertain||row.name=="待核对"||row.name.none{it.code in 0x3400..0x9FFF}))problems+="${title}：需要核对"
+  else if(d.existing==null && (row.key.startsWith("待核对:")||row.name=="待核对"||row.name.none{it.code in 0x3400..0x9FFF}))problems+="${title}：需要确认中文名称和项目身份"
  }
  if(d.rows.map{it.key.removePrefix("待核对:")}.distinct().size!=d.rows.size)problems+="项目代码重复"
  return problems.distinct()
