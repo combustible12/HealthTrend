@@ -203,7 +203,7 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
  val assigned=mutableMapOf<Int,ParsedLabResult>()
  val used=mutableSetOf<Int>()
  fields.forEachIndexed{index,field->
-  val candidates=items.indices.filter{it !in used && items[it].metricKey==field.metricKey}
+  val candidates=items.indices.filter{it !in used && canonicalMetricKey(items[it].metricKey)==canonicalMetricKey(field.metricKey)}
   if(candidates.size==1){assigned[index]=items[candidates.single()];used.add(candidates.single())}
  }
  fields.forEachIndexed{index,field->
