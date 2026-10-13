@@ -102,11 +102,11 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  // A report import must never overwrite the template's metadata.
  LaunchedEffect(d.hospital,d.type,d.system,d.rows,aliasRevision) {
   val template=store.latestTemplate(d.hospital,d.type,d.system)
-  if(template!=null){
-   val reconciled=d.rows.map { original ->
+  val reconciled=d.rows.map { original ->
     val aliasKey=if(original.key.startsWith("待核对:")||original.key.isBlank())
      store.resolveMetricKey(original.name) else "未识别"
     val row=if(aliasKey!="未识别")original.copy(key=aliasKey,uncertain=false) else original
+    if(template==null)row else {
     val code=row.key.removePrefix("待核对:").trim()
     val name=row.name.trim()
     // Never overwrite an explicit known metric identity merely because a
@@ -121,9 +121,9 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
      val field=matches.single()
      row.copy(key=field.metricKey,name=field.displayName,uncertain=false)
     } else row
+    }
    }
    if(reconciled!=d.rows)d=d.copy(rows=reconciled)
-  }
  }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
