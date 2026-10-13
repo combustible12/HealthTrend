@@ -36,9 +36,9 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
   busy=true;message="正在整理粘贴的数据…"
   viewModelScope.launch{
    try{
-    val initial=pastedReportDraft(raw)
+    val initial=pastedReportDraft(raw,store=store)
     val template=store.latestTemplate(initial.hospital,initial.type,initial.system)
-    pendingDraft=pastedReportDraft(raw,template)
+    pendingDraft=pastedReportDraft(raw,template,store)
     message=""
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="粘贴的数据无法导入：${e.message}"}finally{busy=false}
   }
@@ -57,7 +57,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
       texts.add(ReportOcr.tableText(t))
      }catch(e:Exception){if(e is CancellationException)throw e;failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
     }}finally{recognizer.close()}
-    val raw=texts.joinToString("\n\n");val parsed=ReportParser.parse(raw)
+    val raw=texts.joinToString("\n\n");val parsed=store.reconcileParsedMetrics(ReportParser.parse(raw))
     val meta=ReportMetadata.extract(raw,parsed)
     val hospital=meta.hospital
     val date=meta.date
@@ -91,12 +91,12 @@ internal fun normalizePastedReportText(raw:String)=raw.lines().map{it.trim()}.fi
  * by camera/gallery OCR. A confirmed hospital template still owns every fixed field;
  * pasted text only supplies this visit's values and metadata.
  */
-internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null):ReportDraft{
+internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,store:HealthStore?=null):ReportDraft{
  val normalized=normalizePastedReportText(raw)
  // Clipboard rows commonly start with an explicit analyzer code (for example "TP 总蛋白 78.10 ...").
  // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
  // guess by name and does not change the stored template.
- val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized))
+ val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized)).let{rows->store?.reconcileParsedMetrics(rows)?:rows}
  val meta=ReportMetadata.extract(raw,parsed)
  // Clipboard data already has an explicit metric code on every row. Exact canonical
  // code matching is sufficient here; do not run the OCR-only "independent result"
@@ -272,7 +272,7 @@ fun retargetImportedDraft(
     low=field.referenceLow?.toString().orEmpty(),high=field.referenceHigh?.toString().orEmpty())
   })
  }
- val original=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(d.ocr))
+ val original=store.reconcileParsedMetrics(ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(d.ocr)))
  val previous=store.latestTemplate(d.hospital,d.type,d.system)
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
