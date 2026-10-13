@@ -447,6 +447,10 @@ class HealthStore(private val context:Context) {
   require(!name.contains('\n')){"名称不能包含换行"}
   val builtin=ReportParser.key(name)
   require(builtin=="未识别"||canonicalMetricKey(builtin)==key){"该名称已经属于其他指标"}
+  val catalogueOwners=metricCatalogue().filter{(other,names)->
+   other!=key && name in names
+  }.keys
+  require(catalogueOwners.isEmpty()){"该名称已用于其他指标：${catalogueOwners.joinToString("、")}"}
   val owner=metricAliases()[name]
   require(owner==null||canonicalMetricKey(owner)==key){"该名称已被其他指标用作别名"}
   val current=preferredMetricNames().toMutableMap()
