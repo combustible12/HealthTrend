@@ -494,6 +494,18 @@ class HealthStore(private val context:Context) {
   }
   return if(candidates.isEmpty())resolved else "未识别"
  }
+ /** Apply the user dictionary to parsed rows without replacing source text.
+  * Only unresolved identities can be filled. A known explicit code always wins. */
+ fun reconcileParsedMetrics(rows:List<ParsedLabResult>):List<ParsedLabResult> =
+  rows.map{row->
+   if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
+      !row.metricKey.startsWith("待核对:"))row
+   else{
+    val byName=resolveMetricKey(row.displayName)
+    val key=if(byName!="未识别")byName else resolveMetricKey(row.rawLine)
+    if(key=="未识别")row else row.copy(metricKey=key)
+   }
+  }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{it==metricKey}.keys.sorted()
  /** Unified metric catalogue: union of confirmed templates, saved reports and
