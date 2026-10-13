@@ -405,10 +405,10 @@ class HealthStore(private val context:Context) {
   val metricKey=canonicalMetricKey(metricKeyInput.trim())
   require(alias.isNotBlank()&&metricKey.isNotBlank()){"别名和项目代码不能为空"}
   require(!alias.contains('\n')&&!metricKey.contains('\n')){"别名或代码不能包含换行"}
-  val validKeys=(templates().flatMap{it.fields.map{f->f.metricKey}}+
-   reports().flatMap{it.results.map{result->result.metricKey}})
+  val validKeys=(templates().flatMap{it.fields.map{f->canonicalMetricKey(f.metricKey)}}+
+   reports().flatMap{it.results.map{result->canonicalMetricKey(result.metricKey)}})
    .toSet()
-  require(metricKey in validKeys || ReportParser.key(metricKey)==metricKey){
+  require(metricKey in validKeys || metricKey in ReportParser.builtInMetricKeys()){
    "项目代码不存在，请先在报告中确认并保存该指标"
   }
   val builtin=ReportParser.key(alias)
