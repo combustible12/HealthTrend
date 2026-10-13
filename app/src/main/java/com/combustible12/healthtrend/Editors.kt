@@ -108,8 +108,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  LaunchedEffect(d.hospital,d.type,d.system,d.rows,aliasRevision) {
   val template=store.latestTemplate(d.hospital,d.type,d.system)
   val reconciled=d.rows.map { original ->
-    val aliasKey=if(original.key.startsWith("待核对:")||original.key.isBlank())
-     store.resolveMetricKey(original.name) else "未识别"
+    val aliasKey=if(original.key.startsWith("待核对:")||original.key.isBlank()||original.key=="未识别"){
+     val fromName=store.resolveMetricKey(original.name)
+     if(fromName!="未识别")fromName else store.resolveMetricKey(original.raw)
+    } else "未识别"
     val row=if(aliasKey!="未识别")original.copy(key=aliasKey,uncertain=false) else original
     if(template==null)row else {
     val code=row.key.removePrefix("待核对:").trim()
