@@ -402,7 +402,7 @@ class HealthStore(private val context:Context) {
  }
  @Synchronized fun saveMetricAlias(aliasInput:String,metricKeyInput:String){
   val alias=aliasInput.trim()
-  val metricKey=metricKeyInput.trim()
+  val metricKey=canonicalMetricKey(metricKeyInput.trim())
   require(alias.isNotBlank()&&metricKey.isNotBlank()){"别名和项目代码不能为空"}
   require(!alias.contains('\n')&&!metricKey.contains('\n')){"别名或代码不能包含换行"}
   val validKeys=(templates().flatMap{it.fields.map{f->f.metricKey}}+
@@ -416,6 +416,9 @@ class HealthStore(private val context:Context) {
   val owners=metricCatalogue().filter{(key,names)->canonicalMetricKey(key)!=canonicalMetricKey(metricKey)&&alias in names}.keys
   require(owners.isEmpty()){"该名称已属于其他指标：${owners.joinToString("、")}"}
   val current=metricAliases().toMutableMap()
+  require(current.none{(otherName,otherKey)->
+   otherName.equals(alias,true)&&otherName!=alias&&canonicalMetricKey(otherKey)!=metricKey
+  }){"同名别名已经对应其他指标"}
   require(preferredMetricNames().none{(key,name)->name==alias&&key!=canonicalMetricKey(metricKey)}){
    "该名称已经是其他指标的正式名称"
   }
