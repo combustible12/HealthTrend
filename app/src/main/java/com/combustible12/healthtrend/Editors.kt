@@ -101,10 +101,14 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    val reconciled=d.rows.map { row ->
     val code=row.key.removePrefix("待核对:").trim()
     val name=row.name.trim()
-    val matches=template.fields.filter { field ->
-     (code.isNotBlank() && code==field.metricKey) ||
-      (name.isNotBlank() && name!="待核对" && name==field.displayName.trim())
+    // Never overwrite an explicit known metric identity merely because a
+    // conflicting Chinese label happens to match a different template field.
+    val byCode=template.fields.filter { field -> code.isNotBlank() && code==field.metricKey }
+    val byName=template.fields.filter { field ->
+     name.isNotBlank() && name!="待核对" && name==field.displayName.trim()
     }
+    val explicitIdentity=row.key.isNotBlank() && !row.key.startsWith("待核对:")
+    val matches=if(byCode.isNotEmpty())byCode else if(explicitIdentity)emptyList() else byName
     if(matches.size==1 && row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()!=null){
      val field=matches.single()
      row.copy(key=field.metricKey,name=field.displayName,uncertain=false)
