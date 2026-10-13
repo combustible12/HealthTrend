@@ -438,6 +438,9 @@ class HealthStore(private val context:Context) {
   * built-in metric identities. Never mutates historical records or templates. */
  fun metricCatalogue():Map<String,Set<String>>{
   val names=linkedMapOf<String,MutableSet<String>>()
+  ReportParser.builtInMetricKeys().forEach{key->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.addAll(ReportParser.builtInAliasNames(key))
+  }
   templates().flatMap{it.fields}.forEach{field->
    names.getOrPut(canonicalMetricKey(field.metricKey)){linkedSetOf()}.add(field.displayName)
   }
