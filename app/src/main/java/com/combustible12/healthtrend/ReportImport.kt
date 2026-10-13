@@ -116,6 +116,8 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
    )
   }
   val consumed=matches.values.toSet()
+  // A new metric may be valid for this visit but must not silently extend
+  // the hospital's already-confirmed template.
   matched + parsed.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
  }else parsed
  return ReportDraft(
