@@ -434,6 +434,22 @@ class HealthStore(private val context:Context) {
  }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{it==metricKey}.keys.sorted()
+ /** Unified metric catalogue: union of confirmed templates, saved reports and
+  * built-in metric identities. Never mutates historical records or templates. */
+ fun metricCatalogue():Map<String,Set<String>>{
+  val names=linkedMapOf<String,MutableSet<String>>()
+  templates().flatMap{it.fields}.forEach{field->
+   names.getOrPut(canonicalMetricKey(field.metricKey)){linkedSetOf()}.add(field.displayName)
+  }
+  reports().flatMap{it.results}.forEach{result->
+   names.getOrPut(canonicalMetricKey(result.metricKey)){linkedSetOf()}.add(result.rawName)
+  }
+  metricAliases().forEach{(alias,key)->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.add(alias)
+  }
+  return names.mapValues{(_,values)->values.filter{it.isNotBlank()}.toSet()}
+ }
+
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
