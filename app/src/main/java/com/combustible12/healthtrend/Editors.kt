@@ -86,6 +86,9 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var showAliasManager by remember{mutableStateOf(false)}
  var showMetricCatalogue by remember{mutableStateOf(false)}
  var catalogueQuery by remember{mutableStateOf("")}
+ var preferredKey by remember{mutableStateOf<String?>(null)}
+ var preferredInput by remember{mutableStateOf("")}
+ var preferredError by remember{mutableStateOf("")}
  var aliasInput by remember{mutableStateOf("")}
  var aliasKeyInput by remember{mutableStateOf("")}
  var aliasError by remember{mutableStateOf("")}
@@ -177,19 +180,47 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
       Row(verticalAlignment=Alignment.CenterVertically){
        Column(Modifier.weight(1f)){
         val chineseNames=names.filter{name->name.any{it.code in 0x3400..0x9FFF}}.sorted()
-        Text(chineseNames.firstOrNull()?:key,fontWeight=FontWeight.Bold)
+        Text(store.preferredMetricName(key)?:chineseNames.firstOrNull()?:key,fontWeight=FontWeight.Bold)
         Text((listOf(key)+names.filterNot{it==chineseNames.firstOrNull()}).distinct().joinToString("、"),fontSize=12.sp,color=Muted,maxLines=2)
        }
-       TextButton({
-        aliasKeyInput=key;aliasInput="";aliasError=""
-        showMetricCatalogue=false;showAliasManager=true
-       }){Text("添加别名")}
+       Column{
+        TextButton({
+         preferredKey=key;preferredInput=store.preferredMetricName(key).orEmpty();preferredError=""
+         showMetricCatalogue=false
+        }){Text("改正式名")}
+        TextButton({
+         aliasKeyInput=key;aliasInput="";aliasError=""
+         showMetricCatalogue=false;showAliasManager=true
+        }){Text("添加别名")}
+       }
       }
       HorizontalDivider()
      }
     }
    }},
    confirmButton={TextButton({showMetricCatalogue=false}){Text("关闭")}}
+  )
+ }
+ preferredKey?.let{key->
+  AlertDialog(
+   onDismissRequest={preferredKey=null},
+   title={Text("修改正式中文名称")},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("指标代码：$key",fontSize=12.sp,color=Muted)
+    Text("只修改统一指标的展示名称，不改历史报告和医院模板",fontSize=12.sp,color=Muted)
+    Field(preferredInput,{preferredInput=it},"正式中文名称")
+    if(preferredError.isNotBlank())Text(preferredError,color=Bad,fontSize=12.sp)
+   }},
+   confirmButton={TextButton({
+    try{store.savePreferredMetricName(key,preferredInput);aliasRevision++;preferredKey=null}
+    catch(e:IllegalArgumentException){preferredError=e.message.orEmpty()}
+   }){Text("保存")}},
+   dismissButton={Row{
+    if(store.preferredMetricName(key)!=null)TextButton({
+     store.deletePreferredMetricName(key);aliasRevision++;preferredKey=null
+    }){Text("恢复默认")}
+    TextButton({preferredKey=null}){Text("取消")}
+   }}
   )
  }
  if(showAliasManager){
