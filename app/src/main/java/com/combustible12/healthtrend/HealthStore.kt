@@ -426,11 +426,46 @@ class HealthStore(private val context:Context) {
    put(JSONObject().put("alias",name).put("metricKey",key))
   }})
  }
+ /** Preferred Chinese display names are presentation-only; source report names stay intact. */
+ @Synchronized fun preferredMetricNames():Map<String,String>{
+  val data=read("metric_preferred_names")
+  return (0 until data.length()).mapNotNull { index ->
+   val row=data.optJSONObject(index) ?: return@mapNotNull null
+   val key=row.optString("metricKey").trim()
+   val name=row.optString("name").trim()
+   if(key.isBlank()||name.isBlank())null else key to name
+  }.toMap()
+ }
+ @Synchronized fun savePreferredMetricName(metricKey:String,input:String){
+  val key=canonicalMetricKey(metricKey.trim())
+  val name=input.trim()
+  require(key in metricCatalogue()){"指标不存在"}
+  require(name.isNotBlank()&&name.any{it.code in 0x3400..0x9FFF}){"正式名称必须包含中文"}
+  require(!name.contains('\n')){"名称不能包含换行"}
+  val builtin=ReportParser.key(name)
+  require(builtin=="未识别"||canonicalMetricKey(builtin)==key){"该名称已经属于其他指标"}
+  val owner=metricAliases()[name]
+  require(owner==null||canonicalMetricKey(owner)==key){"该名称已被其他指标用作别名"}
+  val current=preferredMetricNames().toMutableMap()
+  require(current.none{(other,existing)->other!=key&&existing==name}){"该名称已经被其他指标使用"}
+  current[key]=name
+  write("metric_preferred_names",JSONArray().apply{current.toSortedMap().forEach{(id,label)->
+   put(JSONObject().put("metricKey",id).put("name",label))
+  }})
+ }
+ @Synchronized fun deletePreferredMetricName(metricKey:String){
+  val current=preferredMetricNames().toMutableMap()
+  current.remove(canonicalMetricKey(metricKey))
+  write("metric_preferred_names",JSONArray().apply{current.toSortedMap().forEach{(id,label)->
+   put(JSONObject().put("metricKey",id).put("name",label))
+  }})
+ }
+ fun preferredMetricName(metricKey:String):String?=preferredMetricNames()[canonicalMetricKey(metricKey)]
  /** Only exact aliases are resolved; never fuzzy-merge two different lab identities. */
  fun resolveMetricKey(label:String):String {
   val builtin=ReportParser.key(label)
   if(builtin!="未识别")return builtin
-  return metricAliases()[label.trim()] ?: "未识别"
+  return metricAliases()[label.trim()] ?: preferredMetricNames().entries.firstOrNull{it.value==label.trim()}?.key ?: "未识别"
  }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{it==metricKey}.keys.sorted()
@@ -446,6 +481,9 @@ class HealthStore(private val context:Context) {
   }
   reports().flatMap{it.results}.forEach{result->
    names.getOrPut(canonicalMetricKey(result.metricKey)){linkedSetOf()}.add(result.rawName)
+  }
+  preferredMetricNames().forEach{(key,name)->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.add(name)
   }
   metricAliases().forEach{(alias,key)->
    names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.add(alias)
