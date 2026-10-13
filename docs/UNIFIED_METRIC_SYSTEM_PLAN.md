@@ -12,11 +12,11 @@
 - [ ] 控制 GitHub Actions 消耗：优先本地/JVM 单测、必要编译，模拟器只用于必要 UI 回归；不通过不发布。
 
 ## 1. 现状审计与数据安全（必须先做）
-- [ ] 审计 ReportParser.kt 的 aliases、chemistryNames、canonicalMetricKey 等已有词典，避免重新造轮子。
+- [x] 初步审计 ReportParser.kt 的 aliases、chemistryNames、canonicalMetricKey 等已有词典；仍需全链路复核。
 - [ ] 审计 HealthStore.kt、Editors.kt、MainActivity.kt 的导入、核对、保存、趋势及搜索链路。
 - [ ] 盘点各医院现有人工确认模板、项目身份、显示单位、参考范围、顺序及数据持久化方式。
 - [ ] 查明 AST/ALT、ALT/AST、CKMB/CK 等误匹配或保存失败的具体原因；禁止模糊合并方向不同的比值。
-- [ ] 核查报告保存层已允许模板外项目，而核对页是否仍阻止保存；排查同一规则在多处不一致。
+- [x] 确认保存层与核对页存在规则不一致：HealthStore.saveReport 不强制项目数量一致，ReportDraft.valid 对新报告的 uncertain 行仍直接拒绝；后续需修复并测试。
 - [ ] 设计不改写旧报告的兼容映射、备份/恢复、旧版本升级与回退验证。
 - [ ] 记录已存在功能、缺陷和测试空白，避免重复开发。
 
@@ -76,3 +76,13 @@
 - 当前 APK/Release：
 - 未解决问题：
 - 下一步唯一任务：
+
+## 2026-10-13 第一轮代码审计记录
+- 已读取当前 `ReportParser.kt`、`Editors.kt`、`HealthStore.kt` 和本计划，未改写任何历史数据或模板。
+- **发现 1**：`ReportParser.key` 目前依赖静态 `aliases`、`chemistryNames`、`metricIdentityKeys`；别名尚非用户可编辑的持久化词典，且不同入口是否共用仍待核对。
+- **发现 2**：`metricIdentityKeys` 含 `AST/ALT`，但未包含 `ALT/AST`；需要补充独立身份及全链路测试，不能简单互换。
+- **发现 3**：`ReportDraft.valid` 对新报告要求每行 `!uncertain` 且有中文名称；`DraftRow.from` 会因缺失结果或仅有单侧参考范围标记 uncertain，存在将数据问题与新指标身份混为一谈的风险。
+- **发现 4**：`HealthStore.saveReport` 允许模板外项目保留在本次报告，不强制报告数量等于医院模板，但核对页仍可能阻止保存。应优先修通核对层和存储层的契约。
+- **发现 5**：`ReportParser` 的 `canonicalUnits` 包含 `×10^9/L` 等，需验证是否与既定 displayUnit 不自动加乘号的显示规则冲突。
+- 本轮状态：**已开始阶段 1，完成初步静态审计；尚未实现重构、编译、发布或用户验收**。
+- 下一步唯一任务：在保留旧数据的前提下，修正报告核对与保存契约，补充对应单元测试；随后扩展统一指标身份和别名持久化。
