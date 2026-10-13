@@ -84,6 +84,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var viewingDraftImage by rememberSaveable{mutableStateOf<Int?>(null)}
  var draftImageError by remember{mutableStateOf("")}
  var showAliasManager by remember{mutableStateOf(false)}
+ var showMetricCatalogue by remember{mutableStateOf(false)}
+ var catalogueQuery by remember{mutableStateOf("")}
  var aliasInput by remember{mutableStateOf("")}
  var aliasKeyInput by remember{mutableStateOf("")}
  var aliasError by remember{mutableStateOf("")}
@@ -129,7 +131,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
-  TextButton({showAliasManager=true}){Text("管理指标别名")}
+  Row{
+   TextButton({showMetricCatalogue=true}){Text("统一指标库")}
+   TextButton({showAliasManager=true}){Text("管理指标别名")}
+  }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
@@ -154,6 +159,37 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    Spacer(Modifier.height(12.dp))
   }
  }
+ }
+ if(showMetricCatalogue){
+  val catalogue=remember(aliasRevision){store.metricCatalogue()}
+  val results=catalogue.entries.filter{(key,names)->
+   catalogueQuery.isBlank() || key.contains(catalogueQuery,true) ||
+    names.any{it.contains(catalogueQuery,true)}
+  }.sortedBy{it.key}
+  AlertDialog(
+   onDismissRequest={showMetricCatalogue=false},
+   title={Text("统一指标库")},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Field(catalogueQuery,{catalogueQuery=it},"搜索指标名称、代码或别名")
+    Text("共 ${catalogue.size} 个指标；跨医院统一身份，医院参考范围仍各自保留",fontSize=12.sp,color=Muted)
+    Column(Modifier.heightIn(max=350.dp).verticalScroll(rememberScrollState())){
+     results.forEach{(key,names)->
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Column(Modifier.weight(1f)){
+        Text(key,fontWeight=FontWeight.Bold)
+        if(names.isNotEmpty())Text(names.joinToString("、"),fontSize=12.sp,color=Muted,maxLines=2)
+       }
+       TextButton({
+        aliasKeyInput=key;aliasInput="";aliasError=""
+        showMetricCatalogue=false;showAliasManager=true
+       }){Text("添加别名")}
+      }
+      HorizontalDivider()
+     }
+    }
+   }},
+   confirmButton={TextButton({showMetricCatalogue=false}){Text("关闭")}}
+  )
  }
  if(showAliasManager){
   val savedAliases=remember(aliasRevision){store.metricAliases()}
