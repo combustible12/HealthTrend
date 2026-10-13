@@ -259,7 +259,17 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val originalResult=d.existing?.results?.firstOrNull{it.id==row.id}
   val originalCode=originalResult?.metricKey
   val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
-  MetricEditor(row,{changed->val confirmed=if(!changed.uncertain&&changed.key.startsWith("待核对:"))changed.copy(key=changed.key.removePrefix("待核对:")) else changed;d=d.copy(rows=d.rows.map{if(it.id==confirmed.id)confirmed else it})},{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
+  MetricEditor(row,{changed->
+   val confirmed=if(!changed.uncertain&&changed.key.startsWith("待核对:"))
+    changed.copy(key=changed.key.removePrefix("待核对:")) else changed
+   // A manually edited Chinese name can resolve an unknown OCR identity.
+   // Never replace an explicit code or an identity from a saved report.
+   val resolved=if(originalResult==null &&
+    (confirmed.key.isBlank()||confirmed.key=="未识别"||confirmed.key.startsWith("待核对:")))
+    store.resolveMetricKey(confirmed.name) else "未识别"
+   val next=if(resolved!="未识别")confirmed.copy(key=resolved,uncertain=false) else confirmed
+   d=d.copy(rows=d.rows.map{if(it.id==next.id)next else it})
+  },{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
  }
  if(viewingDraftImage!=null&&d.images.isNotEmpty())SourceViewer(
   d.images,
