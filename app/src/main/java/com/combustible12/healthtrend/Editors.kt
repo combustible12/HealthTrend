@@ -83,6 +83,11 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var pendingDraftReplace by remember{mutableStateOf<Int?>(null)}
  var viewingDraftImage by rememberSaveable{mutableStateOf<Int?>(null)}
  var draftImageError by remember{mutableStateOf("")}
+ var showAliasManager by remember{mutableStateOf(false)}
+ var aliasInput by remember{mutableStateOf("")}
+ var aliasKeyInput by remember{mutableStateOf("")}
+ var aliasError by remember{mutableStateOf("")}
+ var aliasRevision by remember{mutableIntStateOf(0)}
  val draftImageInput=rememberPhotoInput({uris->
   if(uris.isNotEmpty()){
    try{
@@ -121,6 +126,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
+  TextButton({showAliasManager=true}){Text("管理指标别名")}
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
@@ -145,6 +151,32 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    Spacer(Modifier.height(12.dp))
   }
  }
+ }
+ if(showAliasManager){
+  val savedAliases=remember(aliasRevision){store.metricAliases()}
+  AlertDialog(
+   onDismissRequest={showAliasManager=false},
+   title={Text("指标别名管理")},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("别名只关联指标代码，不修改历史数据或医院模板",fontSize=12.sp,color=Muted)
+    Field(aliasInput,{aliasInput=it},"别名")
+    Field(aliasKeyInput,{aliasKeyInput=it},"对应项目代码")
+    if(aliasError.isNotBlank())Text(aliasError,color=Bad,fontSize=12.sp)
+    Column(Modifier.heightIn(max=220.dp).verticalScroll(rememberScrollState())){
+     savedAliases.forEach{(name,key)->
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Text("$name → $key",modifier=Modifier.weight(1f),fontSize=13.sp)
+       TextButton({store.deleteMetricAlias(name);aliasRevision++}){Text("删除")}
+      }
+     }
+    }
+   }},
+   confirmButton={TextButton({
+    try{store.saveMetricAlias(aliasInput,aliasKeyInput);aliasInput="";aliasKeyInput="";aliasError="";aliasRevision++}
+    catch(e:IllegalArgumentException){aliasError=e.message.orEmpty()}
+   }){Text("添加别名")}},
+   dismissButton={TextButton({showAliasManager=false}){Text("关闭")}}
+  )
  }
  d.rows.firstOrNull{it.id==editing}?.let{row->
   val units=remember(row.key,d.rows){(store.rememberedUnits(row.key)+d.rows.filter{it.key==row.key}.map{it.unit}).map{it.trim()}.filter{it.isNotBlank()}.distinct()}
