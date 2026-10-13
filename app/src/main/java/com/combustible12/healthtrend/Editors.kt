@@ -167,6 +167,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  if(showMetricCatalogue){
   val catalogue=remember(aliasRevision){store.metricCatalogue()}
+  val preferredCatalogueNames=remember(aliasRevision){store.preferredMetricNames()}
   val results=catalogue.entries.filter{(key,names)->
    catalogueQuery.isBlank() || key.contains(catalogueQuery,true) ||
     names.any{it.contains(catalogueQuery,true)}
@@ -182,7 +183,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
       Row(verticalAlignment=Alignment.CenterVertically){
        Column(Modifier.weight(1f)){
         val chineseNames=names.filter{name->name.any{it.code in 0x3400..0x9FFF}}.sorted()
-        Text(store.preferredMetricName(key)?:chineseNames.firstOrNull()?:key,fontWeight=FontWeight.Bold)
+        Text(preferredCatalogueNames[key]?:chineseNames.firstOrNull()?:key,fontWeight=FontWeight.Bold)
         Text((listOf(key)+names.filterNot{it==chineseNames.firstOrNull()}).distinct().joinToString("、"),fontSize=12.sp,color=Muted,maxLines=2)
        }
        Column{
