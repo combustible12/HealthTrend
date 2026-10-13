@@ -176,8 +176,9 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
      results.forEach{(key,names)->
       Row(verticalAlignment=Alignment.CenterVertically){
        Column(Modifier.weight(1f)){
-        Text(key,fontWeight=FontWeight.Bold)
-        if(names.isNotEmpty())Text(names.joinToString("、"),fontSize=12.sp,color=Muted,maxLines=2)
+        val chineseNames=names.filter{name->name.any{it.code in 0x3400..0x9FFF}}.sorted()
+        Text(chineseNames.firstOrNull()?:key,fontWeight=FontWeight.Bold)
+        Text((listOf(key)+names.filterNot{it==chineseNames.firstOrNull()}).distinct().joinToString("、"),fontSize=12.sp,color=Muted,maxLines=2)
        }
        TextButton({
         aliasKeyInput=key;aliasInput="";aliasError=""
