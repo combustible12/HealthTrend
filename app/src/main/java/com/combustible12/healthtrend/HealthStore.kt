@@ -18,7 +18,23 @@ class HealthStore(private val context:Context) {
      !prefs.contains("course_records")) migrateCurrentTemplates()
  }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
- private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
+ private fun write(key:String,a:JSONArray){
+  // A durable rollback checkpoint is written BEFORE changing critical datasets.
+  // Never restore automatically: doing so could overwrite newer confirmed data.
+  if(key in setOf("reports","course_records","templates")){
+   val previous=prefs.getString(key,null)
+   if(previous!=null && previous!=a.toString()){
+    val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
+    check(safety.edit().putString(key+":previous",previous)
+     .putLong(key+":savedAt",System.currentTimeMillis()).commit()){
+     "无法保存历史数据安全快照，已取消本次修改"
+    }
+   }
+  }
+  check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){
+   "记录保存失败，请检查设备存储空间"
+  }
+ }
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
  /** The maternal CBC formerly used RDW for CV. Resolve only an unambiguous % result. */
  private fun normalizeMaternalRdw(report:LabReport):LabReport {
