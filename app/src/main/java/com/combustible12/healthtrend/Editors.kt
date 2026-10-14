@@ -122,7 +122,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
     val name=row.name.trim()
     // Never overwrite an explicit known metric identity merely because a
     // conflicting Chinese label happens to match a different template field.
-    val byCode=template.fields.filter { field -> code.isNotBlank() && code==field.metricKey }
+    val byCode=template.fields.filter { field -> code.isNotBlank() && canonicalMetricKey(code)==canonicalMetricKey(field.metricKey) }
     val byName=template.fields.filter { field ->
      name.isNotBlank() && name!="待核对" && name==field.displayName.trim()
     }
