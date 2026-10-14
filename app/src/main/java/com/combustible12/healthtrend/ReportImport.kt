@@ -114,7 +114,12 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  * do not apply OCR's independent-result heuristic to typed unit strings. */
 internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:HospitalLabTemplate):List<ParsedLabResult>{
  val matches=matchTemplateRows(template.fields,items)
- val accepted=matches.filterValues{it.textValue.isNotBlank()}
+ // If multiple clipboard rows have the same canonical identity, never silently
+ // choose one value: keep both sources for review rather than binding the first.
+ val repeated=items.groupingBy{canonicalMetricKey(it.metricKey)}.eachCount()
+ val accepted=matches.filterValues{source->
+  source.textValue.isNotBlank() && repeated[canonicalMetricKey(source.metricKey)]==1
+ }
  val bound=template.fields.mapIndexedNotNull{index,field->
   val source=accepted[index]?:return@mapIndexedNotNull null
   source.copy(metricKey=field.metricKey,displayName=field.displayName,
