@@ -276,9 +276,11 @@ class HealthStore(private val context:Context) {
    .filter{canonicalMetricKey(it.metricKey)==identity &&
     (it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)}
    .map{result->
-    val unit=UnitNormalizer.normalize(identity,result.value,result.unitAtTest).second
-    val low=UnitNormalizer.normalize(identity,result.referenceLowAtTest,result.unitAtTest).first
-    val high=UnitNormalizer.normalize(identity,result.referenceHighAtTest,result.unitAtTest).first
+    val lower=UnitNormalizer.normalize(identity,result.referenceLowAtTest,result.unitAtTest)
+    val upper=UnitNormalizer.normalize(identity,result.referenceHighAtTest,result.unitAtTest)
+    val unit=if(result.referenceLowAtTest!=null)lower.second else upper.second
+    val low=lower.first
+    val high=upper.first
     Evidence(report,result.copy(unitAtTest=unit,referenceLowAtTest=low,referenceHighAtTest=high))
    }
   }
