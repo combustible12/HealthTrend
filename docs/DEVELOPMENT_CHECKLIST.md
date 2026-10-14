@@ -53,6 +53,8 @@
 > 2026-10-14 集中补充：按检查类型标准分类并关联跨医院历史/自定义项目（[7811387](https://github.com/combustible12/HealthTrend/commit/781138738a94c88af9cc62fdb6f98f6e0eddd264)）；统一指标库添加全部/血常规/生化/肝肾功能/肿瘤标志物/凝血/铁代谢/炎症/甲状腺/糖代谢/心肌/维生素筛选（[ad45f89](https://github.com/combustible12/HealthTrend/commit/ad45f8903005e483497c8b46098fe3aea6b13e0e)、[0663956](https://github.com/combustible12/HealthTrend/commit/066395625399bd68b8c2ccb79617780339a64c59)）；词典扩展到 110 个不同身份，静态检测没有重复代码或重名别名（[417e047](https://github.com/combustible12/HealthTrend/commit/417e047a85516bc916b6653d8b91ae280a5093a8)），已加入分类/易混指标测试（[a621f8c](https://github.com/combustible12/HealthTrend/commit/a621f8cda4f6df8a6e3664bb7884593595713435)）。**代码编写已覆盖两条任务的主体，未运行测试、编译或发布；词典中个别单位故意留空以免猜测，外部权威来源逐条审核未完成，不能称医学资料审定通过。**
 
 ## 3. 标准化导入、核对与保存
+> **草稿功能更新（2026-10-14）**：新增 `ReportDraftStore.kt` 与 `ReportDraftPersistenceTest.kt`；`ReportEditor` 暂存/离开自动暂存；记录页可打开待核对草稿列表，继续核对或删除。草稿仅在 `filesDir/report-drafts` 独立保存，不写入 `reports` 或 `course_records`。提交 [0b3bcb0](https://github.com/combustible12/HealthTrend/commit/0b3bcb0cf8cab53fac784a0416d064f8c2757188)、[51bf692](https://github.com/combustible12/HealthTrend/commit/51bf6928364fc2ab733636dabcdb5f7212614cfd)；[CI 38531351467](https://github.com/combustible12/HealthTrend/actions/runs/38531351467) 编译和回归测试通过。**尚未真机验证，验收栏保持空白**。
+
 > **2026-10-14 本轮进度**：新报告 `buildReportFromPool` 写入流程与导入/编辑页已解除医院模板依赖，`我的`页面隐藏遗留模板入口（遗留模板实际数据不删）。[CI 38529695948](https://github.com/combustible12/HealthTrend/actions/runs/38529695948) 的 Kotlin 编译及 **115/115** 单元测试通过（尚未涵盖后续页面隐藏提交）；[CI 38529982460](https://github.com/combustible12/HealthTrend/actions/runs/38529982460) 含页面隐藏改动的 Kotlin 编译及回归测试亦已通过。病程模块未进行本轮改写，真实设备备份、恢复与历史趋势完整验收未做；**不可因此将任何验收勾选为完成**。
 
 
@@ -61,11 +63,11 @@
 - **代码编写** [x]　**验收通过** [ ]　不同医院报告中的 B 名称转换成 App 固定 A 名称；对外导出固定粘贴格式（医院、检查类型、YYYY-MM-DD、代码 中文名 结果 单位 参考范围）。
 - **代码编写** [x]　**验收通过** [ ]　新报告仅从统一标准池提取本次实际检测项目；已知身份直接关联，未知身份经确认新增统一标准池，且仅保存本次报告项目集合。
 - **代码编写** [x]　**验收通过** [ ]　每份报告项目集合独立，数量不受医院或其他报告约束；未测项目不生成、不补零；保存报告绝不自动创建或修改医院模板。
-- **代码编写** [ ]　**验收通过** [ ]　校验只拦截真实无效数据，指出具体行及原因；支持编辑、删除、暂存待核对项目，不因单项问题锁死整份报告。
+- **代码编写** [x]　**验收通过** [ ]　校验只拦截真实无效数据，指出具体行及原因；支持编辑、删除、暂存待核对项目，不因单项问题锁死整份报告。
 - **代码编写** [x]　**验收通过** [ ]　保留原始结果精度、displayUnit、canonicalUnit、参考范围、医院、日期及报告来源；不得擅自增加单位乘号。
 - **代码编写** [x]　**验收通过** [ ]　检验导出名称与 App 实际导入词典一致；考虑词典配置导出/导入以同步用户本地自定义别名。
 
-> 2026-10-14 本轮提交：精确优先、候选冲突不猜（[52de9bc](https://github.com/combustible12/HealthTrend/commit/52de9bc8da18d16457506dd09fbce13bb98cc8ce)）；标准粘贴格式报告复制和指标词典 JSON 导入导出（[6095490](https://github.com/combustible12/HealthTrend/commit/6095490a573c026fa5764bcf0c4704d5967174db)、[26bd589](https://github.com/combustible12/HealthTrend/commit/26bd589f46d4be138046b612be53703876a3fade)、[e52f81b](https://github.com/combustible12/HealthTrend/commit/e52f81bde6b1e0ddf63f40175110fb90e8e25551)）；行级校验错误详情（[41ceb67](https://github.com/combustible12/HealthTrend/commit/41ceb67a700891181e413e87739031f3c2533349)）。**第 2 条匹配规则中的“类型综合判断、统一标准池优先级”仍需全链路核查；第 6 条的待核对项目暂存尚未完整实现，因此这两条代码勾选仍为空。全部验收仍为空，未执行编译。**
+> **2026-10-14 补充**：第 6 项持久草稿代码已提交，草稿和正式报告分离；支持返回自动暂存、主动暂存、列表继续核对与删除、正式保存后清理对应草稿。编译及单元回归通过，但尚未在手机真实进程重启/断电/图片恢复场景验收。其他早期施工备注不作为当前进度。
 
 ## 4. 别名注释、管理与搜索
 - **代码编写** [x]　**验收通过** [ ]　App 内可查看、添加、编辑、删除别名；修改后持久化，重启和升级后保留，不需发新版 APK。
