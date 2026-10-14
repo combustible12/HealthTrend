@@ -307,7 +307,8 @@ class HealthStore(private val context:Context) {
   require(high==null||high.isFinite()){"参考上限无效"}
   val a=UnitNormalizer.normalize(identity,low,unit)
   val b=UnitNormalizer.normalize(identity,high,unit)
-  require(a.first==null||b.first==null||a.first<=b.first){"参考范围上下限不正确"}
+   val normalizedLow=a.first;val normalizedHigh=b.first
+   require(normalizedLow==null||normalizedHigh==null||normalizedLow<=normalizedHigh){"参考范围上下限不正确"}
   val common=UnifiedMetricStandard.definition(identity)?.unit.orEmpty()
   val actual=if(low!=null)a.second else b.second
   // An unconvertible source unit must never be relabelled as the common unit.
