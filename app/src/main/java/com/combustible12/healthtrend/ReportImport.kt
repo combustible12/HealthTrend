@@ -290,7 +290,13 @@ fun retargetImportedDraft(
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
  if(target!=null){
-  return next.copy(rows=templateDrivenResults(original,target).map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,target))})
+  // Changing hospital/panel must not throw away manual corrections already
+  // made in the editor. Retain every entered result and request review of
+  // its target-template identity, unit and reference range.
+  val known=target.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
+  return next.copy(rows=d.rows.map{row->
+   row.copy(uncertain=row.uncertain || canonicalMetricKey(row.key) !in known)
+  })
  }
  val rows=d.rows.map{row->
   // No confirmed target template: preserve user edits while retargeting OCR fields.
