@@ -11,7 +11,12 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- init { migrateCurrentTemplates(); migrateMaternalRdwReports(); migrateAstAltIdentity() }
+ // Existing confirmed reports, trends and course records are immutable on app startup.
+ // Legacy repairs must be opt-in after an external backup, never automatic.
+ init {
+  if(!prefs.contains("templates") && !prefs.contains("reports") &&
+     !prefs.contains("course_records")) migrateCurrentTemplates()
+ }
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){check(prefs.edit().putString(key,a.toString()).putInt("schema",2).commit()){ "记录保存失败，请检查设备存储空间" }}
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
