@@ -107,6 +107,9 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  // Match only unambiguous OCR identities to the active confirmed template.
  // A report import must never overwrite the template's metadata.
  LaunchedEffect(d.hospital,d.type,d.system,d.rows,aliasRevision) {
+  // Editing a historical report must never silently relabel its stored
+  // identities or source names using today's dictionary/template.
+  if(d.existing!=null)return@LaunchedEffect
   val template=store.latestTemplate(d.hospital,d.type,d.system)
   val reconciled=d.rows.map { original ->
     val aliasKey=if(original.key.startsWith("待核对:")||original.key.isBlank()||original.key=="未识别"){
