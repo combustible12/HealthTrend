@@ -9,6 +9,11 @@
 4. 一次处理相互关联的任务；施工过程中不每次提交就编译。只有用户要求或整个功能模块开发结束后，才集中测试、编译、发布。
 5. 每次换班前更新本文件的「接班现场」、剩余任务、关键提交，并同步开发清单的**代码编写**和**验收通过**两个独立状态。编写勾选仅代表有关代码存在，不代表全部行为已实现；验收必须有测试证据。
 
+## 续工：首批权威医学术语核对（2026-10-14）
+- [医学审核台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md) 现记录 **15/110 项血常规指标概念与 LOINC 候选术语**（[88c53a8](https://github.com/combustible12/HealthTrend/commit/88c53a82c5ae427f3b0956e1aefbad4898683fb5)）。其余 95 项仍需外部资料核对；全部 110 项的检测方法、标本、单位等设备条件尚不能认定已完整审定。
+- 重要发现：LOINC 的旧 RDW-SD 模糊代码 `21000-5` 已弃用，指向独立 CV/SD 代码 `115741-1` 与 `115742-9`；D-Dimer 的 FEU/DDU 标准不可凭名称自动合并。**候选术语映射不得用于重写历史检验结果。**
+- 主清单第 2.4 仍为代码 [ ] / 验收 [ ]；继续按明确来源逐项补充证据，绝不为打勾猜单位或制造临床参考范围。没有修改患者数据或病程。
+
 ## 第 2 节医学词典核验进度（2026-10-14）
 - 已枚举现有 `UnifiedMetricStandard.kt` 共 110 个定义，生成 [逐项台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md)，记录每项现有身份、中文名、显示单位、别名，并明确每项**还需专业资料逐项审校**。其中 14 项常用单位留空，不得默认填值。
 - 新增 `UnifiedMetricStandardAuditTest.kt` 的身份、相似代码、中文名、别名冲突等静态防护；[b4a3d39](https://github.com/combustible12/HealthTrend/commit/b4a3d399dc54cf7f03db4db6ccecee6ee163a65e)、台账 [99f6c0b](https://github.com/combustible12/HealthTrend/commit/99f6c0b7d280a989302c5719acd7ebfa022f224b)。
