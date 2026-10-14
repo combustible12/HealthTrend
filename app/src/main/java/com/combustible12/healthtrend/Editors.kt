@@ -389,7 +389,29 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else photoInput.gallery()},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
   item{PhotoInputButtons(photoInput,!busy,"相册添加原图")}
   if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{val aliases=store.metricAliasNames(x.metricKey);if(aliases.isNotEmpty())Text("别名："+aliases.joinToString("、"),color=Muted,fontSize=12.sp);Row{Text(store.preferredMetricName(x.metricKey)?:labDisplayTitle(x.rawName,x.metricKey),modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))};ResultValueUnit(x.textValue,x.unitAtTest);Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}",color=Muted);if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp);if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}}}
+  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{
+   val standard=store.preferredMetricName(x.metricKey)
+    ?:UnifiedMetricStandard.definition(x.metricKey)?.name
+    ?:labDisplayTitle(x.rawName,x.metricKey)
+   val commonUnit=UnifiedMetricStandard.definition(x.metricKey)?.unit.orEmpty()
+   val normalized=UnitNormalizer.normalize(x.metricKey,x.value,x.unitAtTest)
+   val bounds=x.trendReferenceRange()
+   val converted=commonUnit.isNotBlank()&&normalized.second==commonUnit &&
+    x.value!=null && (normalized.first!=x.value)
+   val printedName=labDisplayTitle(x.rawName,x.metricKey)
+   Row{Text(standard,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))}
+   if(converted){
+    ResultValueUnit(normalized.first?.let{String.format(java.util.Locale.US,"%.3f",it).trimEnd('0').trimEnd('.')}?:x.textValue,normalized.second)
+    Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
+    Text("原始："+x.textValue+" "+x.unitAtTest+"，参考范围 "+rangeText(x.referenceLowAtTest,x.referenceHighAtTest)+" "+x.unitAtTest,color=Muted,fontSize=12.sp)
+   }else{
+    ResultValueUnit(x.textValue,if(commonUnit.isNotBlank()&&normalized.second==commonUnit)commonUnit else x.unitAtTest)
+    Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
+   }
+   if(printedName!=standard)Text("原名称："+printedName,color=Muted,fontSize=12.sp)
+   if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
+   if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}
+  }}
  }}
  if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${labDisplayTitle(point!!.rawName,point!!.metricKey)}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble(),value.trim());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
  if(confirmDelete)DeleteConfirmation({confirmDelete=false},delete)
