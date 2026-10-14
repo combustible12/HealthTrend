@@ -86,6 +86,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var showAliasManager by remember{mutableStateOf(false)}
  var showMetricCatalogue by remember{mutableStateOf(false)}
  var catalogueQuery by remember{mutableStateOf("")}
+ var catalogueType by remember{mutableStateOf("全部")}
  var preferredKey by remember{mutableStateOf<String?>(null)}
  var preferredInput by remember{mutableStateOf("")}
  var preferredError by remember{mutableStateOf("")}
@@ -199,16 +200,23 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  if(showMetricCatalogue){
   val catalogue=remember(aliasRevision){store.metricCatalogue()}
   val preferredCatalogueNames=remember(aliasRevision){store.preferredMetricNames()}
+  val typeKeys=if(catalogueType=="全部")catalogue.keys
+   else store.metricPoolForType(catalogueType).map{it.key}.toSet()
   val results=catalogue.entries.filter{(key,names)->
-   catalogueQuery.isBlank() || key.contains(catalogueQuery,true) ||
-    names.any{it.contains(catalogueQuery,true)}
+   key in typeKeys && (catalogueQuery.isBlank() || key.contains(catalogueQuery,true) ||
+    names.any{it.contains(catalogueQuery,true)})
   }.sortedBy{it.key}
   AlertDialog(
    onDismissRequest={showMetricCatalogue=false},
    title={Text("统一指标库")},
    text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
     Field(catalogueQuery,{catalogueQuery=it},"搜索指标名称、代码或别名")
-    Text("共 ${catalogue.size} 个指标；跨医院统一身份，医院参考范围仍各自保留",fontSize=12.sp,color=Muted)
+    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+     listOf("全部","血常规","生化","肝功能","肾功能","肿瘤标志物","凝血","铁代谢","炎症").forEach{type->
+      TextButton({catalogueType=type}){Text(if(catalogueType==type)"✓ $type" else type)}
+     }
+    }
+    Text("当前显示 ${results.size} 项／总计 ${catalogue.size} 项；按检查类型筛选，不影响历史报告",fontSize=12.sp,color=Muted)
     Column(Modifier.heightIn(max=350.dp).verticalScroll(rememberScrollState())){
      results.forEach{(key,names)->
       Row(verticalAlignment=Alignment.CenterVertically){
