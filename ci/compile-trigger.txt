@@ -13,3 +13,5 @@ Final recheck after retired-template UI removal 2026-10-14.
 2026-10-14 persistent pending report drafts roundtrip compile and regression.
 
 Run standalone pending-draft roundtrip regression test 2026-10-14.
+
+2026-10-14 one-shot unified 110-item metric registry audit regression.
