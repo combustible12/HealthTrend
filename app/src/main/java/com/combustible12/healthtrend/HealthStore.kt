@@ -248,8 +248,10 @@ class HealthStore(private val context:Context) {
    sourceImages=(existingImages+normalized.sourceImages).distinctBy{it.uri}
   )
   require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
-  require(r.results.all{it.metricKey.isNotBlank()&&it.reportId==r.id&&it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效"}
-  require(r.results.map{it.metricKey}.distinct().size==r.results.size){"报告存在重复项目 ID"}
+  require(r.results.all{it.metricKey.isNotBlank()&&it.metricKey!="未识别"&&
+   !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
+   it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
+  require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
   latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.let{template->
    val expected=template.fields.map{it.metricKey}
    val actual=r.results.map{it.metricKey}
