@@ -11,7 +11,7 @@ import java.util.zip.ZipOutputStream
  * Export-only, read-only snapshot. Never touches existing records or templates.
  * The user owns the resulting ZIP via Android's document picker.
  */
-class HealthBackup(private val context: Context) {
+class HealthBackup(private val context: Context, private val store: HealthStore) {
  data class Summary(val files:Int,val bytes:Long,val reports:Int,val templates:Int)
 
  fun export(destination:Uri):Summary {
@@ -28,7 +28,6 @@ class HealthBackup(private val context: Context) {
   require(entries.any{it.first=="shared_prefs/healthtrend_store_v1.xml"}){
    "未找到主数据文件，已取消备份"
   }
-  val store=HealthStore(context)
   val reportCount=store.reports().size
   val templateCount=store.templates().size
   var bytes=0L
