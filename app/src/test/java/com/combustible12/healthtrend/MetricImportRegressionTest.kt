@@ -122,4 +122,14 @@ class MetricImportRegressionTest {
   assertEquals("AST/ALT",UnifiedMetricStandard.resolveName("谷草/谷丙"))
   assertEquals("ALT/AST",UnifiedMetricStandard.resolveName("谷丙/谷草"))
  }
+
+ @Test fun detailedRowValidationIdentifiesBadBounds() {
+  val draft=ReportDraft(hospital="模拟医院",type="生化",date="2026-10-14",
+   rows=listOf(DraftRow(name="肌酐",key="CREA",text="1.0",unit="mg/dL",low="2",high="1")))
+  assertTrue(reportValidationProblems(draft).any{it.contains("第1项")&&it.contains("下限大于上限")})
+ }
+ @Test fun standardDictionaryKeepsOppositeRatiosSeparate() {
+  assertEquals("AST/ALT",UnifiedMetricStandard.resolveName("谷草/谷丙"))
+  assertEquals("ALT/AST",UnifiedMetricStandard.resolveName("谷丙/谷草"))
+ }
 }
