@@ -115,7 +115,9 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
     textValue=source.textValue,comparator=source.comparator
    )
   }
-  val consumed=matches.values.toSet()
+  // Consume only rows that were actually emitted. A template match with no
+  // measured result must remain visible for manual review, never disappear.
+  val consumed=matches.filter{(_,source)->source.textValue.isNotBlank()}.values.toSet()
   // A new metric may be valid for this visit but must not silently extend
   // the hospital's already-confirmed template.
   matched + parsed.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
