@@ -52,7 +52,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   val draft=pastedReportDraft(raw,template)
   assertEquals("霞浦县中医院",draft.hospital);assertEquals("生化",draft.type);assertEquals("2026-09-23",draft.date)
   assertEquals(listOf("ALT","CREA"),draft.rows.map{it.key});assertEquals(listOf("23","46"),draft.rows.map{it.text})
-  assertEquals("U/L",draft.rows[0].unit);assertEquals("9.0",draft.rows[0].low);assertEquals("50.0",draft.rows[0].high)
+  assertTrue("错误单位不得从旧医院模板自动补成 U/L",draft.rows[0].unit!="U/L");assertEquals("9.0",draft.rows[0].low);assertEquals("50.0",draft.rows[0].high)
  }
  @Test fun fixedClipboardFormatKeepsOnlyActuallyTestedMetrics(){
   val cbcLines=listOf(
@@ -499,7 +499,7 @@ AST/ALT 谷草/谷丙 0.88""")
  @Test fun savedRangeAndCanonicalKeyRemainAvailableToDetailsAndTrends(){
   val parsed=ReportParser.parse("#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L\nWBC 白细胞 7.25 3.5-9.5 10^9/L")
   val saved=parsed.mapIndexed{i,p->LabResult("$i","r","医院","血常规",1,p.metricKey,p.displayName,p.value,p.unit,p.referenceLow,p.referenceHigh,requireNotNull(parseDate("2016-9-18")),textValue=p.textValue,normalizedValue=UnitNormalizer.normalize(p.metricKey,p.value,p.unit).first,normalizedUnit=UnitNormalizer.normalize(p.metricKey,p.value,p.unit).second)}
-  assertEquals("#NEUT 中性粒细胞计数",saved[0].rawName);assertEquals("NEUT#",saved[0].metricKey)
+  assertEquals("中性粒细胞计数",saved[0].rawName);assertTrue(parsed[0].rawLine.startsWith("#NEUT"));assertEquals("NEUT#",saved[0].metricKey)
   assertEquals("3.5–9.5",rangeText(saved[1].referenceLowAtTest,saved[1].referenceHighAtTest));assertEquals(3.5,saved[1].trendReferenceRange().first!!,0.0);assertEquals(9.5,saved[1].trendReferenceRange().second!!,0.0)
   assertEquals(1,listOf(ReportParser.key("#NEUT"),ReportParser.key("NEUT#")).groupBy{it}.size)
  }
