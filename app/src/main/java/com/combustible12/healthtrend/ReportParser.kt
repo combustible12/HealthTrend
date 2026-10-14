@@ -65,7 +65,7 @@ object ReportParser {
  internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
-  if(key(trimmed)!="未识别")return@joinToString trimmed
+  if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(trimmed))return@joinToString trimmed
   // Clipboard contract: the first whitespace-delimited token is the complete metric code.
   // Identity is exact: AST != AST/ALT, NEUT# != NEUT%, P-LCR != P-LCC.
   val token=trimmed.substringBefore(' ').substringBefore('\t').trim()
