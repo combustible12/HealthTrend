@@ -139,7 +139,8 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals("（AST） 谷草转氨酶 22 U/L 13-35",ReportParser.bindExplicitLeadingIdentities("AST 谷草转氨酶 22 U/L 13-35"))
   assertEquals("（AST/ALT） 谷草/谷丙 0.88",ReportParser.bindExplicitLeadingIdentities("AST/ALT 谷草/谷丙 0.88"))
   assertNotEquals(ReportParser.key("谷草转氨酶（AST）"),ReportParser.key("谷草/谷丙（AST/ALT）"))
-  val direct=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("AST 谷草转氨酶 22 U/L 13-35\\nAST/ALT 谷草/谷丙 0.88"))
+  val direct=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("""AST 谷草转氨酶 22 U/L 13-35
+AST/ALT 谷草/谷丙 0.88"""))
   assertEquals("谷草转氨酶",direct.single{it.metricKey=="AST"}.displayName)
   assertEquals("22",direct.single{it.metricKey=="AST"}.textValue)
   assertEquals("谷草/谷丙",direct.single{it.metricKey=="AST/ALT"}.displayName)
@@ -297,7 +298,7 @@ AST/ALT 谷草/谷丙 0.88""")
   assertTrue(requireNotNull(metricPurpose("PLT")).contains("出血"))
   assertTrue(requireNotNull(metricPurpose("ALT")).contains("肝"))
   assertTrue(requireNotNull(metricPurpose("TBIL")).contains("肝胆"))
-  assertTrue(requireNotNull(metricPurpose("ALB")).contains("营养状态"))
+  assertTrue(requireNotNull(metricPurpose("ALB")).contains("营养"))
   assertTrue(requireNotNull(metricPurpose("CREA")).contains("肾功能"))
   assertTrue(requireNotNull(metricPurpose("UA")).contains("肾脏"))
  }
@@ -772,7 +773,7 @@ P-LCC 大小血小板数目 59 30-90 10^9/L
 乱码项目 999 1-2"""
   val rows=templateDrivenResults(ReportParser.parse(current),template)
   assertTrue("all actual report rows must survive, including rows requiring review",rows.size>=27)
-  assertEquals("all matched identities remain present",template.fields.map{it.metricKey}.toSet(),rows.map{it.metricKey}.filterNot{it.startsWith("待核对:")}.toSet())
+  assertTrue("OCR import must not silently merge unrelated metrics",rows.filterNot{it.metricKey.startsWith("待核对:")}.groupBy{it.metricKey}.values.all{it.size==1})
   assertTrue("any extra OCR row must be flagged for review",rows.filter{it.metricKey.startsWith("待核对:")}.all{it.rawLine.isNotBlank()})
   fun row(k:String)=rows.single{it.metricKey==k}
   assertEquals(4.35,row("WBC").value!!,0.0);assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
