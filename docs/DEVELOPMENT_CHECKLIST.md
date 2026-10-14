@@ -53,7 +53,7 @@
 > 2026-10-14 集中补充：按检查类型标准分类并关联跨医院历史/自定义项目（[7811387](https://github.com/combustible12/HealthTrend/commit/781138738a94c88af9cc62fdb6f98f6e0eddd264)）；统一指标库添加全部/血常规/生化/肝肾功能/肿瘤标志物/凝血/铁代谢/炎症/甲状腺/糖代谢/心肌/维生素筛选（[ad45f89](https://github.com/combustible12/HealthTrend/commit/ad45f8903005e483497c8b46098fe3aea6b13e0e)、[0663956](https://github.com/combustible12/HealthTrend/commit/066395625399bd68b8c2ccb79617780339a64c59)）；词典扩展到 110 个不同身份，静态检测没有重复代码或重名别名（[417e047](https://github.com/combustible12/HealthTrend/commit/417e047a85516bc916b6653d8b91ae280a5093a8)），已加入分类/易混指标测试（[a621f8c](https://github.com/combustible12/HealthTrend/commit/a621f8cda4f6df8a6e3664bb7884593595713435)）。**代码编写已覆盖两条任务的主体，未运行测试、编译或发布；词典中个别单位故意留空以免猜测，外部权威来源逐条审核未完成，不能称医学资料审定通过。**
 
 ## 3. 标准化导入、核对与保存
-> **2026-10-14 本轮进度**：新报告 `buildReportFromPool` 写入流程与导入/编辑页已解除医院模板依赖，`我的`页面隐藏遗留模板入口（遗留模板实际数据不删）。[CI 38529695948](https://github.com/combustible12/HealthTrend/actions/runs/38529695948) 的 Kotlin 编译及 **115/115** 单元测试通过（尚未涵盖后续页面隐藏提交）；最新整合 CI 仍需确认。病程模块未进行本轮改写，真实设备备份、恢复与历史趋势完整验收未做；**不可因此将任何验收勾选为完成**。
+> **2026-10-14 本轮进度**：新报告 `buildReportFromPool` 写入流程与导入/编辑页已解除医院模板依赖，`我的`页面隐藏遗留模板入口（遗留模板实际数据不删）。[CI 38529695948](https://github.com/combustible12/HealthTrend/actions/runs/38529695948) 的 Kotlin 编译及 **115/115** 单元测试通过（尚未涵盖后续页面隐藏提交）；[CI 38529982460](https://github.com/combustible12/HealthTrend/actions/runs/38529982460) 含页面隐藏改动的 Kotlin 编译及回归测试亦已通过。病程模块未进行本轮改写，真实设备备份、恢复与历史趋势完整验收未做；**不可因此将任何验收勾选为完成**。
 
 
 - **代码编写** [x]　**验收通过** [ ]　OCR、粘贴、手动录入使用统一匹配引擎与标准中文名称。
