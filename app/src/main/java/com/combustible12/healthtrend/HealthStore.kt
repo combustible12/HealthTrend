@@ -260,12 +260,12 @@ class HealthStore(private val context:Context) {
   return reports
  }
  /**
-  * Reference intervals are observations belonging to individual reports, not mutable
-  * properties of a global metric. Different hospitals and analyzer systems may use
-  * different limits. Do not merge by metric alone or overwrite old test-time bounds.
+  * Preserve every reference interval observed in reports. A hospital may use
+  * multiple intervals for the same test; none replaces earlier test-time bounds.
+  * No analyzer identifier is required or inferred.
   */
  data class ObservedReferenceRange(
-  val hospitalKey:String,val reportType:String,val systemKey:String,
+  val hospitalKey:String,val reportType:String,
   val metricKey:String,val unit:String,val lower:Double?,val upper:Double?,
   val firstObservedAt:Long,val lastObservedAt:Long,val reportCount:Int
  )
@@ -278,19 +278,19 @@ class HealthStore(private val context:Context) {
    .map{Evidence(report,it)}
   }
   return evidence.groupBy{e->listOf(
-   e.report.hospitalKey.trim(),e.report.reportType.trim(),e.report.systemKey.trim(),
+   e.report.hospitalKey.trim(),e.report.reportType.trim(),
    identity,e.result.unitAtTest,e.result.referenceLowAtTest?.toString().orEmpty(),
    e.result.referenceHighAtTest?.toString().orEmpty()
   )}.values.map{group->
    val first=group.first()
    ObservedReferenceRange(first.report.hospitalKey,first.report.reportType,
-    first.report.systemKey,identity,first.result.unitAtTest,
+    identity,first.result.unitAtTest,
     first.result.referenceLowAtTest,first.result.referenceHighAtTest,
     group.minOf{it.report.testedAtEpochMillis},
     group.maxOf{it.report.testedAtEpochMillis},
     group.map{it.report.id}.distinct().size)
   }.sortedWith(compareBy<ObservedReferenceRange>{it.firstObservedAt}
-   .thenBy{it.hospitalKey}.thenBy{it.systemKey})
+   .thenBy{it.hospitalKey}.thenBy{it.reportType})
  }
  @Synchronized fun saveReport(input:LabReport){
   // Do not rewrite a confirmed report's metric identities on ordinary save.
