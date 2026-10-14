@@ -79,4 +79,28 @@ class MetricImportRegressionTest {
   assertEquals("ALT",UnifiedMetricStandard.resolveName("丙氨酸氨基转移酶"))
   assertEquals("10^9/L",UnifiedMetricStandard.definition("WBC")?.unit)
  }
+
+ @Test fun pastedTemplateKeepsOriginalAliasAndOwnReferenceRange() {
+  val template=HospitalLabTemplate("示例医院","血常规",1,true,listOf(
+   LabFieldTemplate("WBC","白细胞计数","10^9/L",3.5,9.5)
+  ))
+  val pasted=listOf(ParsedLabResult("WBC","白细胞数目",4.2,"10^9/L",4.0,10.0,
+   "WBC 白细胞数目 4.2 10^9/L 4-10",true,"4.2"))
+  val rows=templateDrivenPastedResults(pasted,template)
+  assertEquals(1,rows.size)
+  assertEquals("WBC",rows.single().metricKey)
+  assertEquals("白细胞数目",rows.single().displayName)
+  assertEquals(4.0,rows.single().referenceLow!!,0.001)
+  assertEquals(10.0,rows.single().referenceHigh!!,0.001)
+ }
+ @Test fun reportOriginalValueAndConvertedReferenceUseSameUnit() {
+  val result=LabResult("x","report","示例医院","生化",null,"CREA","血肌酐",
+   0.8,"mg/dL",0.6,1.1,1L,textValue="0.8")
+  assertEquals(70.72,UnitNormalizer.normalize(result.metricKey,result.value,result.unitAtTest).first!!,0.001)
+  val bounds=result.trendReferenceRange()
+  assertEquals(53.04,bounds.first!!,0.001)
+  assertEquals(97.24,bounds.second!!,0.001)
+  assertEquals("0.8",result.textValue)
+  assertEquals("mg/dL",result.unitAtTest)
+ }
 }
