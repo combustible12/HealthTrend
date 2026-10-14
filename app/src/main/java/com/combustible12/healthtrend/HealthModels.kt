@@ -107,12 +107,12 @@ data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpoc
 /** Conservative normalization: only conversions with an unambiguous laboratory-unit relationship are applied. */
 object UnitNormalizer {
  fun normalize(metricKey:String,value:Double?,unit:String):Pair<Double?,String>{
-  if(value==null)return null to unit
+  if(value==null)return null to normalize(metricKey,1.0,unit).second
   val u=unit.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
-   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "×10^9/L"
+   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "10^9/L"
    metricKey in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR") && u=="%" -> value to "%"
-   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l") -> value to "×10^12/L"
+   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l") -> value to "10^12/L"
    metricKey in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
    metricKey=="HGB" && u=="g/dl" -> value*10.0 to "g/L"
    metricKey=="ALB" && u=="g/dl" -> value*10.0 to "g/L"
