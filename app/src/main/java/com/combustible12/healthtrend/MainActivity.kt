@@ -610,7 +610,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
  val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NEUT%","LYMPH%","MONO%","EOS%","BASO%","RDW","RDW-CV","RDW-SD","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%")
  return when(category){
   "肝功能"->key in liver
-  "肾功能"->key in kidney
+  "肾功能"->key in kidney || key=="UREA/CREA"
   "血常规"->key in cbc||report.reportType=="血常规"
   "肿瘤标志物"->key in setOf("SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4") || report.reportType in setOf("肿瘤标志物","SCC")
   "电解质及肾功能"->report.reportType=="电解质及肾功能"
