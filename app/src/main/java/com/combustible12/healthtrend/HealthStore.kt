@@ -415,7 +415,7 @@ class HealthStore(private val context:Context) {
   }
   val builtin=ReportParser.key(alias)
   require(builtin=="未识别"||canonicalMetricKey(builtin)==canonicalMetricKey(metricKey)){"该名称已经对应其他指标：$builtin"}
-  val owners=metricCatalogue().filter{(key,names)->canonicalMetricKey(key)!=canonicalMetricKey(metricKey)&&alias in names}.keys
+  val owners=metricCatalogue().filter{(key,names)->canonicalMetricKey(key)!=canonicalMetricKey(metricKey)&&names.any{it.equals(alias,true)}}.keys
   require(owners.isEmpty()){"该名称已属于其他指标：${owners.joinToString("、")}"}
   val current=metricAliases().toMutableMap()
   require(current.none{(otherName,otherKey)->
