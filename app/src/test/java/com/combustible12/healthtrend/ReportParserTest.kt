@@ -149,26 +149,20 @@ AST/ALT 谷草/谷丙 0.88"""
  }
 
 
- @Test fun pollutedXiapuBiochemistryTemplateRepairsIdentityWithoutOverwritingUserFields(){
-  val storeRepair=HealthStore::class.java.getDeclaredMethod("repairXiacuBiochemistryTemplate",HospitalLabTemplate::class.java).apply{isAccessible=true}
-  val polluted=HospitalLabTemplate("霞浦县中医院","生化",7,true,listOf(
-   LabFieldTemplate("AST","AST 谷草转氨酶","U/L",13.0,35.0,"用户说明A"),
-   LabFieldTemplate("AST","AST/ALT 谷草/谷丙","自定义单位",null,null,"用户说明B")
-  ))
-  val repaired=storeRepair.invoke(null,polluted) as HospitalLabTemplate
-  assertEquals(listOf("AST","AST/ALT"),repaired.fields.map{it.metricKey})
-  assertEquals("自定义单位",repaired.fields[1].unit)
-  assertEquals("用户说明B",repaired.fields[1].trendMeaning)
-  val raw="""霞浦县中医院
+ @Test fun legacyIncorrectTemplateDoesNotControlNewReportIdentity(){
+  val legacy=HospitalLabTemplate("霞浦县中医院","生化",7,true,listOf(
+   LabFieldTemplate("AST","谷草转氨酶","U/L",13.0,35.0,"原说明A"),
+   LabFieldTemplate("AST","谷草/谷丙","",null,null,"原说明B")))
+  val before=legacy.fields.toList()
+  val report=pastedReportDraft("""霞浦县中医院
 生化
 2026-10-06
 AST 谷草转氨酶 22 U/L 13-35
-AST/ALT 谷草/谷丙 0.88"""
-  val draft=pastedReportDraft(raw,repaired)
-  assertEquals("22",draft.rows.single{it.key=="AST"}.text)
-  assertEquals("0.88",draft.rows.single{it.key=="AST/ALT"}.text)
+AST/ALT 谷草/谷丙 0.88""")
+  assertEquals(listOf("AST","AST/ALT"),report.rows.map{it.key})
+  assertEquals(listOf("22","0.88"),report.rows.map{it.text})
+  assertEquals(before,legacy.fields)
  }
-
  @Test fun pastedReportWithoutTemplateStillCreatesEditableDraft(){
   val raw="医院：测试医院\n检查类型：肾功能\n报告日期：2026/9/29\nUREA 尿素 5.2 mmol/L 1.43-7.14"
   val draft=pastedReportDraft(raw)
@@ -646,21 +640,17 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals("",applied.unit);assertEquals("0.00",applied.textValue);assertEquals(9999.99,applied.referenceHigh!!,0.0)
  }
 
- @Test fun confirmedTemplateOwnsFixedFieldsAndRejectsOcrGarbageRows(){
-  val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(
-   LabFieldTemplate("NEUT#","#NEUT 中性粒细胞计数","10^9/L",2.0,7.0),
-   LabFieldTemplate("LYMPH#","#LYMPH 淋巴细胞计数","10^9/L",0.8,4.0),
-   LabFieldTemplate("EOS#","#EOS 嗜酸性粒细胞计数","10^9/L",0.02,0.5)
-  ))
-  val ocr=ReportParser.parse("上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L\nFLYMPH 淋巴细胞计数 1.50 0.80-4.00 fL\nI嗜酸性粒细胞计数 0.04 0.02-0.5 %\n乱码项目 999 1-2")
-  val rows=templateDrivenResults(ocr,template)
-  assertEquals(listOf("NEUT#","LYMPH#","EOS#"),rows.map{it.metricKey})
-  assertEquals(listOf(2.57,1.50,0.04),rows.map{it.value})
-  assertTrue(rows.all{it.unit=="10^9/L"})
-  assertEquals(listOf(2.0,0.8,0.02),rows.map{it.referenceLow})
-  assertEquals(listOf("#NEUT 中性粒细胞计数","#LYMPH 淋巴细胞计数","#EOS 嗜酸性粒细胞计数"),rows.map{it.displayName})
+ @Test fun unrecognizedOcrRowsRequireReviewInsteadOfBeingWrittenIntoPool(){
+  val raw="""上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L
+FLYMPH 淋巴细胞计数 1.50 0.80-4.00 fL
+I嗜酸性粒细胞计数 0.04 0.02-0.5 %
+乱码项目 999 1-2"""
+  val rows=ReportParser.parse(raw)
+  assertEquals(4,rows.size)
+  assertTrue(rows.all{it.rawLine.isNotBlank()})
+  assertTrue(rows.any{it.metricKey.startsWith("待核对:")})
+  assertFalse(rows.any{it.metricKey=="NEUT%"||it.metricKey=="LYMPH%"||it.metricKey=="EOS%"})
  }
-
  @Test fun displayUnitNeverAddsMultiplicationSign(){
   assertEquals("10^9/L",displayLabUnit("×10^9/L"))
   assertEquals("10^12/L",displayLabUnit("x10^12/L"))
@@ -689,20 +679,21 @@ AST/ALT 谷草/谷丙 0.88"""
   val field=LabFieldTemplate("NEUT#","#NEUT 中性粒细胞计数","10^9/L",2.0,7.0)
   val missing=ReportParser.parse("上NEUT 中性粒细胞计数 2.00-7.00").single()
   assertFalse(templateResultIsIndependent(missing,field))
-  val blank=templateDrivenResults(listOf(missing),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field))).single()
-  assertNull(blank.value);assertEquals("",blank.textValue);assertEquals("10^9/L",blank.unit)
+  val items=templateDrivenResults(listOf(missing),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field)))
+  assertTrue(items.none{it.metricKey=="NEUT#"&&it.value!=null})
+  assertTrue(items.any{it.rawLine==missing.rawLine})
   val real=ReportParser.parse("上NEUT 中性粒细胞计数 2.57 2.00-7.00 109/L").single()
-  assertTrue(templateResultIsIndependent(real,field));assertEquals(2.57,templateDrivenResults(listOf(real),HospitalLabTemplate("霞浦县中医院","血常规",5,true,listOf(field))).single().value!!,0.0)
+  assertTrue(templateResultIsIndependent(real,field))
  }
-
- @Test fun duplicateSameIdentityOcrRowsRemainBlankInsteadOfChoosingByPosition(){
-  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","HGB 血红蛋白","g/L",113.0,151.0)))
+ @Test fun duplicateSameIdentityOcrRowsRemainSeparateForReview(){
+  val template=HospitalLabTemplate("医院","血常规",1,true,listOf(LabFieldTemplate("HGB","血红蛋白","g/L",113.0,151.0)))
   val rows=ReportParser.parse("HGB 血红蛋白 102 113-151 g/L\nHGB 血红蛋白 120 113-151 g/L")
-  val resolved=templateDrivenResults(rows,template).single()
-  assertNull(resolved.value);assertEquals("",resolved.textValue)
-  assertEquals(113.0,resolved.referenceLow!!,0.0);assertEquals(151.0,resolved.referenceHigh!!,0.0)
+  val resolved=templateDrivenResults(rows,template)
+  assertEquals(2,rows.size)
+  assertFalse(resolved.any{it.metricKey=="HGB"&&it.value!=null})
+  assertTrue(resolved.size>=2)
+  assertTrue(resolved.any{it.textValue=="102"}&&resolved.any{it.textValue=="120"})
  }
-
  @Test fun suppliedXiacuBiochemistryTemplateIsSeparateAndEditable(){
   val template=xiapuBiochemistryTemplate()
   assertEquals("霞浦县中医院",template.hospitalKey);assertEquals("生化",template.reportType);assertEquals(18,template.fields.size)
@@ -833,26 +824,23 @@ CKMB 肌酸激酶MB亚型 12 U/L 0-24"""
 AST/ALT 谷草/谷丙 0.88""").size)
  }
 
- @Test fun newBiochemistryMetricsRemainReviewableWithoutChangingTemplate(){
-  val template=HospitalLabTemplate("福建省肿瘤医院","生化",1,true,listOf(
+ @Test fun newStandardPoolMetricsImportWithoutExtendingHospitalTemplate(){
+  val legacy=HospitalLabTemplate("福建省肿瘤医院","生化",1,true,listOf(
    LabFieldTemplate("CREA","肌酐","umol/L",41.0,73.0),
-   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5)
-  ))
+   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5)))
   val draft=pastedReportDraft("""福建省肿瘤医院
 生化
 2026-10-12
 UREA 尿素 4.60 mmol/L 2.6-7.5
 CREA 肌酐 36 umol/L 41-73
 UREA/CREA 尿素/肌酐 0.128 - -
-HCO3 碳酸氢根 31.5 mmol/L 22.0-34.0""",template)
+HCO3 碳酸氢根 31.5 mmol/L 22.0-34.0""")
   assertEquals(4,draft.rows.size)
+  assertEquals(setOf("UREA","CREA","UREA/CREA","HCO3"),draft.rows.map{it.key}.toSet())
   assertEquals("4.60",draft.rows.single{it.key=="UREA"}.text)
   assertEquals("36",draft.rows.single{it.key=="CREA"}.text)
-  val extra=draft.rows.filter{it.key.startsWith("待核对:")}
-  assertEquals(2,extra.size)
-  assertTrue(extra.all{it.uncertain})
-  assertFalse(draft.valid())
-  assertEquals(2,template.fields.size)
+  assertEquals(2,legacy.fields.size)
+  assertTrue(draft.valid())
  }
  @Test fun chineseNamesHideLeadingCodesButPreserveEmbeddedLetters(){
   val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("""UREA/CREA 尿素/肌酐 0.128
