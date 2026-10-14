@@ -84,6 +84,23 @@ object UnifiedMetricStandard {
   Triple("HE4","人附睾蛋白4","pmol/L" to "附睾蛋白4"),
   Triple("NSE","神经元特异性烯醇化酶","ng/mL" to "神经元特异性烯醇酶"),
   Triple("CYFRA21-1","细胞角蛋白19片段","ng/mL" to "细胞角蛋白19片段抗原"),
+  Triple("ESR","红细胞沉降率","mm/h" to "血沉|红细胞沉降速度"),
+  Triple("CRP","C反应蛋白","mg/L" to "C-反应蛋白|超敏C反应蛋白以外的常规C反应蛋白"),
+  Triple("HSCRP","超敏C反应蛋白","mg/L" to "高敏C反应蛋白|超敏CRP"),
+  Triple("PCTIN","降钙素原","ng/mL" to "血清降钙素原"),
+  Triple("FERR","铁蛋白","ng/mL" to "血清铁蛋白"),
+  Triple("FE","血清铁","μmol/L" to "铁|血清铁浓度"),
+  Triple("TRANSFERRIN","转铁蛋白","g/L" to "血清转铁蛋白"),
+  Triple("TIBC","总铁结合力","μmol/L" to "血清总铁结合力"),
+  Triple("UIBC","未饱和铁结合力","μmol/L" to "不饱和铁结合力"),
+  Triple("B12","维生素B12","pg/mL" to "钴胺素"),
+  Triple("FOLATE","叶酸","ng/mL" to "血清叶酸"),
+  Triple("DDIMER","D-二聚体","" to "D二聚体|D-二聚体定量"),
+  Triple("FIB","纤维蛋白原","g/L" to "纤维蛋白原含量"),
+  Triple("PT","凝血酶原时间","s" to "凝血酶原时间测定"),
+  Triple("APTT","活化部分凝血活酶时间","s" to "活化部分凝血活酶时间测定"),
+  Triple("TT","凝血酶时间","s" to "凝血酶时间测定"),
+  Triple("INR","国际标准化比值","" to "凝血酶原时间国际标准化比值"),
  ).associate{(key,name,rest)->
   key to Definition(name,rest.first,rest.second.split('|').filter{it.isNotBlank()}.toSet())
  }
