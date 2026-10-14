@@ -37,8 +37,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
   viewModelScope.launch{
    try{
     val initial=pastedReportDraft(raw,store=store)
-    val template=store.latestTemplate(initial.hospital,initial.type,initial.system)
-    pendingDraft=pastedReportDraft(raw,template,store)
+    pendingDraft=initial
     message=""
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="粘贴的数据无法导入：${e.message}"}finally{busy=false}
   }
@@ -62,8 +61,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val hospital=meta.hospital
     val date=meta.date
     val type=meta.reportType
-    val template=store.latestTemplate(hospital,type)
-    val resolved=if(template!=null)templateDrivenResults(parsed,template) else parsed
+    val resolved=store.reconcileParsedMetrics(parsed)
     pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain)
     message=failures.joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
