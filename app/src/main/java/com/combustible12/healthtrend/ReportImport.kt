@@ -103,29 +103,28 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // heuristic, because units such as 10^9/L contain digits before the printed range.
  // The confirmed template still owns name/order/unit/reference, and only pasted metrics
  // are emitted, so a 15-item report remains exactly 15 items.
- val resolved=if(template!=null){
-  val matches=matchTemplateRows(template.fields,parsed)
-  val matched=template.fields.mapIndexedNotNull{index,field->
-   val source=matches[index] ?: return@mapIndexedNotNull null
-   if(source.textValue.isBlank())return@mapIndexedNotNull null
-   ParsedLabResult(
-    metricKey=field.metricKey,displayName=field.displayName,value=source.value,
-    unit=displayLabUnit(field.unit),referenceLow=field.referenceLow,referenceHigh=field.referenceHigh,
-    rawLine=source.rawLine,primary=field.metricKey in ReportParser.primaryKeys,
-    textValue=source.textValue,comparator=source.comparator
-   )
-  }
-  // Consume only rows that were actually emitted. A template match with no
-  // measured result must remain visible for manual review, never disappear.
-  val consumed=matches.filter{(_,source)->source.textValue.isNotBlank()}.values.toSet()
-  // A new metric may be valid for this visit but must not silently extend
-  // the hospital's already-confirmed template.
-  matched + parsed.filter{it !in consumed}.map{it.copy(metricKey=if(it.metricKey.startsWith("待核对:"))it.metricKey else "待核对:"+it.metricKey)}
- }else parsed
+ val resolved=if(template!=null)templateDrivenPastedResults(parsed,template) else parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=normalized,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain
  )
+}
+
+/** Clipboard values are explicit, unlike noisy OCR. Share template matching but
+ * do not apply OCR's independent-result heuristic to typed unit strings. */
+internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:HospitalLabTemplate):List<ParsedLabResult>{
+ val matches=matchTemplateRows(template.fields,items)
+ val accepted=matches.filterValues{it.textValue.isNotBlank()}
+ val bound=template.fields.mapIndexedNotNull{index,field->
+  val source=accepted[index]?:return@mapIndexedNotNull null
+  source.copy(metricKey=field.metricKey,displayName=field.displayName,
+   unit=displayLabUnit(field.unit),referenceLow=field.referenceLow,
+   referenceHigh=field.referenceHigh,primary=field.metricKey in ReportParser.primaryKeys)
+ }
+ val used=accepted.values.toSet()
+ return bound+items.filter{it !in used}.map{source->
+  source.copy(metricKey=if(source.metricKey.startsWith("待核对:"))source.metricKey else "待核对:"+source.metricKey)
+ }
 }
 
 /** Spatial reconstruction prevents OCR block order from separating a result from its name. */
