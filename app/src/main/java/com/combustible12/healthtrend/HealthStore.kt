@@ -296,8 +296,8 @@ class HealthStore(private val context:Context) {
    stored.results.map{it.value}==ordered.results.map{it.value} &&
    stored.results.map{it.textValue}==ordered.results.map{it.textValue} &&
    stored.results.map{it.unitAtTest}==ordered.results.map{it.unitAtTest} &&
-   stored.results.map{it.referenceLow}==ordered.results.map{it.referenceLow} &&
-   stored.results.map{it.referenceHigh}==ordered.results.map{it.referenceHigh}){
+   stored.results.map{it.referenceLowAtTest}==ordered.results.map{it.referenceLowAtTest} &&
+   stored.results.map{it.referenceHighAtTest}==ordered.results.map{it.referenceHighAtTest}){
    "报告保存验证失败：重新读取的数据与保存内容不一致"
   }
   check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
