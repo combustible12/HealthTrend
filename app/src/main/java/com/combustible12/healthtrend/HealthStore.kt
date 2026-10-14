@@ -560,8 +560,8 @@ class HealthStore(private val context:Context) {
   val aliases=metricAliases()
   val preferred=preferredMetricNames()
   fun matches(name:String):Boolean = clean==name ||
-   clean.startsWith("$"+"name ") || clean.startsWith("$"+"name\\t") ||
-   clean.startsWith("$"+"name（") || clean.startsWith("$"+"name(")
+   clean.startsWith(name+" ") || clean.startsWith(name+"\\t") ||
+   clean.startsWith(name+"（") || clean.startsWith(name+"(")
   val candidateNames=metricCatalogue().filter{(_,names)->names.any(::matches)}.keys
   val candidates=(candidateNames+
    aliases.filterKeys(::matches).values+
