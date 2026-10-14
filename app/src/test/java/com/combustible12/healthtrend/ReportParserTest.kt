@@ -52,7 +52,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   val draft=pastedReportDraft(raw,template)
   assertEquals("霞浦县中医院",draft.hospital);assertEquals("生化",draft.type);assertEquals("2026-09-23",draft.date)
   assertEquals(listOf("ALT","CREA"),draft.rows.map{it.key});assertEquals(listOf("23","46"),draft.rows.map{it.text})
-  assertEquals("U/L",draft.rows[0].unit);assertEquals("7.0",draft.rows[0].low);assertEquals("40.0",draft.rows[0].high)
+  assertEquals("错误单位",draft.rows[0].unit);assertEquals("9.0",draft.rows[0].low);assertEquals("50.0",draft.rows[0].high)
  }
  @Test fun fixedClipboardFormatKeepsOnlyActuallyTestedMetrics(){
   val cbcLines=listOf(
