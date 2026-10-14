@@ -17,7 +17,9 @@ class ReportDraftStore(context:Context) {
   val atomic=AtomicFile(file(draft.draftId))
   val stream=atomic.startWrite()
   try{
-   ObjectOutputStream(stream).use{it.writeObject(draft);it.flush()}
+   val writer=ObjectOutputStream(stream)
+   writer.writeObject(draft)
+   writer.flush()
    atomic.finishWrite(stream)
   }catch(e:Exception){atomic.failWrite(stream);throw e}
  }
