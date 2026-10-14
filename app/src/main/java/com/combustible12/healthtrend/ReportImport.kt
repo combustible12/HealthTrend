@@ -117,8 +117,16 @@ internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:Ho
  // If multiple clipboard rows have the same canonical identity, never silently
  // choose one value: keep both sources for review rather than binding the first.
  val repeated=items.groupingBy{canonicalMetricKey(it.metricKey)}.eachCount()
- val accepted=matches.filterValues{source->
-  source.textValue.isNotBlank() && repeated[canonicalMetricKey(source.metricKey)]==1
+ val accepted=matches.filter{(index,source)->
+  val field=template.fields[index]
+  val printedUnit=displayLabUnit(source.unit).trim()
+  val templateUnit=displayLabUnit(field.unit).trim()
+  // Explicit pasted units cannot be silently overwritten by the hospital template.
+  // A conflicting unit may indicate a truncated label or a different metric.
+  val unitMatches=printedUnit.isBlank() || templateUnit.isBlank() ||
+   printedUnit.equals(templateUnit,true)
+  source.textValue.isNotBlank() &&
+   repeated[canonicalMetricKey(source.metricKey)]==1 && unitMatches
  }
  val bound=template.fields.mapIndexedNotNull{index,field->
   val source=accepted[index]?:return@mapIndexedNotNull null
