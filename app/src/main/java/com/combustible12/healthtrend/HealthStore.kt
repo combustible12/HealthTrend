@@ -270,7 +270,11 @@ class HealthStore(private val context:Context) {
   val r=if(existingImages.isEmpty())normalized else normalized.copy(
    sourceImages=(existingImages+normalized.sourceImages).distinctBy{it.uri}
   )
-  require(r.results.isNotEmpty());require(r.hospitalKey.isNotBlank())
+  require(r.results.isNotEmpty()){"报告至少需要一项检验结果"}
+  require(r.hospitalKey.isNotBlank()){"医院名称不能为空"}
+  require(r.reportType.isNotBlank()){"检查类型不能为空"}
+  require(r.testedAtEpochMillis>0){"检查日期无效"}
+  require(r.results.all{it.value==null||it.value.isFinite()}){"报告包含无效数值"}
   require(r.results.all{it.metricKey.isNotBlank()&&it.metricKey!="未识别"&&
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
