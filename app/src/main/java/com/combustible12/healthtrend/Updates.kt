@@ -170,14 +170,6 @@ private fun URI(s:String)=java.net.URI(s)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
-  Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
-  if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
-  templates.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType}).chunked(2).forEach{row->
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    row.forEach{t->HospitalTemplateCard(t,{edit(t)},Modifier.weight(1f))}
-    if(row.size==1)Spacer(Modifier.weight(1f))
-   }
-  }
   Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Warm)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("应用更新");Text("仅检查正式发布版本。升级保留现有记录和原图。",color=Muted)
    Button({busy=true;status="正在检查…";scope.launch{try{available=withContext(Dispatchers.IO){updater.check(credentials.load())};status=if(available==null)"当前没有可用的正式更新"else"发现 ${available!!.name}"}catch(e:Exception){status=e.message?:"更新检查失败"}finally{busy=false}}},enabled=!busy,modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("检查更新")}
