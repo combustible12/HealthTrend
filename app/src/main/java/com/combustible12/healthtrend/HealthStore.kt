@@ -567,6 +567,7 @@ class HealthStore(private val context:Context) {
  @Synchronized fun saveTemplateFields(source:HospitalLabTemplate,fields:List<LabFieldTemplate>):HospitalLabTemplate {
   require(fields.isNotEmpty()&&fields.all{it.metricKey.isNotBlank() && it.metricKey!="未识别" && !it.metricKey.startsWith("待核对:")}&&fields.map{canonicalMetricKey(it.metricKey)}.distinct().size==fields.size){"模板项目 ID 为空或重复"}
   val old=latestTemplate(source.hospitalKey,source.reportType,source.systemKey)?:source
+  require(old.version==source.version){"医院模板已更新，请重新打开最新版本后再修改"}
   val template=old.copy(version=old.version+1,confirmed=true,fields=fields.map{it.copy(trendMeaning=it.trendMeaning.trim().ifBlank{metricPurpose(it.metricKey).orEmpty()})})
   // Append a new template version; never delete previously confirmed versions.
   // Existing reports retain their original templateVersion and result snapshots.
