@@ -108,68 +108,20 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    }catch(e:Exception){draftImageError="原图导入失败：${e.message}"}
   }
  },{draftImageError=it})
- // Match only unambiguous OCR identities to the active confirmed template.
- // A report import must never overwrite the template's metadata.
- LaunchedEffect(d.hospital,d.type,d.system,d.rows,aliasRevision) {
-  // Editing a historical report must never silently relabel its stored
-  // identities or source names using today's dictionary/template.
+ // Only standard-pool aliases may resolve new draft identities.
+ LaunchedEffect(d.rows,aliasRevision) {
   if(d.existing!=null)return@LaunchedEffect
-  val template=store.latestTemplate(d.hospital,d.type,d.system)
-  val reconciled=d.rows.map { original ->
-    val aliasKey=if(original.key.startsWith("待核对:")||original.key.isBlank()||original.key=="未识别"){
-     val fromName=store.resolveMetricKey(original.name)
-     if(fromName!="未识别")fromName else store.resolveMetricKey(original.raw)
-    } else "未识别"
-    val row=if(aliasKey!="未识别")original.copy(key=aliasKey,uncertain=false) else original
-    if(template==null)row else {
-    val code=row.key.removePrefix("待核对:").trim()
-    val name=row.name.trim()
-    // Never overwrite an explicit known metric identity merely because a
-    // conflicting Chinese label happens to match a different template field.
-    val byCode=template.fields.filter { field -> code.isNotBlank() && canonicalMetricKey(code)==canonicalMetricKey(field.metricKey) }
-    val byName=template.fields.filter { field ->
-     name.isNotBlank() && name!="待核对" && name==field.displayName.trim()
-    }
-    val explicitIdentity=row.key.isNotBlank() && !row.key.startsWith("待核对:")
-    val matches=if(byCode.isNotEmpty())byCode else if(explicitIdentity)emptyList() else byName
-    if(matches.size==1 && row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()!=null){
-     val field=matches.single()
-     row.copy(key=field.metricKey,name=field.displayName,uncertain=false)
-    } else row
-    }
-   }
-   if(reconciled!=d.rows)d=d.copy(rows=reconciled)
+  val reconciled=d.rows.map {row->
+   if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
+    val identity=store.resolveMetricKey(row.name,row.unit)
+    if(identity!="未识别")row.copy(key=identity,uncertain=false) else row
+   }else row
+  }
+  if(reconciled!=d.rows)d=d.copy(rows=reconciled)
  }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
- var showTemplateChoice by remember{mutableStateOf(false)}
- val activeConfirmedTemplate=store.latestTemplate(d.hospital,d.type,d.system)
- val newTemplateFields=activeConfirmedTemplate?.let{template->
-  val known=template.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
-  d.rows.filter{canonicalMetricKey(it.key) !in known}
- } ?: emptyList()
- val changedTemplateFields=activeConfirmedTemplate?.let{template->
-  d.rows.filter{row->
-   val old=template.fields.firstOrNull{canonicalMetricKey(it.metricKey)==canonicalMetricKey(row.key)}
-   old!=null&&(displayLabUnit(row.unit)!=displayLabUnit(old.unit)||
-    row.low.toDoubleOrNull()!=old.referenceLow||row.high.toDoubleOrNull()!=old.referenceHigh)
-  }
- } ?: emptyList()
- if(showTemplateChoice){
-  AlertDialog(
-   onDismissRequest={showTemplateChoice=false},
-   title={Text("发现医院模板外的新指标")},
-   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-    Text("本次新增："+newTemplateFields.joinToString("、"){it.name.ifBlank{it.key}})
-    Text("仅保存报告不会更改已确认模板。选择更新模板将保留原模板全部字段，只追加本次确认的新指标，生成新的当前版本；历史报告不变。",fontSize=13.sp,color=Muted)
-    if(changedTemplateFields.isNotEmpty())Text("本次单位或参考范围有变化的指标仍仅保存到本次报告，不覆盖原模板："+changedTemplateFields.joinToString("、"){it.name},fontSize=12.sp,color=Muted)
-   }},
-   confirmButton={TextButton({showTemplateChoice=false;save(d,true)}){Text("保存并更新模板")}},
-   dismissButton={TextButton({showTemplateChoice=false;save(d,false)}){Text("仅保存本次报告")}}
-  )
- }
-
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({if(activeConfirmedTemplate!=null&&newTemplateFields.isNotEmpty()&&d.existing==null)showTemplateChoice=true else save(d,false)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d,false)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   Row{
    TextButton({showMetricCatalogue=true}){Text("统一指标库")}
@@ -188,15 +140,13 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   }}
   if(draftImageError.isNotBlank())Text(draftImageError,color=Bad)
 
-  val activeTemplate=store.latestTemplate(d.hospital,d.type,d.system)
   d.rows.forEachIndexed{i,r->
-   Column { if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
-    LabRowSummary(r,{editing=r.id},if(activeTemplate==null||structureUnlocked){{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})}}else null)
+   Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+    LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})
    }
   }
   run{
-   if(activeTemplate==null||structureUnlocked)OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")}
-   else TextButton({structureUnlocked=true}){Text("本次报告项目有变化")}
+   OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")}
    Spacer(Modifier.height(12.dp))
   }
  }
@@ -328,7 +278,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   // Otherwise entering an existing template code changes the editor structure mid-keystroke.
   val originalResult=d.existing?.results?.firstOrNull{it.id==row.id}
   val originalCode=originalResult?.metricKey
-  val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
+  val fixed=false
   MetricEditor(row,{changed->
    // A user pressing 完成核对 explicitly confirms this Chinese name.
    // If no known identity can be resolved, register a durable custom UUID.
