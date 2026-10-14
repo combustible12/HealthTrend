@@ -103,4 +103,23 @@ class MetricImportRegressionTest {
   assertEquals("0.8",result.textValue)
   assertEquals("mg/dL",result.unitAtTest)
  }
+
+ @Test fun typeCatalogueContainsStandardMetricsWithoutHospitalReports() {
+  assertTrue("WBC" in UnifiedMetricStandard.keysForType("血常规"))
+  assertTrue("ALT" in UnifiedMetricStandard.keysForType("生化"))
+  assertTrue("ALT" in UnifiedMetricStandard.keysForType("肝功能"))
+  assertTrue("CA125" in UnifiedMetricStandard.keysForType("肿瘤标志物"))
+  assertTrue("TSH" in UnifiedMetricStandard.keysForType("甲状腺功能"))
+  assertTrue("CTNI" in UnifiedMetricStandard.keysForType("心肌"))
+  assertFalse("NEUT#" in UnifiedMetricStandard.keysForType("凝血"))
+ }
+ @Test fun metricRegistryDoesNotMergeSimilarButDifferentIdentities() {
+  assertEquals("CRP",UnifiedMetricStandard.resolveName("C反应蛋白"))
+  assertEquals("HSCRP",UnifiedMetricStandard.resolveName("超敏C反应蛋白"))
+  assertEquals("PCT",UnifiedMetricStandard.resolveName("血小板压积"))
+  assertEquals("PCTIN",UnifiedMetricStandard.resolveName("降钙素原"))
+  assertNotEquals("AST/ALT","ALT/AST")
+  assertEquals("AST/ALT",UnifiedMetricStandard.resolveName("谷草/谷丙"))
+  assertEquals("ALT/AST",UnifiedMetricStandard.resolveName("谷丙/谷草"))
+ }
 }
