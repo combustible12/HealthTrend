@@ -455,13 +455,15 @@ class HealthStore(private val context:Context) {
   val builtin=ReportParser.key(name)
   require(builtin=="未识别"||canonicalMetricKey(builtin)==key){"该名称已经属于其他指标"}
   val catalogueOwners=metricCatalogue().filter{(other,names)->
-   other!=key && name in names
+   canonicalMetricKey(other)!=key && names.any{it.equals(name,true)}
   }.keys
   require(catalogueOwners.isEmpty()){"该名称已用于其他指标：${catalogueOwners.joinToString("、")}"}
-  val owner=metricAliases()[name]
-  require(owner==null||canonicalMetricKey(owner)==key){"该名称已被其他指标用作别名"}
+  val conflictingAliases=metricAliases().filter{(alias,owner)->
+   alias.equals(name,true)&&canonicalMetricKey(owner)!=key
+  }
+  require(conflictingAliases.isEmpty()){"该名称已被其他指标用作别名"}
   val current=preferredMetricNames().toMutableMap()
-  require(current.none{(other,existing)->other!=key&&existing==name}){"该名称已经被其他指标使用"}
+  require(current.none{(other,existing)->canonicalMetricKey(other)!=key&&existing.equals(name,true)}){"该名称已经被其他指标使用"}
   current[key]=name
   write("metric_preferred_names",JSONArray().apply{current.toSortedMap().forEach{(id,label)->
    put(JSONObject().put("metricKey",id).put("name",label))
