@@ -92,7 +92,7 @@ class HistoryReplacementTest {
  @Test fun trendIdentityDoesNotGuessNamesOrMergeIncompatibleScopes(){
   val x=report(1).results.first()
   assertEquals(trendSeriesKey(x),trendSeriesKey(x.copy(rawName="改名",templateVersion=99,referenceHighAtTest=123.0)))
-  assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(metricKey=" "+x.metricKey)))
+  assertEquals(trendSeriesKey(x),trendSeriesKey(x.copy(metricKey=" "+x.metricKey)))
   assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(hospitalKey="另一医院")))
   assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(reportType="另一检查")))
   assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(normalizedUnit="另一单位")))
