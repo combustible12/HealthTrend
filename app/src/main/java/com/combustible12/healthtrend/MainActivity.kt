@@ -604,10 +604,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
- val key=result.metricKey
+ val key=canonicalMetricKey(result.metricKey)
  val liver=setOf("ALT","AST","AST/ALT","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA","CHE")
  val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
- val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#")
+ val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NEUT%","LYMPH%","MONO%","EOS%","BASO%","RDW","RDW-CV","RDW-SD","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%")
  return when(category){
   "肝功能"->key in liver
   "肾功能"->key in kidney
