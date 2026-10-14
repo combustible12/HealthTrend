@@ -640,7 +640,20 @@ class HealthStore(private val context:Context) {
     ?:names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
       .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
     ?:key
-   val ranges=referenceRangeHistory(key)
+   val savedRanges=referenceRangeHistory(key)
+   val templateRanges=templates().flatMap{template->
+    template.fields.filter{canonicalMetricKey(it.metricKey)==key &&
+     (it.referenceLow!=null||it.referenceHigh!=null)}.map{field->
+     val low=UnitNormalizer.normalize(key,field.referenceLow,field.unit)
+     val high=UnitNormalizer.normalize(key,field.referenceHigh,field.unit)
+     ObservedReferenceRange(template.hospitalKey,template.reportType,key,
+      if(field.referenceLow!=null)low.second else high.second,low.first,high.first,
+      0L,0L,0)
+    }
+   }
+   val ranges=(savedRanges+templateRanges).distinctBy{
+    listOf(it.unit,it.lower?.toString(),it.upper?.toString())
+   }
    val units=rememberedUnits(key)
    val common=definition?.unit?.takeIf{it.isNotBlank()}
     ?:units.firstNotNullOfOrNull{source->
