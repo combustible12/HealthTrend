@@ -559,14 +559,18 @@ class HealthStore(private val context:Context) {
   val template=HospitalLabTemplate(h.trim(),t.trim(),version,true,items.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)},system.trim())
   // One current template per hospital/panel/system. Re-confirming replaces only that
   // template record; historical reports keep their own unit/range/name snapshots.
-  val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey}
+  // Append a new template version; never delete previously confirmed versions.
+  // Existing reports retain their original templateVersion and result snapshots.
+  val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey&&it.version==template.version}
   write("templates",JSONArray().apply{keep.forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  @Synchronized fun saveTemplateFields(source:HospitalLabTemplate,fields:List<LabFieldTemplate>):HospitalLabTemplate {
   require(fields.isNotEmpty()&&fields.all{it.metricKey.isNotBlank() && it.metricKey!="未识别" && !it.metricKey.startsWith("待核对:")}&&fields.map{canonicalMetricKey(it.metricKey)}.distinct().size==fields.size){"模板项目 ID 为空或重复"}
   val old=latestTemplate(source.hospitalKey,source.reportType,source.systemKey)?:source
   val template=old.copy(version=old.version+1,confirmed=true,fields=fields.map{it.copy(trendMeaning=it.trendMeaning.trim().ifBlank{metricPurpose(it.metricKey).orEmpty()})})
-  val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey}
+  // Append a new template version; never delete previously confirmed versions.
+  // Existing reports retain their original templateVersion and result snapshots.
+  val keep=storedTemplates().filterNot{it.hospitalKey==template.hospitalKey&&it.reportType==template.reportType&&it.systemKey==template.systemKey&&it.version==template.version}
   write("templates",JSONArray().apply{keep.forEach{put(templateToJson(it))};put(templateToJson(template))});return template
  }
  /** Without a confirmed template this remains a conservative fill helper. */
