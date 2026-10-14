@@ -225,7 +225,13 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
    itemIndex !in used && !items[itemIndex].metricKey.startsWith("待核对:") &&
     canonicalMetricKey(items[itemIndex].metricKey)==canonicalMetricKey(field.metricKey)
   }
-  if(candidates.size==1){assigned[index]=items[candidates.single()];used.add(candidates.single())}
+  val competingIdentities=fields.count{other->
+   canonicalMetricKey(other.metricKey)==canonicalMetricKey(field.metricKey)
+  }
+  if(candidates.size==1&&competingIdentities==1){
+   assigned[index]=items[candidates.single()]
+   used.add(candidates.single())
+  }
  }
  fields.forEachIndexed{index,field->
   if(index in assigned)return@forEachIndexed
