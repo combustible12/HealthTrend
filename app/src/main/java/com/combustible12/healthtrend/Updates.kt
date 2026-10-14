@@ -12,6 +12,8 @@ import android.util.Base64
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -88,6 +90,22 @@ class AppUpdater(private val context:Context){
 private fun URI(s:String)=java.net.URI(s)
 @Composable fun Mine(m:Modifier,templates:List<HospitalLabTemplate>,edit:(HospitalLabTemplate)->Unit,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
  val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
+ var backupBusy by remember{mutableStateOf(false)}
+ var backupStatus by remember{mutableStateOf("")}
+ val backupLauncher=rememberLauncherForActivityResult(
+  ActivityResultContracts.CreateDocument("application/zip")
+ ){uri->
+  if(uri!=null){
+   backupBusy=true;backupStatus="正在备份报告、模板和原始图片…"
+   scope.launch {
+    try{
+     val summary=withContext(Dispatchers.IO){HealthBackup(ctx,store).export(uri)}
+     backupStatus="备份完成：${summary.reports} 份报告、${summary.templates} 套当前模板、${summary.files} 个文件。请妥善保存 ZIP。"
+    }catch(e:Exception){backupStatus="备份失败：${e.message ?: "无法写入文件"}，请删除不完整的 ZIP 后重试"}
+    finally{backupBusy=false}
+   }
+  }
+ }
  var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
@@ -104,6 +122,17 @@ private fun URI(s:String)=java.net.URI(s)
   }else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years}.getOrNull();Text(listOfNotNull(patient.sex.takeIf{it.isNotBlank()},patient.birthDate.takeIf{it.isNotBlank()},age?.let{"${it}岁"},patient.bloodType.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
   Card(onClick=records,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text("查看报告 ›",color=Muted)}
+  }
+  Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("数据备份",fontWeight=FontWeight.SemiBold)
+    Text("导出本机报告、历史模板、趋势记录、原始图片及设置为 ZIP。不会修改已有数据。备份包含个人医疗信息，请保存到可信位置。",color=Muted,fontSize=13.sp)
+    Button({backupLauncher.launch("HealthTrend_备份_${java.time.LocalDate.now()}.zip")},enabled=!backupBusy,modifier=Modifier.fillMaxWidth()){
+     Text(if(backupBusy)"正在备份…" else "备份到文件")
+    }
+    if(backupBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
+    if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
+   }
   }
   Text("医院模板",fontSize=androidx.compose.ui.unit.TextUnit.Unspecified)
   if(templates.isEmpty())Paper{Text("还没有已确认模板");Text("首次核对报告后建立；同院同类型可复用。",color=Muted)}
