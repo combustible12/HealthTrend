@@ -612,7 +612,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   "肝功能"->key in liver
   "肾功能"->key in kidney
   "血常规"->key in cbc||report.reportType=="血常规"
-  "肿瘤标志物"->report.reportType in setOf("肿瘤标志物","SCC")
+  "肿瘤标志物"->key in setOf("SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4") || report.reportType in setOf("肿瘤标志物","SCC")
   "电解质及肾功能"->report.reportType=="电解质及肾功能"
   else->report.reportType==category
  }
