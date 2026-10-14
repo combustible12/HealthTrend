@@ -29,7 +29,8 @@ fun labDisplayTitle(name:String,key:String):String{
  // never let AST partially strip AST/ALT.
  val prefix=Regex("^\\s*"+Regex.escape(key)+"(?=\\s|$)",RegexOption.IGNORE_CASE)
  val wrapped=Regex("[（(]\\s*"+Regex.escape(key)+"\\s*[）)]",RegexOption.IGNORE_CASE)
- val cleaned=raw.replace(wrapped,"").replace(prefix,"").trim()
+ val suffix=Regex("(?i)\\s+"+Regex.escape(key)+"\\s*$")
+ val cleaned=raw.replace(wrapped,"").replace(prefix,"").replace(suffix,"").trim()
  val first=cleaned.substringBefore(' ').trim()
  val withoutAlias=if(first!=cleaned && canonicalMetricKey(first)==canonicalMetricKey(key))cleaned.substringAfter(' ').trim() else cleaned
  return withoutAlias.replace(Regex("\\s+")," ").trim()
