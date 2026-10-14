@@ -299,6 +299,56 @@ class HealthStore(private val context:Context) {
   }.sortedWith(compareBy<ObservedReferenceRange>{it.firstObservedAt}
    .thenBy{it.hospitalKey}.thenBy{it.reportType})
  }
+ data class StandardRange(val metricKey:String,val unit:String,val low:Double?,val high:Double?)
+ private fun normalizedStandardRange(key:String,unit:String,low:Double?,high:Double?):StandardRange {
+  val identity=canonicalMetricKey(key)
+  require(low!=null||high!=null){"参考范围不能为空"}
+  require(low==null||low.isFinite()){"参考下限无效"}
+  require(high==null||high.isFinite()){"参考上限无效"}
+  val a=UnitNormalizer.normalize(identity,low,unit)
+  val b=UnitNormalizer.normalize(identity,high,unit)
+  require(a.first==null||b.first==null||a.first<=b.first){"参考范围上下限不正确"}
+  val common=UnifiedMetricStandard.definition(identity)?.unit.orEmpty()
+  val actual=if(low!=null)a.second else b.second
+  // An unconvertible source unit must never be relabelled as the common unit.
+  val target=if(common.isNotBlank()&&actual.equals(common,true))common else actual
+  return StandardRange(identity,target,a.first,b.first)
+ }
+ private fun standardRangesStored():List<StandardRange> =
+  rows(read("metric_standard_ranges")){o->StandardRange(
+   o.getString("metric"),o.getString("unit"),o.doubleOrNull("low"),o.doubleOrNull("high"))}
+ @Synchronized fun standardRanges(metricKey:String):List<StandardRange> {
+  val key=canonicalMetricKey(metricKey)
+  return standardRangesStored().filter{it.metricKey==key}.distinct()
+ }
+ /** Add or reuse a range in the persistent standard pool, independent of hospital. */
+ @Synchronized fun addStandardRange(metricKey:String,unit:String,low:Double?,high:Double?):StandardRange {
+  val entry=normalizedStandardRange(metricKey,unit,low,high)
+  val existing=standardRangesStored()
+  if(entry in existing)return entry
+  val updated=existing+entry
+  write("metric_standard_ranges",JSONArray().apply{updated.forEach{range->
+   put(JSONObject().put("metric",range.metricKey).put("unit",range.unit)
+    .put("low",range.low?:JSONObject.NULL).put("high",range.high?:JSONObject.NULL))
+  }})
+  return entry
+ }
+ @Synchronized fun removeStandardRange(entry:StandardRange){
+  val retained=standardRangesStored().filterNot{it==entry}
+  write("metric_standard_ranges",JSONArray().apply{retained.forEach{range->
+   put(JSONObject().put("metric",range.metricKey).put("unit",range.unit)
+    .put("low",range.low?:JSONObject.NULL).put("high",range.high?:JSONObject.NULL))
+  }})
+ }
+ @Synchronized fun editStandardRange(previous:StandardRange,unit:String,low:Double?,high:Double?):StandardRange {
+  val entry=normalizedStandardRange(previous.metricKey,unit,low,high)
+  val updated=standardRangesStored().filterNot{it==previous}.plus(entry).distinct()
+  write("metric_standard_ranges",JSONArray().apply{updated.forEach{range->
+   put(JSONObject().put("metric",range.metricKey).put("unit",range.unit)
+    .put("low",range.low?:JSONObject.NULL).put("high",range.high?:JSONObject.NULL))
+  }})
+  return entry
+ }
  @Synchronized fun saveReport(input:LabReport){
   // Do not rewrite a confirmed report's metric identities on ordinary save.
   // Legacy identity repairs are intentionally not part of the save path.
@@ -328,6 +378,14 @@ class HealthStore(private val context:Context) {
   val templateOrder=template?.fields?.mapIndexed{index,field->canonicalMetricKey(field.metricKey) to index}?.toMap()
   val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[canonicalMetricKey(it.metricKey)]?:Int.MAX_VALUE})
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
+  // A report contributes only its observed, validated intervals. Existing choices
+  // are reused. Changes to the pool never rewrite historical report snapshots.
+  ordered.results.forEach{result->
+   if(result.referenceLowAtTest!=null||result.referenceHighAtTest!=null){
+    addStandardRange(result.metricKey,result.unitAtTest,
+     result.referenceLowAtTest,result.referenceHighAtTest)
+   }
+  }
   // Both newly created and edited reports must persist their source images.
   val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
   check(stored.results.size==ordered.results.size &&
@@ -651,7 +709,10 @@ class HealthStore(private val context:Context) {
       0L,0L,0)
     }
    }
-   val ranges=(savedRanges+templateRanges).distinctBy{
+   val persistedRanges=standardRanges(key).map{range->
+    ObservedReferenceRange("", "",key,range.unit,range.low,range.high,0L,0L,0)
+   }
+   val ranges=(persistedRanges+savedRanges+templateRanges).distinctBy{
     listOf(it.unit,it.lower?.toString(),it.upper?.toString())
    }
    val units=rememberedUnits(key)
