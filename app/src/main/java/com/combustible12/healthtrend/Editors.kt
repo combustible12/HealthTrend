@@ -292,8 +292,16 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val originalCode=originalResult?.metricKey
   val fixed=originalCode!=null && store.latestTemplate(d.hospital,d.type,d.system)?.fields?.any{it.metricKey==originalCode}==true
   MetricEditor(row,{changed->
-   val confirmed=if(!changed.uncertain&&changed.key.startsWith("待核对:"))
-    changed.copy(key=changed.key.removePrefix("待核对:")) else changed
+   // A user pressing 完成核对 explicitly confirms this Chinese name.
+   // If no known identity can be resolved, register a durable custom UUID.
+   // Existing explicit metric codes must never be overwritten.
+   val unknown=changed.key.isBlank()||changed.key=="未识别"||
+    changed.key.startsWith("待核对:")
+   val identified=if(unknown)store.resolveMetricKey(changed.name,changed.unit) else "未识别"
+   val confirmed=if(!changed.uncertain&&unknown&&changed.name.isNotBlank()){
+    val key=if(identified!="未识别")identified else store.registerCustomMetric(changed.name,d.type)
+    changed.copy(key=key,uncertain=false)
+   }else changed
    // A manually edited Chinese name can resolve an unknown OCR identity.
    // Never replace an explicit code or an identity from a saved report.
    val resolved=if(originalResult==null &&
