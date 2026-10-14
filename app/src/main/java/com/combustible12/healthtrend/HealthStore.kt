@@ -537,7 +537,7 @@ class HealthStore(private val context:Context) {
    }
   }
  fun metricAliasNames(metricKey:String):List<String> =
-  metricAliases().filterValues{it==metricKey}.keys.sorted()
+  metricAliases().filterValues{canonicalMetricKey(it)==canonicalMetricKey(metricKey)}.keys.sorted()
  /** Unified metric catalogue: union of confirmed templates, saved reports and
   * built-in metric identities. Never mutates historical records or templates. */
  fun metricCatalogue():Map<String,Set<String>>{
