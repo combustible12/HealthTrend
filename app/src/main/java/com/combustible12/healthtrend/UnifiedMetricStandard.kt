@@ -85,7 +85,7 @@ object UnifiedMetricStandard {
   Triple("NSE","神经元特异性烯醇化酶","ng/mL" to "神经元特异性烯醇酶"),
   Triple("CYFRA21-1","细胞角蛋白19片段","ng/mL" to "细胞角蛋白19片段抗原"),
   Triple("ESR","红细胞沉降率","mm/h" to "血沉|红细胞沉降速度"),
-  Triple("CRP","C反应蛋白","mg/L" to "C-反应蛋白|超敏C反应蛋白以外的常规C反应蛋白"),
+  Triple("CRP","C反应蛋白","mg/L" to "C-反应蛋白"),
   Triple("HSCRP","超敏C反应蛋白","mg/L" to "高敏C反应蛋白|超敏CRP"),
   Triple("PCTIN","降钙素原","ng/mL" to "血清降钙素原"),
   Triple("FERR","铁蛋白","ng/mL" to "血清铁蛋白"),
@@ -101,6 +101,22 @@ object UnifiedMetricStandard {
   Triple("APTT","活化部分凝血活酶时间","s" to "活化部分凝血活酶时间测定"),
   Triple("TT","凝血酶时间","s" to "凝血酶时间测定"),
   Triple("INR","国际标准化比值","" to "凝血酶原时间国际标准化比值"),
+  Triple("TSH","促甲状腺激素","mIU/L" to "促甲状腺素"),
+  Triple("FT3","游离三碘甲状腺原氨酸","pmol/L" to "游离T3"),
+  Triple("FT4","游离甲状腺素","pmol/L" to "游离T4"),
+  Triple("T3","总三碘甲状腺原氨酸","nmol/L" to "总T3"),
+  Triple("T4","总甲状腺素","nmol/L" to "总T4"),
+  Triple("TPOAB","甲状腺过氧化物酶抗体","" to "抗甲状腺过氧化物酶抗体"),
+  Triple("TGAB","甲状腺球蛋白抗体","" to "抗甲状腺球蛋白抗体"),
+  Triple("HBA1C","糖化血红蛋白","%" to "糖化血红蛋白A1c"),
+  Triple("CPEP","C肽","" to "C-肽"),
+  Triple("INS","胰岛素","" to "空腹胰岛素"),
+  Triple("BNP","B型利钠肽","pg/mL" to "脑钠肽"),
+  Triple("NT-PROBNP","N末端B型利钠肽原","pg/mL" to "N末端脑钠肽前体"),
+  Triple("CTNI","心肌肌钙蛋白I","ng/L" to "肌钙蛋白I"),
+  Triple("CTNT","心肌肌钙蛋白T","ng/L" to "肌钙蛋白T"),
+  Triple("MYO","肌红蛋白","ng/mL" to "血清肌红蛋白"),
+  Triple("VITD25","25羟维生素D","" to "25-羟维生素D"),
  ).associate{(key,name,rest)->
   key to Definition(name,rest.first,rest.second.split('|').filter{it.isNotBlank()}.toSet())
  }
@@ -136,7 +152,11 @@ object UnifiedMetricStandard {
   "肿瘤标志物" to setOf("SCC","AFP","CEA","CA125","CA153","CA199","CA724","HE4","NSE","CYFRA21-1"),
   "凝血" to setOf("DDIMER","FIB","PT","APTT","TT","INR"),
   "铁代谢" to setOf("FERR","FE","TRANSFERRIN","TIBC","UIBC","B12","FOLATE"),
-  "炎症" to setOf("ESR","CRP","HSCRP","PCTIN")
+  "炎症" to setOf("ESR","CRP","HSCRP","PCTIN"),
+  "甲状腺" to setOf("TSH","FT3","FT4","T3","T4","TPOAB","TGAB"),
+  "糖代谢" to setOf("GLU","HBA1C","CPEP","INS"),
+  "心肌" to setOf("BNP","NT-PROBNP","CTNI","CTNT","MYO","CK","CKMB","LDH"),
+  "维生素" to setOf("B12","FOLATE","VITD25")
  )
  fun keysForType(reportType:String):Set<String> {
   val type=reportType.trim()
