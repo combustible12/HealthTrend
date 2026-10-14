@@ -18,6 +18,13 @@
 - **紧急代码待办**：清除新报告路径上 `ReportEditor` / `ReportImport` / `HealthStore` / `MainActivity` 依赖医院模板及自动生成模板的逻辑；保证无医院模板也能完整导入、核对、保存。不要动病程模块。
 - **交接纪律**：用户每次修正整体规则时，立即同步更新 `docs/DEVELOPMENT_CHECKLIST.md` 和本文件，再按新规则施工；原文旧规则仅作历史说明。
 
+## 当前第一优先级：完整备份与安全恢复（2026-10-14）
+- 原仓库已有 `HealthBackup.kt` 导出 ZIP 和 `Updates.kt`「我的 → 数据备份」按钮，但过去没有 ZIP 还原入口。现已提交升级代码：ZIP v2 含文件清单 SHA-256/大小，导出后重新校验，新增 ZIP 预检、**仅空白安装可恢复**的保守入口。历史照片、病程附件、图片资料本地文件及配置均包含在原有私有文件/偏好 XML 快照范围内；访问令牌凭据排除。
+- 施工证据：[d10d78b](https://github.com/combustible12/HealthTrend/commit/d10d78b666a42030855ba198e812dccf051358c0)、[e7e4ca7](https://github.com/combustible12/HealthTrend/commit/e7e4ca75ff5555bf181e436c86c055241a6e5e4a)、[af55a0b](https://github.com/combustible12/HealthTrend/commit/af55a0b46e2937c64cfa9157c5ca205b6f1814e8)。
+- **目前只是代码施工**，尚未编译、单元测试、独立设备或空白实例恢复验收，也没有新 APK。**不要告知用户当前手机已备份！** 手机数据从未被远程读取或备份。用户要实际备份必须待合格新版 APK，在手机上点「我的 → 数据备份 → 备份到文件」，将 ZIP 保存到手机之外；恢复前先完整预检。
+- **特别注意**：恢复核心是写回私有 XML 和文件目录，SharedPreferences 缓存导致必须彻底关闭再重启 App；没有恢复验证前不能引导卸载或清空用户的安装数据。恢复默认拒绝已有患者资料、报告、病程内容及图片，不能直接覆盖。
+- 下一步为静态代码审查、测试用例和完整备份-恢复实测，再处理取消医院模板逻辑。完整五条任务在 `DEVELOPMENT_CHECKLIST.md` 新增的备份阻断清单中。
+
 ## 2. 不得违反的业务红线
 - 仅修改 **HealthTrend**，不要动 `TreatmentVault`。
 - **病程 `course_records`、病程图片及历史记录优先保护**。报告施工不能更改这些数据。
