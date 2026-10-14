@@ -5,3 +5,4 @@ Audit report import matching, reviewed new metrics and Chinese labels 2026-10-13
 Backup-and-restore release compile check 2026-10-14.
 Fix nullable standard-range bounds; retry consolidated backup release check.
 Consolidated 17 regression fixes, test current standard-pool and immutable course records 2026-10-14.
+Verify five remaining identity/title/legacy-regression fixes 2026-10-14.
