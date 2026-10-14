@@ -213,7 +213,10 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
  val assigned=mutableMapOf<Int,ParsedLabResult>()
  val used=mutableSetOf<Int>()
  fields.forEachIndexed{index,field->
-  val candidates=items.indices.filter{it !in used && canonicalMetricKey(items[it].metricKey)==canonicalMetricKey(field.metricKey)}
+  val candidates=items.indices.filter{itemIndex->
+   itemIndex !in used && !items[itemIndex].metricKey.startsWith("待核对:") &&
+    canonicalMetricKey(items[itemIndex].metricKey)==canonicalMetricKey(field.metricKey)
+  }
   if(candidates.size==1){assigned[index]=items[candidates.single()];used.add(candidates.single())}
  }
  fields.forEachIndexed{index,field->
@@ -229,11 +232,22 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
    unresolved && sourceName.isNotBlank()&&sourceName.any{it.code in 0x3400..0x9FFF}&&
     (sourceName==targetName||canonicalMetricKey(ReportParser.key(sourceName))==canonicalMetricKey(field.metricKey))
   }
+  // Truncated printed labels are not identities: two template fields may
+  // share the same Chinese prefix while their codes, units and results differ.
+  // Name-only matching is allowed only for a unique name on BOTH sides and
+  // only when the printed unit is compatible with the confirmed field.
   val competingFields=fields.indices.count{other->
-   other !in assigned && (chinese(fields[other].displayName)==targetName ||
-    canonicalMetricKey(ReportParser.key(chinese(fields[other].displayName)))==canonicalMetricKey(field.metricKey))
+   other !in assigned && chinese(fields[other].displayName)==targetName
   }
-  if(candidates.size==1&&competingFields==1){
+  val sameSourceNames=items.indices.count{itemIndex->
+   itemIndex !in used && chinese(items[itemIndex].displayName)==targetName
+  }
+  val unitCompatible=candidates.singleOrNull()?.let{itemIndex->
+   val printed=displayLabUnit(items[itemIndex].unit).trim()
+   val expected=displayLabUnit(field.unit).trim()
+   printed.isNotBlank() && expected.isNotBlank() && printed.equals(expected,true)
+  }==true
+  if(candidates.size==1&&competingFields==1&&sameSourceNames==1&&unitCompatible){
    assigned[index]=items[candidates.single()];used.add(candidates.single())
   }
  }
