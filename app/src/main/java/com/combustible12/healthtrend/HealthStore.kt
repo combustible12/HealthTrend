@@ -275,7 +275,12 @@ class HealthStore(private val context:Context) {
   val evidence=reports().flatMap{report->report.results
    .filter{canonicalMetricKey(it.metricKey)==identity &&
     (it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)}
-   .map{Evidence(report,it)}
+   .map{result->
+    val unit=UnitNormalizer.normalize(identity,result.value,result.unitAtTest).second
+    val low=UnitNormalizer.normalize(identity,result.referenceLowAtTest,result.unitAtTest).first
+    val high=UnitNormalizer.normalize(identity,result.referenceHighAtTest,result.unitAtTest).first
+    Evidence(report,result.copy(unitAtTest=unit,referenceLowAtTest=low,referenceHighAtTest=high))
+   }
   }
   return evidence.groupBy{e->listOf(
    e.report.hospitalKey.trim(),e.report.reportType.trim(),
