@@ -30,7 +30,12 @@ fun labDisplayTitle(name:String,key:String):String{
  val prefix=Regex("^\\s*"+Regex.escape(key)+"(?=\\s|$)",RegexOption.IGNORE_CASE)
  val wrapped=Regex("[（(]\\s*"+Regex.escape(key)+"\\s*[）)]",RegexOption.IGNORE_CASE)
  val suffix=Regex("(?i)\\s+"+Regex.escape(key)+"\\s*$")
- val cleaned=raw.replace(wrapped,"").replace(prefix,"").replace(suffix,"").trim()
+ val legacyPrefix=when{
+  key.endsWith("#")->Regex("^\\s*#"+Regex.escape(key.dropLast(1))+"(?=\\s|$)",RegexOption.IGNORE_CASE)
+  key.endsWith("%")->Regex("^\\s*%"+Regex.escape(key.dropLast(1))+"(?=\\s|$)",RegexOption.IGNORE_CASE)
+  else->null
+ }
+ val cleaned=(legacyPrefix?.let{raw.replace(it,"")}?:raw).replace(wrapped,"").replace(prefix,"").replace(suffix,"").trim()
  val first=cleaned.substringBefore(' ').trim()
  val withoutAlias=if(first!=cleaned && canonicalMetricKey(first)==canonicalMetricKey(key))cleaned.substringAfter(' ').trim() else cleaned
  return withoutAlias.replace(Regex("\\s+")," ").trim()
