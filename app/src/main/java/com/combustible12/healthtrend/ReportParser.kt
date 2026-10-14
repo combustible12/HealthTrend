@@ -127,7 +127,7 @@ object ReportParser {
   val identityPattern=Regex("[（(]\\s*"+Regex.escape(safeIdentity)+"\\s*[）)]",RegexOption.IGNORE_CASE)
   val withoutIdentity=parsedName.replace(identityPattern,"").replace(Regex("\\s+")," ").trim()
   // Codes are internal identities; show the Chinese label without a leading analyzer code.
-  val chineseName=withoutIdentity.replace(Regex("(?i)^[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim()
+  val chineseName=withoutIdentity.replace(Regex("(?i)^[#%]?[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim()
   // A code alone is not a display name. Keep embedded Latin letters in genuine Chinese names.
   val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: "待核对"
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
