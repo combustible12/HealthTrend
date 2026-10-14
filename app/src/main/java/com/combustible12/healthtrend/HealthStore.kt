@@ -259,6 +259,39 @@ class HealthStore(private val context:Context) {
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
   return reports
  }
+ /**
+  * Reference intervals are observations belonging to individual reports, not mutable
+  * properties of a global metric. Different hospitals and analyzer systems may use
+  * different limits. Do not merge by metric alone or overwrite old test-time bounds.
+  */
+ data class ObservedReferenceRange(
+  val hospitalKey:String,val reportType:String,val systemKey:String,
+  val metricKey:String,val unit:String,val lower:Double?,val upper:Double?,
+  val firstObservedAt:Long,val lastObservedAt:Long,val reportCount:Int
+ )
+ @Synchronized fun referenceRangeHistory(metricKey:String):List<ObservedReferenceRange> {
+  val identity=canonicalMetricKey(metricKey)
+  data class Evidence(val report:LabReport,val result:LabResult)
+  val evidence=reports().flatMap{report->report.results
+   .filter{canonicalMetricKey(it.metricKey)==identity &&
+    (it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)}
+   .map{Evidence(report,it)}
+  }
+  return evidence.groupBy{e->listOf(
+   e.report.hospitalKey.trim(),e.report.reportType.trim(),e.report.systemKey.trim(),
+   identity,e.result.unitAtTest,e.result.referenceLowAtTest?.toString().orEmpty(),
+   e.result.referenceHighAtTest?.toString().orEmpty()
+  )}.values.map{group->
+   val first=group.first()
+   ObservedReferenceRange(first.report.hospitalKey,first.report.reportType,
+    first.report.systemKey,identity,first.result.unitAtTest,
+    first.result.referenceLowAtTest,first.result.referenceHighAtTest,
+    group.minOf{it.report.testedAtEpochMillis},
+    group.maxOf{it.report.testedAtEpochMillis},
+    group.map{it.report.id}.distinct().size)
+  }.sortedWith(compareBy<ObservedReferenceRange>{it.firstObservedAt}
+   .thenBy{it.hospitalKey}.thenBy{it.systemKey})
+ }
  @Synchronized fun saveReport(input:LabReport){
   // Do not rewrite a confirmed report's metric identities on ordinary save.
   // Legacy identity repairs are intentionally not part of the save path.
