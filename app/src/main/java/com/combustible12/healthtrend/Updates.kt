@@ -106,6 +106,40 @@ private fun URI(s:String)=java.net.URI(s)
    }
   }
  }
+ var restorePreview by remember{mutableStateOf<HealthBackup.Preview?>(null)}
+ var restoreUri by remember{mutableStateOf<Uri?>(null)}
+ var restoreConfirm by remember{mutableStateOf(false)}
+ val restoreLauncher=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+  if(uri!=null){
+   backupBusy=true;backupStatus="正在核验备份文件…"
+   scope.launch{
+    try{
+     val preview=withContext(Dispatchers.IO){HealthBackup(ctx,store).inspect(uri)}
+     restoreUri=uri;restorePreview=preview;restoreConfirm=true
+     backupStatus="备份核验成功：${preview.reports} 份报告、${preview.courseRecords} 条病程、${preview.files} 个文件。"
+    }catch(e:Exception){restoreUri=null;restorePreview=null;backupStatus="备份校验失败：${e.message}"}
+    finally{backupBusy=false}
+   }
+  }
+ }
+ if(restoreConfirm&&restorePreview!=null){
+  AlertDialog(onDismissRequest={restoreConfirm=false},title={Text("恢复完整备份？")},
+   text={Text("已验证备份中有 ${restorePreview!!.reports} 份报告、${restorePreview!!.courseRecords} 条病程。只允许在没有现有医疗记录的安装环境中恢复；不会与当前记录合并。恢复成功后必须关闭并重新打开 App 才能读取数据。")},
+   confirmButton={TextButton({
+    val uri=restoreUri
+    if(uri!=null){
+     restoreConfirm=false;backupBusy=true;backupStatus="正在恢复备份，请勿关闭应用…"
+     scope.launch{
+      try{
+       val restored=withContext(Dispatchers.IO){HealthBackup(ctx,store).restoreIntoEmpty(uri)}
+       backupStatus="恢复完成：${restored.reports} 份报告。请完全关闭并重新打开 App，重新打开前不要编辑任何数据。"
+      }catch(e:Exception){backupStatus="恢复未完成：${e.message}"}
+      finally{backupBusy=false}
+     }
+    }
+   },enabled=!backupBusy){Text("确认安全恢复")}},
+   dismissButton={TextButton({restoreConfirm=false}){Text("取消")}})
+ }
  var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
@@ -126,11 +160,13 @@ private fun URI(s:String)=java.net.URI(s)
   Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
     Text("数据备份",fontWeight=FontWeight.SemiBold)
-    Text("导出本机报告、历史模板、趋势记录、原始图片及设置为 ZIP。不会修改已有数据。备份包含个人医疗信息，请保存到可信位置。",color=Muted,fontSize=13.sp)
+    Text("备份全部本地健康数据、图片资料、报告原图和设置为 ZIP，并校验每个文件。备份包含个人医疗信息，请保存在可信位置。",color=Muted,fontSize=13.sp)
     Button({backupLauncher.launch("HealthTrend_备份_${java.time.LocalDate.now()}.zip")},enabled=!backupBusy,modifier=Modifier.fillMaxWidth()){
      Text(if(backupBusy)"正在备份…" else "备份到文件")
     }
     if(backupBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
+    OutlinedButton({restoreLauncher.launch(arrayOf("application/zip","application/octet-stream"))},enabled=!backupBusy,modifier=Modifier.fillMaxWidth()){Text("选择备份 ZIP 并验证 / 恢复")}
+    Text("恢复仅限空白安装，不覆盖已有报告或病程；请把 ZIP 再复制一份到其他安全位置。",color=Muted,fontSize=12.sp)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
