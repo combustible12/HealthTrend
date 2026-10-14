@@ -8,3 +8,4 @@ Consolidated 17 regression fixes, test current standard-pool and immutable cours
 Verify five remaining identity/title/legacy-regression fixes 2026-10-14.
 2026-10-14 consolidate standard-pool import save decoupling from legacy templates.
 Verify template-free import and source-preserving tests 2026-10-14.
+Final recheck after retired-template UI removal 2026-10-14.
