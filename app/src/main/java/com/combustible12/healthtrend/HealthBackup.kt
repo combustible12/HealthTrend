@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.zip.ZipInputStream
 
 /**
  * Export-only, read-only snapshot. Never touches existing records or templates.
@@ -50,6 +51,24 @@ class HealthBackup(private val context: Context, private val store: HealthStore)
      file.inputStream().buffered().use{input->bytes+=input.copyTo(zip)}
      zip.closeEntry()
     }
+   }
+  }
+  // Verify the user-selected document can be reopened and every ZIP entry
+  // can be read. A successful stream close alone does not prove export integrity.
+  context.contentResolver.openInputStream(destination).use{input->
+   requireNotNull(input){"备份已写入，但无法重新打开校验"}
+   ZipInputStream(input.buffered()).use{zip->
+    var seenManifest=false
+    val seen=mutableSetOf<String>()
+    val buffer=ByteArray(32768)
+    while(true){
+     val entry=zip.nextEntry?:break
+     require(seen.add(entry.name)){"备份内存在重复文件名"}
+     if(entry.name=="manifest.json")seenManifest=true
+     while(zip.read(buffer)!=-1){ /* CRC is checked when reading each entry. */ }
+     zip.closeEntry()
+    }
+    check(seenManifest&&entries.all{it.first in seen}){"备份不完整，请重新导出"}
    }
   }
   return Summary(entries.size,bytes,reportCount,templateCount)
