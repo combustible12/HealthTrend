@@ -7,3 +7,4 @@ Fix nullable standard-range bounds; retry consolidated backup release check.
 Consolidated 17 regression fixes, test current standard-pool and immutable course records 2026-10-14.
 Verify five remaining identity/title/legacy-regression fixes 2026-10-14.
 2026-10-14 consolidate standard-pool import save decoupling from legacy templates.
+Verify template-free import and source-preserving tests 2026-10-14.
