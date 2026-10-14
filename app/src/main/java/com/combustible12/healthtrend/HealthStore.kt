@@ -560,7 +560,7 @@ class HealthStore(private val context:Context) {
   val aliases=metricAliases()
   val preferred=preferredMetricNames()
   fun matches(name:String):Boolean = clean==name ||
-   clean.startsWith(name+" ") || clean.startsWith(name+"\\t") ||
+   clean.startsWith(name+" ") || clean.startsWith(name+"\t") ||
    clean.startsWith(name+"（") || clean.startsWith(name+"(")
   val candidateNames=metricCatalogue().filter{(_,names)->names.any(::matches)}.keys
   val candidates=(candidateNames+
@@ -569,15 +569,13 @@ class HealthStore(private val context:Context) {
   if(candidates.size==1)return candidates.single()
   if(candidates.isEmpty()||unit.isBlank())return "未识别"
   val normalizedCandidates=candidates.filter{key->
-   val knownUnits=rememberedUnits(key)
-   // Unit compatibility is established only when both convert into the
-   // same common unit. An unsupported conversion cannot decide identity.
-   knownUnits.any{known->
+   rememberedUnits(key).any{known->
     val incoming=UnitNormalizer.normalize(key,1.0,unit)
     val existing=UnitNormalizer.normalize(key,1.0,known)
-    incoming.second.equals(existing.second,true) &&
-     (incoming.second!=unit || existing.second!=known ||
-      unit.trim().equals(known.trim(),true))
+    val sameSource=unit.trim().equals(known.trim(),true)
+    val converted=incoming.second.equals(existing.second,true) &&
+     (incoming.second!=unit || existing.second!=known)
+    sameSource || converted
    }
   }
   return normalizedCandidates.singleOrNull()?:"未识别"
