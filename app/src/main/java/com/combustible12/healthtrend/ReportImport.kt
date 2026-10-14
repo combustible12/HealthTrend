@@ -132,8 +132,10 @@ internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:Ho
  val bound=template.fields.mapIndexedNotNull{index,field->
   val source=accepted[index]?:return@mapIndexedNotNull null
   source.copy(metricKey=field.metricKey,displayName=field.displayName,
-   unit=displayLabUnit(field.unit),referenceLow=field.referenceLow,
-   referenceHigh=field.referenceHigh,primary=field.metricKey in ReportParser.primaryKeys)
+   unit=displayLabUnit(field.unit.ifBlank{source.unit}),
+   referenceLow=field.referenceLow?:source.referenceLow,
+   referenceHigh=field.referenceHigh?:source.referenceHigh,
+   primary=field.metricKey in ReportParser.primaryKeys)
  }
  val used=accepted.values.toSet()
  return bound+items.filter{it !in used}.map{source->
