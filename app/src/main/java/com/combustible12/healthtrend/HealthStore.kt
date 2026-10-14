@@ -260,7 +260,9 @@ class HealthStore(private val context:Context) {
   return reports
  }
  @Synchronized fun saveReport(input:LabReport){
-  val normalized=normalizeMaternalRdw(input)
+  // Do not rewrite a confirmed report's metric identities on ordinary save.
+  // Legacy identity repairs are intentionally not part of the save path.
+  val normalized=input
   // Report editors can hold an older snapshot than an attachment import.
   // Keep persisted images when that snapshot is saved; never silently discard them.
   val persisted=reports().firstOrNull{it.id==normalized.id}
