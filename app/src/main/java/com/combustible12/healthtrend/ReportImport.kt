@@ -119,28 +119,23 @@ internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:Ho
  // choose one value: keep both sources for review rather than binding the first.
  val repeated=items.groupingBy{canonicalMetricKey(it.metricKey)}.eachCount()
  val accepted=matches.filter{(index,source)->
-  val field=template.fields[index]
-  val printedUnit=displayLabUnit(source.unit).trim()
-  val templateUnit=displayLabUnit(field.unit).trim()
-  // Explicit pasted units cannot be silently overwritten by the hospital template.
-  // A conflicting unit may indicate a truncated label or a different metric.
-  val unitMatches=printedUnit.isBlank() || templateUnit.isBlank() ||
-   printedUnit.equals(templateUnit,true)
   source.textValue.isNotBlank() &&
-   repeated[canonicalMetricKey(source.metricKey)]==1 && unitMatches
+   repeated[canonicalMetricKey(source.metricKey)]==1 &&
+   canonicalMetricKey(template.fields[index].metricKey)==canonicalMetricKey(source.metricKey)
  }
  val bound=template.fields.mapIndexedNotNull{index,field->
   val source=accepted[index]?:return@mapIndexedNotNull null
+  // Template supplies identity and display name only. Printed result, unit, and
+  // reference interval remain test-time facts even when the template differs.
   source.copy(metricKey=field.metricKey,displayName=field.displayName,
-   unit=displayLabUnit(field.unit.ifBlank{source.unit}),
-   referenceLow=field.referenceLow?:source.referenceLow,
-   referenceHigh=field.referenceHigh?:source.referenceHigh,
+   unit=source.unit.ifBlank{field.unit},
+   referenceLow=source.referenceLow?:field.referenceLow,
+   referenceHigh=source.referenceHigh?:field.referenceHigh,
    primary=field.metricKey in ReportParser.primaryKeys)
  }
  val used=accepted.values.toSet()
- return bound+items.filter{it !in used}.map{source->
-  source.copy(metricKey=if(source.metricKey.startsWith("待核对:"))source.metricKey else "待核对:"+source.metricKey)
- }
+ return bound+items.filter{it !in used}
+
 }
 
 /** Spatial reconstruction prevents OCR block order from separating a result from its name. */
