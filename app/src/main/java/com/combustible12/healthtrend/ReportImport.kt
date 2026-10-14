@@ -97,6 +97,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
  // guess by name and does not change the stored template.
  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized)).let{rows->store?.reconcileParsedMetrics(rows)?:rows}
+ if(parsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
  val meta=ReportMetadata.extract(raw,parsed)
  // Clipboard data already has an explicit metric code on every row. Exact canonical
  // code matching is sufficient here; do not run the OCR-only "independent result"
