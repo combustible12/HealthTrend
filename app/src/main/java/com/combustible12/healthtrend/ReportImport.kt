@@ -105,7 +105,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // are emitted, so a 15-item report remains exactly 15 items.
  val resolved=if(template!=null)templateDrivenPastedResults(parsed,template) else parsed
  return ReportDraft(
-  hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=normalized,
+  hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain
  )
 }
@@ -284,7 +284,7 @@ fun retargetImportedDraft(
    if(key=="未识别")row else row.copy(key=key)
   })
  }
- val original=store.reconcileParsedMetrics(ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(d.ocr)))
+ val original=store.reconcileParsedMetrics(ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalizePastedReportText(d.ocr))))
  val previous=store.latestTemplate(d.hospital,d.type,d.system)
  fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
   r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
