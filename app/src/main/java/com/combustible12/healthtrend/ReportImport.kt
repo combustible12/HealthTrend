@@ -102,8 +102,8 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // Clipboard data already has an explicit metric code on every row. Exact canonical
  // code matching is sufficient here; do not run the OCR-only "independent result"
  // heuristic, because units such as 10^9/L contain digits before the printed range.
- // The confirmed template still owns name/order/unit/reference, and only pasted metrics
- // are emitted, so a 15-item report remains exactly 15 items.
+ // The standard pool determines identity. Report source name, unit and printed
+ // reference interval remain attached to this test, independent of hospital.
  val resolved=if(template!=null)templateDrivenPastedResults(parsed,template) else parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
@@ -127,7 +127,7 @@ internal fun templateDrivenPastedResults(items:List<ParsedLabResult>,template:Ho
   val source=accepted[index]?:return@mapIndexedNotNull null
   // Template supplies identity and display name only. Printed result, unit, and
   // reference interval remain test-time facts even when the template differs.
-  source.copy(metricKey=field.metricKey,displayName=field.displayName,
+  source.copy(metricKey=canonicalMetricKey(field.metricKey),displayName=source.displayName,
    unit=source.unit.ifBlank{field.unit},
    referenceLow=source.referenceLow?:field.referenceLow,
    referenceHigh=source.referenceHigh?:field.referenceHigh,
