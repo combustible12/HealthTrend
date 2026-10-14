@@ -215,9 +215,21 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
   Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
- if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
+ if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d,updateTemplate->change{
    val existing=store.latestTemplate(d.hospital,d.type,d.system)
-   val t=existing?:store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
+   // A new metric is stored in this report by default. Only an explicit
+   // confirmation may append it to the hospital's current template.
+   val t=when{
+    existing==null->store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
+    updateTemplate && d.existing==null->{
+     val known=existing.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
+     val additions=d.parsed().filter{canonicalMetricKey(it.metricKey) !in known}.map{p->
+      LabFieldTemplate(p.metricKey,p.displayName,displayLabUnit(p.unit),p.referenceLow,p.referenceHigh)
+     }
+     if(additions.isEmpty())existing else store.saveTemplateFields(existing,existing.fields+additions)
+    }
+    else->existing
+   }
    val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
    val version=if(d.existing!=null&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey)d.existing.templateVersion else t.version
    store.saveReport(if(d.existing==null)r else r.copy(id=d.existing.id,templateVersion=version,results=r.results.map{x->x.copy(id=d.rows.singleOrNull{it.key==x.metricKey}?.id ?: error("编辑项目身份不匹配：${x.metricKey}"),reportId=d.existing.id,templateVersion=version,editedByUser=true)}))
