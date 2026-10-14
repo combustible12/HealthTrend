@@ -78,3 +78,11 @@
 - GitHub Actions 集中编译检查：首次 [run 38526966200](https://github.com/combustible12/HealthTrend/actions/runs/38526966200) 失败，`HealthStore.kt:310` Kotlin nullable Pair 属性无法 smart cast；修复提交 [20ade70](https://github.com/combustible12/HealthTrend/commit/20ade70d4a28e72ad2fae7b308ba94e72d394e23)。
 - 第二次 [run 38527263756](https://github.com/combustible12/HealthTrend/actions/runs/38527263756) **Kotlin 编译通过，115 个 JVM 测试中 17 个失败**，主要集中于 `ReportParserTest` 和 `HistoryReplacementTest`。因此**尚未触发签名发布，尚无新备份版 APK**；不要向用户声称已发布或能直接用手机备份。
 - 下次优先定位上述 17 项失败是否属于过时的模板测试假设、真实回归还是运行环境问题；增加完整 ZIP 备份/恢复的独立真实验证后再发布。严禁为获取绿色结果直接跳过所有回归测试。
+
+## 2026-10-14 统一指标池导入/保存续工状态
+- 用户明确解除“先只做备份”的限制，同意继续按全局统一标准池规则施工；病程截图只是用户个人兜底，**不是完整数据备份**，不许据此删除/迁移真实数据。
+- 已把新报告保存切换到 `HealthStore.buildReportFromPool`，保存时不查询/生成医院模板；新报告保存本次独立实际项目集合。相关提交 [037b066](https://github.com/combustible12/HealthTrend/commit/037b0664d1b198d6662309b19f9ce6a11dbd7e03)、[9e1d1f3](https://github.com/combustible12/HealthTrend/commit/9e1d1f35fcc54a8685f563e95e4bf1e5a32e96cc)。
+- 核对页面不再弹更新模板确认、不再以医院模板锁定本次项目；粘贴/OCR 导入及更换医院不再读模板。[69695b0](https://github.com/combustible12/HealthTrend/commit/69695b038542f3a621ab3eb411c31bcace2e33b2)、[7a012fc](https://github.com/combustible12/HealthTrend/commit/7a012fc75a2f238dfbfdd6eba952a171a989cbc2)、[f1ec957](https://github.com/combustible12/HealthTrend/commit/f1ec957729ef10db45795847b8c387008d47cc6e)。
+- 「我的」隐藏旧医院模板管理入口，但没有删除底层数据，[8457097](https://github.com/combustible12/HealthTrend/commit/84570976b6ce5158ce17f798470b570313d1d0e9)。
+- [CI 38529695948](https://github.com/combustible12/HealthTrend/actions/runs/38529695948) 编译和 115 个 JVM 回归测试通过（构建源 SHA `d8dd6484`）；界面隐藏提交在该 CI 之后，尚待最新 SHA 检查。
+- 病程读写/迁移代码未被此轮直接修改；**无实际设备数据备份/恢复验证，仍不得宣称绝对安全或已发布**。旧报告与标准池的只读身份兼容、端到端持久化草稿功能尚未全面验收。
