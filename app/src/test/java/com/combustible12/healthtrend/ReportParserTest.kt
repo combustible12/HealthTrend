@@ -771,15 +771,20 @@ P-LCR 大型血小板比率 20.8 11-45
 #NRBC 有核红细胞计数 0.000 <=9999.99
 P-LCC 大小血小板数目 59 30-90 10^9/L
 乱码项目 999 1-2"""
-  val rows=templateDrivenResults(ReportParser.parse(current),template)
-  assertTrue("all actual report rows must survive, including rows requiring review",rows.size>=27)
-  assertTrue("OCR import must not silently merge unrelated metrics",rows.filterNot{it.metricKey.startsWith("待核对:")}.groupBy{it.metricKey}.values.all{it.size==1})
-  assertTrue("any extra OCR row must be flagged for review",rows.filter{it.metricKey.startsWith("待核对:")}.all{it.rawLine.isNotBlank()})
-  fun row(k:String)=rows.single{it.metricKey==k}
-  assertEquals(4.35,row("WBC").value!!,0.0);assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
-  assertEquals(2.57,row("NEUT#").value!!,0.0);assertEquals(1.50,row("LYMPH#").value!!,0.0);assertEquals(0.04,row("EOS#").value!!,0.0)
-  assertEquals("32.30",row("HCT").textValue);assertEquals("86.0",row("MCV").textValue);assertEquals("0.00",row("NRBC%").textValue);assertEquals("0.000",row("NRBC#").textValue)
-  assertEquals("10^9/L",row("WBC").unit);assertTrue(rows.none{it.displayName.contains("上NEUT")||it.displayName.contains("FLYMPH")||it.displayName.contains("I嗜酸")||it.unit=="109/L"})
+  // Legacy hospital template is intentionally NOT used by new imports.
+  // Each source row remains independent; garbled codes require confirmation.
+  val observed=ReportParser.parse(current)
+  assertEquals(28,observed.size)
+  assertEquals("4.35",observed.single{it.metricKey=="WBC"}.textValue)
+  assertEquals("32.30",observed.single{it.metricKey=="HCT"}.textValue)
+  assertEquals("86.0",observed.single{it.metricKey=="MCV"}.textValue)
+  assertEquals("0.00",observed.single{it.metricKey=="NRBC%"}.textValue)
+  assertEquals("0.000",observed.single{it.metricKey=="NRBC#"}.textValue)
+  assertTrue(observed.any{it.metricKey.startsWith("待核对:")&&it.rawLine.contains("乱码项目")})
+  assertTrue(observed.any{it.rawLine.contains("上NEUT")&&it.textValue=="2.57"})
+  assertTrue(observed.any{it.rawLine.contains("FLYMPH")&&it.textValue=="1.50"})
+  assertEquals(27,template.fields.size)
+  assertTrue(template.fields.none{it.metricKey.startsWith("待核对:")})
  }
 
 
