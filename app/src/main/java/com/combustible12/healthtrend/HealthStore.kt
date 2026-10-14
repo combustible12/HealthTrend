@@ -612,31 +612,37 @@ class HealthStore(private val context:Context) {
   * unambiguous name because its unit differs or is convertible.
   */
  fun resolveMetricKey(label:String,unit:String=""):String {
-  val builtin=ReportParser.key(label)
-  if(builtin!="未识别")return builtin
   val clean=label.trim().replace('：',':').replace('／','/')
-  val aliases=metricAliases()
+  if(clean.isBlank())return "未识别"
+  val catalogue=metricCatalogue()
   val preferred=preferredMetricNames()
-  fun matches(name:String):Boolean = clean==name ||
-   clean.startsWith(name+" ") || clean.startsWith(name+"\t") ||
-   clean.startsWith(name+"（") || clean.startsWith(name+"(")
-  val candidateNames=metricCatalogue().filter{(_,names)->names.any(::matches)}.keys
-  val candidates=(candidateNames+
-   aliases.filterKeys(::matches).values+
-   preferred.filterValues(::matches).keys).map(::canonicalMetricKey).distinct()
+  val userAliases=metricAliases()
+  fun namesMatch(name:String):Boolean =
+   name.equals(clean,true) || (clean.length>name.length && clean.startsWith(name,true) &&
+    clean[name.length] in " \t（(")
+  // A single authoritative exact name/alias mapping wins. Conflicting owners
+  // are unresolved; an arbitrary collection iteration order must not decide.
+  val exact=(preferred.filterValues{it.equals(clean,true)}.keys+
+   userAliases.filterKeys{it.equals(clean,true)}.values+
+   catalogue.filterValues{names->names.any{it.equals(clean,true)}}.keys)
+   .map(::canonicalMetricKey).distinct()
+  if(exact.size==1)return exact.single()
+  if(exact.size>1)return "未识别"
+  val direct=ReportParser.key(clean)
+  if(direct!="未识别")return canonicalMetricKey(direct)
+  val candidates=catalogue.filterValues{names->names.any(::namesMatch)}.keys
+   .map(::canonicalMetricKey).distinct()
   if(candidates.size==1)return candidates.single()
   if(candidates.isEmpty()||unit.isBlank())return "未识别"
-  val normalizedCandidates=candidates.filter{key->
-   rememberedUnits(key).any{known->
-    val incoming=UnitNormalizer.normalize(key,1.0,unit)
-    val existing=UnitNormalizer.normalize(key,1.0,known)
-    val sameSource=unit.trim().equals(known.trim(),true)
-    val converted=incoming.second.equals(existing.second,true) &&
-     (incoming.second!=unit || existing.second!=known)
-    sameSource || converted
+  val matching=candidates.filter{key->
+   val knownUnits=rememberedUnits(key)+listOfNotNull(UnifiedMetricStandard.definition(key)?.unit)
+   knownUnits.any{known->
+    val a=UnitNormalizer.normalize(key,1.0,unit)
+    val b=UnitNormalizer.normalize(key,1.0,known)
+    a.second.equals(b.second,true) && a.first!=null&&b.first!=null
    }
   }
-  return normalizedCandidates.singleOrNull()?:"未识别"
+  return matching.singleOrNull()?:"未识别"
  }
  /** Apply the user dictionary to parsed rows without replacing source text.
   * Only unresolved identities can be filled. A known explicit code always wins. */
