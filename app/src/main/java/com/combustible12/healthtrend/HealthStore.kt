@@ -850,6 +850,51 @@ class HealthStore(private val context:Context) {
   val dir=File(context.filesDir,"sources").apply{mkdirs()};val dest=File(dir,newId()+".image");val temp=File(dir,dest.name+".tmp")
   try { context.contentResolver.openInputStream(uri).use{input->requireNotNull(input){"原图无法读取"};temp.outputStream().use{out->input.copyTo(out)}};check(temp.length()>0);check(temp.renameTo(dest));return Uri.fromFile(dest).toString() }finally{temp.delete()}
  }
+ /** Deterministic, editable clipboard format. Never fabricate unmeasured fields. */
+ fun exportReportAsPastedText(report:LabReport):String = buildString {
+  append(report.hospitalKey).append('\n')
+  append(report.reportType).append('\n')
+  append(dateText(report.testedAtEpochMillis))
+  report.results.forEach{row->
+   append('\n').append(canonicalMetricKey(row.metricKey)).append(' ')
+   append(preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName)
+   append(' ').append(row.textValue).append(' ')
+   append(row.unitAtTest.ifBlank{"-"}) 
+   if(row.referenceLowAtTest!=null||row.referenceHighAtTest!=null){
+    append(' ').append(row.referenceLowAtTest?.toString()?:"")
+    append('-').append(row.referenceHighAtTest?.toString()?:"")
+   }
+  }
+ }
+ /** Portable dictionary settings; never contains reports, patient names or photos. */
+ fun exportMetricDictionary():String=JSONObject().put("schema",1)
+  .put("aliases",read("metric_aliases"))
+  .put("preferredNames",read("metric_preferred_names"))
+  .put("customMetrics",read("custom_metrics"))
+  .toString()
+ /** Validate the entire user dictionary before any write, rejecting collisions. */
+ @Synchronized fun importMetricDictionary(content:String){
+  val input=JSONObject(content)
+  require(input.optInt("schema")==1){"词典配置版本不支持"}
+  val aliases=input.optJSONArray("aliases")?:JSONArray()
+  val preferred=input.optJSONArray("preferredNames")?:JSONArray()
+  val custom=input.optJSONArray("customMetrics")?:JSONArray()
+  val keys=(metricCatalogue().keys+ (0 until custom.length()).map{custom.getJSONObject(it).getString("key")}).toSet()
+  val ownership=mutableMapOf<String,String>()
+  fun register(name:String,key:String){
+   val label=name.trim().lowercase()
+   require(label.isNotBlank()&&key in keys){"词典包含无效项目名称或代码"}
+   val previous=ownership.putIfAbsent(label,key)
+   require(previous==null||previous==key){"词典名称对应多个项目：$name"}
+  }
+  (0 until aliases.length()).forEach{val x=aliases.getJSONObject(it);register(x.getString("alias"),canonicalMetricKey(x.getString("metricKey")))}
+  (0 until preferred.length()).forEach{val x=preferred.getJSONObject(it);register(x.getString("name"),canonicalMetricKey(x.getString("metricKey")))}
+  (0 until custom.length()).forEach{val x=custom.getJSONObject(it);register(x.getString("name"),x.getString("key"))}
+  // Atomic preference transaction: no reports/templates/course records are touched.
+  check(prefs.edit().putString("metric_aliases",aliases.toString())
+   .putString("metric_preferred_names",preferred.toString())
+   .putString("custom_metrics",custom.toString()).commit()){"词典保存失败"}
+ }
  fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
