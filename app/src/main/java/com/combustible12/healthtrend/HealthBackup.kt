@@ -13,7 +13,7 @@ import java.util.zip.ZipInputStream
  * The user owns the resulting ZIP via Android's document picker.
  */
 class HealthBackup(private val context: Context, private val store: HealthStore) {
- data class Summary(val files:Int,val bytes:Long,val reports:Int,val templates:Int)
+ data class Summary(val files:Int,val bytes:Long,val reports:Int,val templates:Int,val courseRecords:Int)
 
  fun export(destination:Uri):Summary {
   val prefsDir=File(context.applicationInfo.dataDir,"shared_prefs")
@@ -31,6 +31,7 @@ class HealthBackup(private val context: Context, private val store: HealthStore)
   }
   val reportCount=store.reports().size
   val templateCount=store.templates().size
+  val courseCount=store.courseRecords().size
   var bytes=0L
   context.contentResolver.openOutputStream(destination,"w").use{output->
    requireNotNull(output){"无法写入备份文件"}
@@ -41,6 +42,7 @@ class HealthBackup(private val context: Context, private val store: HealthStore)
      .put("createdAt",System.currentTimeMillis())
      .put("reports",reportCount)
      .put("templates",templateCount)
+     .put("courseRecords",courseCount)
      .put("files",entries.size)
      .put("note","包含本机应用文件及非凭据配置；请妥善保管，勿公开分享")
     zip.putNextEntry(ZipEntry("manifest.json"))
@@ -71,6 +73,6 @@ class HealthBackup(private val context: Context, private val store: HealthStore)
     check(seenManifest&&entries.all{it.first in seen}){"备份不完整，请重新导出"}
    }
   }
-  return Summary(entries.size,bytes,reportCount,templateCount)
+  return Summary(entries.size,bytes,reportCount,templateCount,courseCount)
  }
 }
