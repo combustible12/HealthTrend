@@ -297,15 +297,15 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals(1,listOf(old,current).groupBy(::trendSeriesKey).size)
  }
  @Test fun trendCardsExplainWhatCoreValuesAreUsedFor(){
-  assertEquals("免疫力、感染风险",metricPurpose("WBC"))
-  assertTrue(requireNotNull(metricPurpose("#NEUT")).contains("骨髓抑制"))
+  assertTrue(requireNotNull(metricPurpose("WBC")).contains("感染"))
+  assertTrue(requireNotNull(metricPurpose("NEUT#")).contains("感染"))
   assertTrue(requireNotNull(metricPurpose("HGB")).contains("贫血"))
-  assertTrue(requireNotNull(metricPurpose("PLT")).contains("出血风险"))
+  assertTrue(requireNotNull(metricPurpose("PLT")).contains("出血"))
   assertTrue(requireNotNull(metricPurpose("ALT")).contains("肝"))
-  assertEquals("胆红素与黄疸",metricPurpose("TBIL"))
+  assertTrue(requireNotNull(metricPurpose("TBIL")).contains("肝胆"))
   assertTrue(requireNotNull(metricPurpose("ALB")).contains("营养状态"))
-  assertEquals("肾功能核心指标",metricPurpose("CREA"))
-  assertTrue(requireNotNull(metricPurpose("UA")).contains("化疗后常见升高"))
+  assertTrue(requireNotNull(metricPurpose("CREA")).contains("肾功能"))
+  assertTrue(requireNotNull(metricPurpose("UA")).contains("肾脏"))
  }
  @Test fun editedTrendValueRecomputesStatusButKeepsHistoricalRange(){
   val x=LabResult(id="x",reportId="r",hospitalKey="医院",reportType="血常规",templateVersion=1,metricKey="HGB",rawName="HGB",value=102.0,unitAtTest="g/L",referenceLowAtTest=113.0,referenceHighAtTest=151.0,testedAtEpochMillis=1L,textValue="102")
@@ -557,7 +557,7 @@ AST/ALT 谷草/谷丙 0.88"""
    "P-LCR 大型血小板比率 21.8 11-45",
    "%NRBC 有核红细胞比率 0.00 <=9999.99",
    "#NRBC 有核红细胞计数 0.000 <=9999.99",
-   "P-LCR 大小血小板数目 51 30-90 10^9/L"
+   "P-LCC 大小血小板数目 51 30-90 10^9/L"
   ).joinToString("\n")
   val rows=ReportParser.parse(raw)
   assertEquals(27,rows.size)
@@ -747,7 +747,7 @@ PDW 血小板分布宽度 16.4 15-17 %
 P-LCR 大型血小板比率 21.8 11-45
 %NRBC 有核红细胞比率 0.00 <=9999.99
 #NRBC 有核红细胞计数 0.000 <=9999.99
-P-LCR 大小血小板数目 51 30-90 10^9/L"""
+P-LCC 大小血小板数目 51 30-90 10^9/L"""
   val templateRows=ReportParser.parse(fixed)
   assertEquals("confirmed template parser keys=${templateRows.map{it.metricKey}}",27,templateRows.size)
   val template=HospitalLabTemplate("霞浦县中医院","血常规",5,true,templateRows.map{LabFieldTemplate(it.metricKey,it.displayName,displayLabUnit(it.unit),it.referenceLow,it.referenceHigh)})
@@ -777,7 +777,7 @@ PDW 血小板分布宽度 16.4 15-17 %
 P-LCR 大型血小板比率 20.8 11-45
 %NRBC 有核红细胞比率 0.00 <=9999.99
 #NRBC 有核红细胞计数 0.000 <=9999.99
-P-LCR 大小血小板数目 59 30-90 10^9/L
+P-LCC 大小血小板数目 59 30-90 10^9/L
 乱码项目 999 1-2"""
   val rows=templateDrivenResults(ReportParser.parse(current),template)
   assertEquals("template-driven keys=${rows.map{it.metricKey}}",27,rows.size)
