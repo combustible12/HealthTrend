@@ -601,6 +601,10 @@ class HealthStore(private val context:Context) {
   ReportParser.builtInMetricKeys().forEach{key->
    names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.addAll(ReportParser.builtInAliasNames(key))
   }
+  UnifiedMetricStandard.keys().forEach{key->
+   val item=UnifiedMetricStandard.definition(key)?:return@forEach
+   names.getOrPut(key){linkedSetOf()}.apply{add(item.name);addAll(item.aliases)}
+  }
   templates().flatMap{it.fields}.forEach{field->
    names.getOrPut(canonicalMetricKey(field.metricKey)){linkedSetOf()}.add(field.displayName)
   }
@@ -630,16 +634,19 @@ class HealthStore(private val context:Context) {
   val preferred=preferredMetricNames()
   return catalogue.keys.sorted().map{key->
    val names=catalogue[key].orEmpty()
+   val definition=UnifiedMetricStandard.definition(key)
    val name=preferred[key]?.takeIf{it.isNotBlank()}
-    ?: names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
+    ?:definition?.name
+    ?:names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
       .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
     ?:key
    val ranges=referenceRangeHistory(key)
-   val sourceUnits=rememberedUnits(key)
-   val common=sourceUnits.firstNotNullOfOrNull{source->
-    val converted=UnitNormalizer.normalize(key,1.0,source).second
-    converted.takeIf{it!=source}
-   } ?:sourceUnits.firstOrNull().orEmpty()
+   val units=rememberedUnits(key)
+   val common=definition?.unit?.takeIf{it.isNotBlank()}
+    ?:units.firstNotNullOfOrNull{source->
+     val normalized=UnitNormalizer.normalize(key,1.0,source).second
+     normalized.takeIf{it!=source}
+    } ?:units.firstOrNull().orEmpty()
    UnifiedMetricEntry(key,name,names.filter{it!=name}.toSet(),common,ranges)
   }
  }
