@@ -552,7 +552,7 @@ class HealthStore(private val context:Context) {
  fun latestTemplate(h:String,t:String,system:String="")=storedTemplates().filter{it.hospitalKey==h.trim()&&it.reportType==t.trim()&&it.systemKey==system.trim()&&it.confirmed}.maxByOrNull{it.version}
  @Synchronized fun confirmTemplate(h:String,t:String,items:List<ParsedLabResult>,system:String="",newVersion:Boolean=false):HospitalLabTemplate {
   require(ReportParser.valid(items));require(h.isNotBlank()&&t.isNotBlank())
-  require(items.all{it.metricKey.isNotBlank()}&&items.map{canonicalMetricKey(it.metricKey)}.distinct().size==items.size){"模板项目 ID 为空或重复"}
+  require(items.all{it.metricKey.isNotBlank() && it.metricKey!="未识别" && !it.metricKey.startsWith("待核对:")}&&items.map{canonicalMetricKey(it.metricKey)}.distinct().size==items.size){"模板项目 ID 为空或重复"}
   val old=latestTemplate(h,t,system)
   if(old!=null && !newVersion)return old
   val version=if(old==null)1 else old.version+1
