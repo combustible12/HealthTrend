@@ -7,7 +7,6 @@ import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
@@ -109,11 +108,14 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
    val declared=m.getJSONArray("files")
    require(declared.length()==output.size){"备份缺少文件"}
    val actual=output.toMap()
+   val declaredNames=mutableSetOf<String>()
    for(i in 0 until declared.length()){
     val row=declared.getJSONObject(i);val name=row.getString("path")
+    require(declaredNames.add(name)){"备份清单存在重复文件名"}
     val file=actual[name]?:error("备份缺少文件：$name")
     require(file.length()==row.getLong("size")&&digest(file)==row.getString("sha256")){"备份文件校验失败：$name"}
    }
+   require(declaredNames==actual.keys){"备份清单和实际文件不匹配"}
    require(actual.containsKey("shared_prefs/healthtrend_store_v1.xml")){"缺少健康记录数据库"}
    return Staged(directory,m,output,bytes)
   }catch(e:Exception){directory.deleteRecursively();throw e}
@@ -136,7 +138,10 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
     it.symptomImages.isNotEmpty()||it.checkImages.isNotEmpty()||
     it.medicineImages.isNotEmpty()||it.noteImages.isNotEmpty()
   }
-  require(existing==0&&ImageDocumentStore(context).all().isEmpty()){"当前设备已有报告或病程资料。为防止覆盖，禁止直接恢复；请在空白安装环境中恢复"}
+  val patient=store.patientProfile()
+  val hasProfile=patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()
+  val hasOwnedImages=listOf(File(context.filesDir,"sources"),File(context.filesDir,"image-documents/images")).any{dir->dir.walkTopDown().any{it.isFile}}
+  require(existing==0&&!hasProfile&&!hasOwnedImages&&ImageDocumentStore(context).all().isEmpty()){"当前设备已有报告或病程资料。为防止覆盖，禁止直接恢复；请在空白安装环境中恢复"}
   val staged=stage(uri)
   try{
    val oldRoot=staged.manifest.optString("filesRoot")
