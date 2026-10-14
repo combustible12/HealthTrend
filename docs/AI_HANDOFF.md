@@ -72,3 +72,9 @@
 
 ## 7. 给接班 AI 的一句话
 **先同步 GitHub、读取本交接和 44 项双状态清单，再接着写未完成的功能；不要根据聊天印象重写需求，不要动病程或历史确认数据，不要在每次修改后编译。**
+
+## 2026-10-14 备份版发布阻断记录
+- 用户要求先发布备份版 APK 用于实际备份真实手机数据；未进行医院模板业务改造。
+- GitHub Actions 集中编译检查：首次 [run 38526966200](https://github.com/combustible12/HealthTrend/actions/runs/38526966200) 失败，`HealthStore.kt:310` Kotlin nullable Pair 属性无法 smart cast；修复提交 [20ade70](https://github.com/combustible12/HealthTrend/commit/20ade70d4a28e72ad2fae7b308ba94e72d394e23)。
+- 第二次 [run 38527263756](https://github.com/combustible12/HealthTrend/actions/runs/38527263756) **Kotlin 编译通过，115 个 JVM 测试中 17 个失败**，主要集中于 `ReportParserTest` 和 `HistoryReplacementTest`。因此**尚未触发签名发布，尚无新备份版 APK**；不要向用户声称已发布或能直接用手机备份。
+- 下次优先定位上述 17 项失败是否属于过时的模板测试假设、真实回归还是运行环境问题；增加完整 ZIP 备份/恢复的独立真实验证后再发布。严禁为获取绿色结果直接跳过所有回归测试。
