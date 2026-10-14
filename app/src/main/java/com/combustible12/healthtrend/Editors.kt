@@ -77,7 +77,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   Field(value,onChange,label)
  }
 }
-@Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit){
+@Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft,Boolean)->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
  var d by remember(initial){mutableStateOf(initial)}
  var pendingDraftReplace by remember{mutableStateOf<Int?>(null)}
@@ -135,7 +135,26 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
+ var showTemplateChoice by remember{mutableStateOf(false)}
+ val activeConfirmedTemplate=store.latestTemplate(d.hospital,d.type,d.system)
+ val newTemplateFields=activeConfirmedTemplate?.let{template->
+  val known=template.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
+  d.rows.filter{canonicalMetricKey(it.key) !in known}
+ } ?: emptyList()
+ if(showTemplateChoice){
+  AlertDialog(
+   onDismissRequest={showTemplateChoice=false},
+   title={Text("发现医院模板外的新指标")},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("本次新增："+newTemplateFields.joinToString("、"){it.name.ifBlank{it.key}})
+    Text("仅保存报告不会更改已确认模板。选择更新模板将保留原模板全部字段，只追加本次确认的新指标，生成新的当前版本；历史报告不变。",fontSize=13.sp,color=Muted)
+   }},
+   confirmButton={TextButton({showTemplateChoice=false;save(d,true)}){Text("保存并更新模板")}},
+   dismissButton={TextButton({showTemplateChoice=false;save(d,false)}){Text("仅保存本次报告")}}
+  )
+ }
+
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",onClose,hidden=editing!=null,bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({if(activeConfirmedTemplate!=null&&newTemplateFields.isNotEmpty()&&d.existing==null)showTemplateChoice=true else save(d,false)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   Row{
    TextButton({showMetricCatalogue=true}){Text("统一指标库")}
