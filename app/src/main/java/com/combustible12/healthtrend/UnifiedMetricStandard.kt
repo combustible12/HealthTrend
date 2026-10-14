@@ -120,5 +120,27 @@ object UnifiedMetricStandard {
   val normalized=name.trim().replace('／','/').replace('：',':')
   return identities[normalized]?.singleOrNull()
  }
+ /** Classification is additive: a metric can be shared by several report types.
+  * The application also includes confirmed custom and historical associations. */
+ private val typeKeywords=mapOf(
+  "血常规" to setOf("WBC","RBC","HGB","HCT","PLT","MCV","MCH","MCHC","RDW-CV","RDW-SD",
+   "NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%",
+   "NRBC#","NRBC%","MPV","PDW","PCT","P-LCR","P-LCC"),
+  "生化" to setOf("TP","ALB","GLOB","A/G","ALT","AST","AST/ALT","ALT/AST","GGT","ALP",
+   "TBIL","DBIL","IBIL","TBA","CHE","PA","GLU","UREA","CREA","UA","UREA/CREA",
+   "K","NA","CL","CA","MG","PHOS","HCO3","AG","OSM","LDH","CK","CKMB","CKMB/CK",
+   "TG","CHOL","HDLC","LDLC","APOA1","APOB","FE","TIBC","UIBC","TRANSFERRIN"),
+  "肝功能" to setOf("TP","ALB","GLOB","A/G","ALT","AST","AST/ALT","ALT/AST","GGT","ALP",
+   "TBIL","DBIL","IBIL","TBA","CHE","PA"),
+  "肾功能" to setOf("UREA","CREA","UA","UREA/CREA","K","NA","CL","CA","MG","PHOS"),
+  "肿瘤标志物" to setOf("SCC","AFP","CEA","CA125","CA153","CA199","CA724","HE4","NSE","CYFRA21-1"),
+  "凝血" to setOf("DDIMER","FIB","PT","APTT","TT","INR"),
+  "铁代谢" to setOf("FERR","FE","TRANSFERRIN","TIBC","UIBC","B12","FOLATE"),
+  "炎症" to setOf("ESR","CRP","HSCRP","PCTIN")
+ )
+ fun keysForType(reportType:String):Set<String> {
+  val type=reportType.trim()
+  return typeKeywords.filterKeys{type.contains(it)||it.contains(type)}.values.flatten().toSet()
+ }
  fun keys():Set<String> = definitions.keys
 }
