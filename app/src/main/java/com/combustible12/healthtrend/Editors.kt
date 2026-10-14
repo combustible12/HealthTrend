@@ -370,10 +370,27 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
  if(parseDate(d.date)==null)problems+="请填写有效检查日期"
  if(d.rows.isEmpty())problems+="报告没有指标"
  d.rows.forEachIndexed { index,row ->
-  val title=row.name.ifBlank { "第${index+1}项" }
-  if(!row.valid())problems+="${title}：名称、代码、结果或参考范围无效"
-  else if(d.existing==null && (row.key.startsWith("待核对:")||row.name=="待核对"||row.name.none{it.code in 0x3400..0x9FFF}))problems+="${title}：需要确认中文名称和项目身份"
+  val label="第${index+1}项（${row.name.ifBlank{"未命名"}}）"
+  val key=row.key.trim()
+  when {
+   row.name.isBlank()->problems+="${label}：请输入中文项目名称"
+   key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
+    problems+="${label}：需要确认项目身份"
+   row.text.isBlank()->problems+="${label}：检测结果不能为空"
+   row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()?.isFinite()!=true->
+    problems+="${label}：检测结果不是有效数值"
+   row.low.isNotBlank()&&row.low.toDoubleOrNull()?.isFinite()!=true->
+    problems+="${label}：参考下限无效"
+   row.high.isNotBlank()&&row.high.toDoubleOrNull()?.isFinite()!=true->
+    problems+="${label}：参考上限无效"
+   row.low.toDoubleOrNull()!=null&&row.high.toDoubleOrNull()!=null&&
+    row.low.toDouble() > row.high.toDouble()->
+    problems+="${label}：参考下限大于上限"
+   d.existing==null&&row.name.none{it.code in 0x3400..0x9FFF}->
+    problems+="${label}：需要确认中文名称"
+  }
  }
+
  val identities=d.rows.map{canonicalMetricKey(it.key.removePrefix("待核对:").trim())}
  if(identities.distinct().size!=identities.size)problems+="项目代码重复"
  // A source report can include two measurements of the same canonical metric
