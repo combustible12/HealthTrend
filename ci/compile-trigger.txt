@@ -3,3 +3,4 @@ Review imported metric matching and new-item confirmation (2026-10-13).
 Audit report import matching, reviewed new metrics and Chinese labels 2026-10-13.
 
 Backup-and-restore release compile check 2026-10-14.
+Fix nullable standard-range bounds; retry consolidated backup release check.
