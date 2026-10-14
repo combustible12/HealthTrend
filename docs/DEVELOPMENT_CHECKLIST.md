@@ -51,7 +51,7 @@
 - **代码编写** [ ]　**验收通过** [ ]　记录已存在功能、缺陷和测试空白，避免重复开发。
 
 ## 2. 统一指标身份与项目池
-> **2026-10-14 第 4 条集中补充**：将当前代码全部 110 项标准指标的 ID、中文名、常用单位和别名逐一列入 [医学逐项审核台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md)，无重复标准中文名；有 **14 项常用单位仍留空**（未知不猜）。新增 [指标身份与别名冲突单元测试](../app/src/test/java/com/combustible12/healthtrend/UnifiedMetricStandardAuditTest.kt)，覆盖代码身份唯一性、中文名、混淆指标、别名歧义保护和报告专属参考范围原则；**医学权威资料尚未逐项验证，测试通过也不得勾选整条医学审核完成**。来源原则参见 LOINC / MedlinePlus 官方资料。代码提交 [b4a3d39](https://github.com/combustible12/HealthTrend/commit/b4a3d399dc54cf7f03db4db6ccecee6ee163a65e)、台账提交 [99f6c0b](https://github.com/combustible12/HealthTrend/commit/99f6c0b7d280a989302c5719acd7ebfa022f224b)。
+> **2026-10-14 第 4 条集中补充**：将当前代码全部 110 项标准指标的 ID、中文名、常用单位和别名逐一列入 [医学逐项审核台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md)，无重复标准中文名；有 **14 项常用单位仍留空**（未知不猜）。新增 [指标身份与别名冲突单元测试](../app/src/test/java/com/combustible12/healthtrend/UnifiedMetricStandardAuditTest.kt)，覆盖代码身份唯一性、中文名、混淆指标、别名歧义保护和报告专属参考范围原则；[集中 CI 38533787869](https://github.com/combustible12/HealthTrend/actions/runs/38533787869) Kotlin 编译与全量 JVM 回归通过。**医学权威资料尚未逐项验证，测试通过也不得勾选整条医学审核完成**。来源原则参见 LOINC / MedlinePlus 官方资料。代码提交 [b4a3d39](https://github.com/combustible12/HealthTrend/commit/b4a3d399dc54cf7f03db4db6ccecee6ee163a65e)、台账提交 [99f6c0b](https://github.com/combustible12/HealthTrend/commit/99f6c0b7d280a989302c5719acd7ebfa022f224b)。
 
 - **代码编写** [x]　**验收通过** [ ]　设计稳定内部指标 ID（不可因名称/代码变化而变化），兼容旧 metricKey；英文缩写只作为标准代码或识别线索。  
 - **代码编写** [x]　**验收通过** [ ]　按检查类型维护统一可扩展项目池（血常规、生化等），不再要求每家医院独立维护重复的指标全集。  
