@@ -86,3 +86,10 @@
 - 「我的」隐藏旧医院模板管理入口，但没有删除底层数据，[8457097](https://github.com/combustible12/HealthTrend/commit/84570976b6ce5158ce17f798470b570313d1d0e9)。
 - [CI 38529695948](https://github.com/combustible12/HealthTrend/actions/runs/38529695948) 编译和 115 个 JVM 回归测试通过（构建源 SHA `d8dd6484`）；界面隐藏提交在该 CI 之后，尚待最新 SHA 检查。
 - 病程读写/迁移代码未被此轮直接修改；**无实际设备数据备份/恢复验证，仍不得宣称绝对安全或已发布**。旧报告与标准池的只读身份兼容、端到端持久化草稿功能尚未全面验收。
+
+## 2026-10-14 第 3 节第 6 项：持久待核对草稿
+- 新增 `app/src/main/java/com/combustible12/healthtrend/ReportDraftStore.kt`：独立 `filesDir/report-drafts/*.draft` AtomicFile 持久化，按稳定草稿 ID 管理；原始文本、行数据及精度、待核对标记、图片 URI 随草稿序列化保留。该路径属于完整 ZIP 备份里的 files 数据范围。
+- `Editors.kt` 中 `ReportDraft` 新增 `draftId`；新报告编辑页顶部“暂存草稿”，退出新报告时自动暂存；正式保存仍以 `reportValidationProblems` 拦截真实无效数据，允许先暂存后继续编辑。
+- `MainActivity.kt` 的「记录 → 待核对草稿」可查看列表、继续核对、删除；正式保存后移除对应草稿。未改写 `course_records`，未迁移已保存的历史报告。
+- 单元测试 `ReportDraftPersistenceTest.kt` 核查草稿序列化精度及未核对行不丢；[CI 38531351467](https://github.com/combustible12/HealthTrend/actions/runs/38531351467) Kotlin 编译及回归套件通过。主提交 [0b3bcb0](https://github.com/combustible12/HealthTrend/commit/0b3bcb0cf8cab53fac784a0416d064f8c2757188)、[51bf692](https://github.com/combustible12/HealthTrend/commit/51bf6928364fc2ab733636dabcdb5f7212614cfd)。
+- 已将开发清单第 3.6 项 **代码编写勾选 [x]**；**验收仍 [ ]**，尚未真机验证重启/异常关闭、备份恢复、草稿图片可访问、删草稿后原图保留等场景，不能宣称完全验收，更未发布 APK。
