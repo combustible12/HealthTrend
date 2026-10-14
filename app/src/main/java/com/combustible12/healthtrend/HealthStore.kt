@@ -684,7 +684,8 @@ class HealthStore(private val context:Context) {
   val known=templates().filter{it.reportType==reportType}.flatMap{it.fields.map{f->canonicalMetricKey(f.metricKey)}}
   val observed=reports().filter{it.reportType==reportType}.flatMap{it.results.map{r->canonicalMetricKey(r.metricKey)}}
   val custom=customMetrics().filter{reportType in it.types}.map{it.key}
-  val keys=(known+observed+custom).toSet()
+  val builtIn=UnifiedMetricStandard.keysForType(reportType)
+  val keys=(known+observed+custom+builtIn).toSet()
   return unifiedMetricPool().filter{it.key in keys}
  }
  /** Unified metric catalogue: union of confirmed templates, saved reports and
