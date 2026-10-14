@@ -95,10 +95,10 @@ fun statusColor(s:ResultStatus)=when(s){ResultStatus.LOW,ResultStatus.HIGH->Bad;
 class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.onCreate(b);enableEdgeToEdge();setContent{MaterialTheme(colorScheme=lightColorScheme(background=Warm,surface=Color.White,primary=Accent,onPrimary=Ink,onSurface=Ink)){App()}}}}
 
 @Composable fun App(){
- val ctx=LocalContext.current;val store=remember{HealthStore(ctx)}
+ val ctx=LocalContext.current;val store=remember{HealthStore(ctx)};val draftStore=remember{ReportDraftStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
- var recordsOpen by rememberSaveable{mutableStateOf(false)}
+ var recordsOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
  var template by rememberSaveable(stateSaver=diskStateSaver<HospitalLabTemplate?>(ctx,"root-template")){mutableStateOf<HospitalLabTemplate?>(null)}
@@ -212,9 +212,32 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
- if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||report!=null||entry!=null||viewer!=null){m->
+ if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||draftsOpen||report!=null||entry!=null||viewer!=null,topAction={TextButton({draftsOpen=true}){Text("待核对草稿")}}){m->
   Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
+ if(draftsOpen)FullPage("待核对草稿",{draftsOpen=false},hidden=draft!=null){m->
+  Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   val stored=remember(revision,draftsOpen){draftStore.all()}
+   if(stored.isEmpty())Paper{Text("还没有暂存的报告")}
+   stored.forEach{item->
+    Paper{
+     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+      Column(Modifier.weight(1f)){
+       Text(item.hospital.ifBlank{"医院待核对"}+" · "+item.type,fontWeight=FontWeight.Bold)
+       Text(item.date+" · "+item.rows.size+" 个项目",color=Muted,fontSize=12.sp)
+      }
+      TextButton({draft=item}){Text("继续核对")}
+      TextButton({deleteDraftId=item.draftId}){Text("删除",color=Bad)}
+     }
+    }
+   }
+  }
+ }
+ if(deleteDraftId!=null)AlertDialog(onDismissRequest={deleteDraftId=null},
+  title={Text("删除待核对草稿？")},
+  text={Text("只删除草稿，不会删除正式报告或已有原始图片。")},
+  confirmButton={TextButton({try{draftStore.delete(deleteDraftId!!);revision++;deleteDraftId=null}catch(e:Exception){error=e.message}}){Text("确认删除",color=Bad)}},
+  dismissButton={TextButton({deleteDraftId=null}){Text("取消")}})
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d,updateTemplate->change{
    val r=store.buildReportFromPool(d.hospital,d.type,
     preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),d.ocr,d.system)
@@ -231,8 +254,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      reportId=d.existing.id,templateVersion=version,editedByUser=true)}
    )
    store.saveReport(saved)
+   draftStore.delete(d.draftId)
    draft=null
-  }},{viewer=it})
+  }},{viewer=it},{pending->change{draftStore.save(pending);draft=null;draftsOpen=true}})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(template!=null)TemplateEditor(template!!,{template=null},{fields->change{store.saveTemplateFields(template!!,fields);template=null}})
