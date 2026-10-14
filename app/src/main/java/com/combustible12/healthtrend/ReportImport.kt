@@ -64,7 +64,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
     val type=meta.reportType
     val template=store.latestTemplate(hospital,type)
     val resolved=if(template!=null)templateDrivenResults(parsed,template) else parsed
-    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain)
+    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain)
     message=failures.joinToString("\n")
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
   }
@@ -104,7 +104,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // heuristic, because units such as 10^9/L contain digits before the printed range.
  // The standard pool determines identity. Report source name, unit and printed
  // reference interval remain attached to this test, independent of hospital.
- val resolved=if(template!=null)templateDrivenPastedResults(parsed,template) else parsed
+ val resolved=parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain
@@ -304,55 +304,13 @@ fun retargetImportedDraft(
 ):ReportDraft{
  val next=d.copy(hospital=hospital,type=type,system=system)
  if(d.existing!=null||(hospital==d.hospital&&type==d.type&&system==d.system))return next
- val target=store.latestTemplate(hospital,type,system)
- if(d.ocr.isBlank()){
-  // Manual drafts have no source rows to reparse. Switching hospital must not
-  // fabricate every metric from the target template or discard manually entered data.
-  // Preserve only actual entered rows, with their exact result and source metadata.
-  return next.copy(rows=d.rows.map{row->
-   val key=if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:"))
-    store.resolveMetricKey(row.name) else row.key
-   if(key=="未识别")row else row.copy(key=key)
-  })
- }
- val original=store.reconcileParsedMetrics(ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalizePastedReportText(d.ocr))))
- val previous=store.latestTemplate(d.hospital,d.type,d.system)
- fun same(r:DraftRow,unit:String,low:Double?,high:Double?)=
-  r.unit.trim()==unit.trim()&&r.low.toDoubleOrNull()==low&&r.high.toDoubleOrNull()==high
- if(target!=null){
-  // Changing hospital/panel must not throw away manual corrections already
-  // made in the editor. Retain every entered result and request review of
-  // its target-template identity, unit and reference range.
-  val known=target.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
-  return next.copy(rows=d.rows.map{row->
-   row.copy(uncertain=row.uncertain || canonicalMetricKey(row.key) !in known)
-  })
- }
- val rows=d.rows.map{row->
-  // No confirmed target template: preserve user edits while retargeting OCR fields.
-  // A repeated metric can occur on different pages. Only rebind a row when its
-  // OCR source is unique; otherwise keep the user's fields and require review.
-  val rawMatches=if(row.raw.isBlank())emptyList() else original.filter{it.rawLine==row.raw}
-  val keyMatches=original.filter{it.metricKey==row.key}
-  val source=when{
-   rawMatches.size==1->rawMatches.single()
-   rawMatches.isNotEmpty()->null
-   keyMatches.size==1->keyMatches.single()
-   else->null
-  }
-  if(source==null)row.copy(uncertain=true)
-  else{
-   val old=previous?.fields?.firstOrNull{it.metricKey==row.key}
-   val inherited=old!=null&&same(row,old.unit,old.referenceLow,old.referenceHigh)
-   if(inherited||same(row,source.unit,source.referenceLow,source.referenceHigh)){
-    val resolved=store.applyTemplate(listOf(source),target).single()
-    row.copy(unit=resolved.unit,low=resolved.referenceLow?.toString().orEmpty(),
-     high=resolved.referenceHigh?.toString().orEmpty(),
-     uncertain=metricNeedsReview(resolved,target))
-   }else row.copy(uncertain=true)
-  }
- }
- return next.copy(rows=rows)
+ // Reclassifying source metadata must never rebuild a template or change manually corrected rows.
+ return next.copy(rows=d.rows.map {row->
+  if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
+   val known=store.resolveMetricKey(row.name,row.unit)
+   if(known=="未识别")row else row.copy(key=known,uncertain=false)
+  }else row
+ })
 }
 
 data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
