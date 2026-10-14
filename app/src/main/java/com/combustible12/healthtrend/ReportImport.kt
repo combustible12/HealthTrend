@@ -251,7 +251,7 @@ internal fun matchTemplateRows(fields:List<LabFieldTemplate>,items:List<ParsedLa
   // Name-only matching is allowed only for a unique name on BOTH sides and
   // only when the printed unit is compatible with the confirmed field.
   val competingFields=fields.indices.count{other->
-   other !in assigned && chinese(fields[other].displayName)==targetName
+   chinese(fields[other].displayName)==targetName
   }
   val sameSourceNames=items.indices.count{itemIndex->
    itemIndex !in used && chinese(items[itemIndex].displayName)==targetName
