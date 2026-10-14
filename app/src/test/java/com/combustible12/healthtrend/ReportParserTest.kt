@@ -94,7 +94,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   assertEquals(27,full.rows.size);assertTrue(full.rows.all{it.text.isNotBlank()});assertTrue(full.valid())
   assertEquals("36.40",full.rows.single{it.key=="HCT"}.text)
   assertEquals("0.00",full.rows.single{it.key=="NRBC%"}.text);assertEquals("0.000",full.rows.single{it.key=="NRBC#"}.text)
-  assertEquals("10^9/L",full.rows.single{it.key=="NEUT#"}.unit);assertEquals("10^12/L",full.rows.single{it.key=="RBC"}.unit)
+  assertEquals("10^9/L",displayLabUnit(full.rows.single{it.key=="NEUT#"}.unit));assertEquals("10^12/L",displayLabUnit(full.rows.single{it.key=="RBC"}.unit))
   assertEquals("P-LCR",full.rows.single{it.key=="P-LCR"}.key);assertEquals("P-LCC",full.rows.single{it.key=="P-LCC"}.key)
 
   val missingKeys=setOf("EOS#","EOS%","NRBC%","NRBC#")
@@ -318,13 +318,13 @@ AST/ALT 谷草/谷丙 0.88"""
   val badDate=updateOcrMetadata(base,"date","not-a-date");assertTrue("date" in badDate.uncertain);assertFalse(badDate.valid());assertFalse(badDate.valid())
  }
  @Test fun ocrMetadataOnlyClearsUncertaintyAfterValidCorrection(){
-  val d=ReportDraft(hospital="",type="",date="",rows=listOf(DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151")),uncertain=setOf("hospital","type","date"))
+  val d=ReportDraft(hospital="",type="",date="",rows=listOf(DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151")),uncertain=setOf("hospital","type","date"))
   val invalidDate=updateOcrMetadata(updateOcrMetadata(updateOcrMetadata(d,"hospital","医院"),"type","血常规"),"date","2026-99-99")
   assertEquals(setOf("date"),invalidDate.uncertain);assertFalse(invalidDate.valid())
   val confirmed=updateOcrMetadata(invalidDate,"date","2026-09-26 09:30");assertTrue(confirmed.uncertain.isEmpty());assertTrue(confirmed.valid())
  }
  @Test fun reviewedValidMetricCanClearUncertaintyWithoutChangingItsData(){
-  val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
+  val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   assertTrue(row.valid());val reviewed=row.copy(uncertain=false);assertFalse(reviewed.uncertain);assertEquals(row.parsed(),reviewed.parsed())
  }
  @Test fun metadataDateRequiresDisambiguationWhenMultipleUnlabelledDatesExist(){
@@ -397,7 +397,7 @@ AST/ALT 谷草/谷丙 0.88"""
   assertEquals("×10^9/L",ReportParser.parse("WBC 7.25 3.5-9.5 fL").single().unit)
  }
  @Test fun reportSaveGateOnlyRequiresHospitalDateAndValidMetrics(){
-  val row=DraftRow(name="HGB",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
+  val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   val d=ReportDraft(hospital="医院",type="",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
   assertTrue(d.valid());assertTrue(reportValidationProblems(d).isEmpty())
  }
@@ -446,7 +446,7 @@ AST/ALT 谷草/谷丙 0.88"""
  @Test fun realSingleDigitDatesNormalizeAndSaveWithoutTime(){
   listOf("2016-9-18","2016-09-18","2016/9/18","2016/09/18").forEach{input->
    assertEquals("2016-09-18",normalizeDateText(input));assertNotNull(parseDate(input))
-   val draft=updateOcrMetadata(ReportDraft(hospital="医院",date=input,rows=listOf(DraftRow(name="WBC",key="WBC",text="7.25",unit="×10^9/L",low="3.5",high="9.5"))),"date",input)
+   val draft=updateOcrMetadata(ReportDraft(hospital="医院",date=input,rows=listOf(DraftRow(name="白细胞",key="WBC",text="7.25",unit="×10^9/L",low="3.5",high="9.5"))),"date",input)
    assertEquals("2016-09-18",draft.date);assertTrue(draft.valid())
   }
   assertEquals("2016-09-18 09:30",normalizeDateText("2016-9-18 09:30"))
