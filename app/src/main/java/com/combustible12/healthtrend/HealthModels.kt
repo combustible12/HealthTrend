@@ -120,6 +120,8 @@ object UnitNormalizer {
    metricKey=="CREA" && u=="mg/dl" -> value*88.4 to "μmol/L"
    metricKey=="TBIL" && u=="mg/dl" -> value*17.104 to "μmol/L"
    metricKey=="UA" && u=="mg/dl" -> value*59.48 to "μmol/L"
+   metricKey=="GLU" && u=="mmol/l" -> value to "mmol/L"
+   metricKey=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
    metricKey=="UREA" && u=="mmol/l" -> value to "mmol/L"
    metricKey=="UREA" && u=="mg/dl" -> value/6.006 to "mmol/L"
    else -> value to unit
