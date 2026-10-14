@@ -414,7 +414,7 @@ class HealthStore(private val context:Context) {
   updateReportImages(reportId,items)
  }
 
- fun trend(key:String)=reports().flatMap{r->r.results.filter{it.metricKey==key && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
+ fun trend(key:String)=reports().flatMap{r->r.results.filter{canonicalMetricKey(it.metricKey)==canonicalMetricKey(key) && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  /** User aliases are separate from hospital templates and historical report snapshots. */
  @Synchronized fun metricAliases():Map<String,String>{
   val data=read("metric_aliases")
