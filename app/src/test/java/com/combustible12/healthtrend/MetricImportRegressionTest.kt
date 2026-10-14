@@ -54,4 +54,29 @@ class MetricImportRegressionTest {
   )
   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
  }
+
+ @Test fun commonUnitsConvertValueAndBothReferenceLimitsTogether() {
+  val metric="CREA"
+  val value=UnitNormalizer.normalize(metric,0.8,"mg/dL")
+  val low=UnitNormalizer.normalize(metric,0.6,"mg/dL")
+  val high=UnitNormalizer.normalize(metric,1.1,"mg/dL")
+  assertEquals("μmol/L",value.second)
+  assertEquals(value.second,low.second)
+  assertEquals(value.second,high.second)
+  assertEquals(70.72,value.first!!,0.001)
+  assertEquals(53.04,low.first!!,0.001)
+  assertEquals(97.24,high.first!!,0.001)
+ }
+ @Test fun missingLowerBoundUsesSameCommonUnit() {
+  val upper=UnitNormalizer.normalize("CREA",1.1,"mg/dL")
+  val missing=UnitNormalizer.normalize("CREA",null,"mg/dL")
+  assertNull(missing.first)
+  assertEquals(upper.second,missing.second)
+ }
+ @Test fun unifiedPoolAliasesMapToOneMetric() {
+  assertEquals("WBC",UnifiedMetricStandard.resolveName("白细胞数"))
+  assertEquals("WBC",UnifiedMetricStandard.resolveName("白细胞计数"))
+  assertEquals("ALT",UnifiedMetricStandard.resolveName("丙氨酸氨基转移酶"))
+  assertEquals("10^9/L",UnifiedMetricStandard.definition("WBC")?.unit)
+ }
 }
