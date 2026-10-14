@@ -548,28 +548,39 @@ class HealthStore(private val context:Context) {
  }
  fun preferredMetricName(metricKey:String):String?=preferredMetricNames()[canonicalMetricKey(metricKey)]
  /** Only exact aliases are resolved; never fuzzy-merge two different lab identities. */
- fun resolveMetricKey(label:String):String {
+ /**
+  * Resolve from code/name first. Unit is a secondary tie-breaker only:
+  * never identify a metric by unit alone, and never reject an otherwise
+  * unambiguous name because its unit differs or is convertible.
+  */
+ fun resolveMetricKey(label:String,unit:String=""):String {
   val builtin=ReportParser.key(label)
   if(builtin!="未识别")return builtin
   val clean=label.trim().replace('：',':').replace('／','/')
   val aliases=metricAliases()
   val preferred=preferredMetricNames()
-  // Explicit project code has already been handled by ReportParser.key().
-  // Only whole-name matches are allowed, including a pasted name followed by
-  // a result number; never infer identity from a substring of another metric.
   fun matches(name:String):Boolean = clean==name ||
-   clean.startsWith("$name ") || clean.startsWith("$name\t") ||
-   clean.startsWith("$name（") || clean.startsWith("$name(")
-  val matches=(aliases.filterKeys(::matches).values+
+   clean.startsWith("$"+"name ") || clean.startsWith("$"+"name\\t") ||
+   clean.startsWith("$"+"name（") || clean.startsWith("$"+"name(")
+  val candidateNames=metricCatalogue().filter{(_,names)->names.any(::matches)}.keys
+  val candidates=(candidateNames+
+   aliases.filterKeys(::matches).values+
    preferred.filterValues(::matches).keys).map(::canonicalMetricKey).distinct()
-  if(matches.size!=1)return "未识别"
-  // Existing template and report names can have conflicting identities. Refuse
-  // automatic merges in that case; leave the row available for human review.
-  val resolved=matches.single()
-  val candidates=metricCatalogue().filter{(key,names)->
-   canonicalMetricKey(key)!=resolved && names.any(::matches)
+  if(candidates.size==1)return candidates.single()
+  if(candidates.isEmpty()||unit.isBlank())return "未识别"
+  val normalizedCandidates=candidates.filter{key->
+   val knownUnits=rememberedUnits(key)
+   // Unit compatibility is established only when both convert into the
+   // same common unit. An unsupported conversion cannot decide identity.
+   knownUnits.any{known->
+    val incoming=UnitNormalizer.normalize(key,1.0,unit)
+    val existing=UnitNormalizer.normalize(key,1.0,known)
+    incoming.second.equals(existing.second,true) &&
+     (incoming.second!=unit || existing.second!=known ||
+      unit.trim().equals(known.trim(),true))
+   }
   }
-  return if(candidates.isEmpty())resolved else "未识别"
+  return normalizedCandidates.singleOrNull()?:"未识别"
  }
  /** Apply the user dictionary to parsed rows without replacing source text.
   * Only unresolved identities can be filled. A known explicit code always wins. */
@@ -578,8 +589,8 @@ class HealthStore(private val context:Context) {
    if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
       !row.metricKey.startsWith("待核对:"))row
    else{
-    val byName=resolveMetricKey(row.displayName)
-    val key=if(byName!="未识别")byName else resolveMetricKey(row.rawLine)
+    val byName=resolveMetricKey(row.displayName,row.unit)
+    val key=if(byName!="未识别")byName else resolveMetricKey(row.rawLine,row.unit)
     if(key=="未识别")row else row.copy(metricKey=key)
    }
   }
