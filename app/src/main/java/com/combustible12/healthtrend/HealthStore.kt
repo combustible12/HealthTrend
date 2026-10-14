@@ -444,7 +444,7 @@ class HealthStore(private val context:Context) {
   require(current.none{(otherName,otherKey)->
    otherName.equals(alias,true)&&otherName!=alias&&canonicalMetricKey(otherKey)!=metricKey
   }){"同名别名已经对应其他指标"}
-  require(preferredMetricNames().none{(key,name)->name==alias&&key!=canonicalMetricKey(metricKey)}){
+  require(preferredMetricNames().none{(key,name)->name.equals(alias,true)&&canonicalMetricKey(key)!=metricKey}){
    "该名称已经是其他指标的正式名称"
   }
   current[alias]=metricKey
