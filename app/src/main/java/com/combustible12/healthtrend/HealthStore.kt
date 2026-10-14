@@ -652,6 +652,41 @@ class HealthStore(private val context:Context) {
   }
  fun metricAliasNames(metricKey:String):List<String> =
   metricAliases().filterValues{canonicalMetricKey(it)==canonicalMetricKey(metricKey)}.keys.sorted()
+ /** User-confirmed identities without a recognized medical code. UUIDs are
+  * persistent; never derive identity from a mutable display name. */
+ data class CustomMetric(val key:String,val name:String,val types:Set<String>)
+ private fun customMetrics():List<CustomMetric> = rows(read("custom_metrics")){o->
+  CustomMetric(o.getString("key"),o.getString("name"),
+   (0 until o.optJSONArray("types").let{it?.length()?:0}).mapNotNull{i->
+    o.optJSONArray("types")?.optString(i)?.takeIf{it.isNotBlank()}
+   }.toSet())
+ }
+ @Synchronized fun registerCustomMetric(nameInput:String,reportType:String):String {
+  val name=nameInput.trim()
+  require(name.isNotBlank()&&name.any{it.code in 0x3400..0x9FFF}){"请输入确认后的中文指标名"}
+  require(reportType.isNotBlank()){"检查类型不能为空"}
+  val existing=resolveMetricKey(name)
+  if(existing!="未识别")return existing
+  val values=customMetrics()
+  val same=values.filter{it.name.equals(name,true)}
+  require(same.size<=1){"存在重名指标，请先核对身份"}
+  val candidate=same.singleOrNull()
+  val chosen=candidate?:CustomMetric("CUSTOM-"+java.util.UUID.randomUUID().toString().uppercase(),name,emptySet())
+  val updated=values.filterNot{it.key==chosen.key}+chosen.copy(types=chosen.types+reportType)
+  write("custom_metrics",JSONArray().apply{updated.forEach{item->
+   put(JSONObject().put("key",item.key).put("name",item.name)
+    .put("types",JSONArray().apply{item.types.sorted().forEach{put(it)}}))
+  }})
+  return chosen.key
+ }
+ /** The same canonical identity can belong to several examination types. */
+ fun metricPoolForType(reportType:String):List<UnifiedMetricEntry> {
+  val known=templates().filter{it.reportType==reportType}.flatMap{it.fields.map{f->canonicalMetricKey(f.metricKey)}}
+  val observed=reports().filter{it.reportType==reportType}.flatMap{it.results.map{r->canonicalMetricKey(r.metricKey)}}
+  val custom=customMetrics().filter{reportType in it.types}.map{it.key}
+  val keys=(known+observed+custom).toSet()
+  return unifiedMetricPool().filter{it.key in keys}
+ }
  /** Unified metric catalogue: union of confirmed templates, saved reports and
   * built-in metric identities. Never mutates historical records or templates. */
  fun metricCatalogue():Map<String,Set<String>>{
@@ -663,6 +698,7 @@ class HealthStore(private val context:Context) {
    val item=UnifiedMetricStandard.definition(key)?:return@forEach
    names.getOrPut(key){linkedSetOf()}.apply{add(item.name);addAll(item.aliases)}
   }
+  customMetrics().forEach{item->names.getOrPut(item.key){linkedSetOf()}.add(item.name)}
   templates().flatMap{it.fields}.forEach{field->
    names.getOrPut(canonicalMetricKey(field.metricKey)){linkedSetOf()}.add(field.displayName)
   }
@@ -689,12 +725,14 @@ class HealthStore(private val context:Context) {
  )
  fun unifiedMetricPool():List<UnifiedMetricEntry> {
   val catalogue=metricCatalogue()
+  val customNames=customMetrics().associate{it.key to it.name}
   val preferred=preferredMetricNames()
   return catalogue.keys.sorted().map{key->
    val names=catalogue[key].orEmpty()
    val definition=UnifiedMetricStandard.definition(key)
    val name=preferred[key]?.takeIf{it.isNotBlank()}
     ?:definition?.name
+    ?:customNames[key]
     ?:names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
       .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
     ?:key
@@ -805,7 +843,7 @@ class HealthStore(private val context:Context) {
   val dir=File(context.filesDir,"sources").apply{mkdirs()};val dest=File(dir,newId()+".image");val temp=File(dir,dest.name+".tmp")
   try { context.contentResolver.openInputStream(uri).use{input->requireNotNull(input){"原图无法读取"};temp.outputStream().use{out->input.copyTo(out)}};check(temp.length()>0);check(temp.renameTo(dest));return Uri.fromFile(dest).toString() }finally{temp.delete()}
  }
- fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
