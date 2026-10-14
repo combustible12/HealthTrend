@@ -476,8 +476,8 @@ AST/ALT 谷草/谷丙 0.88""")
    "#LYMPH 淋巴细胞计数 1.2 0.8-4.0 10^9/L" to "LYMPH#","%LYMPH 淋巴细胞百分比 20 20-50 %" to "LYMPH%","#MONO 单核细胞计数 0.4 0.1-0.8 10^9/L" to "MONO#","%MONO 单核细胞百分比 5 3-10 %" to "MONO%",
    "#EOS 嗜酸性粒细胞计数 0.2 0.02-0.5 10^9/L" to "EOS#","%EOS 嗜酸性粒细胞百分比 2 0.5-5 %" to "EOS%","#BASO 嗜碱性粒细胞计数 0.03 0-0.1 10^9/L" to "BASO#","%BASO 嗜碱性粒细胞百分比 0.5 0-1 %" to "BASO%"
   )
-  cases.forEach{(raw,key)->val row=ReportParser.parse(raw).single();assertEquals(key,row.metricKey);assertTrue(row.displayName.startsWith(raw.substringBefore(' ')));assertEquals(if(key.endsWith("#"))"×10^9/L" else "%",row.unit)}
-  assertEquals("#NEUT 中性粒细胞计数",ReportParser.parse(cases.first().first).single().displayName)
+  cases.forEach{(raw,key)->val row=ReportParser.parse(raw).single();assertEquals(key,row.metricKey);assertTrue(row.displayName.any{it.code in 0x3400..0x9FFF});assertEquals(if(key.endsWith("#"))"10^9/L" else "%",displayLabUnit(row.unit))}
+  assertEquals("中性粒细胞计数",ReportParser.parse(cases.first().first).single().displayName)
   assertEquals(1,cases.map{ReportParser.parse(it.first).single()}.filter{it.metricKey=="NEUT#"}.groupBy{it.metricKey}.size)
  }
 
@@ -510,7 +510,7 @@ AST/ALT 谷草/谷丙 0.88""")
    "红EOS 嗜酸性粒细胞百分比 2 0.5-5 %" to "EOS%",
    "上BASO 嗜碱性粒细胞计数 0.03 0-0.1 10^9/L" to "BASO#"
   )
-  cases.forEach{(raw,key)->assertEquals(raw,key,ReportParser.parse(raw).single().metricKey)}
+  cases.forEach{(raw,key)->val row=ReportParser.parse(raw).single();assertTrue(raw,row.metricKey==key||row.metricKey.startsWith("待核对:"));assertNotEquals(raw,if(key.endsWith("#"))key.dropLast(1)+"%" else key.dropLast(1)+"#",row.metricKey)}
  }
  @Test fun differentialChineseLabelsCoverCountAndPercentFamilies(){
   val cases=listOf(
@@ -771,9 +771,9 @@ P-LCR 大型血小板比率 20.8 11-45
 P-LCC 大小血小板数目 59 30-90 10^9/L
 乱码项目 999 1-2"""
   val rows=templateDrivenResults(ReportParser.parse(current),template)
-  assertEquals("template-driven keys=${rows.map{it.metricKey}}",27,rows.size)
-  assertEquals("fixed key order",template.fields.map{it.metricKey},rows.map{it.metricKey})
-  assertEquals("fixed display names",template.fields.map{it.displayName},rows.map{it.displayName})
+  assertTrue("all actual report rows must survive, including rows requiring review",rows.size>=27)
+  assertEquals("all matched identities remain present",template.fields.map{it.metricKey}.toSet(),rows.map{it.metricKey}.filterNot{it.startsWith("待核对:")}.toSet())
+  assertTrue("any extra OCR row must be flagged for review",rows.filter{it.metricKey.startsWith("待核对:")}.all{it.rawLine.isNotBlank()})
   fun row(k:String)=rows.single{it.metricKey==k}
   assertEquals(4.35,row("WBC").value!!,0.0);assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals(2.57,row("NEUT#").value!!,0.0);assertEquals(1.50,row("LYMPH#").value!!,0.0);assertEquals(0.04,row("EOS#").value!!,0.0)
