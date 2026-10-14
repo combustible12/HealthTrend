@@ -88,5 +88,20 @@ object UnifiedMetricStandard {
   key to Definition(name,rest.first,rest.second.split('|').filter{it.isNotBlank()}.toSet())
  }
  fun definition(key:String):Definition?=definitions[canonicalMetricKey(key)]
+ /** Exact-name recognition shared by parser and saved report import.
+  * Ambiguous aliases never silently choose a metric.
+  */
+ private val identities:Map<String,Set<String>> = buildMap {
+  definitions.forEach{(key,definition)->
+   (definition.aliases+definition.name).forEach{name->
+    val normalized=name.trim().replace('／','/').replace('：',':')
+    if(normalized.isNotBlank())put(normalized,(get(normalized).orEmpty()+key))
+   }
+  }
+ }
+ fun resolveName(name:String):String? {
+  val normalized=name.trim().replace('／','/').replace('：',':')
+  return identities[normalized]?.singleOrNull()
+ }
  fun keys():Set<String> = definitions.keys
 }
