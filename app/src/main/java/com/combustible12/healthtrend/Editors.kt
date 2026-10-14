@@ -141,6 +141,13 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val known=template.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
   d.rows.filter{canonicalMetricKey(it.key) !in known}
  } ?: emptyList()
+ val changedTemplateFields=activeConfirmedTemplate?.let{template->
+  d.rows.filter{row->
+   val old=template.fields.firstOrNull{canonicalMetricKey(it.metricKey)==canonicalMetricKey(row.key)}
+   old!=null&&(displayLabUnit(row.unit)!=displayLabUnit(old.unit)||
+    row.low.toDoubleOrNull()!=old.referenceLow||row.high.toDoubleOrNull()!=old.referenceHigh)
+  }
+ } ?: emptyList()
  if(showTemplateChoice){
   AlertDialog(
    onDismissRequest={showTemplateChoice=false},
@@ -148,6 +155,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
     Text("本次新增："+newTemplateFields.joinToString("、"){it.name.ifBlank{it.key}})
     Text("仅保存报告不会更改已确认模板。选择更新模板将保留原模板全部字段，只追加本次确认的新指标，生成新的当前版本；历史报告不变。",fontSize=13.sp,color=Muted)
+    if(changedTemplateFields.isNotEmpty())Text("本次单位或参考范围有变化的指标仍仅保存到本次报告，不覆盖原模板："+changedTemplateFields.joinToString("、"){it.name},fontSize=12.sp,color=Muted)
    }},
    confirmButton={TextButton({showTemplateChoice=false;save(d,true)}){Text("保存并更新模板")}},
    dismissButton={TextButton({showTemplateChoice=false;save(d,false)}){Text("仅保存本次报告")}}
