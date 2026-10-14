@@ -616,6 +616,33 @@ class HealthStore(private val context:Context) {
   return names.mapValues{(_,values)->values.filter{it.isNotBlank()}.toSet()}
  }
 
+ /**
+  * One metric identity with its presentation name, recognition-only aliases,
+  * preferred unit, and all observed ranges. Source hospital is report metadata,
+  * not a key of the metric pool.
+  */
+ data class UnifiedMetricEntry(
+  val key:String,val displayName:String,val aliases:Set<String>,
+  val commonUnit:String,val referenceRanges:List<ObservedReferenceRange>
+ )
+ fun unifiedMetricPool():List<UnifiedMetricEntry> {
+  val catalogue=metricCatalogue()
+  val preferred=preferredMetricNames()
+  return catalogue.keys.sorted().map{key->
+   val names=catalogue[key].orEmpty()
+   val name=preferred[key]?.takeIf{it.isNotBlank()}
+    ?: names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
+      .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
+    ?:key
+   val ranges=referenceRangeHistory(key)
+   val sourceUnits=rememberedUnits(key)
+   val common=sourceUnits.firstNotNullOfOrNull{source->
+    val converted=UnitNormalizer.normalize(key,1.0,source).second
+    converted.takeIf{it!=source}
+   } ?:sourceUnits.firstOrNull().orEmpty()
+   UnifiedMetricEntry(key,name,names.filter{it!=name}.toSet(),common,ranges)
+  }
+ }
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
