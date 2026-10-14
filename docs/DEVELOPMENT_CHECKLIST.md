@@ -51,6 +51,8 @@
 - **代码编写** [ ]　**验收通过** [ ]　记录已存在功能、缺陷和测试空白，避免重复开发。
 
 ## 2. 统一指标身份与项目池
+> **医学资料逐项核验续工（2026-10-14）**：[审核台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md) 已新增 **15/110 项血常规指标的官方 LOINC 概念及候选术语来源**，其中 RDW-CV 与 RDW-SD 必须区分，旧 RDW 代码 `21000-5` 已被 LOINC 弃用。**剩余 95 项尚未完成这一级别来源核验**；全部 110 项的具体医院设备/检验方法仍需逐项复核。没有修改 App 中的病历、单位和历史报告。第 2.4 条仍留 [ ]，不能拿初步术语查证代替完整医学审核。[证据提交](https://github.com/combustible12/HealthTrend/commit/88c53a82c5ae427f3b0956e1aefbad4898683fb5)。
+
 > **2026-10-14 第 4 条集中补充**：将当前代码全部 110 项标准指标的 ID、中文名、常用单位和别名逐一列入 [医学逐项审核台账](./UNIFIED_METRIC_MEDICAL_AUDIT.md)，无重复标准中文名；有 **14 项常用单位仍留空**（未知不猜）。新增 [指标身份与别名冲突单元测试](../app/src/test/java/com/combustible12/healthtrend/UnifiedMetricStandardAuditTest.kt)，覆盖代码身份唯一性、中文名、混淆指标、别名歧义保护和报告专属参考范围原则；[集中 CI 38533787869](https://github.com/combustible12/HealthTrend/actions/runs/38533787869) Kotlin 编译与全量 JVM 回归通过。**医学权威资料尚未逐项验证，测试通过也不得勾选整条医学审核完成**。来源原则参见 LOINC / MedlinePlus 官方资料。代码提交 [b4a3d39](https://github.com/combustible12/HealthTrend/commit/b4a3d399dc54cf7f03db4db6ccecee6ee163a65e)、台账提交 [99f6c0b](https://github.com/combustible12/HealthTrend/commit/99f6c0b7d280a989302c5719acd7ebfa022f224b)。
 
 - **代码编写** [x]　**验收通过** [ ]　设计稳定内部指标 ID（不可因名称/代码变化而变化），兼容旧 metricKey；英文缩写只作为标准代码或识别线索。  
