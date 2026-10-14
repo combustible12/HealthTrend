@@ -212,7 +212,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
     Field(catalogueQuery,{catalogueQuery=it},"搜索指标名称、代码或别名")
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-     listOf("全部","血常规","生化","肝功能","肾功能","肿瘤标志物","凝血","铁代谢","炎症").forEach{type->
+     listOf("全部","血常规","生化","肝功能","肾功能","肿瘤标志物","凝血","铁代谢","炎症","甲状腺","糖代谢","心肌","维生素").forEach{type->
       TextButton({catalogueType=type}){Text(if(catalogueType==type)"✓ $type" else type)}
      }
     }
