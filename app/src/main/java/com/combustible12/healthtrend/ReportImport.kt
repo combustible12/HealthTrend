@@ -256,7 +256,7 @@ internal fun templateResultIsIndependent(source:ParsedLabResult,field:LabFieldTe
 
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
- val field=template?.takeIf{it.confirmed}?.fields?.firstOrNull{it.metricKey==p.metricKey}
+ val field=template?.takeIf{it.confirmed}?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==canonicalMetricKey(p.metricKey)}
  // Only a confirmed hospital template is authoritative for unit/range; drafts/unconfirmed
  // templates must never suppress explicit OCR review.
  if(field!=null)return false
