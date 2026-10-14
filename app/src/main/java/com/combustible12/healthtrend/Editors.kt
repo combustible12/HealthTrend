@@ -85,6 +85,9 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var draftImageError by remember{mutableStateOf("")}
  var showAliasManager by remember{mutableStateOf(false)}
  var showMetricCatalogue by remember{mutableStateOf(false)}
+ var showDictionaryTransfer by remember{mutableStateOf(false)}
+ var dictionaryText by remember{mutableStateOf("")}
+ var dictionaryError by remember{mutableStateOf("")}
  var catalogueQuery by remember{mutableStateOf("")}
  var catalogueType by remember{mutableStateOf("全部")}
  var preferredKey by remember{mutableStateOf<String?>(null)}
@@ -170,6 +173,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   Row{
    TextButton({showMetricCatalogue=true}){Text("统一指标库")}
+   TextButton({showDictionaryTransfer=true;dictionaryError=""}){Text("词典导入导出")}
    TextButton({showAliasManager=true}){Text("管理指标别名")}
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
@@ -196,6 +200,32 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    Spacer(Modifier.height(12.dp))
   }
  }
+ }
+ if(showDictionaryTransfer){
+  AlertDialog(
+   onDismissRequest={showDictionaryTransfer=false},
+   title={Text("词典配置导入导出")},
+   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+    Text("仅包含别名、首选名称、自定义指标；不包含患者报告和图片。",color=Muted,fontSize=12.sp)
+    Field(dictionaryText,{dictionaryText=it},"粘贴词典 JSON 或点击导出")
+    if(dictionaryError.isNotBlank())Text(dictionaryError,color=Bad,fontSize=12.sp)
+   }},
+   confirmButton={Row{
+    TextButton({
+     try{
+      val clipboard=context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+      dictionaryText=store.exportMetricDictionary()
+      clipboard.setPrimaryClip(android.content.ClipData.newPlainText("HealthTrend 指标词典",dictionaryText))
+      dictionaryError=""
+     }catch(e:Exception){dictionaryError=e.message.orEmpty()}
+    }){Text("复制导出")}
+    TextButton({
+     try{store.importMetricDictionary(dictionaryText);aliasRevision++;showDictionaryTransfer=false;dictionaryError=""}
+     catch(e:Exception){dictionaryError="导入失败："+e.message.orEmpty()}
+    },enabled=dictionaryText.isNotBlank()){Text("确认导入")}
+   }},
+   dismissButton={TextButton({showDictionaryTransfer=false}){Text("取消")}}
+  )
  }
  if(showMetricCatalogue){
   val catalogue=remember(aliasRevision){store.metricCatalogue()}
