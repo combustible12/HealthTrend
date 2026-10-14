@@ -397,7 +397,8 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
    val normalized=UnitNormalizer.normalize(x.metricKey,x.value,x.unitAtTest)
    val bounds=x.trendReferenceRange()
    val converted=commonUnit.isNotBlank()&&normalized.second==commonUnit &&
-    x.value!=null && (normalized.first!=x.value)
+    x.value!=null && normalized.first!=x.value
+   val compatible=commonUnit.isNotBlank()&&normalized.second==commonUnit
    val printedName=labDisplayTitle(x.rawName,x.metricKey)
    Row{Text(standard,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))}
    if(converted){
@@ -406,7 +407,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
     Text("原始："+x.textValue+" "+x.unitAtTest+"，参考范围 "+rangeText(x.referenceLowAtTest,x.referenceHighAtTest)+" "+x.unitAtTest,color=Muted,fontSize=12.sp)
    }else{
     ResultValueUnit(x.textValue,if(commonUnit.isNotBlank()&&normalized.second==commonUnit)commonUnit else x.unitAtTest)
-    Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
+    Text("参考范围："+rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest),color=Muted)
    }
    if(printedName!=standard)Text("原名称："+printedName,color=Muted,fontSize=12.sp)
    if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
