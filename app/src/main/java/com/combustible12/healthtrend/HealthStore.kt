@@ -370,14 +370,8 @@ class HealthStore(private val context:Context) {
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
-  // A confirmed template determines ordering, not which measured items may be saved.
-  // Unmeasured fields stay absent and approved report-local fields do not alter it.
-  val template=latestTemplate(r.hospitalKey,r.reportType,r.systemKey)
-  require(template?.fields?.map{canonicalMetricKey(it.metricKey)}?.let{keys->
-   keys.distinct().size==keys.size
-  }!=false){"当前模板存在重复项目 ID"}
-  val templateOrder=template?.fields?.mapIndexed{index,field->canonicalMetricKey(field.metricKey) to index}?.toMap()
-  val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[canonicalMetricKey(it.metricKey)]?:Int.MAX_VALUE})
+  // Report-local metric order and data are independent of legacy hospital templates.
+  val ordered=r
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
   // A report contributes only its observed, validated intervals. Existing choices
   // are reused. Changes to the pool never rewrite historical report snapshots.
@@ -809,6 +803,15 @@ class HealthStore(private val context:Context) {
  }
  /** Without a confirmed template this remains a conservative fill helper. */
  fun applyTemplate(items:List<ParsedLabResult>,template:HospitalLabTemplate?)=applyRememberedTemplate(items,template)
+ fun buildReportFromPool(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,raw:String="",system:String=""):LabReport {
+  require(ReportParser.valid(items));val id=newId()
+  return LabReport(id,h.trim(),t.trim(),date,null,
+   uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},
+   items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit)
+    LabResult(newId(),id,h.trim(),t.trim(),null,p.metricKey,p.displayName,p.value,unit,
+     p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)
+   },raw,system.trim())
+ }
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
   // The editor has applied the selected version. Snapshot exactly what the user confirmed.
