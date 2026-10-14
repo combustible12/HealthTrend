@@ -216,22 +216,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d,updateTemplate->change{
-   val existing=store.latestTemplate(d.hospital,d.type,d.system)
-   // A new metric is stored in this report by default. Only an explicit
-   // confirmation may append it to the hospital's current template.
-   val t=when{
-    existing==null->store.confirmTemplate(d.hospital,d.type,d.parsed(),d.system,false)
-    updateTemplate && d.existing==null->{
-     val known=existing.fields.map{canonicalMetricKey(it.metricKey)}.toSet()
-     val additions=d.parsed().filter{canonicalMetricKey(it.metricKey) !in known}.map{p->
-      LabFieldTemplate(p.metricKey,p.displayName,displayLabUnit(p.unit),p.referenceLow,p.referenceHigh)
-     }
-     if(additions.isEmpty())existing else store.saveTemplateFields(existing,existing.fields+additions)
-    }
-    else->existing
-   }
-   val r=store.buildReport(d.hospital,d.type,preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),t,d.ocr,d.system)
-   val version=if(d.existing!=null&&d.hospital==d.existing.hospitalKey&&d.type==d.existing.reportType&&d.system==d.existing.systemKey)d.existing.templateVersion else t.version
+   val r=store.buildReportFromPool(d.hospital,d.type,
+    preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),d.ocr,d.system)
+   val version=d.existing?.templateVersion
    val oldImages=d.existing?.sourceImages.orEmpty().associateBy{it.uri}
    val preservedImages=d.images.distinct().mapIndexed{index,uri->
     oldImages[uri]?.copy(pageIndex=index)?:ReportImage(uri,index,System.currentTimeMillis())
