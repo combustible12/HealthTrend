@@ -279,24 +279,27 @@ class HealthStore(private val context:Context) {
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
-  latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.let{template->
-   val expected=template.fields.map{it.metricKey}
-   val actual=r.results.map{it.metricKey}
-   require(expected.size==expected.distinct().size){"当前模板存在重复项目 ID"}
-   require(actual.size==actual.distinct().size){"报告存在重复项目 ID"}
-   // New, user-reviewed report metrics may be saved without mutating the confirmed template.
-   // Known template fields remain authoritative; unknown metrics stay report-local.
-   // A manually extended template may place a new field between existing fields.
-   // Report results have stable identities; reorder only their list positions.
-   // Missing template fields remain absent until the user explicitly fills them.
-   // Never rewrite result IDs, values, units, reference ranges or historical reports.
-
-  }
-  val templateOrder=latestTemplate(r.hospitalKey,r.reportType,r.systemKey)?.fields?.mapIndexed{index,field->field.metricKey to index}?.toMap()
-  val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[it.metricKey]?:Int.MAX_VALUE})
+  // A confirmed template determines ordering, not which measured items may be saved.
+  // Unmeasured fields stay absent and approved report-local fields do not alter it.
+  val template=latestTemplate(r.hospitalKey,r.reportType,r.systemKey)
+  require(template?.fields?.map{canonicalMetricKey(it.metricKey)}?.let{keys->
+   keys.distinct().size==keys.size
+  }!=false){"当前模板存在重复项目 ID"}
+  val templateOrder=template?.fields?.mapIndexed{index,field->canonicalMetricKey(field.metricKey) to index}?.toMap()
+  val ordered=if(templateOrder==null)r else r.copy(results=r.results.sortedBy{templateOrder[canonicalMetricKey(it.metricKey)]?:Int.MAX_VALUE})
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
   // Both newly created and edited reports must persist their source images.
   val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
+  check(stored.results.size==ordered.results.size &&
+   stored.results.map{it.id}==ordered.results.map{it.id} &&
+   stored.results.map{it.metricKey}==ordered.results.map{it.metricKey} &&
+   stored.results.map{it.value}==ordered.results.map{it.value} &&
+   stored.results.map{it.textValue}==ordered.results.map{it.textValue} &&
+   stored.results.map{it.unitAtTest}==ordered.results.map{it.unitAtTest} &&
+   stored.results.map{it.referenceLow}==ordered.results.map{it.referenceLow} &&
+   stored.results.map{it.referenceHigh}==ordered.results.map{it.referenceHigh}){
+   "报告保存验证失败：重新读取的数据与保存内容不一致"
+  }
   check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
    "报告保存验证失败：原图关联未持久化"
   }
