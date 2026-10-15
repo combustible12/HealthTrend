@@ -530,7 +530,7 @@ class HealthStore(private val context:Context) {
   val metricKey=canonicalMetricKey(metricKeyInput.trim())
   require(alias.isNotBlank()&&metricKey.isNotBlank()){"别名和项目代码不能为空"}
   require(!alias.contains('\n')&&!metricKey.contains('\n')){"别名或代码不能包含换行"}
-  val validKeys=(templates().flatMap{it.fields.map{f->canonicalMetricKey(f.metricKey)}}+
+  val validKeys=(customMetrics().map{it.key}+
    reports().flatMap{it.results.map{result->canonicalMetricKey(result.metricKey)}})
    .toSet()
   require(metricKey in validKeys || metricKey in ReportParser.builtInMetricKeys()){
@@ -682,15 +682,14 @@ class HealthStore(private val context:Context) {
  }
  /** The same canonical identity can belong to several examination types. */
  fun metricPoolForType(reportType:String):List<UnifiedMetricEntry> {
-  val known=templates().filter{it.reportType==reportType}.flatMap{it.fields.map{f->canonicalMetricKey(f.metricKey)}}
   val observed=reports().filter{it.reportType==reportType}.flatMap{it.results.map{r->canonicalMetricKey(r.metricKey)}}
   val custom=customMetrics().filter{reportType in it.types}.map{it.key}
   val builtIn=UnifiedMetricStandard.keysForType(reportType)
-  val keys=(known+observed+custom+builtIn).toSet()
+  val keys=(observed+custom+builtIn).toSet()
   return unifiedMetricPool().filter{it.key in keys}
  }
- /** Unified metric catalogue: union of confirmed templates, saved reports and
-  * built-in metric identities. Never mutates historical records or templates. */
+ /** Unified metric catalogue: built-in and user-defined identities, together with
+  * observed historical report names. Legacy hospital templates are not a source. */
  fun metricCatalogue():Map<String,Set<String>>{
   val names=linkedMapOf<String,MutableSet<String>>()
   ReportParser.builtInMetricKeys().forEach{key->
@@ -701,9 +700,6 @@ class HealthStore(private val context:Context) {
    names.getOrPut(key){linkedSetOf()}.apply{add(item.name);addAll(item.aliases)}
   }
   customMetrics().forEach{item->names.getOrPut(item.key){linkedSetOf()}.add(item.name)}
-  templates().flatMap{it.fields}.forEach{field->
-   names.getOrPut(canonicalMetricKey(field.metricKey)){linkedSetOf()}.add(field.displayName)
-  }
   reports().flatMap{it.results}.forEach{result->
    names.getOrPut(canonicalMetricKey(result.metricKey)){linkedSetOf()}.add(result.rawName)
   }
