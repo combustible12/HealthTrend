@@ -158,3 +158,7 @@
 - [1894e88](https://github.com/combustible12/HealthTrend/commit/1894e8893623fcad0ab33cee2d19c5babf76fc46)：`HealthStore.resolveMetricKey` 改读独立 `recognitionMetricCatalogue()`；只收内置标准名称/别名、用户显式维护的别名/首选名称、自定义指标名称。历史检验报告里的 `rawName` 不会再自动升级为新报告的识别别名。
 - 原 `metricCatalogue()` 保留历史原始名称，供历史展示和已有调用兼容；本次不迁移、不删除、不回写任何历史数据。**这只是新报告名称识别入口的局部隔离**，跨入口优先级、历史只读身份映射与所有旧数据趋势连续性仍待完善。
 - 根据用户要求本轮**没有执行编译、单元测试或发布**；不新增正式验收勾选。下一步检查 `ReportParser.key` 直接解析和粘贴显式代码冲突时的人工待核对机制，设计合成回归用例。
+
+### 2026-10-15 录入优先：报告缺少检查类型的保存校验
+- 为优先保障录入可靠性，补充了 `reportValidationProblems` 对空白检查类型的明确拦截和错误提示：[e317fce](https://github.com/combustible12/HealthTrend/commit/e317fce74e7bf40329f3b7128786ac6b3b5aa2e5)。增加合成用例 [a9907b1](https://github.com/combustible12/HealthTrend/commit/a9907b120bc9ed34ff682bf6391247a0fac3e20c8)。
+- 这是录入校验局部修复，**单测未执行，未编译、未发布，不能视作手机端可用或正式验收**；不提高任何整体完成状态。用户已明确急需记录数据，后续优先聚焦报告导入、核对、保存、编辑等最短可用路径。
