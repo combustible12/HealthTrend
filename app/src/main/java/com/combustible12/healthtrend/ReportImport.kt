@@ -86,14 +86,14 @@ internal fun normalizePastedReportText(raw:String)=raw.lines().map{it.trim()}.fi
 
 /**
  * Converts chat-assisted, clipboard or plain-text report data into the same draft used
- * by camera/gallery OCR. A confirmed hospital template still owns every fixed field;
- * pasted text only supplies this visit's values and metadata.
+ * by camera/gallery OCR. Each new report independently owns its measured rows;
+ * legacy hospital templates are not consulted for matching or review.
  */
 internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,store:HealthStore?=null):ReportDraft{
  val normalized=normalizePastedReportText(raw)
  // Clipboard rows commonly start with an explicit analyzer code (for example "TP 总蛋白 78.10 ...").
  // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
- // guess by name and does not change the stored template.
+ // guess by name and never consults or changes legacy templates.
  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized)).let{rows->store?.reconcileParsedMetrics(rows)?:rows}
  if(parsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
  val meta=ReportMetadata.extract(raw,parsed)
@@ -105,7 +105,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  val resolved=parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
-  rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,template))},uncertain=meta.uncertain
+  rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain
  )
 }
 
@@ -283,14 +283,13 @@ internal fun templateResultIsIndependent(source:ParsedLabResult,field:LabFieldTe
  return printedRange==null||first.range.last<printedRange.range.first
 }
 
+/** New reports are reviewed by their own parsed identity/value/range, never by a hospital template.
+ * Keep the legacy parameter temporarily for source compatibility with older callers/tests.
+ */
+@Suppress("UNUSED_PARAMETER")
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
- val field=template?.takeIf{it.confirmed}?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==canonicalMetricKey(p.metricKey)}
- // Only a confirmed hospital template is authoritative for unit/range; drafts/unconfirmed
- // templates must never suppress explicit OCR review.
- if(field!=null)return false
- // Without a confirmed template, numeric rows need a unit and a complete two-sided
- // reference range before they can be accepted without an explicit row review.
+ // A legacy confirmed template must not override a malformed interval or suppress review.
  if(p.referenceLow!=null&&p.referenceHigh!=null&&p.referenceLow>p.referenceHigh)return true
  return false
 }
