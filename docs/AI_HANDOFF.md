@@ -114,3 +114,10 @@
 - `MainActivity.kt` 的「记录 → 待核对草稿」可查看列表、继续核对、删除；正式保存后移除对应草稿。未改写 `course_records`，未迁移已保存的历史报告。
 - 单元测试 `ReportDraftPersistenceTest.kt` 核查草稿序列化精度及未核对行不丢；[CI 38531351467](https://github.com/combustible12/HealthTrend/actions/runs/38531351467) Kotlin 编译及回归套件通过。主提交 [0b3bcb0](https://github.com/combustible12/HealthTrend/commit/0b3bcb0cf8cab53fac784a0416d064f8c2757188)、[51bf692](https://github.com/combustible12/HealthTrend/commit/51bf6928364fc2ab733636dabcdb5f7212614cfd)。
 - 已将开发清单第 3.6 项 **代码编写勾选 [x]**；**验收仍 [ ]**，尚未真机验证重启/异常关闭、备份恢复、草稿图片可访问、删草稿后原图保留等场景，不能宣称完全验收，更未发布 APK。
+
+## 2026-10-15 GitHub 远程续工现场
+- 用户明确要求不检查本地工作区；只以 GitHub `main` 为施工基准。启动 HEAD：`1a8a0e85708988211a7c73e09a51bbd680281198`。
+- 本轮代码提交：`0a879a0fa1ca6d09309eb22194c5e7d58a22e1e0`（`ReportImport.kt`）。新报告待核对判断不再因为旧医院模板确认而跳过异常范围；粘贴入口显式绕开模板。为避免破坏旧调用和既有测试，暂时保留未使用的模板参数，不代表模板仍可参与新报告。
+- 修改范围仅为报告导入核对规则及这两份文档；未修改 `CourseRecords.kt`、`course_records`、历史检验结果或任何真实患者数据。
+- **验证状态：未运行单测、未编译、未发布 APK**；清单状态和正式验收勾选保持原样。不能据此宣称无模板全流程已完成。
+- 后续：检查新报告所有入口的指标身份冲突优先级与历史模板残余调用；增加合成数据回归测试。只读旧报告兼容映射仍是未完成任务，不得通过迁移改写既有报告。
