@@ -142,6 +142,12 @@ class MetricImportRegressionTest {
   assertFalse(metricNeedsReview(current,legacy))
  }
 
+ @Test fun reportCannotBeSavedWithoutExaminationType() {
+  val draft=ReportDraft(hospital="模拟医院",type=" ",date="2026-10-15",
+   rows=listOf(DraftRow(name="白细胞计数",key="WBC",text="5.1",unit="10^9/L")))
+  assertFalse(draft.valid())
+  assertTrue(reportValidationProblems(draft).any{it.contains("检查类型")})
+ }
  @Test fun detailedRowValidationIdentifiesBadBounds() {
   val draft=ReportDraft(hospital="模拟医院",type="生化",date="2026-10-14",
    rows=listOf(DraftRow(name="肌酐",key="CREA",text="1.0",unit="mg/dL",low="2",high="1")))
