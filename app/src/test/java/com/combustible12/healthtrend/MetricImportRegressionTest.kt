@@ -123,6 +123,25 @@ class MetricImportRegressionTest {
   assertEquals("ALT/AST",UnifiedMetricStandard.resolveName("谷丙/谷草"))
  }
 
+ @Test fun newReportReviewCannotBeBypassedByLegacyTemplate() {
+  val legacy=HospitalLabTemplate("示例医院","血常规",1,true,listOf(
+   LabFieldTemplate("WBC","白细胞计数","10^9/L",3.5,9.5)
+  ))
+  val invalid=ParsedLabResult("WBC","白细胞计数",4.2,"10^9/L",12.0,2.0,
+   "WBC 白细胞计数 4.2 10^9/L 12-2",true,"4.2")
+  assertTrue(metricNeedsReview(invalid,null))
+  assertTrue(metricNeedsReview(invalid,legacy))
+ }
+ @Test fun newReportReviewAcceptsItsOwnValidRangeWithOrWithoutLegacyTemplate() {
+  val legacy=HospitalLabTemplate("示例医院","血常规",1,true,listOf(
+   LabFieldTemplate("WBC","白细胞计数","10^9/L",3.5,9.5)
+  ))
+  val current=ParsedLabResult("WBC","白细胞计数",4.2,"10^9/L",4.0,10.0,
+   "WBC 白细胞计数 4.2 10^9/L 4-10",true,"4.2")
+  assertFalse(metricNeedsReview(current,null))
+  assertFalse(metricNeedsReview(current,legacy))
+ }
+
  @Test fun detailedRowValidationIdentifiesBadBounds() {
   val draft=ReportDraft(hospital="模拟医院",type="生化",date="2026-10-14",
    rows=listOf(DraftRow(name="肌酐",key="CREA",text="1.0",unit="mg/dL",low="2",high="1")))
