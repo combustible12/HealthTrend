@@ -609,7 +609,9 @@ class HealthStore(private val context:Context) {
  fun resolveMetricKey(label:String,unit:String=""):String {
   val clean=label.trim().replace('：',':').replace('／','/')
   if(clean.isBlank())return "未识别"
-  val catalogue=metricCatalogue()
+  // New-report recognition must not learn identities from legacy report raw names.
+  // Those names remain available in metricCatalogue() for history/presentation only.
+  val catalogue=recognitionMetricCatalogue()
   val preferred=preferredMetricNames()
   val userAliases=metricAliases()
   fun namesMatch(name:String):Boolean =
@@ -687,6 +689,28 @@ class HealthStore(private val context:Context) {
   val builtIn=UnifiedMetricStandard.keysForType(reportType)
   val keys=(observed+custom+builtIn).toSet()
   return unifiedMetricPool().filter{it.key in keys}
+ }
+ /** Recognition-only dictionary for newly imported or edited reports.
+  * Historical source names must never silently become aliases for future reports.
+  * This reads dictionary preferences, never modifies previous report snapshots.
+  */
+ private fun recognitionMetricCatalogue():Map<String,Set<String>>{
+  val names=linkedMapOf<String,MutableSet<String>>()
+  ReportParser.builtInMetricKeys().forEach{key->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.addAll(ReportParser.builtInAliasNames(key))
+  }
+  UnifiedMetricStandard.keys().forEach{key->
+   val item=UnifiedMetricStandard.definition(key)?:return@forEach
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.apply{add(item.name);addAll(item.aliases)}
+  }
+  customMetrics().forEach{item->names.getOrPut(item.key){linkedSetOf()}.add(item.name)}
+  preferredMetricNames().forEach{(key,name)->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.add(name)
+  }
+  metricAliases().forEach{(alias,key)->
+   names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.add(alias)
+  }
+  return names.mapValues{(_,values)->values.filter{it.isNotBlank()}.toSet()}
  }
  /** Unified metric catalogue: built-in and user-defined identities, together with
   * observed historical report names. Legacy hospital templates are not a source. */
