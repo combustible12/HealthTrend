@@ -347,6 +347,7 @@ fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabRes
 fun reportValidationProblems(d:ReportDraft):List<String> {
  val problems=mutableListOf<String>()
  if(d.hospital.isBlank())problems+="请填写医院"
+ if(d.type.isBlank())problems+="请填写检查类型"
  if(parseDate(d.date)==null)problems+="请填写有效检查日期"
  if(d.rows.isEmpty())problems+="报告没有指标"
  d.rows.forEachIndexed { index,row ->
