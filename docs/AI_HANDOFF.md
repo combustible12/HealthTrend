@@ -128,3 +128,9 @@
 - [3d241c2](https://github.com/combustible12/HealthTrend/commit/3d241c283419e8fce5352abf6318cd820e2de6f0)（`MetricImportRegressionTest.kt`）：使用合成检验记录增加新报告异常范围无法被旧模板绕过的回归测试。**测试仅写入，未执行**。
 - 本轮仅使用远程 GitHub；不处理本地未提交文件。未编译、未发布；不修改病程及历史患者数据。清单正式验收保持未勾选。
 - 仍待：统一标准池引用旧历史报告来源别名的只读兼容与潜在身份冲突处理；全入口身份解析优先级；更多回归及真实设备备份恢复验证。
+
+
+### 2026-10-15 续工：新报告身份识别与历史名称分离
+- GitHub 代码提交 [1894e88](https://github.com/combustible12/HealthTrend/commit/1894e8893623fcad0ab33cee2d19c5babf76fc46)：`HealthStore.resolveMetricKey` 使用单独的 `recognitionMetricCatalogue`，以标准术语、用户维护别名和自定义指标为输入；历史报告原始名称不再自动充当新报告识别别名。
+- 原 `metricCatalogue` 仍可用于历史展示的名称汇总；旧报告本体完全不改动。未更改病程或 `course_records`。
+- 未执行测试、编译或发布，验收状态不变。待解决：导入时显式代码和名称冲突校验；跨 OCR、粘贴、编辑的统一冲突优先级；历史 `CUSTOM-UUID` 到标准指标只读兼容。
