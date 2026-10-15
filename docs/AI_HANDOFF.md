@@ -134,3 +134,8 @@
 - GitHub 代码提交 [1894e88](https://github.com/combustible12/HealthTrend/commit/1894e8893623fcad0ab33cee2d19c5babf76fc46)：`HealthStore.resolveMetricKey` 使用单独的 `recognitionMetricCatalogue`，以标准术语、用户维护别名和自定义指标为输入；历史报告原始名称不再自动充当新报告识别别名。
 - 原 `metricCatalogue` 仍可用于历史展示的名称汇总；旧报告本体完全不改动。未更改病程或 `course_records`。
 - 未执行测试、编译或发布，验收状态不变。待解决：导入时显式代码和名称冲突校验；跨 OCR、粘贴、编辑的统一冲突优先级；历史 `CUSTOM-UUID` 到标准指标只读兼容。
+
+### 2026-10-15 录入优先施工
+- 用户急需录入新检验数据，后续先闭环新报告粘贴导入→核对→保存→编辑；历史只读映射和医学审核非阻断事项后置。
+- 已提交 [e317fce](https://github.com/combustible12/HealthTrend/commit/e317fce74e7bf40329f3b7128786ac6b3b5aa2e5) 补充检查类型不能为空的保存校验；[a9907b1](https://github.com/combustible12/HealthTrend/commit/a9907b120bc9ed34ff682bf6391247a0fac3e20c8) 新增合成回归用例。
+- **未运行任何测试、编译或发布**，手机现装 APK 不受 GitHub 代码变化影响。用户先前要求暂不编译发布，仍未更改。历史确认数据和病程未修改。
