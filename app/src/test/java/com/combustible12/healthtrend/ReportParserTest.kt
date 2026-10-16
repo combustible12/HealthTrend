@@ -370,11 +370,6 @@ AST/ALT 谷草/谷丙 0.88""")
   assertEquals("肿瘤标志物",explicit.reportType);assertFalse(explicit.uncertain.contains("type"))
  }
 
- @Test fun mergedOcrLineSplitsMetricsWithoutCrossContamination(){
-  val rows=ReportParser.parse("1 WBC 白细胞 7.25 3.5--9.5 10 9/L 22 MPV 平均血小板体积 9.1 6.5--12 fL")
-  assertEquals(2,rows.size);assertEquals("WBC",rows[0].metricKey);assertEquals(7.25,rows[0].value!!,0.0);assertEquals(3.5,rows[0].referenceLow!!,0.0);assertEquals(9.5,rows[0].referenceHigh!!,0.0);assertEquals("×10^9/L",rows[0].unit)
-  assertEquals("MPV",rows[1].metricKey);assertEquals(9.1,rows[1].value!!,0.0);assertEquals(6.5,rows[1].referenceLow!!,0.0);assertEquals(12.0,rows[1].referenceHigh!!,0.0);assertEquals("fL",rows[1].unit)
- }
  @Test fun reportDateBeatsSamplingAndAdministrativeDates(){
   val rows=ReportParser.parse("HGB 102 g/L 113-151")
   val meta=ReportMetadata.extract("采样时间 2026-09-25 08:00\n送检时间 2026-09-25 09:00\n审核时间 2026-09-26 10:00\n报告日期 2026-09-27\nHGB 102",rows)
@@ -385,16 +380,16 @@ AST/ALT 谷草/谷丙 0.88""")
   val meta=ReportMetadata.extract("采样日期 2026-09-25\n审核时间 2026-09-26\nHGB 102",rows)
   assertEquals("2026-09-25",meta.date)
  }
- @Test fun missingUnitsStayBlankWhileCorruptRecognizedUnitsAreRepaired(){
+ @Test fun missingUnitsStayBlankAndReportedUnitsAreNotRewritten(){
   val wbc=ReportParser.parse("WBC 7.25 3.5-9.5 22 MPV").single();assertEquals("",wbc.unit);assertEquals(3.5,wbc.referenceLow!!,0.0);assertEquals(9.5,wbc.referenceHigh!!,0.0)
   assertEquals("",ReportParser.parse("MPV 9.1 6.5-12").single().unit)
   assertEquals("",ReportParser.parse("HGB 102 garbage 113-151").single().unit)
-  assertEquals("×10^9/L",ReportParser.parse("WBC 7.25 3.5-9.5 fL").single().unit)
+  assertEquals("fL",ReportParser.parse("WBC 7.25 3.5-9.5 fL").single().unit)
  }
- @Test fun reportSaveGateOnlyRequiresHospitalDateAndValidMetrics(){
+ @Test fun reportSaveGateRequiresHospitalTypeDateAndValidMetrics(){
   val row=DraftRow(name="血红蛋白",key="HGB",text="102",unit="g/L",low="113",high="151",uncertain=true)
   val d=ReportDraft(hospital="医院",type="",date="2026-09-26",rows=listOf(row),uncertain=setOf("type"))
-  assertTrue(d.valid());assertTrue(reportValidationProblems(d).isEmpty())
+  assertFalse(d.valid());assertTrue(reportValidationProblems(d).any{it.contains("检查类型")})
  }
 
  @Test fun trendPointDescriptionsRemainOneToOneWithVisits(){
@@ -457,11 +452,9 @@ AST/ALT 谷草/谷丙 0.88""")
   assertEquals("2016-09-18",preferred.date)
  }
 
- @Test fun realWbcOcrKeepsDecimalsAndPrintedRange(){
-  val row=ReportParser.parse("WBC 白细胞 7.25 3.5--9.5 10 9/L").single()
-  assertEquals("WBC",row.metricKey);assertEquals(7.25,row.value!!,0.0);assertEquals(3.5,row.referenceLow!!,0.0);assertEquals(9.5,row.referenceHigh!!,0.0);assertEquals("×10^9/L",row.unit)
-  val spaced=ReportParser.parse("WBC 白细胞 7 . 25 3 . 5 — 9 . 5 10 9/L").single()
-  assertEquals(7.25,spaced.value!!,0.0);assertEquals(3.5,spaced.referenceLow!!,0.0);assertEquals(9.5,spaced.referenceHigh!!,0.0)
+ @Test fun fixedClipboardWbcKeepsDecimalsUnitAndPrintedRange(){
+  val row=ReportParser.parse("WBC 白细胞 7.25 10^9/L 3.5-9.5").single()
+  assertEquals("WBC",row.metricKey);assertEquals(7.25,row.value!!,0.0);assertEquals(3.5,row.referenceLow!!,0.0);assertEquals(9.5,row.referenceHigh!!,0.0);assertEquals("10^9/L",row.unit)
  }
 
  @Test fun everyPrintedRangeSeparatorKeepsBothDecimalBounds(){
@@ -563,7 +556,7 @@ AST/ALT 谷草/谷丙 0.88""")
   assertEquals("0.000",row("NRBC#").textValue);assertEquals("",row("NRBC#").unit);assertEquals(9999.99,row("NRBC#").referenceHigh!!,0.0)
   assertEquals("0.00",row("BASO#").textValue);assertEquals("0.0",row("BASO%").textValue);assertEquals("34.20",row("HCT").textValue)
   assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
-  assertEquals("×10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
+  assertEquals("10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
   assertEquals("%",row("PDW").unit);assertEquals("",row("P-LCR").unit);assertEquals("",row("PCT").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
   val expected=listOf(
    "WBC" to Triple(7.25,3.5,9.5),"NEUT#" to Triple(5.77,2.0,7.0),"NEUT%" to Triple(79.4,50.0,70.0),
@@ -578,11 +571,11 @@ AST/ALT 谷草/谷丙 0.88""")
   expected.forEach{(key,v)->val x=row(key);assertEquals(key,v.first,x.value!!,0.0);assertEquals(key,v.second,x.referenceLow!!,0.0);assertEquals(key,v.third,x.referenceHigh!!,0.0)}
  }
 
- @Test fun cbcMetricRejectsPlausibleUnitStolenFromNeighborColumn(){
-  assertEquals("%",ReportParser.parse("%NEUT 中性粒细胞百分比 79.4 50-70 fL").single().unit)
-  assertEquals("×10^9/L",ReportParser.parse("#LYMPH 淋巴细胞计数 1.31 0.8-4.0 %").single().unit)
-  assertEquals("fL",ReportParser.parse("MPV 平均血小板体积 9.1 6.5-12 %").single().unit)
-  assertEquals("%",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 fL").single().unit)
+ @Test fun parserPreservesEveryReportedUnitForUserReview(){
+  assertEquals("fL",ReportParser.parse("%NEUT 中性粒细胞百分比 79.4 50-70 fL").single().unit)
+  assertEquals("%",ReportParser.parse("#LYMPH 淋巴细胞计数 1.31 0.8-4.0 %").single().unit)
+  assertEquals("%",ReportParser.parse("MPV 平均血小板体积 9.1 6.5-12 %").single().unit)
+  assertEquals("fL",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 fL").single().unit)
  }
 
  @Test fun specificChineseLabelWinsOverGenericSubstring(){

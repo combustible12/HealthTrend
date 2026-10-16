@@ -19,3 +19,5 @@ Run standalone pending-draft roundtrip regression test 2026-10-14.
 2026-10-16 compile code-name conflict review and legacy takeover on 8809b5a.
 
 2026-10-16 compile report-import OCR removal on e4662c9.
+
+2026-10-16 rerun parser rules and frozen generic PDW regression.

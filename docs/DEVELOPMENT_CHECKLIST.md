@@ -309,3 +309,9 @@
 - 历史报告 `rawOcr`、原图及图片关联继续只读兼容和备份恢复，不自动重识别、不迁移。
 - 代码已修改；`ci/check_report_ocr_boundary.py` 通过，聚焦 Kotlin/JVM 回归 **52/52** 通过。Android 编译和用户验收结果必须单独记录，当前不能勾选验收通过。
 - 已更新 Android quick 专用触发文件，请求对提交 `e4662c9` 的报告 OCR 移除代码执行 `compileDebugKotlin` 和 `testDebugUnitTest`；结果尚未返回。
+
+### 2026-10-16 Android 回归失败处理
+- Android `compileDebugKotlin` 通过；`testDebugUnitTest` 134 项中 7 项失败，均为 `ReportParserTest` 中与最新规则冲突的旧断言。
+- 已删除报告导入 OCR 合并行测试；固定格式测试改用明确文本格式。单位断言改为保留来源单位，不再按词典修复；检查类型继续作为报告必填字段。
+- 普通 `PDW` 保留为冻结的独立身份并允许保存原 `%` 或 `fL`，不得据单位自动改为 `PDW-CV`/`PDW-SD`；名称明确写 CV/SD 而身份仍为普通 PDW 时继续拦截。
+- 修正代码与测试已写；OCR 边界检查通过，聚焦 Kotlin/JVM 回归 **52/52** 通过。已触发 Android 完整单元测试重新运行，结果尚未返回。

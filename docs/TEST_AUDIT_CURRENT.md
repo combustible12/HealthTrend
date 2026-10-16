@@ -81,3 +81,9 @@
 - 历史 `rawOcr`、报告原图和图片关联的读取/备份恢复测试继续保留。`python3 ci/check_report_ocr_boundary.py` 通过；聚焦 Kotlin/JVM 回归 **52/52** 通过。
 - 上一提交 `033faeb` 的 Android `compileDebugKotlin` 已通过；完整 `testDebugUnitTest` 共 135 项、7 项失败，均位于 `ReportParserTest`。失败项目为固定格式行单位/范围旧断言及“检查类型可空”旧断言，尚未逐项按最新规则处理，不能记为完整单元测试通过。本次报告 OCR 移除提交的 Android CI 尚待运行。
 - 已通过 `ci/compile-trigger.txt` 请求对 `e4662c9` 运行 Android quick；仅记录已请求，不能提前记为通过。
+
+### 2026-10-16 Android quick 结果与旧断言更新
+- Run `38889567764`：`compileDebugKotlin` 通过；`testDebugUnitTest` 共 134 项、7 项失败。
+- 失败均在 `ReportParserTest`：2 项仍以报告 OCR 噪声为输入、3 项要求用词典单位覆盖来源单位、1 项把检查类型视为可空、1 项因普通 PDW 冻结校验导致固定格式整份无效。
+- 按最新规则更新：删除报告 OCR 专属断言；来源单位照录；检查类型必填；普通 PDW 保留原身份和单位且不自动归类，只有名称明确 CV/SD 与普通身份冲突时拦截。
+- 更新后 OCR 边界检查通过，聚焦 Kotlin/JVM 回归 **52/52** 通过；Android 完整测试已请求重新运行，结果尚未返回。

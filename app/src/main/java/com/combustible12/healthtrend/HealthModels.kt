@@ -42,8 +42,10 @@ fun distributionWidthIdentityProblem(metricKey:String,name:String,unit:String):S
  if(explicitCv&&explicitSd)return "指标名称同时包含CV和SD，请核对"
  if(key=="$family-CV"&&(explicitSd||isVolume))return "CV指标与SD名称或fL单位冲突，请核对身份"
  if(key=="$family-SD"&&(explicitCv||isPercent))return "SD指标与CV名称或%单位冲突，请核对身份"
- if(key==family&&(explicitCv||explicitSd||isPercent||isVolume))
-  return "未区分CV/SD的旧指标身份需要核对，不得直接按单位自动归类"
+ // Generic PDW/RDW remains a distinct frozen identity. Preserve its reported
+ // unit without using % or fL to guess CV/SD. Only an explicit CV/SD name conflicts.
+ if(key==family&&(explicitCv||explicitSd))
+  return "项目名称已明确CV/SD，但指标身份未区分，请核对"
  return null
 }
 

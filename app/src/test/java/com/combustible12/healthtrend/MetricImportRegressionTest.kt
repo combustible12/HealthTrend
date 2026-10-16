@@ -29,7 +29,9 @@ class MetricImportRegressionTest {
   assertNotNull(distributionWidthIdentityProblem("PDW-CV","血小板分布宽度CV","fL"))
   assertNotNull(distributionWidthIdentityProblem("PDW-SD","血小板分布宽度SD","%"))
   assertNotNull(distributionWidthIdentityProblem("RDW-CV","红细胞分布宽度SD","%"))
-  assertNotNull(distributionWidthIdentityProblem("PDW","血小板分布宽度","fL"))
+  assertNull(distributionWidthIdentityProblem("PDW","血小板分布宽度","fL"))
+  assertNull(distributionWidthIdentityProblem("PDW","血小板分布宽度","%"))
+  assertNotNull(distributionWidthIdentityProblem("PDW","血小板分布宽度CV","%"))
   assertNull(distributionWidthIdentityProblem("PDW-CV","血小板分布宽度CV","%"))
   assertNull(distributionWidthIdentityProblem("PDW-SD","血小板分布宽度SD","fL"))
   val bad=ReportDraft(hospital="模拟医院",type="血常规",date="2026-10-16",
@@ -37,14 +39,15 @@ class MetricImportRegressionTest {
   assertFalse(bad.valid())
   assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("SD")})
  }
- @Test fun legacyAmbiguousWidthCanBeEditedWithoutAutomaticReclassification() {
+ @Test fun genericPdwKeepsItsIdentityAcrossLegacyAndNewEdits() {
   val result=LabResult("row","report","合成医院","血常规",4,"PDW","血小板分布宽度",12.0,"fL",8.0,18.0,1760000000000L,textValue="12.00")
   val original=LabReport("report","合成医院","血常规",1760000000000L,4,emptyList(),listOf(result))
   val draft=ReportDraft.from(original)
   assertTrue(draft.valid())
   assertTrue(draft.copy(rows=draft.rows.map{it.copy(text="13.00")}).valid())
-  assertFalse(draft.copy(rows=draft.rows.map{it.copy(unit="%")}).valid())
-  assertFalse(draft.copy(existing=null).valid())
+  val changedUnit=draft.copy(rows=draft.rows.map{it.copy(unit="%")})
+  assertTrue(changedUnit.valid());assertEquals("PDW",changedUnit.rows.single().key)
+  assertTrue(draft.copy(existing=null).valid())
  }
  @Test fun legacyTemplateDoesNotTakeOverNewClipboardReport() {
   val source="示例医院\n血常规\n2026-10-16\nWBC 白细胞计数 5.00 10^9/L 3.5-9.5"
