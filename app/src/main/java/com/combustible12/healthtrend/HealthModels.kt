@@ -86,7 +86,7 @@ data class LabResult(
  companion object {private const val serialVersionUID:Long=-3909522735447564327L}
  private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())
  fun status():ResultStatus {
-  val n=value ?: return ResultStatus.UNKNOWN
+  val n=value ?: return when(referenceAgreement()){ReferenceAgreement.MATCH->ResultStatus.NORMAL;ReferenceAgreement.MISMATCH->ResultStatus.HIGH;ReferenceAgreement.UNKNOWN->ResultStatus.UNKNOWN}
   if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN
   if(reportFlag.length>1)return ResultStatus.UNKNOWN
   if('?' in referenceRaw) {

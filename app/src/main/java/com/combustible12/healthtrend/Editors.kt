@@ -383,7 +383,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  if(lockMetadata){Text("${r.unit.ifBlank{"单位未录入"}} · 参考 ${r.rangeRaw().ifBlank{"未录入"}}",color=Muted)}else{
   if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp))}}
   Field(r.unit,{edit(r.copy(unit=it))},"单位")
-  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
+  if(LabResultValues.kind(r.text)!=LabValueKind.NUMBER){Field(r.referenceRaw,{edit(r.copy(referenceRaw=it,low="",high=""))},"参考结果（如阴性、未检出，可留空）")}else Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
  }
 }}
 @Composable fun ReportDetail(r:LabReport,store:HealthStore,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit,onImagesChanged:()->Unit){
@@ -411,21 +411,21 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
     x.value!=null && normalized.first!=x.value
    val compatible=commonUnit.isNotBlank()&&normalized.second==commonUnit
    val printedName=labDisplayTitle(x.rawName,x.metricKey)
-   Row{Text(standard,modifier=Modifier.weight(1f));Text(x.status().label(),color=statusColor(x.status()))}
+   Row{Text(standard,modifier=Modifier.weight(1f));Text(x.resultStatusLabel(),color=statusColor(x.status()))}
    if(converted){
     ResultValueUnit(normalized.first?.let{String.format(java.util.Locale.US,"%.3f",it).trimEnd('0').trimEnd('.')}?:x.textValue,normalized.second)
     Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
     Text("原始："+x.textValue+" "+x.unitAtTest+"，参考范围 "+x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}+" "+x.unitAtTest,color=Muted,fontSize=12.sp)
    }else{
     ResultValueUnit(x.textValue,if(commonUnit.isNotBlank()&&normalized.second==commonUnit)commonUnit else x.unitAtTest)
-    Text("参考范围："+(x.referenceRaw.takeIf{'?' in it}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
+    Text("参考范围："+(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
    }
    if(printedName!=standard)Text("原名称："+printedName,color=Muted,fontSize=12.sp)
    if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
-   if(x.value!=null)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑数据点")}
+   TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑结果")}
   }}
  }}
- if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${labDisplayTitle(point!!.rawName,point!!.metricKey)}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({update(point!!,value.toDouble(),value.trim());point=null},enabled=value.toDoubleOrNull()?.isFinite()==true){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
+ if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${labDisplayTitle(point!!.rawName,point!!.metricKey)}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({store.updateResultText(r.id,point!!.id,value);onImagesChanged();point=null},enabled=LabResultValues.valid(value)){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})
  if(confirmDelete)DeleteConfirmation({confirmDelete=false},delete)
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }

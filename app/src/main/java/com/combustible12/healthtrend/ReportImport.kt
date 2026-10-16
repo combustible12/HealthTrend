@@ -38,7 +38,7 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
 
 private val pastedMetadataLabel=Regex("^(医院|医疗机构|检查日期|检验日期|报告日期|日期|检查类型|报告类型|类型)\\s*[:：]")
 internal fun normalizePastedReportText(raw:String)=raw.lines().map{it.trim()}.filter{it.isNotBlank()&&!pastedMetadataLabel.containsMatchIn(it)}
- .joinToString("\n"){it.replace('｜','|').split('|').joinToString(" "){part->part.trim()}.replace(Regex("\\s+")," ")}
+ .joinToString("\n"){if('\t' in it)it else it.replace('｜','|').split('|').joinToString(" "){part->part.trim()}.replace(Regex("\\s+")," ")}
 
 /**
  * Converts manually verified clipboard or plain-text report data into a report draft.

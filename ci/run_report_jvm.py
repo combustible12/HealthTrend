@@ -16,9 +16,9 @@ def segment(file,start,end):
 text=(src/'ReportImport.kt').read_text()
 text=text[text.index('private val pastedMetadataLabel'): ] if 'private val pastedMetadataLabel' in text else text[text.index('private val pasted'):]
 (work/'Import.kt').write_text('package com.combustible12.healthtrend\n'+text)
-files=[src/(x+'.kt') for x in ['BloodGroupProfile','PartialReferenceRanges','HealthModels','UnifiedMetricStandard','ReportParser','HealthStore','HistoryReplacement','ReportEditing','HealthBackup','LegacyReportCompatibility']]
+files=[src/(x+'.kt') for x in ['LabResultValues','BloodGroupProfile','PartialReferenceRanges','HealthModels','UnifiedMetricStandard','ReportParser','HealthStore','HistoryReplacement','ReportEditing','HealthBackup','LegacyReportCompatibility']]
 files+=list((root/'ci/jvm').glob('*.kt'))+list(work.glob('*.kt'))
-tests=[root/'app/src/test/java/com/combustible12/healthtrend'/ (x+'.kt') for x in ['BloodGroupProfileTest','UnifiedMetricStandardAuditTest','MetricImportRegressionTest','HistoryReplacementTest','PartialReferenceRangesTest','PartialRangeIntegrationTest']]
+tests=[root/'app/src/test/java/com/combustible12/healthtrend'/ (x+'.kt') for x in ['LabTextResultsTest','BloodGroupProfileTest','UnifiedMetricStandardAuditTest','MetricImportRegressionTest','HistoryReplacementTest','PartialReferenceRangesTest','PartialRangeIntegrationTest']]
 tests.append(root/'ci/jvm/ReportTakeoverTest.kt')
 files.remove(root/'ci/jvm/ReportTakeoverTest.kt')
 cp=os.pathsep.join(str(libs/x) for x in ['stdlib.jar','json.jar','junit.jar','hamcrest.jar','annotations.jar'])

@@ -11,6 +11,43 @@ import java.net.URI
 
 /** Synthetic records only. Runs with ci/jvm disk-backed Android platform doubles. */
 class ReportTakeoverTest {
+ @Test fun mixedTextReportImportEditPersistExportAndBackupAreLossless(){
+  val c=Context();val s=HealthStore(c)
+  val raw="合成医院\n尿液分析\n2026-01-15\nUR-LEU 尿白细胞酯酶 2+ - 阴性\nUR-SG 尿比重 1.025 - 1.003-1.030\nST-COLOR 粪便颜色 棕黄色 -"
+  val d=pastedReportDraft(raw,store=s)
+  assertTrue(reportValidationProblems(d).toString(),d.valid());assertEquals(3,d.rows.size)
+  val r=materializeReportDraft(d,s);s.saveReport(r)
+  val saved=HealthStore(Context(c.root)).reports().single()
+  assertEquals(listOf("2+","1.025","棕黄色"),saved.results.map{it.textValue})
+  assertNull(saved.results[0].normalizedValue);assertEquals(1.025,saved.results[1].normalizedValue!!,0.0)
+  assertEquals("阴性",saved.results[0].referenceRaw)
+  assertEquals(1,s.trend("UR-LEU").size)
+  val edited=ReportDraft.from(saved).let{it.copy(rows=it.rows.mapIndexed{index,row->if(index==1)row.copy(unit="合成单位")else row})}
+  s.saveReport(materializeReportDraft(edited,s))
+  assertEquals("2+",s.reports().single().results[0].textValue)
+  assertEquals("阴性",s.reports().single().results[0].referenceRaw)
+  val exported=s.exportReportAsPastedText(s.reports().single());val imported=pastedReportDraft(exported,store=s)
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  assertEquals(s.reports().single().results.map{it.textValue},imported.rows.map{it.text})
+  assertEquals("阴性",imported.rows[0].rangeRaw())
+  s.updateResultText(r.id,r.results[0].id,"弱阳性")
+  assertEquals(ResultStatus.UNKNOWN,s.reports().single().results[0].status())
+  assertEquals("阴性",s.reports().single().results[0].referenceRaw)
+  s.updateResultText(r.id,r.results[2].id,"软 含少量黏液")
+  val roundtrip=pastedReportDraft(s.exportReportAsPastedText(s.reports().single()),store=s)
+  assertEquals("软 含少量黏液",roundtrip.rows[2].text)
+  val zip=File(c.cacheDir,"text-report.zip");HealthBackup(c,s).export(Uri.fromFile(zip))
+  val dest=Context();HealthBackup(dest,HealthStore(dest)).restoreIntoEmpty(Uri.fromFile(zip))
+  assertEquals(s.reports(),HealthStore(Context(dest.root)).reports())
+ }
+ @Test fun textEditsDoNotRewriteOtherReportsOrCourseRecords(){
+  val c=Context();val s=HealthStore(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
+  prefs.edit().putString("course_records","[]").commit()
+  val first=materializeReportDraft(pastedReportDraft("合成医院\n传染病筛查\n2026-01-15\nHBSAG 乙肝表面抗原 阴性 - 阴性",store=s),s);s.saveReport(first)
+  val second=materializeReportDraft(pastedReportDraft("合成医院\n血常规\n2026-01-16\nHGB 血红蛋白 116 g/L 115-150",store=s),s);s.saveReport(second)
+  s.updateResultText(first.id,first.results.single().id,"阳性")
+  assertEquals(second,s.reports().single{it.id==second.id});assertEquals("[]",prefs.getString("course_records",null))
+ }
  @Test fun bloodGroupSaveReopenExportAndBackupPreserveAllFields(){
   val c=Context();val s=HealthStore(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
   prefs.edit().putString("course_records","[]").putString("reports","[]").commit()

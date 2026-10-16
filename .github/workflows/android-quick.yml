@@ -28,3 +28,6 @@ jobs:
       - name: Run regression tests
         if: always()
         run: gradle :app:testDebugUnitTest
+
+      - name: Compile device test sources
+        run: gradle :app:compileDebugAndroidTestKotlin

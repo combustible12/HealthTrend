@@ -58,7 +58,7 @@ object ReportParser {
   // Identity is exact: AST != AST/ALT, NEUT# != NEUT%, P-LCR != P-LCC.
   val token=trimmed.substringBefore(' ').substringBefore('\t').trim()
   val explicit=normalizeCode(token)
-  if(canonicalMetricKey(explicit) in metricIdentityKeys)"（${canonicalMetricKey(explicit)}） "+trimmed.removePrefix(token).trimStart() else line
+  if(canonicalMetricKey(explicit) in metricIdentityKeys)"（${canonicalMetricKey(explicit)}）"+(if('\t' in trimmed)"\t" else " ")+trimmed.removePrefix(token).trimStart() else line
  }
  private val astKeySelfCheck by lazy {
   check(key("谷草转氨酶（AST）")=="AST")
@@ -97,11 +97,28 @@ object ReportParser {
   val hits=knownCode.findAll(raw).toList()
   if(hits.size<2) listOf(raw) else hits.indices.map{i->raw.substring(hits[i].range.first,if(i+1<hits.size)hits[i+1].range.first else raw.length).trim().replace(Regex("^\\d+[.、]?\\s*"),"")}
  }
+ private fun clipboardTextResult(source:String):ParsedLabResult? {
+  val line=source.trim()
+  val fields=if('\t' in line)line.split('\t') else {
+   val m=Regex("^(?:[（(]([^（）()]+)[）)]|([A-Za-z][A-Za-z0-9/#%+._-]*))\\s+(.+?)\\s+((?:[^\\s]+)(?:\\s*[（(][+-]+[）)])?)\\s+(-|[^\\s]+)(?:\\s+(.*))?$").matchEntire(line)?:return null
+   listOf(m.groupValues[1].ifBlank{m.groupValues[2]},m.groupValues[3],m.groupValues[4],m.groupValues[5],m.groupValues[6])
+  }
+  if(fields.size !in 4..5)return null
+  val code=fields[0].trim().trim('（','）','(',')');val name=fields[1].trim();val result=fields[2].trim()
+  if(!name.any{it.code in 0x3400..0x9fff}||!LabResultValues.valid(result))return null
+  if(LabResultValues.kind(result)==LabValueKind.NUMBER && (fields.size<5||LabResultValues.kind(fields[4])!=LabValueKind.QUALITATIVE))return null
+  var identity=key(code)
+  val named=UnifiedMetricStandard.resolveName(name)
+  if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
+  if(identity=="未识别")identity=named?:"待核对:$name"
+  return ParsedLabResult(identity,name,LabResultValues.numeric(result),fields[3].trim().takeUnless{it=="-"}.orEmpty(),null,null,source,identity in primaryKeys,result.trimEnd('↑','↓'),referenceRaw=fields.getOrElse(4){""}.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
+ }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
+  clipboardTextResult(source)?.let{return@mapNotNull it}
   val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
-  val textual=Regex("^(.*?)\\s+(阴性|阳性|弱阳性|未检出|正常|异常|[+-]{1,4})(.*)$").find(line)
+  val textual=Regex("^(.*?)\\s+(弱阳性|阴性(?:[（(][-][）)])?|阳性(?:[（(][+][）)])?|未检出|未见|检出|可疑|正常|异常|[1-4][+]|[+-]{1,4}|±)(.*)$").find(line)
   if(match==null && textual==null) return@mapNotNull null
   val isText=textual!=null && (match==null || textual.groupValues[1].length<match.range.first)
   val prefix=if(isText)textual!!.groupValues[1] else line.substring(0,match!!.range.first)
@@ -125,14 +142,14 @@ object ReportParser {
   val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.let{v->when{v.trim().startsWith(">")||v.trim().startsWith("≥")->v.replace(Regex("[>=≥\\s]"),"").toDoubleOrNull();v.trim().endsWith("--")->v.replace("--","").trim().toDoubleOrNull();else->null}}
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.trim().startsWith("<")||it.trim().startsWith("≤")}?.replace(Regex("[<=≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
-  val referenceRaw=limitMatch?.value?.trim().orEmpty()
+  val referenceRaw=if(isText)suffix.removePrefix("-").trim() else limitMatch?.value?.trim().orEmpty()
   val reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString("")
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   var k=safeIdentity
-  val unit=resolvedUnit(k,ocrUnit)
+  val unit=if(isText)"" else resolvedUnit(k,ocrUnit)
   // A clipped distribution-width label identifies the family, while % / fL
   // identifies CV / SD. Never override an explicit CV/SD code or name.
   // Unknown units stay unresolved, and historical saved reports are untouched.
@@ -151,5 +168,5 @@ object ReportParser {
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
  }
- fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
+ fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&LabResultValues.valid(it.textValue)&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }

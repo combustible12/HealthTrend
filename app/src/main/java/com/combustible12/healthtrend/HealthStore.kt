@@ -565,7 +565,7 @@ class HealthStore(private val context:Context) {
    put(JSONObject().put("source",from).put("target",to))
   }})
  }
- fun trend(key:String)=reports().flatMap{r->r.results.filter{trendIdentity(it.metricKey)==trendIdentity(key) && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
+ fun trend(key:String)=reports().flatMap{r->r.results.filter{trendIdentity(it.metricKey)==trendIdentity(key) && it.textValue.isNotBlank() && (it.value==null||it.comparator.isEmpty())}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  /** User aliases are separate from hospital templates and historical report snapshots. */
  @Synchronized fun metricAliases():Map<String,String>{
   val data=read("metric_aliases")
@@ -845,6 +845,12 @@ class HealthStore(private val context:Context) {
  fun rememberedHospitals():List<String> =
   (reports().map{it.hospitalKey}+entries().map{it.hospital})
    .map{it.trim()}.filter{it.isNotBlank()}.distinct().sorted()
+ @Synchronized fun updateResultText(reportId:String,resultId:String,text:String){
+  require(LabResultValues.valid(text)){"检测结果无效"}
+  val r=reports().first{it.id==reportId}
+  require(r.results.any{it.id==resultId}){"找不到指标"}
+  saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedResult(text) else it}))
+ }
  @Synchronized fun updateValue(reportId:String,resultId:String,value:Double,displayText:String?=null){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value,displayText)else it}))}
  private fun storedTemplates()=rows(read("templates"),::templateFromJson)
  @Synchronized fun templates()=storedTemplates().filter{it.confirmed}.groupBy{Triple(it.hospitalKey,it.reportType,it.systemKey)}.values.mapNotNull{it.maxByOrNull(HospitalLabTemplate::version)}.sortedWith(compareBy<HospitalLabTemplate>{it.hospitalKey}.thenBy{it.reportType})
@@ -932,6 +938,10 @@ class HealthStore(private val context:Context) {
   append(report.reportType).append('\n')
   append(dateText(report.testedAtEpochMillis))
   report.results.forEach{row->
+   if(row.value==null){
+    append('\n').append(listOf(canonicalMetricKey(row.metricKey),preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName,row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
+    return@forEach
+   }
    append('\n').append(canonicalMetricKey(row.metricKey)).append(' ')
    append(preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName)
    append(' ').append(row.textValue).append(' ')

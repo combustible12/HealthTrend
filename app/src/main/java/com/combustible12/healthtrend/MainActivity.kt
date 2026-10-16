@@ -197,7 +197,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
-   },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)})
+   },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++})
     2->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
      val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone)
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -369,7 +369,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }},confirmButton={TextButton({showAliases=false}){Text("关闭")}})
 }
 
-@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
+@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit,resultChanged:()->Unit={}){
+ var textRevision by remember{mutableIntStateOf(0)}
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
@@ -393,7 +394,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸";"UREA/CREA"->"尿素/肌酐";"AMY"->"淀粉酶";"CKMB"->"肌酸激酶MB亚型";"CK"->"肌酸激酶";"PHOS"->"无机磷酸盐"
   else->null
  }
- val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
+ val activeReports=remember(reports,textRevision){if(textRevision==0)reports else store.reports()}
+ val all=activeReports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
@@ -452,7 +454,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
-   val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
+   val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->if(latest.value==null)Muted else Ink}
    TrendPaper{
     val metricAliases=aliasesFor(key)
     var meaningDetail by remember{mutableStateOf(false)}
@@ -469,10 +471,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
        Spacer(Modifier.width(4.dp))
        Text(displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Normal,fontSize=11.sp,color=valueColor,maxLines=1,modifier=Modifier.padding(bottom=2.dp))
       }
-      Text(latestStatus.label(),color=valueColor,fontSize=11.sp)
+      Text(latest.resultStatusLabel(),color=valueColor,fontSize=11.sp)
      }
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
+    val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
+    var textPreview by remember{mutableStateOf(false)}
     val compatiblePoints=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
     data class RangeRow(val low:Double?,val high:Double?,val unit:String)
     fun rangeKey(x:LabResult):RangeRow{
@@ -481,11 +485,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      fun clean(v:Double?)=v?.let{if(kotlin.math.abs(it)<1e-9)0.0 else kotlin.math.round(it*1_000_000.0)/1_000_000.0}
      return RangeRow(clean(b.first),clean(b.second),unit)
     }
-    val rangeDisplayRows=compatiblePoints.map{(_,x)->
+    val rangeDisplayRows=points.map{(_,x)->
      val rr=rangeKey(x)
-     "参考范围: ${x.referenceRaw.takeIf{'?' in it}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
+     "参考范围: ${x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
-    val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
+    val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
     val pointHospitalColors=compatiblePoints.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
@@ -508,6 +512,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       ){Text("整体",fontSize=12.sp,color=Accent)}
      }
     }
+    if(textPoints.isNotEmpty()){
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({textPreview=true}){Text("整体",fontSize=12.sp,color=Accent)}}
+     TextResultTrend(textPoints,onPointClick={selected=it})
+    }
+    if(textPreview)AlertDialog(onDismissRequest={textPreview=false},title={Text(labDisplayTitle(latest.rawName,key))},text={TextResultTrend(textPoints,onPointClick={selected=it;textPreview=false})},confirmButton={TextButton({textPreview=false}){Text("关闭")}})
     if(compatiblePoints.isNotEmpty()){
      Spacer(Modifier.height(if(rangeDisplayRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
@@ -607,11 +616,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(labDisplayTitle(x.rawName,x.metricKey));IconButton({selected=null;openCourse(r.testedAtEpochMillis)}){Icon(Icons.Outlined.Timeline,"打开当天病程",tint=Accent)}}},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
-   Text("当次参考：${x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}} · ${x.status().label()}",color=Muted)
+   Text("当次参考：${x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}} · ${x.resultStatusLabel()}",color=Muted)
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
-   if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
-   else TextButton({editValue=x.value?.toString().orEmpty();editing=true}){Text("编辑数值")}
+   if(editing)TextButton({try{if(LabResultValues.valid(editValue)){store.updateResultText(r.id,x.id,editValue);textRevision++;resultChanged();val persisted=store.reports().first{it.id==r.id};selected=persisted to persisted.results.first{it.id==x.id};editing=false}}catch(e:Exception){imageError=e.message?:"保存失败"}},enabled=LabResultValues.valid(editValue)){Text("保存")}
+   else TextButton({editValue=x.textValue;editing=true}){Text("编辑结果")}
   }},dismissButton={Row{
    if(r.sourceImages.isNotEmpty())TextButton({selected=null;images(r.sourceImages.map{it.uri})}){Text("查看原报告")} else TextButton({imageTargetReportId=r.id;imagePicker.launch(arrayOf("image/*"))},enabled=!imageBusy){Text("导入原报告")}
    TextButton({selected=null;editing=false}){Text("关闭")}

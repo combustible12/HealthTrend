@@ -2,8 +2,9 @@ package com.combustible12.healthtrend
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
 data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String="",val referenceRaw:String="",val reportFlag:String=""):java.io.Serializable {
- fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
+ fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,LabResultValues.numeric(text),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
  fun rangeRaw():String {
+  if(LabResultValues.kind(text)!=LabValueKind.NUMBER&&low.isBlank()&&high.isBlank())return referenceRaw
   val original=PartialReferenceRanges.parts(referenceRaw)
   return if(referenceRaw.isNotBlank() && original.first==low && original.second==high)referenceRaw
    else if(low.isNotBlank()&&high.isNotBlank())"$low-$high" else if(low.isNotBlank())"≥$low" else if(high.isNotBlank())"≤$high" else ""
@@ -64,9 +65,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
    key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
     problems+="${label}：需要确认项目身份"
    row.text.isBlank()->problems+="${label}：检测结果不能为空"
-   row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()?.isFinite()!=true&&
+   !LabResultValues.valid(row.text)&&
     d.existing?.results?.singleOrNull{it.id==row.id}?.textValue!=row.text->
-    problems+="${label}：检测结果不是有效数值"
+    problems+="${label}：检测结果无效"
    row.low.isNotBlank()&&PartialReferenceRanges.bound(row.low)==null->
     problems+="${label}：参考下限无效"
    row.high.isNotBlank()&&PartialReferenceRanges.bound(row.high)==null->
