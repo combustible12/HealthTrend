@@ -27,3 +27,4 @@ Run standalone pending-draft roundtrip regression test 2026-10-14.
 2026-10-16: compile reversible report replacement archive and independent one-click update page.
 
 2026-10-17 partial reference end-to-end compile and JVM regression
+2026-10-17 verify legacy draft serialization compatibility and source-precision assertions after efc3aba.

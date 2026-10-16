@@ -79,6 +79,8 @@ data class LabResult(
  val normalizedValue:Double?=value,val normalizedUnit:String=unitAtTest,
  val referenceRaw:String="",val reportFlag:String=""
 ):java.io.Serializable{
+ companion object {private const val serialVersionUID:Long=4841742225906257837L}
+ private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())
  fun status():ResultStatus {
   val n=value ?: return ResultStatus.UNKNOWN
   if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN

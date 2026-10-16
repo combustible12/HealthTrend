@@ -28,6 +28,7 @@ class PartialRangeIntegrationTest {
  @Test fun absentFlagRemainsUncertainAndConflictRequiresReview(){
   assertEquals(ResultStatus.UNKNOWN,result(parsed(flag="")).status())
   val conflict=parsed(value="0.150")
+  assertTrue(DraftRow.from(conflict).referenceNeedsReview())
   assertTrue(metricNeedsReview(conflict,null));assertEquals(ResultStatus.UNKNOWN,result(conflict).status())
  }
  @Test fun completeAndLegacyBoundsKeepExistingProjection(){
@@ -38,5 +39,15 @@ class PartialRangeIntegrationTest {
  @Test fun lowFlagConstrainsLowerWithoutInventingLine(){
   val r=result(parsed("0.1??-0.400","↓","0.150"))
   assertNull(r.trendReferenceRange().first);assertEquals(ResultStatus.LOW,r.status())
+ }
+ @Test fun previousReleaseSerializedDraftAndEmbeddedReportRemainReadable() {
+  val encoded=javaClass.getResourceAsStream("/legacy-reference-draft.b64")!!.bufferedReader().use{it.readText().trim()}
+  val old=java.io.ObjectInputStream(java.util.Base64.getDecoder().decode(encoded).inputStream()).use{it.readObject() as ReportDraft}
+  assertEquals("5.00",old.rows.single().text)
+  assertEquals("",old.rows.single().referenceRaw)
+  assertEquals("3.5-9.5",old.rows.single().parsed().referenceRaw)
+  val result=old.existing!!.results.single()
+  assertEquals("",result.referenceRaw);assertEquals(ResultStatus.NORMAL,result.status())
+  assertEquals("5.00",result.textValue)
  }
 }

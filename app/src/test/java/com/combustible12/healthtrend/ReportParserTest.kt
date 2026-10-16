@@ -36,7 +36,7 @@ PLT 血小板计数 252 10^9/L 125-350"""
    assertEquals("12.2",draft.rows[1].low)
    assertEquals("38.50",draft.rows[2].text)
    assertEquals("fL",draft.rows[2].unit)
-   assertEquals("42.0",draft.rows[2].low)
+   assertEquals("42.00",draft.rows[2].low) // Keep printed range precision.
   }
 
   @Test fun pastedChatReportUsesMetadataAndConfirmedTemplateSkeleton(){
@@ -52,7 +52,7 @@ CREA | 肌酐 | 46 | umol/L | 35-80"""
   val draft=pastedReportDraft(raw,template)
   assertEquals("霞浦县中医院",draft.hospital);assertEquals("生化",draft.type);assertEquals("2026-09-23",draft.date)
   assertEquals(listOf("ALT","CREA"),draft.rows.map{it.key});assertEquals(listOf("23","46"),draft.rows.map{it.text})
-  assertTrue("错误单位不得从旧医院模板自动补成 U/L",draft.rows[0].unit!="U/L");assertEquals("9.0",draft.rows[0].low);assertEquals("50.0",draft.rows[0].high)
+  assertTrue("错误单位不得从旧医院模板自动补成 U/L",draft.rows[0].unit!="U/L");assertEquals("9",draft.rows[0].low);assertEquals("50",draft.rows[0].high) // Source digits, not Double.toString().
  }
  @Test fun fixedClipboardFormatKeepsOnlyActuallyTestedMetrics(){
   val cbcLines=listOf(

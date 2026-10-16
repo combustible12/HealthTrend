@@ -8,13 +8,18 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
   return if(referenceRaw.isNotBlank() && original.first==low && original.second==high)referenceRaw
    else if(low.isNotBlank()&&high.isNotBlank())"$low-$high" else if(low.isNotBlank())"≥$low" else if(high.isNotBlank())"≤$high" else ""
  }
+ fun referenceNeedsReview():Boolean = reportFlag.length>1 ||
+  ('?' in rangeRaw() && PartialReferenceRanges.interval(rangeRaw(),parsed().value,reportFlag.singleOrNull())==null)
  fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||PartialReferenceRanges.bound(low)!=null)&&(high.isBlank()||PartialReferenceRanges.bound(high)!=null)&&ReportParser.valid(listOf(parsed()))
- companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=PartialReferenceRanges.parts(p.referenceRaw).first.takeIf{it.isNotBlank()}?:p.referenceLow?.toString().orEmpty(),high=PartialReferenceRanges.parts(p.referenceRaw).second.takeIf{it.isNotBlank()}?:p.referenceHigh?.toString().orEmpty(),referenceRaw=p.referenceRaw,reportFlag=p.reportFlag,raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
+ private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())
+ companion object{private const val serialVersionUID:Long=-7105191064502460686L
+ fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=PartialReferenceRanges.parts(p.referenceRaw).first.takeIf{it.isNotBlank()}?:p.referenceLow?.toString().orEmpty(),high=PartialReferenceRanges.parts(p.referenceRaw).second.takeIf{it.isNotBlank()}?:p.referenceHigh?.toString().orEmpty(),referenceRaw=p.referenceRaw,reportFlag=p.reportFlag,raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
 }
 data class ReportDraft(val draftId:String=newId(),val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
  fun valid()=reportValidationProblems(this).isEmpty()
- companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,PartialReferenceRanges.parts(x.referenceRaw).first.takeIf{it.isNotBlank()}?:x.referenceLowAtTest?.toString().orEmpty(),PartialReferenceRanges.parts(x.referenceRaw).second.takeIf{it.isNotBlank()}?:x.referenceHighAtTest?.toString().orEmpty(),x.rawLine,referenceRaw=x.referenceRaw,reportFlag=x.reportFlag)},existing=r)}
+ companion object{private const val serialVersionUID:Long=-2874475198283263223L
+ fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,PartialReferenceRanges.parts(x.referenceRaw).first.takeIf{it.isNotBlank()}?:x.referenceLowAtTest?.toString().orEmpty(),PartialReferenceRanges.parts(x.referenceRaw).second.takeIf{it.isNotBlank()}?:x.referenceHighAtTest?.toString().orEmpty(),x.rawLine,referenceRaw=x.referenceRaw,reportFlag=x.reportFlag)},existing=r)}
 }
 /** Frozen ambiguous identities may survive ordinary edits without being reclassified. */
 internal fun unchangedLegacyIdentity(row:DraftRow,report:LabReport?):Boolean {
