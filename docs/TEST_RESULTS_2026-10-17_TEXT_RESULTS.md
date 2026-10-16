@@ -17,3 +17,9 @@
 - TextResultTrendTest已编译，未实际执行设备端UI；点击/横向滚动/颜色画面没有手机验收。业务颜色逻辑由LabTextResultsTest实际测试。
 - git diff --check通过；release/ready.json与99639668f5e4e26c69d18f618a7dad479078fc3a完全一致。只编译/测试，不构建或发布APK。
 - 没有修改既有存储字段/Java序列化签名，也没有迁移回写历史；textValue/referenceRaw原字段继续承载原文。病程代码和course_records未改，使用合成数据验证隔离。全部词典和血型卡片保持。
+
+## 用户明确授权后的正式发布
+
+版本1.0.110 / 2026101712；发布提交b4b4b8ac42e43f66c9ddb4301bfbb8b86b11d98b。run38959452373/job117170539995成功：compileDebugKotlin、196 tests / 0 failures / 0 errors / 0 skipped、compileDebugAndroidTestKotlin、assembleRelease及发布通过。
+
+APK：https://github.com/combustible12/HealthTrend/releases/download/v2026101712/HealthTrend.apk 。实际下载56884976字节，SHA256 2f5c03d18ea6e92930d6f4d9a26829980ed3e021512c574ce6b8428e612b48bf；ZIP CRC、manifest包名com.combustible12.healthtrend/版本、digest、apksig验证通过。证书SHA256 5acccb7b281fbe2878ff8e62b57e4a1149c82bcf40e3c0b36d8e709c9da95628与旧版相同，可覆盖保留资料。未实际手机升级或运行设备UI。此次仅用户明确要求后触发一次正式构建，无空提交/重复触发。
