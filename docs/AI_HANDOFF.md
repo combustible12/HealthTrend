@@ -230,3 +230,9 @@
 - 用户要求当前不考虑编译，测试尚未执行；核对变更时不要恢复旧医院分组逻辑。规则及总进度同步更新。
 
 > **2026-10-16 新要求：每次用户修改规则时，必须在同一轮同步更新 [USER_CONFIRMED_RULES.md](./USER_CONFIRMED_RULES.md) 和受影响的核验、进度、交接文档；代码未跟上时必须标注待修复。**
+
+### 2026-10-16 不必要旧逻辑残留排查（新报告取消医院模板）
+- 检查 `HealthStore.kt`、`ReportImport.kt`、`Editors.kt`、`MainActivity.kt`。已修复**新安装启动仍自动生成旧医院模板**的矛盾：删除启动时的 `migrateCurrentTemplates()` 调用，旧模板原始存储和兼容读取不删（提交 `9778980`）。该方法及早期模板修复函数仍留存供后续安全分析，不擅自执行迁移。
+- 发现的**尚未移除残留**：`MainActivity` 仍加载医院模板并通过 `Mine`/ `TemplateEditor` 显示模板编辑入口；`ReportImport` 仍存 `templateDrivenPastedResults` / `templateDrivenResults` / `matchTemplateRows` 等旧模板解析代码；`Editors` 仍有 `templateNeedsNewVersion` 和 `TemplateEditor`。必须先审查调用链和旧测试依赖、区分遗留数据管理与新业务入口，再安全删除；不直接删旧模板记录。
+- `MainActivity` 趋势展示中通过旧模板读取说明的地方涉及用户已冻结的趋势，不在本轮改动。
+- 现阶段**仅修启动自动写入**，其余是查实的待清理项；未全仓枚举、未运行自动测试/编译，不能宣称全仓残留清零。历史报告、病程、趋势和图片资料不变。
