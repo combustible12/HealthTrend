@@ -7,6 +7,7 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import java.net.URI
 
 /** Synthetic records only. Runs with ci/jvm disk-backed Android platform doubles. */
 class ReportTakeoverTest {
@@ -81,6 +82,39 @@ class ReportTakeoverTest {
   s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
   assertEquals(2,s.reportIdentityLinks().size);assertNotNull(s.reportIdentityLinks().first().revokedAt)
   assertNull(s.reportIdentityLinks().last().revokedAt);assertEquals("WBC",s.reportPoolIdentity("custom-synthetic"))
+ }
+ @Test fun confirmedReimportAtomicallyArchivesReplacesAndRestoresOldReport(){
+  val c=Context();val s=seed(c);val old=s.reports().single()
+  val parsed=ReportParser.parse("WBC 白细胞计数 6.20 10^9/L 3.5-9.5")
+  val fresh=s.buildReportFromPool("合成医院","血常规",old.testedAtEpochMillis,emptyList(),parsed,"confirmed reimport")
+  assertEquals(listOf(old.id),s.replacementCandidates(fresh).map{it.id})
+  val event=s.replaceReportWithConfirmed(old.id,fresh)
+  val active=s.reports().single()
+  assertEquals(old.id,active.id);assertEquals("6.20",active.results.single().textValue)
+  assertEquals(old.sourceImages,active.sourceImages)
+  assertEquals(old,s.archivedReportReplacements().single().oldReport)
+  assertNull(event.restoredAt)
+  s.restoreArchivedReport(event.id)
+  assertEquals(old,s.reports().single());assertNotNull(s.archivedReportReplacements().single().restoredAt)
+ }
+ @Test fun failedReplacementLeavesOldReportAndArchiveUntouched(){
+  val c=Context();val s=seed(c);val old=s.reports().single()
+  val invalid=old.copy(id="new",results=old.results.map{it.copy(reportId="new",metricKey="未识别")})
+  assertTrue(runCatching{s.replaceReportWithConfirmed(old.id,invalid)}.isFailure)
+  assertEquals(old,s.reports().single());assertTrue(s.archivedReportReplacements().isEmpty())
+ }
+ @Test fun backupAndEmptyRestoreKeepReplacementArchive(){
+  val c=Context();val s=seed(c);val old=s.reports().single()
+  val fresh=s.buildReportFromPool("合成医院","血常规",old.testedAtEpochMillis,emptyList(),ReportParser.parse("WBC 白细胞计数 6.20 10^9/L 3.5-9.5"))
+  s.replaceReportWithConfirmed(old.id,fresh)
+  val zip=File.createTempFile("replacement-archive-",".zip");HealthBackup(c,s).export(Uri.fromFile(zip))
+  val destination=Context();HealthBackup(destination,HealthStore(destination)).restoreIntoEmpty(Uri.fromFile(zip))
+  val reopened=HealthStore(Context(destination.root))
+  val archived=reopened.archivedReportReplacements().single().oldReport
+  assertEquals(old.copy(sourceImages=archived.sourceImages),archived)
+  assertTrue(archived.sourceImages.all{File(URI(it.uri)).exists()})
+  assertEquals("6.20",reopened.reports().single().results.single().textValue)
+  zip.delete()
  }
  @Test fun actualZipBackupRestoresIntoIndependentEmptyDirectory(){
   val c=Context();val s=seed(c);s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")

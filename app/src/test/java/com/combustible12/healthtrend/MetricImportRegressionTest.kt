@@ -5,6 +5,17 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun replacementAuditKeepsBothVersionsUntilExplicitRestore() {
+  val oldResult=LabResult("old-row","old-report","合成医院","血常规",1,"WBC","白细胞计数",5.0,"10^9/L",3.5,9.5,1_760_000_000_000L,textValue="5.00")
+  val old=LabReport("old-report","合成医院","血常规",1_760_000_000_000L,1,listOf(ReportImage("file:///synthetic-old.jpg",0,1_000L)),listOf(oldResult))
+  val newResult=oldResult.copy(id="new-row",value=6.2,textValue="6.20")
+  val replacement=HealthStore.ReportReplacement("replacement",old,old.copy(results=listOf(newResult)),2_000L,null)
+  assertEquals("old-report",replacement.oldReport.id)
+  assertEquals("old-report",replacement.newReport.id)
+  assertEquals("5.00",replacement.oldReport.results.single().textValue)
+  assertEquals("6.20",replacement.newReport.results.single().textValue)
+  assertNull(replacement.restoredAt)
+ }
  @Test fun identityAuditRevocationPreservesEvidenceSnapshot() {
   val event=HealthStore.ReportIdentityLink("link","CUSTOM-synthetic","WBC",1000L,null,
    reportIds=listOf("report"),resultIds=listOf("result"),sourceNames=listOf("白细胞计数"),sourceUnits=listOf("10^9/L"))

@@ -12,6 +12,9 @@ import android.util.Base64
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
@@ -88,8 +91,14 @@ class AppUpdater(private val context:Context){
  fun resumableDownloadedApk():File?=File(context.cacheDir,"updates/healthtrend.apk").takeIf{it.isFile&&runCatching{validate(it);true}.getOrDefault(false)}
 }
 private fun URI(s:String)=java.net.URI(s)
-@Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
- val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val updater=remember{AppUpdater(ctx)};val credentials=remember{UpdateCredentials(ctx)};val scope=rememberCoroutineScope()
+@Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={},updates:()->Unit={}){
+ val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
+ var archiveRevision by remember{mutableIntStateOf(0)}
+ var restoreEvent by remember{mutableStateOf<HealthStore.ReportReplacement?>(null)}
+ if(restoreEvent!=null)AlertDialog(onDismissRequest={restoreEvent=null},title={Text("恢复封存的旧报告？")},
+  text={Text("恢复后，当前重新导入的报告将退出活动列表，封存的原旧报告重新进入报告列表和趋势。")},
+  confirmButton={TextButton({try{store.restoreArchivedReport(restoreEvent!!.id);archiveRevision++;changed();restoreEvent=null}catch(e:Exception){error(e.message?:"恢复失败")}}){Text("确认恢复")}},
+  dismissButton={TextButton({restoreEvent=null}){Text("取消")}})
  var backupBusy by remember{mutableStateOf(false)}
  var backupStatus by remember{mutableStateOf("")}
  val backupLauncher=rememberLauncherForActivityResult(
@@ -140,7 +149,6 @@ private fun URI(s:String)=java.net.URI(s)
    },enabled=!backupBusy){Text("确认安全恢复")}},
    dismissButton={TextButton({restoreConfirm=false}){Text("取消")}})
  }
- var token by remember{mutableStateOf(credentials.load())};var showAuth by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var available by remember{mutableStateOf<AvailableUpdate?>(null)};var downloadedPath by rememberSaveable{mutableStateOf(updater.resumableDownloadedApk()?.absolutePath.orEmpty())};val downloaded=downloadedPath.takeIf{it.isNotBlank()}?.let(::File)?.takeIf{it.isFile}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
    val fieldColors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent)
@@ -170,16 +178,67 @@ private fun URI(s:String)=java.net.URI(s)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
-  Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Warm)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-   Text("应用更新");Text("仅检查正式发布版本。升级保留现有记录和原图。",color=Muted)
-   Button({busy=true;status="正在检查…";scope.launch{try{available=withContext(Dispatchers.IO){updater.check(credentials.load())};status=if(available==null)"当前没有可用的正式更新"else"发现 ${available!!.name}"}catch(e:Exception){status=e.message?:"更新检查失败"}finally{busy=false}}},enabled=!busy,modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("检查更新")}
-   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-   if(status.isNotBlank())Text(status,color=Muted)
-   available?.let{update->Text(update.notes);Button({busy=true;scope.launch{try{val f=withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->scope.launch{status=if(total>0)"正在下载 ${(n*100/total)}%"else"已下载 ${n/1024} KB"}}};downloadedPath=f.absolutePath;status="下载校验通过，请确认安装";updater.install(f)}catch(e:Exception){status=e.message?:"更新失败"}finally{busy=false}}},enabled=!busy){Text("下载并安装")}}
-   downloaded?.let{f->TextButton({try{updater.install(f)}catch(e:Exception){error(e.message?:"安装失败")}}){Text("继续安装已下载版本")}}
-   TextButton({showAuth=!showAuth}){Text("私有仓库访问设置")}
-   if(showAuth){OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true);Text("仅用于读取此私有仓库的正式版本，加密保存在本机。",color=Muted);TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}}
-  }}
+  Card(onClick=updates,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=16.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("应用更新",fontWeight=FontWeight.SemiBold);Text("检查并升级 ›",color=Muted)}
+  }
+  val archived=remember(archiveRevision){store.archivedReportReplacements().filter{it.restoredAt==null}}
+  if(archived.isNotEmpty())Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    Text("封存的旧报告",fontWeight=FontWeight.SemiBold)
+    Text("已退出报告列表和趋势，可撤销替换恢复。",color=Muted,fontSize=12.sp)
+    archived.forEach{event->Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+     Column(Modifier.weight(1f)){Text("${event.oldReport.hospitalKey} · ${event.oldReport.reportType}");Text(dateText(event.oldReport.testedAtEpochMillis),color=Muted,fontSize=12.sp)}
+     TextButton({restoreEvent=event}){Text("恢复旧报告")}
+    }}
+   }
+  }
+ }
+}
+
+@Composable fun AppUpdatePage(close:()->Unit,error:(String)->Unit){
+ val ctx=LocalContext.current
+ val updater=remember{AppUpdater(ctx)}
+ val credentials=remember{UpdateCredentials(ctx)}
+ val scope=rememberCoroutineScope()
+ var busy by remember{mutableStateOf(false)}
+ var status by remember{mutableStateOf("")}
+ var token by remember{mutableStateOf(credentials.load())}
+ var showAuth by remember{mutableStateOf(false)}
+ FullPage("应用更新",close,navigationIcon=Icons.Outlined.ArrowBack){m->
+  Column(m.padding(horizontal=30.dp,vertical=24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
+   Text("以后有新功能时，在这里点一次即可检查、下载并进入系统安装界面。安卓仍会要求你最后确认一次安装。",fontSize=17.sp,lineHeight=25.sp,color=Ink)
+   Text("当前版本 ${BuildConfig.VERSION_NAME}",fontSize=18.sp,color=Ink)
+   Button({
+    busy=true;status="正在检查更新…"
+    scope.launch{
+     try{
+      val cached=withContext(Dispatchers.IO){updater.resumableDownloadedApk()}
+      if(cached!=null){status="已找到下载完成的更新，请在系统界面确认安装";updater.install(cached)}else{
+       val update=withContext(Dispatchers.IO){updater.check(credentials.load())}
+       if(update==null)status="当前已经是最新正式版本"
+       else{
+        status="发现 ${update.name}，正在下载…"
+        val file=withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->
+         scope.launch{status=if(total>0)"正在下载 ${(n*100/total)}%"else"已下载 ${n/1024} KB"}
+        }}
+        status="下载校验通过，请在系统界面确认安装"
+        updater.install(file)
+       }
+      }
+     }catch(e:Exception){status=e.message?:"更新失败";error(status)}finally{busy=false}
+    }
+   },enabled=!busy,modifier=Modifier.fillMaxWidth().height(60.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Ink,contentColor=Color.White)){
+    Icon(Icons.Outlined.SystemUpdateAlt,null);Spacer(Modifier.width(8.dp));Text(if(busy)"正在处理…" else "一键检查并升级",fontSize=17.sp,fontWeight=FontWeight.SemiBold)
+   }
+   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Ink)
+   if(status.isNotBlank())Text(status,color=Muted,fontSize=13.sp)
+   TextButton({showAuth=!showAuth}){Text("私有仓库访问设置",color=Muted)}
+   if(showAuth){
+    OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
+    Text("仅用于读取私有仓库的正式版本，加密保存在本机。",color=Muted,fontSize=12.sp)
+    TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}
+   }
+  }
  }
 }
 

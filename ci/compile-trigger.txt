@@ -24,3 +24,4 @@ Run standalone pending-draft roundtrip regression test 2026-10-14.
 
 2026-10-16: compile explicit historical metric identity mapping and run Android unit tests.
 2026-10-16: rerun after aligning two stale clipped-width assertions with confirmed CV/SD rules.
+2026-10-16: compile reversible report replacement archive and independent one-click update page.

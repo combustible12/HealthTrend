@@ -98,7 +98,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)};val draftStore=remember{ReportDraftStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
- var recordsOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
+ var recordsOpen by rememberSaveable{mutableStateOf(false)};var updatesOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
+ var replacementReport by remember{mutableStateOf<LabReport?>(null)};var replacementDraftId by remember{mutableStateOf<String?>(null)};var replacementCandidates by remember{mutableStateOf<List<LabReport>>(emptyList())};var selectedReplacementId by remember{mutableStateOf<String?>(null)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
@@ -173,9 +174,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  LaunchedEffect(tab){if(tab==2)runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  LaunchedEffect(Unit){runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
- val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
+ val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&!updatesOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
- Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
+ Box(Modifier.fillMaxSize().then(if(recordsOpen||updatesOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   var mainPageDrag by remember{mutableFloatStateOf(0f)}
@@ -204,12 +205,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
-    4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
+    4->Mine(m,store,{error=it},{revision++},{recordsOpen=true},{updatesOpen=true})
   }
   }
  }
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
+ if(updatesOpen)AppUpdatePage({updatesOpen=false}){error=it}
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||draftsOpen||report!=null||entry!=null||viewer!=null,topAction={TextButton({draftsOpen=true}){Text("待核对草稿")}}){m->
   Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
@@ -236,11 +238,26 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   text={Text("只删除草稿，不会删除正式报告或已有原始图片。")},
   confirmButton={TextButton({try{draftStore.delete(deleteDraftId!!);revision++;deleteDraftId=null}catch(e:Exception){error=e.message}}){Text("确认删除",color=Bad)}},
   dismissButton={TextButton({deleteDraftId=null}){Text("取消")}})
+ if(replacementReport!=null&&replacementCandidates.isNotEmpty())AlertDialog(
+  onDismissRequest={replacementReport=null;replacementCandidates=emptyList();selectedReplacementId=null},
+  title={Text("替换旧报告？")},
+  text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("新报告已核对完成。请选择要替换的同医院、同日期、同检查类型旧报告。确认后旧报告退出列表和趋势，但会封存并可在“我的”中恢复。")
+   replacementCandidates.forEach{old->Row(Modifier.fillMaxWidth().clickable{selectedReplacementId=old.id},verticalAlignment=Alignment.CenterVertically){
+    RadioButton(selectedReplacementId==old.id,{selectedReplacementId=old.id});Column{Text("${old.hospitalKey} · ${old.reportType}");Text("${dateText(old.testedAtEpochMillis)} · ${old.results.size}项",color=Muted,fontSize=12.sp)}
+   }}
+  }},
+  confirmButton={TextButton({val fresh=replacementReport;val oldId=selectedReplacementId;val draftId=replacementDraftId;if(fresh!=null&&oldId!=null)change{store.replaceReportWithConfirmed(oldId,fresh);if(draftId!=null)draftStore.delete(draftId);replacementReport=null;replacementCandidates=emptyList();selectedReplacementId=null;replacementDraftId=null;draft=null}},enabled=selectedReplacementId!=null){Text("确认替换")}},
+  dismissButton={TextButton({replacementReport=null;replacementCandidates=emptyList();selectedReplacementId=null;replacementDraftId=null}){Text("返回核对")}}
+ )
  if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
    val saved=materializeReportDraft(d,store)
-   store.saveReport(saved)
-   draftStore.delete(d.draftId)
-   draft=null
+   val candidates=if(d.existing==null)store.replacementCandidates(saved)else emptyList()
+   if(candidates.isNotEmpty()){
+    replacementReport=saved;replacementDraftId=d.draftId;replacementCandidates=candidates;selectedReplacementId=candidates.singleOrNull()?.id
+   }else{
+    store.saveReport(saved);draftStore.delete(d.draftId);draft=null
+   }
   }},{viewer=it},{pending->change{draftStore.save(pending);draft=null;draftsOpen=true}})
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})

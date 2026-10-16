@@ -98,3 +98,10 @@
 - Run `38901628770`：`compileDebugKotlin` **通过**；`testDebugUnitTest` 137 项中 2 项失败。
 - 两项均为 `ReportParserTest` 仍期待截断 `RDW/PDW` 加 `%` 后保持普通身份，与同日最新用户规则“已知分布宽度族时 `%`→CV、`fL`→SD”冲突。生产解析和新增专项测试均已按新规则工作，因此同步修正旧断言，不回退代码。
 - 修正后复验 run `38902068666`：`compileDebugKotlin` 通过，`testDebugUnitTest` **137/137** 通过；同步守卫 run `38902068470` 通过。未运行模拟器/实机 UI、原生 SharedPreferences 跨版本升级恢复或用户验收，不把单元测试通过扩写为这些项目已验收。
+## 2026-10-16 待执行：确认替换封存与更新页
+
+- 新增 JVM 合成回归：确认替换保留旧报告 ID、原精度/单位/范围及新旧图片；旧版本进入封存，撤销后完整恢复。
+- 新增失败回滚回归：无效的新报告不能改变活动旧报告，也不能创建封存残片。
+- 新增真实 ZIP 的独立空白目录恢复回归：恢复后的活动报告与封存旧版本均存在，图片 URI 可按恢复目录安全重写且文件存在。
+- Android 单元测试增加封存事件同时保留新旧版本的结构断言。独立更新页复用既有 `ProductionUpdateTest` 的检查、下载、校验与安装链路；本轮需另以 Android 编译确认 Compose 接线。
+- 当前状态：`KOTLIN_TEST_LIBS=/workspace/scratch/5041f88669d1/kotlin-tests python3 ci/run_report_jvm.py` 已实际运行，**61/61 通过**。真实设备的系统安装确认和界面交互仍待验收。

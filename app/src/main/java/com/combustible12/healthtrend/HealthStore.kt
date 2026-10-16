@@ -112,6 +112,68 @@ class HealthStore(private val context:Context) {
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
   return reports
  }
+ data class ReportReplacement(
+  val id:String,val oldReport:LabReport,val newReport:LabReport,
+  val replacedAt:Long,val restoredAt:Long?
+ )
+ @Synchronized fun archivedReportReplacements():List<ReportReplacement> = rows(read("report_replacement_archive")){o->
+  ReportReplacement(o.getString("id"),reportFromJson(o.getJSONObject("old")),reportFromJson(o.getJSONObject("new")),
+   o.getLong("at"),if(o.isNull("restored"))null else o.getLong("restored"))
+ }.sortedByDescending{it.replacedAt}
+ fun replacementCandidates(report:LabReport):List<LabReport>{
+  val zone=java.time.ZoneId.systemDefault()
+  val day=java.time.Instant.ofEpochMilli(report.testedAtEpochMillis).atZone(zone).toLocalDate()
+  return reports().filter{old->
+   old.id!=report.id&&old.hospitalKey.trim()==report.hospitalKey.trim()&&old.reportType.trim()==report.reportType.trim()&&
+    java.time.Instant.ofEpochMilli(old.testedAtEpochMillis).atZone(zone).toLocalDate()==day
+  }
+ }
+ private fun validateReplacementReport(r:LabReport,old:LabReport){
+  require(r.results.isNotEmpty()){"报告至少需要一项检验结果"}
+  require(r.hospitalKey.isNotBlank()&&r.reportType.isNotBlank()&&r.testedAtEpochMillis>0){"报告来源或日期无效"}
+  require(r.results.all{it.value==null||it.value.isFinite()}){"报告包含无效数值"}
+  require(r.results.all{it.metricKey.isNotBlank()&&it.metricKey!="未识别"&&!it.metricKey.startsWith("待核对:")&&it.reportId==r.id}){"报告项目身份无效或尚未核对"}
+  require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
+  require(r.results.none{distributionWidthIdentityProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目CV/SD身份与单位不一致，请核对后保存"}
+  require(old.id==r.id){"替换报告必须沿用原报告 ID"}
+ }
+ /** Atomically replaces one active report while retaining both versions as a reversible audit event. */
+ @Synchronized fun replaceReportWithConfirmed(oldReportId:String,confirmed:LabReport):ReportReplacement{
+  val active=reports();val old=active.singleOrNull{it.id==oldReportId}?:error("待替换的旧报告不存在")
+  require(replacementCandidates(confirmed).any{it.id==oldReportId}){"医院、日期或检查类型与旧报告不一致"}
+  val id=old.id
+  val prepared=confirmed.copy(id=id,sourceImages=(old.sourceImages+confirmed.sourceImages).distinctBy{it.uri},results=confirmed.results.map{
+   it.copy(reportId=id,hospitalKey=confirmed.hospitalKey,reportType=confirmed.reportType,testedAtEpochMillis=confirmed.testedAtEpochMillis)
+  })
+  validateReplacementReport(prepared,old)
+  val event=ReportReplacement(newId(),old,prepared,System.currentTimeMillis(),null)
+  val beforeReports=read("reports").toString();val beforeArchive=read("report_replacement_archive").toString()
+  val afterReports=JSONArray().apply{(active.filterNot{it.id==id}+prepared).forEach{put(reportToJson(it))}}
+  val afterArchive=JSONArray(beforeArchive).put(replacementToJson(event))
+  val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
+  check(safety.edit().putString("reports:previous",beforeReports).putString("report_replacement_archive:previous",beforeArchive).putLong("reports:savedAt",System.currentTimeMillis()).commit()){"无法保存替换前安全快照"}
+  try{
+   check(prefs.edit().putString("reports",afterReports.toString()).putString("report_replacement_archive",afterArchive.toString()).putInt("schema",2).commit()){"报告替换保存失败"}
+   val stored=reports().singleOrNull{it.id==id}?:error("替换后无法读取新报告")
+   check(stored.results.map{it.metricKey to it.textValue}==prepared.results.map{it.metricKey to it.textValue}){"替换后报告内容校验失败"}
+   check(archivedReportReplacements().any{it.id==event.id&&it.oldReport.results==old.results}){"旧报告封存校验失败"}
+  }catch(e:Exception){prefs.edit().putString("reports",beforeReports).putString("report_replacement_archive",beforeArchive).commit();throw e}
+  prepared.results.forEach{if(it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)addStandardRange(it.metricKey,it.unitAtTest,it.referenceLowAtTest,it.referenceHighAtTest)}
+  return event
+ }
+ @Synchronized fun restoreArchivedReport(replacementId:String){
+  val events=archivedReportReplacements();val event=events.singleOrNull{it.id==replacementId}?:error("封存记录不存在")
+  require(event.restoredAt==null){"这份旧报告已经恢复"}
+  val active=reports();require(active.any{it.id==event.newReport.id}){"当前替换报告不存在，不能自动恢复"}
+  val restoredEvent=event.copy(restoredAt=System.currentTimeMillis())
+  val beforeReports=read("reports").toString();val beforeArchive=read("report_replacement_archive").toString()
+  val afterReports=JSONArray().apply{(active.filterNot{it.id==event.newReport.id}+event.oldReport).forEach{put(reportToJson(it))}}
+  val afterArchive=JSONArray().apply{events.reversed().forEach{put(replacementToJson(if(it.id==event.id)restoredEvent else it))}}
+  try{
+   check(prefs.edit().putString("reports",afterReports.toString()).putString("report_replacement_archive",afterArchive.toString()).commit()){"旧报告恢复保存失败"}
+   check(reports().any{it.id==event.oldReport.id&&it.results==event.oldReport.results}){"旧报告恢复校验失败"}
+  }catch(e:Exception){prefs.edit().putString("reports",beforeReports).putString("report_replacement_archive",beforeArchive).commit();throw e}
+ }
  /**
   * Preserve reference intervals by metric identity + unit + bounds only.
   * Hospital stays on LabReport, never inside the dictionary or its range key.
@@ -908,9 +970,9 @@ class HealthStore(private val context:Context) {
  }
  internal fun hasRestoreProtectedConfiguration():Boolean = listOf(
   "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
-  "report_identity_links","trend_identity_mappings"
+  "report_identity_links","report_replacement_archive","trend_identity_mappings"
  ).any{read(it).length()>0}
- fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
@@ -919,6 +981,7 @@ class HealthStore(private val context:Context) {
    LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
   },o.optString("ocr"),o.optString("system"))
  }
+ private fun replacementToJson(r:ReportReplacement)=JSONObject().put("id",r.id).put("old",reportToJson(r.oldReport)).put("new",reportToJson(r.newReport)).put("at",r.replacedAt).put("restored",r.restoredAt?:JSONObject.NULL)
  private fun templateToJson(t:HospitalLabTemplate)=JSONObject().put("hospital",t.hospitalKey).put("type",t.reportType).put("system",t.systemKey).put("version",t.version).put("confirmed",t.confirmed).put("fields",JSONArray().apply{t.fields.forEach{put(JSONObject().put("key",it.metricKey).put("name",it.displayName).put("unit",it.unit).put("low",it.referenceLow?:JSONObject.NULL).put("high",it.referenceHigh?:JSONObject.NULL).put("trendMeaning",it.trendMeaning))}})
  private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
