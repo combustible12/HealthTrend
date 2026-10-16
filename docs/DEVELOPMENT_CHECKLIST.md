@@ -162,3 +162,10 @@
 ### 2026-10-15 录入优先：报告缺少检查类型的保存校验
 - 为优先保障录入可靠性，补充了 `reportValidationProblems` 对空白检查类型的明确拦截和错误提示：[e317fce](https://github.com/combustible12/HealthTrend/commit/e317fce74e7bf40329f3b7128786ac6b3b5aa2e5)。增加合成用例 [a9907b1](https://github.com/combustible12/HealthTrend/commit/a9907b120bc9ed34ff682bf6391247a0fac3e20c8)。
 - 这是录入校验局部修复，**单测未执行，未编译、未发布，不能视作手机端可用或正式验收**；不提高任何整体完成状态。用户已明确急需记录数据，后续优先聚焦报告导入、核对、保存、编辑等最短可用路径。
+
+
+### 2026-10-16 趋势规则紧急静态核验及修复（未编译/未实机验收）
+- 逐项审阅 `MainActivity.kt` 的 `Trends` / `Spark` / `TrendPreviewDialog`：确认代码已有日期/数值/数据点共用中心、最小间距 16dp、横向滚动且初始定位末尾、医院切段、单点绘制、参考范围着色及整体弹窗的实现；**这仅为静态代码证据，不能标记视觉与交互验收通过**。
+- 发现原趋势传入的横轴日期只包含测过该指标的报告，漏测日期可能被跳过导致连线错误。已用同检查类型的完整报告日期生成横轴，保留漏测断线：[a8e7d0d](https://github.com/combustible12/HealthTrend/commit/a8e7d0dd67ebdaee1e6a3b95734aedc1e6a67b5d)。
+- 历史 `CUSTOM-UUID` 不应靠中文名自动归并。新增可持久化、显式确认后生效、可撤销的趋势**只读身份映射接口**，仅映射历史自定义身份到已存在标准指标，趋势分组/查询读取映射但绝不改写旧报告：[9a0a355](https://github.com/combustible12/HealthTrend/commit/9a0a355acd6d6c7392199509f8205c7e4fedcc0e)、[19cdd4b](https://github.com/combustible12/HealthTrend/commit/19cdd4b4bfca874e46d83c3af22a9bf8826f7149)。**映射管理 UI 尚未接入，旧身份不会未经确认自动合并，因此功能仍未闭环**。
+- 添加未测日期、易混指标身份的合成回归代码：[b2bf3d6](https://github.com/combustible12/HealthTrend/commit/b2bf3d654da69b67fcdc3b608b14819da58c26e9)。**测试未执行、未编译、未发布，全部正式验收 [ ] 保持不变**。仍需检查同日多报告横轴、单位不可比数据点、滑动冲突以及映射 UI。
