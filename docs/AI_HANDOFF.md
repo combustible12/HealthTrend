@@ -228,3 +228,5 @@
 ### 2026-10-16 最新变更：词典范围不含医院
 - `HealthStore.kt` 现有 `ObservedReferenceRange` 已去除 `hospitalKey` 和 `reportType`；不再以医院/报告类型分组或去重参考范围。`LabReport` 来源标签保持不变。新增 `MetricImportRegressionTest.unifiedRangeIdentityNeverContainsHospitalOrReportType`。
 - 用户要求当前不考虑编译，测试尚未执行；核对变更时不要恢复旧医院分组逻辑。规则及总进度同步更新。
+
+> **2026-10-16 新要求：每次用户修改规则时，必须在同一轮同步更新 [USER_CONFIRMED_RULES.md](./USER_CONFIRMED_RULES.md) 和受影响的核验、进度、交接文档；代码未跟上时必须标注待修复。**
