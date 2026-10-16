@@ -177,7 +177,6 @@ private fun URI(s:String)=java.net.URI(s)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
-  AppUpdateCard(error)
   val archived=remember(archiveRevision){store.archivedReportReplacements().filter{it.restoredAt==null}}
   if(archived.isNotEmpty())Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
@@ -189,10 +188,11 @@ private fun URI(s:String)=java.net.URI(s)
     }}
    }
   }
+  AppUpdateButton(error)
  }
 }
 
-@Composable fun AppUpdateCard(error:(String)->Unit){
+@Composable fun AppUpdateButton(error:(String)->Unit){
  val ctx=LocalContext.current
  val updater=remember{AppUpdater(ctx)}
  val credentials=remember{UpdateCredentials(ctx)}
@@ -201,10 +201,16 @@ private fun URI(s:String)=java.net.URI(s)
  var status by remember{mutableStateOf("")}
  var token by remember{mutableStateOf(credentials.load())}
  var showAuth by remember{mutableStateOf(false)}
- Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-  Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   Text("应用更新",fontWeight=FontWeight.SemiBold)
-   Text("当前版本 ${BuildConfig.VERSION_NAME}",fontSize=13.sp,color=Muted)
+ Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Ink)
+   if(status.isNotBlank())Text(status,color=Muted,fontSize=13.sp)
+   if(token.isNotBlank()||status.contains("令牌")||showAuth){
+    TextButton({showAuth=!showAuth}){Text("私有仓库访问设置",color=Muted)}
+   }
+   if(showAuth){
+    OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
+    TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}
+   }
    Button({
     busy=true;status="正在检查更新…"
     scope.launch{
@@ -225,17 +231,7 @@ private fun URI(s:String)=java.net.URI(s)
      }catch(e:Exception){status=e.message?:"更新失败";error(status)}finally{busy=false}
     }
    },enabled=!busy,modifier=Modifier.fillMaxWidth().height(60.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Ink,contentColor=Color.White)){
-    Icon(Icons.Outlined.SystemUpdateAlt,null);Spacer(Modifier.width(8.dp));Text(if(busy)"正在处理…" else "一键检查并升级",fontSize=17.sp,fontWeight=FontWeight.SemiBold)
+    Icon(Icons.Outlined.SystemUpdateAlt,null);Spacer(Modifier.width(8.dp));Text(if(busy)"正在处理…" else "一键更新并升级",fontSize=17.sp,fontWeight=FontWeight.SemiBold)
    }
-   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Ink)
-   if(status.isNotBlank())Text(status,color=Muted,fontSize=13.sp)
-   TextButton({showAuth=!showAuth}){Text("私有仓库访问设置",color=Muted)}
-   if(showAuth){
-    OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
-    Text("仅用于读取私有仓库的正式版本，加密保存在本机。",color=Muted,fontSize=12.sp)
-    TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}
-   }
-  }
  }
 }
-
