@@ -73,6 +73,12 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
  // A legacy confirmed template must not override a malformed interval or suppress review.
  if(p.referenceLow!=null&&p.referenceHigh!=null&&p.referenceLow>p.referenceHigh)return true
+ // An explicit analyzer code must not silently override a conflicting Chinese
+ // measurement name. Unknown names still require manual review upstream.
+ val namedIdentity=ReportParser.key(p.displayName)
+ if(namedIdentity!="未识别" &&
+    canonicalMetricKey(namedIdentity)!=canonicalMetricKey(p.metricKey))return true
+ if(distributionWidthIdentityProblem(p.metricKey,p.displayName,p.unit)!=null)return true
  return false
 }
 
