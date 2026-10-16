@@ -242,3 +242,7 @@
 - 变更同步关卡只阻止漏更新文件，不能自动确保断言语义和医学正确性；遇到失败先查日志，再修正真正过期的测试而不是回退有效功能。
 
 > **2026-10-16 最新纠正（覆盖旧范围来源说法）**：医院完全不属于词典/统一指标池，归档报告时才作为整份报告的来源标签；同一指标可保留多组不同参考范围，但范围不能依赖医院参与身份或词典结构。当前 `ObservedReferenceRange` 仍有医院字段且统一池范围去重涉及医院，**代码待修正**，不能报告此规则已完全落地。
+
+### 2026-10-16 医院彻底移出词典范围结构（最新状态）
+- **代码已改**：`HealthStore.ObservedReferenceRange` 删除 `hospitalKey`、`reportType`，`referenceRangeHistory()` 不再按医院/类型聚类；`unifiedMetricPool()` 用指标 ID + 单位 + 上下限去重，医院只留在原始 `LabReport` 中。
+- 增加 `MetricImportRegressionTest.unifiedRangeIdentityNeverContainsHospitalOrReportType` 回归断言。代码及测试已提交，**尚未实际执行**，因此结构任务标为已编码、待验收。其他旧行提到“范围保留不同医院来源字段”的描述均已被本条覆盖。
