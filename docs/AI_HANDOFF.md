@@ -224,3 +224,7 @@
 - 已新增 [自动同步检查器](../ci/check_change_sync.py) 和 [独立 GitHub Actions 工作流](../.github/workflows/change-sync.yml)：源码变更必须同步受影响测试、用户规则、进度、交接及测试审查台账，不依赖 Android 编译。
 - 逐文件审查状态、测试遗漏与限制以 [当前测试审查台账](./TEST_AUDIT_CURRENT.md) 为准。**本次完整人工阅读已确认 2 个 JVM 测试文件，未能枚举全部仓库测试并逐个阅读，不宣称完成全部人工审查；新 CI 在检出仓库后会动态枚举全部测试。** 未运行 GitHub 工作流，不报通过。
 - 变更同步关卡只阻止漏更新文件，不能自动确保断言语义和医学正确性；遇到失败先查日志，再修正真正过期的测试而不是回退有效功能。
+
+### 2026-10-16 最新变更：词典范围不含医院
+- `HealthStore.kt` 现有 `ObservedReferenceRange` 已去除 `hospitalKey` 和 `reportType`；不再以医院/报告类型分组或去重参考范围。`LabReport` 来源标签保持不变。新增 `MetricImportRegressionTest.unifiedRangeIdentityNeverContainsHospitalOrReportType`。
+- 用户要求当前不考虑编译，测试尚未执行；核对变更时不要恢复旧医院分组逻辑。规则及总进度同步更新。
