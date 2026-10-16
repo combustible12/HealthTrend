@@ -246,3 +246,5 @@
 ### 2026-10-16 医院彻底移出词典范围结构（最新状态）
 - **代码已改**：`HealthStore.ObservedReferenceRange` 删除 `hospitalKey`、`reportType`，`referenceRangeHistory()` 不再按医院/类型聚类；`unifiedMetricPool()` 用指标 ID + 单位 + 上下限去重，医院只留在原始 `LabReport` 中。
 - 增加 `MetricImportRegressionTest.unifiedRangeIdentityNeverContainsHospitalOrReportType` 回归断言。代码及测试已提交，**尚未实际执行**，因此结构任务标为已编码、待验收。其他旧行提到“范围保留不同医院来源字段”的描述均已被本条覆盖。
+
+> **2026-10-16 新要求：每次用户修改规则时，必须在同一轮同步更新 [USER_CONFIRMED_RULES.md](./USER_CONFIRMED_RULES.md) 和受影响的核验、进度、交接文档；代码未跟上时必须标注待修复。**
