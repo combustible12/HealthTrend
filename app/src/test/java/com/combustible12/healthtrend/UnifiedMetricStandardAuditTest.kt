@@ -5,6 +5,17 @@ import org.junit.Test
 
 /** Synthetic dictionary checks; not a substitute for per-analyte clinical review. */
 class UnifiedMetricStandardAuditTest {
+ @Test fun hpvNucleicAcidPanelPreservesGenotypesAndPooledIdentity(){
+  val keys=setOf("HPV16-DNA","HPV18-DNA","HPV-OTHER12-DNA")
+  assertEquals(keys,UnifiedMetricStandard.keysForType("HPV"))
+  keys.forEach{key->val d=UnifiedMetricStandard.definition(key)!!;assertEquals(key,ReportParser.key(d.name));assertEquals("",d.unit)}
+  assertEquals("HPV16-DNA",ReportParser.key("HPV16核酸"))
+  assertEquals("HPV18-DNA",ReportParser.key("HPV18型核酸"))
+  assertEquals("HPV-OTHER12-DNA",ReportParser.key("其他12种高危型HPV（不分型）"))
+  assertNull(UnifiedMetricStandard.resolveName("高危型HPV"))
+  assertNull(UnifiedMetricStandard.resolveName("HPV31核酸"))
+  assertNotEquals(canonicalMetricKey("HPV16-DNA"),canonicalMetricKey("HPV16抗体"))
+ }
  @Test fun urineAndStoolDefinitionsNeverCollapseIntoBloodOrChemistry(){
   val urine=UnifiedMetricStandard.keysForType("尿液分析");val stool=UnifiedMetricStandard.keysForType("粪便常规")
   assertEquals(10,urine.size);assertEquals(12,stool.size);assertTrue(urine.intersect(stool).isEmpty())
