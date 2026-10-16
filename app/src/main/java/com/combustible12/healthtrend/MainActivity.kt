@@ -521,7 +521,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=compatiblePoints.map{it.second.textValue},
-      timelineDates=reports.filter{r->r.reportType==compatiblePoints.last().first.reportType&&r.testedAtEpochMillis>=cutoff&&r.results.any{x->canonicalMetricKey(x.metricKey)==key}}.map{it.testedAtEpochMillis},
+      // Include reports without this metric so a missed measurement breaks the curve.
+      timelineDates=trendTimelineDates(reports,compatiblePoints.map{it.first},cutoff),
       onShowPreview={previewSeries=compatiblePoints}
      )
     }
@@ -698,6 +699,16 @@ fun nearestTrendPoint(points:List<Pair<Long,Double>>,tap:Offset,width:Float,heig
  val p=trendPointPosition(points,hit,width,height,referenceLow,referenceHigh);val dx=p.x-tap.x;val dy=p.y-tap.y
  return hit.takeIf{dx*dx+dy*dy<=radius*radius}
 }
+/** Report dates for the same examination type, including visits where this metric was not measured.
+ * A point-free date must remain on the x-axis so Spark splits the line rather than bridging it.
+ * Pure function for synthetic regression tests; does not modify saved reports.
+ */
+internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<LabReport>,cutoff:Long):List<Long>{
+ val types=pointReports.map{it.reportType}.toSet()
+ return (allReports.filter{it.reportType in types && it.testedAtEpochMillis>=cutoff}
+  .map{it.testedAtEpochMillis}+pointReports.map{it.testedAtEpochMillis}).distinct().sorted()
+}
+
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
  val density=LocalDensity.current
