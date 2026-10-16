@@ -210,4 +210,14 @@ class MetricImportRegressionTest {
   assertEquals("AST/ALT",UnifiedMetricStandard.resolveName("谷草/谷丙"))
   assertEquals("ALT/AST",UnifiedMetricStandard.resolveName("谷丙/谷草"))
  }
+ @Test fun unifiedRangeIdentityNeverContainsHospitalOrReportType() {
+  val fields=HealthStore.ObservedReferenceRange::class.java.declaredFields.map{it.name}.toSet()
+  assertFalse("Hospital does not belong in metric dictionary ranges", "hospitalKey" in fields)
+  assertFalse("Report type does not belong in metric dictionary ranges", "reportType" in fields)
+  val range=HealthStore.ObservedReferenceRange("WBC","10^9/L",3.5,9.5,0L,0L,0)
+  assertEquals("WBC",range.metricKey)
+  assertEquals(3.5,range.lower!!,0.0)
+  assertEquals(9.5,range.upper!!,0.0)
+ }
+
 }
