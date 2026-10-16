@@ -97,4 +97,4 @@
 ### 2026-10-16 身份映射提交 Android quick 首次结果
 - Run `38901628770`：`compileDebugKotlin` **通过**；`testDebugUnitTest` 137 项中 2 项失败。
 - 两项均为 `ReportParserTest` 仍期待截断 `RDW/PDW` 加 `%` 后保持普通身份，与同日最新用户规则“已知分布宽度族时 `%`→CV、`fL`→SD”冲突。生产解析和新增专项测试均已按新规则工作，因此同步修正旧断言，不回退代码。
-- 修正后需重新运行 Android quick；在新运行完成前仅记录首次编译通过，不宣称完整 Android 单测通过。
+- 修正后复验 run `38902068666`：`compileDebugKotlin` 通过，`testDebugUnitTest` **137/137** 通过；同步守卫 run `38902068470` 通过。未运行模拟器/实机 UI、原生 SharedPreferences 跨版本升级恢复或用户验收，不把单元测试通过扩写为这些项目已验收。
