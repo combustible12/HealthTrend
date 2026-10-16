@@ -18,7 +18,7 @@ object ReportParser {
  private val canonicalUnits=mapOf(
   "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","MONO#" to "×10^9/L","EOS#" to "×10^9/L","BASO#" to "×10^9/L","PLT" to "×10^9/L",
   "RBC" to "×10^12/L","HGB" to "g/L","HCT" to "%","NEUT%" to "%","LYMPH%" to "%","MONO%" to "%","EOS%" to "%","BASO%" to "%",
-  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","RDW-CV" to "%","RDW-SD" to "fL","MPV" to "fL","PDW" to "%","PCT" to "%","NRBC%" to "%","NRBC#" to "×10^9/L","P-LCR" to "%","P-LCC" to "×10^9/L",
+  "MCV" to "fL","MCH" to "pg","MCHC" to "g/L","RDW" to "%","RDW-CV" to "%","RDW-SD" to "fL","MPV" to "fL","PDW-CV" to "%","PDW-SD" to "fL","PCT" to "%","NRBC%" to "%","NRBC#" to "×10^9/L","P-LCR" to "%","P-LCC" to "×10^9/L",
   "ALT" to "U/L","AST" to "U/L","ALB" to "g/L","TBIL" to "μmol/L",
   "CREA" to "μmol/L","UREA" to "mmol/L","UA" to "μmol/L","LDH" to "U/L"
  )
@@ -36,10 +36,10 @@ object ReportParser {
   // Known CBC families are dimension-specific. A valid-looking unit from the neighboring
   // OCR column (for example %NEUT receiving MPV's fL) is still invalid for this metric.
   val countKeys=setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC")
-  val percentKeys=setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","RDW-CV","PCT","PDW","P-LCR")
+  val percentKeys=setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","RDW-CV","PCT","PDW-CV","P-LCR")
   if(metricKey in countKeys)return expected
   if(metricKey in percentKeys)return expected
-  if(metricKey in setOf("MCV","RDW-SD","MPV","MCH","MCHC","RBC"))return expected
+  if(metricKey in setOf("MCV","RDW-SD","PDW-SD","MPV","MCH","MCHC","RBC"))return expected
   // Chemistry can legitimately arrive in convertible alternatives; preserve those until
   // value and reference range are normalized together.
   val validAlternative=Regex("(?i)^(?:[×]?10\\^-?\\d+/L|[a-zA-Zμ]+/[a-zA-Z]+|[a-zA-Zμ]+|%)$").matches(got)
