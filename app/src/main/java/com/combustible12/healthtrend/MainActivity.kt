@@ -236,21 +236,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   text={Text("只删除草稿，不会删除正式报告或已有原始图片。")},
   confirmButton={TextButton({try{draftStore.delete(deleteDraftId!!);revision++;deleteDraftId=null}catch(e:Exception){error=e.message}}){Text("确认删除",color=Bad)}},
   dismissButton={TextButton({deleteDraftId=null}){Text("取消")}})
- if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d,updateTemplate->change{
-   val r=store.buildReportFromPool(d.hospital,d.type,
-    preserveTimestamp(d.date,d.existing?.testedAtEpochMillis)!!,d.images,d.parsed(),d.ocr,d.system)
-   val version=d.existing?.templateVersion
-   val oldImages=d.existing?.sourceImages.orEmpty().associateBy{it.uri}
-   val preservedImages=d.images.distinct().mapIndexed{index,uri->
-    oldImages[uri]?.copy(pageIndex=index)?:ReportImage(uri,index,System.currentTimeMillis())
-   }
-   val saved=if(d.existing==null)r.copy(sourceImages=preservedImages) else r.copy(
-    id=d.existing.id,templateVersion=version,sourceImages=preservedImages,
-    results=r.results.map{x->x.copy(
-     id=d.rows.singleOrNull{canonicalMetricKey(it.key)==canonicalMetricKey(x.metricKey)}?.id
-      ?: error("编辑项目身份不匹配：${x.metricKey}"),
-     reportId=d.existing.id,templateVersion=version,editedByUser=true)}
-   )
+ if(draft!=null)ReportEditor(draft!!,store,{draft=null},{d->change{
+   val saved=materializeReportDraft(d,store)
    store.saveReport(saved)
    draftStore.delete(d.draftId)
    draft=null

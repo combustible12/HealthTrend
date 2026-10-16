@@ -45,17 +45,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Stable ids preserve data-point identity when a whole report is edited. */
-data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String=""):java.io.Serializable {
- fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})}
- fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
- companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
-}
-data class ReportDraft(val draftId:String=newId(),val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
- fun parsed()=rows.map{it.parsed()}
- fun valid()=reportValidationProblems(this).isEmpty()
- companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
-}
 val LocalPageVisible=staticCompositionLocalOf{true}
 @Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,topAction:@Composable ()->Unit={},bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
  val active=!hidden&&LocalPageVisible.current
@@ -77,7 +66,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   Field(value,onChange,label)
  }
 }
-@Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft,Boolean)->Unit,images:(List<String>)->Unit,saveDraft:(ReportDraft)->Unit){
+@Composable fun ReportEditor(initial:ReportDraft,store:HealthStore,onClose:()->Unit,save:(ReportDraft)->Unit,images:(List<String>)->Unit,saveDraft:(ReportDraft)->Unit){
  val context=LocalContext.current
  var d by remember(initial){mutableStateOf(initial)}
  var pendingDraftReplace by remember{mutableStateOf<Int?>(null)}
@@ -119,9 +108,24 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   }
   if(reconciled!=d.rows)d=d.copy(rows=reconciled)
  }
+ var linkSource by remember{mutableStateOf<String?>(null)}
+ var linkTarget by remember{mutableStateOf("")}
+ var linkError by remember{mutableStateOf("")}
+ var linkRevision by remember{mutableIntStateOf(0)}
+ if(linkSource!=null)AlertDialog(onDismissRequest={linkSource=null},title={Text("关联统一指标")},text={
+  Column{
+   Text("确认后保留原指标身份、数值和单位，可随时撤销。",fontSize=12.sp)
+   Column(Modifier.heightIn(max=280.dp).verticalScroll(rememberScrollState())){
+    UnifiedMetricStandard.keys().filter{it!="PDW"}.forEach{key->
+     TextButton({linkTarget=key}){Text((if(linkTarget==key)"✓ " else "")+UnifiedMetricStandard.definition(key)!!.name)}
+    }
+   }
+   if(linkError.isNotBlank())Text(linkError,color=Bad)
+  }
+ },confirmButton={TextButton({try{store.confirmReportIdentityLink(linkSource!!,linkTarget);linkRevision++;linkSource=null}catch(e:Exception){linkError=e.message.orEmpty()}},enabled=linkTarget.isNotBlank()){Text("确认关联")}},dismissButton={TextButton({linkSource=null}){Text("取消")}})
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
- FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",{if(d.existing==null)saveDraft(d) else onClose()},hidden=editing!=null,topAction={TextButton({saveDraft(d)}){Text("暂存草稿")}},bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d,false)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
+ FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",{if(d.existing==null)saveDraft(d) else onClose()},hidden=editing!=null,topAction={TextButton({saveDraft(d)}){Text("暂存草稿")}},bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   Row{
    TextButton({showMetricCatalogue=true}){Text("统一指标库")}
@@ -129,7 +133,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    TextButton({showAliasManager=true}){Text("管理指标别名")}
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
-  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.templates().filter{it.hospitalKey==d.hospital}.map{it.reportType}+listOf("血常规","生化")).distinct()})}
+  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   PhotoInputButtons(draftImageInput,true,"添加报告原图")
   if(d.images.isNotEmpty())TextButton({viewingDraftImage=0}){Text("查看原报告 · ${d.images.size} 页")}
@@ -142,6 +146,14 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 
   d.rows.forEachIndexed{i,r->
    Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+    if(d.existing!=null&&r.key.startsWith("CUSTOM-")){
+     val link=remember(r.key,linkRevision){store.reportIdentityLinks().lastOrNull{it.source==r.key&&it.revokedAt==null}}
+     if(link==null)TextButton({linkSource=r.key;linkTarget="";linkError=""}){Text("关联统一指标")}
+     else Row(verticalAlignment=Alignment.CenterVertically){
+      Text("已关联："+UnifiedMetricStandard.definition(link.target)?.name,modifier=Modifier.weight(1f),fontSize=12.sp)
+      TextButton({store.revokeReportIdentityLink(link.id);linkRevision++}){Text("撤销关联")}
+     }
+    }
     LabRowSummary(r,{editing=r.id},{d=d.copy(rows=d.rows.filterIndexed{j,_->j!=i})})
    }
   }
@@ -334,52 +346,6 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  "date"->{val normalized=normalizeDateText(value);d.copy(date=normalized?:value,uncertain=if(normalized==null)d.uncertain+"date" else d.uncertain-"date")}
  else->d
 }
-/** A confirmed template is immutable; a changed or newly confirmed field needs a new version. */
-fun templateNeedsNewVersion(template:HospitalLabTemplate?,rows:List<ParsedLabResult>):Boolean{
- if(template==null)return false
- return rows.any{row->
-  val old=template.fields.firstOrNull{it.metricKey==row.metricKey}
-  old==null || old.unit.trim()!=row.unit.trim() ||
-   old.referenceLow!=row.referenceLow || old.referenceHigh!=row.referenceHigh
- }
-}
-
-fun reportValidationProblems(d:ReportDraft):List<String> {
- val problems=mutableListOf<String>()
- if(d.hospital.isBlank())problems+="请填写医院"
- if(d.type.isBlank())problems+="请填写检查类型"
- if(parseDate(d.date)==null)problems+="请填写有效检查日期"
- if(d.rows.isEmpty())problems+="报告没有指标"
- d.rows.forEachIndexed { index,row ->
-  val label="第${index+1}项（${row.name.ifBlank{"未命名"}}）"
-  val key=row.key.trim()
-  when {
-   row.name.isBlank()->problems+="${label}：请输入中文项目名称"
-   distributionWidthIdentityProblem(key,row.name,row.unit)!=null->problems+="${label}：${distributionWidthIdentityProblem(key,row.name,row.unit)}"
-   key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
-    problems+="${label}：需要确认项目身份"
-   row.text.isBlank()->problems+="${label}：检测结果不能为空"
-   row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()?.isFinite()!=true->
-    problems+="${label}：检测结果不是有效数值"
-   row.low.isNotBlank()&&row.low.toDoubleOrNull()?.isFinite()!=true->
-    problems+="${label}：参考下限无效"
-   row.high.isNotBlank()&&row.high.toDoubleOrNull()?.isFinite()!=true->
-    problems+="${label}：参考上限无效"
-   row.low.toDoubleOrNull()!=null&&row.high.toDoubleOrNull()!=null&&
-    row.low.toDouble() > row.high.toDouble()->
-    problems+="${label}：参考下限大于上限"
-   d.existing==null&&row.name.none{it.code in 0x3400..0x9FFF}->
-    problems+="${label}：需要确认中文名称"
-  }
- }
-
- val identities=d.rows.map{canonicalMetricKey(it.key.removePrefix("待核对:").trim())}
- if(identities.distinct().size!=identities.size)problems+="项目代码重复"
- // A source report can include two measurements of the same canonical metric
- // only if the user explicitly separates them; do not silently overwrite one.
- if(d.rows.any{it.key=="未识别"||it.key.isBlank()})problems+="存在未确认的项目代码"
- return problems.distinct()
-}
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
@@ -439,20 +405,6 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
  if(imageError!=null)AlertDialog(onDismissRequest={imageError=null},title={Text("操作未完成")},text={Text(imageError!!)},confirmButton={TextButton({imageError=null}){Text("知道了")}})
 }
 @Composable fun DeleteConfirmation(close:()->Unit,remove:()->Unit){AlertDialog(onDismissRequest=close,title={Text("删除这条记录？")},text={Text("删除后无法在应用内恢复。")},confirmButton={TextButton({remove();close()}){Text("删除",color=Bad)}},dismissButton={TextButton(close){Text("取消")}})}
-@Composable fun TemplateEditor(t:HospitalLabTemplate,close:()->Unit,save:(List<LabFieldTemplate>)->Unit){
- val context=LocalContext.current
- var editing by rememberSaveable{mutableStateOf<String?>(null)}
- var addedRowIds by rememberSaveable{mutableStateOf<List<String>>(emptyList())}
- var rows by remember(t.hospitalKey,t.reportType,t.fields){mutableStateOf(t.fields.map{DraftRow(name=it.displayName,key=it.metricKey,text="0",unit=it.unit,low=it.referenceLow?.toString().orEmpty(),high=it.referenceHigh?.toString().orEmpty(),trendMeaning=it.trendMeaning.ifBlank{metricPurpose(it.metricKey).orEmpty()})})}
- FullPage("医院模板",close,hidden=editing!=null,bottom={Button({save(rows.map{LabFieldTemplate(it.key,it.name,displayLabUnit(it.unit),it.low.toDoubleOrNull(),it.high.toDoubleOrNull(),it.trendMeaning.trim())})},Modifier.fillMaxWidth(),enabled=rows.isNotEmpty()&&rows.all{it.valid()}){Text("保存模板")}}){m->Column(m.padding(horizontal=12.dp)){
- Text("${t.hospitalKey}\n${t.reportType}",Modifier.padding(vertical=6.dp))
- LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(6.dp),contentPadding=PaddingValues(vertical=6.dp)){
-  gridItemsIndexed(rows,key={_,r->r.id}){i,r->LabRowSummary(r,{editing=r.id},{rows=rows.filterIndexed{j,_->i!=j}},true)}
-  item{TextButton({val added=DraftRow(text="0");rows=rows+added;addedRowIds=addedRowIds+added.id;editing=added.id}){Text("+ 添加指标")}}
- }
- }}
- rows.firstOrNull{it.id==editing}?.let{row->MetricEditor(row,{changed->rows=rows.map{if(it.id==changed.id)changed else it}},{editing=null},true,rows.filter{it.key==row.key}.map{it.unit}.filter{it.isNotBlank()}.distinct(),lockIdentity=row.id !in addedRowIds)}
-}
 @Composable fun EntryEditor(initial:HealthEntry,store:HealthStore,close:()->Unit,save:(HealthEntry)->Unit,delete:()->Unit,images:(List<String>)->Unit){
  val context=LocalContext.current
  var e by rememberSaveable(initial,stateSaver=diskStateSaver<HealthEntry>(context,"entry-editor")){mutableStateOf(initial)};var date by rememberSaveable{mutableStateOf(dateText(initial.occurredAtEpochMillis))};var end by rememberSaveable{mutableStateOf(initial.endAtEpochMillis?.let{dateText(it)}.orEmpty())};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)}

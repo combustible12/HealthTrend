@@ -17,6 +17,15 @@ class MetricImportRegressionTest {
   assertFalse(bad.valid())
   assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("SD")})
  }
+ @Test fun legacyAmbiguousWidthCanBeEditedWithoutAutomaticReclassification() {
+  val result=LabResult("row","report","合成医院","血常规",4,"PDW","血小板分布宽度",12.0,"fL",8.0,18.0,1760000000000L,textValue="12.00")
+  val original=LabReport("report","合成医院","血常规",1760000000000L,4,emptyList(),listOf(result))
+  val draft=ReportDraft.from(original)
+  assertTrue(draft.valid())
+  assertTrue(draft.copy(rows=draft.rows.map{it.copy(text="13.00")}).valid())
+  assertFalse(draft.copy(rows=draft.rows.map{it.copy(unit="%")}).valid())
+  assertFalse(draft.copy(existing=null).valid())
+ }
  @Test fun legacyTemplateDoesNotTakeOverNewClipboardReport() {
   val source="示例医院\n血常规\n2026-10-16\nWBC 白细胞计数 5.00 10^9/L 3.5-9.5"
   val legacy=HospitalLabTemplate("旧医院","血常规",1,true,listOf(

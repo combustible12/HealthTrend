@@ -1,5 +1,18 @@
 # HealthTrend｜测试逐项审查台账（2026-10-16）
 
+## 当前施工状态：旧模板清理与历史报告接管（2026-10-16 Work）
+
+本节优先于下方所有历史进度快照。基线 `5459dbd`；只修改 HealthTrend。
+
+- **任务 A 代码已实现**：移除编辑器从模板取检查类型建议；删除无调用的 `migrateCurrentTemplates`、`migrateMaternalRdwReports`、`normalizeMaternalRdw`、`migrateAstAltIdentity`、`TemplateEditor`、`templateNeedsNewVersion`；旧解析帮助函数隔离到 `LegacyReportCompatibility.kt`，仅旧回归测试调用，不接入新报告。保留旧模板原始 JSON、显式历史修复工具、备份读取和冻结趋势说明读取。
+- **任务 B 代码已实现、49 项聚焦 JVM 测试通过**：真实保存入口统一调用 `materializeReportDraft`，按结果 ID 保留未修改对象；旧报告来源、时间毫秒、版本、原始结果精度/单位/范围、图片元数据保留。存储读取不再规范化来源单位；普通 PDW 仅保留原身份/名称/单位，不能新建或自动分类。旧报告编辑不再重建所有未修改项目。
+- **显式身份关联**：新 `report_identity_links` 事件记录源 ID、目标 ID、确认时间、撤销时间；旧 CUSTOM 不按名称自动合并；编辑器可选择中文指标确认/撤销；统一池附带已确认历史关联和原范围，不反向学习别名、不写旧报告、不接入冻结趋势映射。
+- **备份恢复**：实际 ZIP 的报告、原图、身份事件、模板原文及安全快照在独立空目录验证；损坏备份必须在写入前失败；已有报告/图片/体重/自定义词典及关联的环境禁止覆盖。Android 原生 SharedPreferences 缓存及重启仍待验收。
+- **验证状态**：Kotlin/JVM 编译通过，49/49 测试通过；见 `TEST_AUDIT_CURRENT.md` 最新节；代码提交、JVM 编译与运行、Android 编译、用户验收分别记录。未编译 Android、未发布 APK、未冒称用户验收。
+- **本轮静态排查及 JVM 覆盖范围内已知实现待办 0；待 Android 验证 3 项**：①实际编辑器/关联/取消 UI；②原生 SharedPreferences 备份恢复并进程重启；③旧安装升级后无自动改写及图片权限。完整 Android 编译亦未执行，当前用户未要求。此计数仅针对本轮 A/B，不代表全项目历史清单清零。
+- 内置词典仍 **112** 项，本轮新增医学来源复审 **0**；不更改既有来源台账结论，不将通用候选等同最终医学验收。趋势函数/绘制、病程模块和 `course_records` 实现未修改；未使用真实患者数据。
+
+
 > **事实边界**：本次已人工读取并审查下列两个 JVM 测试文件及两个 Android 设备测试文件，不能冒称全仓库测试已逐文件人工审完。现有 GitHub 文件检索接口无法枚举目录。CI 新增的同步关卡在本地检出仓库后以 `git ls-files` 自动识别**全部** Kotlin/Java 单元与设备测试，新增测试不会被漏数。当前阶段用户明确不要求 Android 编译、APK 验收。测试未运行，不报通过。
 
 ## 已读取的逐文件审查
@@ -35,3 +48,18 @@
 - **历史数据接管（已有兼容读取代码、接管链路待最终验收）**：`HealthStore.reports()` 读取旧报告存储，`ReportDraft.from(current)` 与 `ReportEditor` 支持编辑旧报告，`saveReport` 保留原报告 ID、原图及旧 `templateVersion` 元数据；新报告使用 `buildReportFromPool` 而不是旧模板。历史原数据不自动迁移或改写；旧 `CUSTOM-UUID` 映射仍需用户逐项确认。保存及备份→恢复必须通过独立测试后才能认定真正安全接管。
 - 新增合成测试 `MetricImportRegressionTest.legacyTemplateDoesNotTakeOverNewClipboardReport`（`eae23bf`），**代码已写未执行**。趋势、病程冻结；旧 `latestTemplate` 趋势说明兼容调用暂保留，不为清理残留而改趋势。旧模板匹配帮助函数在非新路径上仍保留供兼容/测试，不能称全仓零残留。
 - 当前完成状态：**两项已完成本轮代码改造，历史接管的运行/升级/恢复验收尚未完成**。没有编译、测试或发布 APK。
+
+### 本轮测试范围与执行证据说明
+- 可复现命令：`KOTLIN_TEST_LIBS=<本机Kotlin/JUnit/JSON依赖目录> python ci/run_report_jvm.py`。脚本编译实际 `HealthStore`、`HealthBackup`、解析器、统一词典、报告编辑保存函数；日期与粘贴函数从源码提取，不复制业务实现。
+- 聚焦套件：`UnifiedMetricStandardAuditTest`、`MetricImportRegressionTest`（含 eae23bf 与本轮历史 PDW 用例）、`HistoryReplacementTest`、`ci/jvm/ReportTakeoverTest`。
+- `ci/jvm/Context.kt` 是独立目录、XML 持久化的 JVM 平台替身，`Uri.kt` 提供文件 URI，`Platform.kt` 只替代 UI 说明及空安装图片资料 guard。ZIP、散列、路径迁移、恢复写入、重新读取和业务校验均执行实际生产函数；这不证明 Android 缓存或 URI 授权正确。
+- 初次尝试纳入 `ReportParserTest` 整份文件时，宿主编译缺少 Compose `Offset` 和趋势 UI 辅助函数，未形成测试结果；没有删改其断言。该文件和设备测试未纳入本轮聚焦运行，完整 Android 环境后再验。
+- 历史模板驱动解析断言只验证隔离的旧兼容函数；不能用于新报告的有效规则。没有为了旧测试恢复模板依赖，没有跳过聚焦套件中的有效断言。
+- 额外检查：`python ci/check_change_sync.py --self-test` 六场景通过；`git diff --check` 无空白错误。完整同步关卡在最终提交后以基线检查。
+
+### 最终实际运行结果（2026-10-16 10:29 UTC）
+- Kotlin/JVM 生产核心代码编译通过；4 个聚焦测试类共 **49/49 通过**，包括此前未运行的 eae23bf；JUnit 输出 `OK (49 tests)`，运行 2.131 秒（不含编译）。
+- 首次宿主编译缺 UI 依赖；补充恢复保护时发现 private API 可见性编译错误，已改为 HealthStore 内部专用状态检查后重跑通过。未删断言、未回退规则。
+- 聚焦套件最终失败 **0**。未运行的 ReportParserTest 整体、其他图片/草稿与 Android 设备套件不列为通过；Android UI、原生恢复/重启、升级验收共 **3 项待验证**。
+- 报告/图片 ZIP 实际恢复到另一个临时根目录并重新创建上下文读取；模板 XML 原文及安全快照保留；损坏 ZIP、已有报告和已有体重被拒绝覆盖。
+- 趋势时间轴/绘制源码和 CourseRecords.kt 与基线逐段比对未变；course_records 读写实现未更改。没有运行患者真实数据导入或迁移，没有 Android 编译、APK 发布或用户验收。

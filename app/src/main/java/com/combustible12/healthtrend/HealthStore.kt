@@ -18,7 +18,7 @@ class HealthStore(private val context:Context) {
  private fun write(key:String,a:JSONArray){
   // A durable rollback checkpoint is written BEFORE changing critical datasets.
   // Never restore automatically: doing so could overwrite newer confirmed data.
-  if(key in setOf("reports","course_records","templates","metric_standard_ranges")){
+  if(key in setOf("reports","course_records","templates","metric_standard_ranges","report_identity_links")){
    val previous=prefs.getString(key,null)
    if(previous!=null && previous!=a.toString()){
     val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
@@ -33,135 +33,6 @@ class HealthStore(private val context:Context) {
   }
  }
  private fun <T> rows(a:JSONArray,fn:(JSONObject)->T)= (0 until a.length()).map{fn(a.getJSONObject(it))}
- /** The maternal CBC formerly used RDW for CV. Resolve only an unambiguous % result. */
- private fun normalizeMaternalRdw(report:LabReport):LabReport {
-  if(report.hospitalKey.trim()!="福建省妇幼保健院" || report.reportType.trim()!="血常规" || report.systemKey.isNotBlank())return report
-  if(report.results.any{it.metricKey=="RDW-CV"})return report
-  val legacy=report.results.filter{it.metricKey=="RDW" && displayLabUnit(it.unitAtTest)=="%"}
-  if(legacy.size!=1)return report
-  return report.copy(results=report.results.map{if(it.id==legacy.single().id)it.copy(metricKey="RDW-CV")else it})
- }
- private fun migrateMaternalRdwReports(){
-  val raw=read("reports")
-  var changed=false
-  val migrated=JSONArray()
-  for(i in 0 until raw.length()){
-   val original=raw.getJSONObject(i)
-   val report=reportFromJson(original)
-   val repaired=normalizeMaternalRdw(report)
-   if(repaired!=report)changed=true
-   migrated.put(if(repaired==report)original else reportToJson(repaired))
-  }
-  if(changed)write("reports",migrated)
- }
- private fun migrateCurrentTemplates(){
-  val raw=runCatching{rows(read("templates"),::templateFromJson)}.getOrDefault(emptyList())
-  val current=raw.groupBy{Triple(it.hospitalKey.trim(),it.reportType.trim(),it.systemKey.trim())}.values.mapNotNull{versions->
-   versions.withIndex().maxWithOrNull(compareBy<IndexedValue<HospitalLabTemplate>>{it.value.confirmed}
-    .thenBy{it.value.version}.thenBy{it.index})?.value
-  }.map(::repairXiacuBiochemistryTemplate).map(::ensureMaternalCbcRdwFields).map(::correctMaternalBiochemistryAstAlt).toMutableList()
-  if(current.none{it.hospitalKey=="霞浦县中医院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=xiapuBiochemistryTemplate()
-  if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","肿瘤标志物",1,true,listOf(
-   LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
-   LabFieldTemplate("AFP","甲胎蛋白","ng/mL",0.0,7.0),
-   LabFieldTemplate("CA199","糖类抗原19-9","U/mL",0.0,30.0),
-   LabFieldTemplate("CA125","糖类抗原12-5","U/mL",0.0,25.0),
-   LabFieldTemplate("SCC","鳞状细胞癌相关抗原","ng/mL",0.0,1.5)
-  ))
-  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="肿瘤标志物"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","肿瘤标志物",1,true,listOf(
-   LabFieldTemplate("AFP","甲胎蛋白","ng/mL",0.0,8.8),
-   LabFieldTemplate("CEA","癌胚抗原","ng/mL",0.0,5.0),
-   LabFieldTemplate("CA125","CA-125","U/mL",0.0,35.0),
-   LabFieldTemplate("CA153","CA-153","U/mL",0.0,31.3),
-   LabFieldTemplate("CA199","CA-199","U/mL",0.0,37.0),
-   LabFieldTemplate("SCC","鳞癌相关抗原测定","ng/mL",0.0,1.5)
-  ))
-  if(current.none{it.hospitalKey=="福建省肿瘤医院"&&it.reportType=="电解质及肾功能"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省肿瘤医院","电解质及肾功能",1,true,listOf(
-   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5),
-   LabFieldTemplate("CREA","肌酐","μmol/L",41.0,73.0),
-   LabFieldTemplate("UREA/CREA","尿素/肌酐","",null,null),
-   LabFieldTemplate("UA","尿酸","μmol/L",154.7,357.0),
-   LabFieldTemplate("GLU","葡萄糖","mmol/L",3.7,6.1),
-   LabFieldTemplate("K","钾","mmol/L",3.5,5.5),
-   LabFieldTemplate("NA","钠","mmol/L",135.0,145.0),
-   LabFieldTemplate("CL","氯","mmol/L",99.0,110.0),
-   LabFieldTemplate("HCO3","碳酸氢根","mmol/L",22.0,34.0),
-   LabFieldTemplate("CA","钙","mmol/L",2.1,2.7),
-   LabFieldTemplate("MG","镁","mmol/L",0.7,1.1),
-   LabFieldTemplate("PHOS","无机磷酸盐","mmol/L",0.85,1.51),
-   LabFieldTemplate("AG","阴离子间隙","mmol/L",8.0,16.0),
-   LabFieldTemplate("OSM","渗透压","mOsm/L",null,null),
-   LabFieldTemplate("CK","肌酸激酶","U/L",40.0,200.0),
-   LabFieldTemplate("CKMB","肌酸激酶MB亚型","U/L",0.0,24.0)
-  ))
-  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="生化"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","生化",1,true,listOf(
-   LabFieldTemplate("K","钾","mmol/L",3.5,5.3),
-   LabFieldTemplate("NA","钠","mmol/L",137.0,147.0),
-   LabFieldTemplate("CL","氯","mmol/L",99.0,110.0),
-   LabFieldTemplate("CA","钙","mmol/L",2.11,2.52),
-   LabFieldTemplate("HCO3","血清碳酸氢盐HCO3","mmol/L",22.0,29.0),
-   LabFieldTemplate("MG","镁","mmol/L",0.65,1.25),
-   LabFieldTemplate("PHOS","磷","mmol/L",0.85,1.51),
-   LabFieldTemplate("UREA","尿素","mmol/L",2.6,7.5),
-   LabFieldTemplate("CREA","肌酐","μmol/L",41.0,73.0),
-   LabFieldTemplate("UREA/CREA","尿素:肌酐","",10.0,20.0),
-   LabFieldTemplate("UA","尿酸","μmol/L",155.0,357.0),
-   LabFieldTemplate("ALT","谷丙转氨酶","U/L",7.0,40.0),
-   LabFieldTemplate("AST","谷草转氨酶","U/L",13.0,35.0),
-   LabFieldTemplate("AST/ALT","谷草/谷丙","",null,null),
-   LabFieldTemplate("GGT","γ-谷氨酰转肽酶","U/L",7.0,45.0),
-   LabFieldTemplate("ALP","碱性磷酸酶","U/L",50.0,135.0),
-   LabFieldTemplate("TP","总蛋白","g/L",65.0,85.0),
-   LabFieldTemplate("ALB","白蛋白","g/L",40.0,55.0),
-   LabFieldTemplate("GLOB","球蛋白","g/L",20.0,40.0),
-   LabFieldTemplate("A/G","白蛋白/球蛋白","",1.2,2.4),
-   LabFieldTemplate("TBIL","总胆红素","μmol/L",0.0,21.0),
-   LabFieldTemplate("DBIL","直接胆红素","μmol/L",0.0,8.0),
-   LabFieldTemplate("IBIL","非结合胆红素","μmol/L",1.7,17.0),
-   LabFieldTemplate("GLU","葡萄糖","mmol/L",3.6,6.1),
-   LabFieldTemplate("TG","甘油三酯","mmol/L",0.0,1.7),
-   LabFieldTemplate("CHOL","总胆固醇","mmol/L",0.0,5.2),
-   LabFieldTemplate("APOA1","载脂蛋白-A1","g/L",1.2,1.6),
-   LabFieldTemplate("APOB","载脂蛋白-B","g/L",0.6,1.2),
-   LabFieldTemplate("HDLC","高密度脂蛋白胆固醇","mmol/L",1.29,1.55),
-   LabFieldTemplate("LDLC","低密度脂蛋白胆固醇","mmol/L",0.0,3.12),
-   LabFieldTemplate("LDH","乳酸脱氢酶","U/L",120.0,250.0),
-   LabFieldTemplate("CK","肌酸激酶","U/L",40.0,200.0),
-   LabFieldTemplate("CKMB","肌酸激酶同工酶","U/L",0.0,25.0),
-   LabFieldTemplate("CKMB/CK","肌酸激酶同工酶/肌酸激酶","",null,null),
-   LabFieldTemplate("AG","阴离子间隙","",8.0,16.0),
-   LabFieldTemplate("OSM","渗透压","",280.0,320.0)
-  ))
-  if(current.none{it.hospitalKey=="福建省妇幼保健院"&&it.reportType=="血常规"&&it.systemKey.isBlank()})current+=HospitalLabTemplate("福建省妇幼保健院","血常规",1,true,listOf(
-   LabFieldTemplate("WBC","白细胞计数","10^9/L",3.5,9.5),
-   LabFieldTemplate("NEUT%","中性粒细胞%","%",40.0,75.0),
-   LabFieldTemplate("LYMPH%","淋巴细胞%","%",20.0,50.0),
-   LabFieldTemplate("MONO%","单核细胞%","%",3.0,10.0),
-   LabFieldTemplate("EOS%","嗜酸性粒细胞%","%",0.4,8.0),
-   LabFieldTemplate("BASO%","嗜碱性粒细胞%","%",0.0,1.0),
-   LabFieldTemplate("NEUT#","中性粒细胞绝对数","10^9/L",1.8,6.3),
-   LabFieldTemplate("LYMPH#","淋巴细胞绝对数","10^9/L",1.1,3.2),
-   LabFieldTemplate("MONO#","单核细胞绝对数","10^9/L",0.13,0.76),
-   LabFieldTemplate("EOS#","嗜酸性粒细胞绝对数","10^9/L",0.02,0.52),
-   LabFieldTemplate("BASO#","嗜碱性粒细胞绝对数","10^9/L",0.0,0.05),
-   LabFieldTemplate("RBC","红细胞计数","10^12/L",3.8,5.1),
-   LabFieldTemplate("HGB","血红蛋白","g/L",115.0,150.0),
-   LabFieldTemplate("HCT","红细胞压积","%",35.0,45.0),
-   LabFieldTemplate("MCV","平均红细胞体积","fL",82.0,100.0),
-   LabFieldTemplate("MCH","平均血红蛋白含量","pg",27.0,34.0),
-   LabFieldTemplate("MCHC","平均血红蛋白浓度","g/L",316.0,354.0),
-   LabFieldTemplate("RDW-CV","红细胞分布宽度CV","%",12.2,15.0),
-   LabFieldTemplate("RDW-SD","红细胞分布宽度SD","fL",42.0,53.6),
-   LabFieldTemplate("PLT","血小板计数","10^9/L",125.0,350.0),
-   LabFieldTemplate("MPV","平均血小板体积","fL",9.2,12.1),
-   LabFieldTemplate("PCT","血小板压积","%",0.19,0.4),
-   LabFieldTemplate("PDW","血小板分布宽度","fL",9.6,15.2),
-   LabFieldTemplate("P-LCR","大血小板","%",19.6,42.6)
-  ))
-  val changed=raw.size!=current.size || raw.zip(current).any{(a,b)->a!=b}
-  if(changed)write("templates",JSONArray().apply{current.forEach{put(templateToJson(it))}})
- }
- /** Resolve maternal CBC identities by measurement unit, not mutable display names. */
  internal fun correctMaternalBiochemistryAstAlt(t:HospitalLabTemplate):HospitalLabTemplate {
   if(t.hospitalKey.trim()!="福建省妇幼保健院"||t.reportType.trim()!="生化"||t.systemKey.isNotBlank())return t
   // Replace only the erroneous built-in label; keep all other user-confirmed fields intact.
@@ -227,28 +98,6 @@ class HealthStore(private val context:Context) {
   }
   // Persist only a safe repair: every metric identity must remain unique.
   return if(repaired.map{it.metricKey}.distinct().size==repaired.size)t.copy(fields=repaired) else t
- }
- private fun migrateAstAltIdentity(){
-  val raw=read("reports");var changed=false
-  for(i in 0 until raw.length()){
-   val report=raw.getJSONObject(i);val results=report.optJSONArray("results")?:continue
-   val remove=mutableListOf<Int>()
-   for(j in 0 until results.length()){
-    val row=results.getJSONObject(j)
-    if(row.optString("key")!="AST")continue
-    val evidence=listOf(row.optString("raw"),row.optString("line")).joinToString(" ")
-    // Historical repair is allowed only with explicit AST/ALT code evidence.
-    // Never infer identity from the Chinese display name.
-    val explicitAstAlt=Regex("[（(]\\s*AST/ALT\\s*[）)]",RegexOption.IGNORE_CASE).containsMatchIn(evidence) ||
-     Regex("(?i)(?:^|\\s)AST/ALT(?:\\s|$)").containsMatchIn(evidence)
-    if(!explicitAstAlt)continue
-    val already=(0 until results.length()).any{k->k!=j&&results.getJSONObject(k).optString("key")=="AST/ALT"}
-    if(already){remove+=j;changed=true;continue}
-    row.put("key","AST/ALT").put("raw","谷草/谷丙").put("normalizedUnit","");changed=true
-   }
-   remove.sortedDescending().forEach{results.remove(it)}
-  }
-  if(changed)write("reports",raw)
  }
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"),o.optString("bloodType"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim()).put("bloodType",p.bloodType.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
@@ -363,7 +212,11 @@ class HealthStore(private val context:Context) {
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
-  require(r.results.none{distributionWidthIdentityProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目CV/SD身份与单位不一致，请核对后保存"}
+  require(r.results.none{result->
+   val old=persisted?.results?.singleOrNull{it.id==result.id}
+   val preserved=old!=null&&old.metricKey==result.metricKey&&old.rawName==result.rawName&&old.unitAtTest==result.unitAtTest
+   !preserved&&distributionWidthIdentityProblem(result.metricKey,result.rawName,result.unitAtTest)!=null
+  }){"报告项目CV/SD身份与单位不一致，请核对后保存"}
   // Report-local metric order and data are independent of legacy hospital templates.
   val ordered=r
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
@@ -506,6 +359,36 @@ class HealthStore(private val context:Context) {
   val items=current.sourceImages.toMutableList()
   items.add(to,items.removeAt(from))
   updateReportImages(reportId,items)
+ }
+
+ /** Report-management links are explicit audit events, separate from frozen trend mappings. */
+ data class ReportIdentityLink(val id:String,val source:String,val target:String,val confirmedAt:Long,val revokedAt:Long?)
+ @Synchronized fun reportIdentityLinks():List<ReportIdentityLink> = rows(read("report_identity_links")){o->
+  ReportIdentityLink(o.getString("id"),o.getString("source"),o.getString("target"),o.getLong("at"),
+   if(o.isNull("revoked"))null else o.getLong("revoked"))
+ }
+ fun reportPoolIdentity(source:String):String = reportIdentityLinks().lastOrNull{
+  it.source==source&&it.revokedAt==null
+ }?.target?:source
+ @Synchronized fun confirmReportIdentityLink(source:String,targetInput:String){
+  val target=canonicalMetricKey(targetInput)
+  require(source.startsWith("CUSTOM-")){"仅为历史自定义指标建立关联"}
+  require(target!="PDW"&&UnifiedMetricStandard.definition(target)!=null){"请选择明确的统一指标，普通PDW已冻结"}
+  val matches=reports().flatMap{it.results}.filter{it.metricKey==source}
+  require(matches.isNotEmpty()){"没有对应历史指标"}
+  require(matches.all{val explicit=ReportParser.key(it.rawName);explicit=="未识别"||canonicalMetricKey(explicit)==target}){"原报告名称包含不同或模糊测量身份，请先核对"}
+  require(matches.none{distributionWidthIdentityProblem(target,it.rawName,it.unitAtTest)!=null}){"测量身份与原报告冲突"}
+  require(reportIdentityLinks().none{it.source==source&&it.revokedAt==null}){"请先撤销原关联"}
+  writeReportIdentityLinks(reportIdentityLinks()+ReportIdentityLink(newId(),source,target,System.currentTimeMillis(),null))
+ }
+ @Synchronized fun revokeReportIdentityLink(id:String){
+  writeReportIdentityLinks(reportIdentityLinks().map{if(it.id==id&&it.revokedAt==null)it.copy(revokedAt=System.currentTimeMillis())else it})
+ }
+ private fun writeReportIdentityLinks(links:List<ReportIdentityLink>){
+  write("report_identity_links",JSONArray().apply{links.forEach{
+   put(JSONObject().put("id",it.id).put("source",it.source).put("target",it.target)
+    .put("at",it.confirmedAt).put("revoked",it.revokedAt?:JSONObject.NULL))
+  }})
  }
 
  /** Explicit, persistent display-only identity mapping. Never change stored report metricKeys.
@@ -772,7 +655,7 @@ class HealthStore(private val context:Context) {
   */
  data class UnifiedMetricEntry(
   val key:String,val displayName:String,val aliases:Set<String>,
-  val commonUnit:String,val referenceRanges:List<ObservedReferenceRange>
+  val commonUnit:String,val referenceRanges:List<ObservedReferenceRange>,val linkedLegacyKeys:Set<String> = emptySet()
  )
  fun unifiedMetricPool():List<UnifiedMetricEntry> {
   val catalogue=metricCatalogue()
@@ -787,7 +670,10 @@ class HealthStore(private val context:Context) {
     ?:names.filter{candidate->candidate.any{it.code in 0x3400..0x9FFF}}
       .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
     ?:key
-   val savedRanges=referenceRangeHistory(key)
+   val linked=reportIdentityLinks().filter{it.target==key&&it.revokedAt==null}.map{it.source}.toSet()
+   val savedRanges=referenceRangeHistory(key)+linked.flatMap{source->
+    referenceRangeHistory(source).map{it.copy(metricKey=key)}
+   }
    val persistedRanges=standardRanges(key).map{range->
     ObservedReferenceRange(key,range.unit,range.low,range.high,0L,0L,0)
    }
@@ -802,7 +688,7 @@ class HealthStore(private val context:Context) {
      val normalized=UnitNormalizer.normalize(key,1.0,source).second
      normalized.takeIf{it!=source}
     } ?:units.firstOrNull().orEmpty()
-   UnifiedMetricEntry(key,name,names.filter{it!=name}.toSet(),common,ranges)
+   UnifiedMetricEntry(key,name,names.filter{it!=name}.toSet(),common,ranges,linked)
   }
  }
  fun rememberedUnits(key:String):List<String>{
@@ -939,12 +825,16 @@ class HealthStore(private val context:Context) {
    .putString("metric_preferred_names",preferred.toString())
    .putString("custom_metrics",custom.toString()).commit()){"词典保存失败"}
  }
- fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ internal fun hasRestoreProtectedConfiguration():Boolean = listOf(
+  "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
+  "report_identity_links","trend_identity_mappings"
+ ).any{read(it).length()>0}
+ fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
   return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->
-   val key=x.getString("key");val value=x.doubleOrNull("value");val unit=displayLabUnit(x.getString("unit"));val normalized=UnitNormalizer.normalize(key,value,unit)
+   val key=x.getString("key");val value=x.doubleOrNull("value");val unit=x.getString("unit");val normalized=UnitNormalizer.normalize(key,value,unit)
    LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
   },o.optString("ocr"),o.optString("system"))
  }

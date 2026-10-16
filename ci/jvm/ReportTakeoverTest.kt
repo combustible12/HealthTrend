@@ -1,0 +1,130 @@
+package com.combustible12.healthtrend
+
+import android.content.Context
+import android.net.Uri
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.Assert.*
+import org.junit.Test
+import java.io.File
+
+/** Synthetic records only. Runs with ci/jvm disk-backed Android platform doubles. */
+class ReportTakeoverTest {
+ private fun seed(context:Context):HealthStore {
+  val results=JSONArray()
+  listOf(Triple("CUSTOM-synthetic","白细胞计数","10^9/L"),Triple("PDW","血小板分布宽度","fL"),Triple("HCT","红细胞压积","%"))
+   .forEachIndexed{i,(key,name,unit)->results.put(JSONObject().put("id","result-$i").put("key",key).put("raw",name)
+    .put("value",if(i==2)32.30 else 5.0).put("text",if(i==2)"32.30" else "5.00")
+    .put("unit",unit).put("low",1.25).put("high",50.75).put("edited",false))}
+  val report=JSONObject().put("id","legacy-report").put("hospital","合成医院").put("type","血常规")
+   .put("date",1760000000123L).put("tv",7).put("ocr","synthetic source").put("system","legacy")
+   .put("images",JSONArray().put(JSONObject().put("uri",Uri.fromFile(File(context.filesDir,"sources/source.image")).toString()).put("page",0).put("at",123L)))
+   .put("results",results)
+  val image=File(context.filesDir,"sources/source.image");image.parentFile.mkdirs();image.writeBytes(byteArrayOf(3,1,4,1,5))
+  context.getSharedPreferences("healthtrend_store_v1",0).edit()
+   .putString("reports",JSONArray().put(report).toString()).putString("templates","[]")
+   .putString("course_records","[]").commit()
+  return HealthStore(context)
+ }
+ @Test fun readSearchAndReopenNeverRewriteRawPreferences(){
+  val c=Context();val s=seed(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
+  val before=prefs.getString("reports",null)
+  repeat(3){s.reports();s.unifiedMetricPool();HealthStore(c).reports()}
+  assertEquals(before,prefs.getString("reports",null));assertEquals("[]",prefs.getString("templates",null))
+  assertEquals("CUSTOM-synthetic",s.reportPoolIdentity("CUSTOM-synthetic"))
+ }
+ @Test fun editorPreservesEveryUntouchedFieldAndEditsOnlyChosenResult(){
+  val c=Context();val s=seed(c);val original=s.reports().single()
+  val noOp=materializeReportDraft(ReportDraft.from(original),s)
+  assertEquals(original,noOp)
+  val draft=ReportDraft.from(original).let{d->d.copy(rows=d.rows.map{if(it.key=="HCT")it.copy(text="33.00")else it})}
+  s.saveReport(materializeReportDraft(draft,s))
+  val saved=HealthStore(c).reports().single()
+  assertEquals(original.id,saved.id);assertEquals(original.sourceImages,saved.sourceImages)
+  assertEquals(original.templateVersion,saved.templateVersion);assertEquals(original.testedAtEpochMillis,saved.testedAtEpochMillis)
+  assertEquals(original.results.take(2),saved.results.take(2));assertEquals("33.00",saved.results.last().textValue)
+  assertEquals(original.results.last().unitAtTest,saved.results.last().unitAtTest)
+  assertEquals(original.results.last().referenceLowAtTest,saved.results.last().referenceLowAtTest)
+  assertEquals(original.results.last().referenceHighAtTest,saved.results.last().referenceHighAtTest)
+ }
+ @Test fun identityLinksAreExplicitAuditedReversibleAndLeaveHistoryUntouched(){
+  val c=Context();val s=seed(c);val before=s.reports()
+  assertEquals("CUSTOM-synthetic",s.reportPoolIdentity("CUSTOM-synthetic"))
+  s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
+  assertEquals("WBC",s.reportPoolIdentity("CUSTOM-synthetic"));assertEquals(before,s.reports())
+  assertTrue(s.unifiedMetricPool().single{it.key=="WBC"}.linkedLegacyKeys.contains("CUSTOM-synthetic"))
+  val event=s.reportIdentityLinks().single();assertTrue(event.confirmedAt>0)
+  s.revokeReportIdentityLink(event.id)
+  assertEquals("CUSTOM-synthetic",s.reportPoolIdentity("CUSTOM-synthetic"));assertNotNull(s.reportIdentityLinks().single().revokedAt)
+  assertTrue(runCatching{s.confirmReportIdentityLink("CUSTOM-synthetic","PDW")}.isFailure)
+  assertTrue(runCatching{s.confirmReportIdentityLink("PDW","PDW-SD")}.isFailure)
+ }
+ @Test fun actualZipBackupRestoresIntoIndependentEmptyDirectory(){
+  val c=Context();val s=seed(c);s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
+  val before=s.reports().single();val zip=File.createTempFile("synthetic-backup-",".zip")
+  val uri=Uri.fromFile(zip);val exported=HealthBackup(c,s).export(uri);assertTrue(exported.files>=2)
+  val destination=Context();val empty=HealthStore(destination)
+  assertTrue(empty.reports().isEmpty());HealthBackup(destination,empty).restoreIntoEmpty(uri)
+  // Android requires process restart; a fresh double drops its preference cache here.
+  val reopened=HealthStore(Context(destination.root));val restored=reopened.reports().single()
+  assertEquals(before.copy(sourceImages=restored.sourceImages),restored)
+  assertEquals(s.reportIdentityLinks(),reopened.reportIdentityLinks())
+  assertArrayEquals(byteArrayOf(3,1,4,1,5),File(Uri.parse(restored.sourceImages.single().uri).path!!).readBytes())
+  assertEquals(before.sourceImages.single().importedAtEpochMillis,restored.sourceImages.single().importedAtEpochMillis)
+  assertTrue(runCatching{HealthBackup(c,s).restoreIntoEmpty(uri)}.isFailure)
+  zip.delete()
+ }
+ @Test fun restoreNeverOverwritesAnExistingWeightRecord(){
+  val source=Context();val s=seed(source);val zip=File.createTempFile("weight-guard-synthetic-",".zip")
+  HealthBackup(source,s).export(Uri.fromFile(zip))
+  val destination=Context();val store=HealthStore(destination);val weight=WeightRecord(kilograms=60.25)
+  store.saveWeight(weight)
+  assertTrue(runCatching{HealthBackup(destination,store).restoreIntoEmpty(Uri.fromFile(zip))}.isFailure)
+  assertEquals(listOf(weight),store.weightRecords());zip.delete()
+ }
+ @Test fun damagedBackupFailsBeforeWritingIntoEmptyDestination(){
+  val c=Context();val s=seed(c);val good=File.createTempFile("good-synthetic-",".zip")
+  HealthBackup(c,s).export(Uri.fromFile(good))
+  val bad=File.createTempFile("bad-synthetic-",".zip")
+  java.util.zip.ZipInputStream(good.inputStream()).use{input->
+   java.util.zip.ZipOutputStream(bad.outputStream()).use{out->
+    while(true){val entry=input.nextEntry?:break;val bytes=input.readBytes()
+     out.putNextEntry(java.util.zip.ZipEntry(entry.name));out.write(if(entry.name.endsWith("source.image"))byteArrayOf(9)else bytes);out.closeEntry()
+    }
+   }
+  }
+  val destination=Context();val empty=HealthStore(destination)
+  assertTrue(runCatching{HealthBackup(destination,empty).restoreIntoEmpty(Uri.fromFile(bad))}.isFailure)
+  assertTrue(empty.reports().isEmpty());assertFalse(File(destination.filesDir,"sources/source.image").exists())
+  good.delete();bad.delete()
+ }
+ @Test fun backupRetainsRawLegacyTemplatesAndSafetySnapshots(){
+  val c=Context();val s=seed(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
+  val field=JSONObject().put("key","WBC").put("name","合成旧名称").put("unit","arbitrary").put("low",999).put("high",1000)
+  val templates=JSONArray().put(JSONObject().put("hospital","合成医院").put("type","血常规").put("version",3).put("confirmed",true).put("fields",JSONArray().put(field))).toString()
+  prefs.edit().putString("templates",templates).commit()
+  val d=ReportDraft.from(s.reports().single());s.saveReport(materializeReportDraft(d.copy(hospital="合成来源二"),s))
+  val safety=c.getSharedPreferences("healthtrend_safety_snapshots",0).getString("reports:previous",null)
+  assertNotNull(safety);assertEquals(templates,prefs.getString("templates",null))
+  val zip=File.createTempFile("legacy-synthetic-",".zip");HealthBackup(c,s).export(Uri.fromFile(zip))
+  val destination=Context();HealthBackup(destination,HealthStore(destination)).restoreIntoEmpty(Uri.fromFile(zip))
+  val reopened=Context(destination.root)
+  assertEquals(templates,reopened.getSharedPreferences("healthtrend_store_v1",0).getString("templates",null))
+  assertEquals(safety!!.replace(c.filesDir.canonicalPath,destination.filesDir.canonicalPath),reopened.getSharedPreferences("healthtrend_safety_snapshots",0).getString("reports:previous",null))
+  zip.delete()
+ }
+ @Test fun explicitDifferentMeasurementNameCannotBeLinked(){
+  for((name,target) in listOf("中性粒细胞百分比" to "NEUT#","谷丙/谷草" to "AST/ALT","红细胞分布宽度SD" to "RDW-CV")){
+   val c=Context();val s=seed(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
+   val raw=JSONArray(prefs.getString("reports","[]"));raw.getJSONObject(0).getJSONArray("results").getJSONObject(0).put("raw",name)
+   prefs.edit().putString("reports",raw.toString()).commit()
+   assertTrue("$name -> $target",runCatching{s.confirmReportIdentityLink("CUSTOM-synthetic",target)}.isFailure)
+  }
+ }
+ @Test fun newClipboardReportNeedsNoTemplateAndDoesNotCreateOne(){
+  val c=Context();val s=HealthStore(c)
+  val d=pastedReportDraft("合成医院\n血常规\n2026-10-16\nWBC 白细胞计数 5.00 10^9/L 1.25-9.75",store=s)
+  s.saveReport(materializeReportDraft(d,s));assertEquals("5.00",s.reports().single().results.single().textValue)
+  assertTrue(s.templates().isEmpty());assertNull(s.reports().single().templateVersion)
+ }
+}

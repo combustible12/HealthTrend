@@ -132,7 +132,7 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
   * since Android caches SharedPreferences in memory.
   */
  @Synchronized fun restoreIntoEmpty(uri:Uri):Preview {
-  val existing=store.reports().size+store.entries().size+store.courseRecords().count{
+  val existing=store.reports().size+store.entries().size+store.weightRecords().size+store.courseRecords().count{
    it.title.isNotBlank()||it.symptomText.isNotBlank()||it.checkText.isNotBlank()||
     it.medicineText.isNotBlank()||it.noteText.isNotBlank()||
     it.symptomImages.isNotEmpty()||it.checkImages.isNotEmpty()||
@@ -141,7 +141,8 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
   val patient=store.patientProfile()
   val hasProfile=patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()
   val hasOwnedImages=listOf(File(context.filesDir,"sources"),File(context.filesDir,"image-documents/images")).any{dir->dir.walkTopDown().any{it.isFile}}
-  require(existing==0&&!hasProfile&&!hasOwnedImages&&ImageDocumentStore(context).all().isEmpty()){"当前设备已有报告或病程资料。为防止覆盖，禁止直接恢复；请在空白安装环境中恢复"}
+  val hasDictionaryState=store.hasRestoreProtectedConfiguration()
+  require(existing==0&&!hasDictionaryState&&!hasProfile&&!hasOwnedImages&&ImageDocumentStore(context).all().isEmpty()){"当前设备已有报告或病程资料。为防止覆盖，禁止直接恢复；请在空白安装环境中恢复"}
   val staged=stage(uri)
   try{
    val oldRoot=staged.manifest.optString("filesRoot")
