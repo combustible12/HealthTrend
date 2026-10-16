@@ -381,7 +381,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸";"UREA/CREA"->"尿素/肌酐";"AMY"->"淀粉酶";"CKMB"->"肌酸激酶MB亚型";"CK"->"肌酸激酶";"PHOS"->"无机磷酸盐"
   else->null
  }
- val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->canonicalMetricKey(result.metricKey)}
+ val all=reports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
