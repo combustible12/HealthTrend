@@ -183,14 +183,3 @@ private fun URI(s:String)=java.net.URI(s)
  }
 }
 
-@Composable private fun HospitalTemplateCard(t:HospitalLabTemplate,onEdit:()->Unit,m:Modifier=Modifier){
- Card(modifier=m.height(154.dp),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-  Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
-   Text(t.hospitalKey,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
-   Text(listOf(t.reportType,t.systemKey).filter{it.isNotBlank()}.joinToString(" · "),color=Muted,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
-   Text("${t.fields.size} 个指标",fontSize=14.sp)
-   Spacer(Modifier.weight(1f))
-   TextButton(onEdit,Modifier.semantics{contentDescription="编辑模板 ${t.hospitalKey} ${t.reportType}"},contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp)){Text("查看 / 编辑",fontSize=14.sp)}
-  }
- }
-}
