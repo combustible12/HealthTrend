@@ -131,6 +131,21 @@ object ReportParser {
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   var k=safeIdentity
   val unit=resolvedUnit(k,ocrUnit)
+  // A clipped distribution-width label identifies the family, while % / fL
+  // identifies CV / SD. Never override an explicit CV/SD code or name.
+  // Unknown units stay unresolved, and historical saved reports are untouched.
+  val clippedWidthFamily=when {
+   name in setOf("红细胞分布宽度","红细胞体积分布宽度") -> "RDW"
+   name in setOf("血小板分布宽度","血小板体积分布宽度") -> "PDW"
+   else -> null
+  }
+  if(clippedWidthFamily!=null && k in setOf("RDW","PDW","待核对:"+name)) {
+   k=when(unit.trim().lowercase()) {
+    "%" -> "${clippedWidthFamily}-CV"
+    "fl" -> "${clippedWidthFamily}-SD"
+    else -> k
+   }
+  }
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
  }
