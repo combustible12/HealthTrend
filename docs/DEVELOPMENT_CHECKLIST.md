@@ -308,3 +308,4 @@
 - `ReportImportViewModel` 删除报告图片识别、报告 OCR 表格重建及 ML Kit 调用；图片资料模块 OCR 不修改。
 - 历史报告 `rawOcr`、原图及图片关联继续只读兼容和备份恢复，不自动重识别、不迁移。
 - 代码已修改；`ci/check_report_ocr_boundary.py` 通过，聚焦 Kotlin/JVM 回归 **52/52** 通过。Android 编译和用户验收结果必须单独记录，当前不能勾选验收通过。
+- 已更新 Android quick 专用触发文件，请求对提交 `e4662c9` 的报告 OCR 移除代码执行 `compileDebugKotlin` 和 `testDebugUnitTest`；结果尚未返回。
