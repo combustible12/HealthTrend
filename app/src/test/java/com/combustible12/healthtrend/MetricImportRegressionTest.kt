@@ -5,6 +5,18 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun conflictingPastedIdentitiesRequireReviewBeforeSaving() {
+  val wrong=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "NEUT# 中性粒细胞百分比 52.0 % 40-75")).single()
+  assertTrue(metricNeedsReview(wrong,null))
+  val wrongWidth=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "RDW-CV 红细胞分布宽度CV 42.0 fL 35-56")).single()
+  assertTrue(metricNeedsReview(wrongWidth,null))
+  val good=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "RDW 红细胞分布宽度 13.00 % 11-16")).single()
+  assertEquals("RDW-CV",good.metricKey)
+  assertFalse(metricNeedsReview(good,null))
+ }
  @Test fun clippedWidthNamesResolveBySourceUnitWithoutGuessingMissingUnits() {
   val cases=listOf(
    Triple("PDW 血小板分布宽度 16.40 % 15-17","PDW-CV","16.40"),
