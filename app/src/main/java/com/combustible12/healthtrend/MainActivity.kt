@@ -504,7 +504,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
        }
       }
      }
-     if(rangeDisplayRows.isNotEmpty()){
+     if(compatiblePoints.isNotEmpty() && rangeDisplayRows.isNotEmpty()){
       TextButton(
        onClick={previewSeries=compatiblePoints},
        modifier=Modifier.align(Alignment.TopEnd).heightIn(min=24.dp),
