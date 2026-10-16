@@ -11,6 +11,11 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
@@ -262,11 +267,11 @@ private fun URI(s:String)=java.net.URI(s)
   if(editing){
    @Composable fun Choice(label:String,value:String,options:List<String>,onSelect:(String)->Unit){
     Text(label,color=Muted,fontSize=13.sp)
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-     options.forEach{option->FilterChip(selected=value==option,onClick={onSelect(option)},label={Text(option.ifEmpty{"未填写"})})}
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+     options.forEach{option->FilterChip(selected=value==option,onClick={onSelect(option)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=if(label=="ABO")SelectedTint else Warm),label={Text(option.ifEmpty{"未填写"},fontWeight=if(value==option)FontWeight.SemiBold else FontWeight.Normal)})}
     }
    }
-   OutlinedTextField(value=draft.testedDate,onValueChange={draft=draft.copy(testedDate=it)},placeholder={Text("检测日期 YYYY-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth())
+   OutlinedTextField(value=draft.testedDate,onValueChange={draft=draft.copy(testedDate=it)},placeholder={Text("检测日期 YYYY-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,errorContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent,errorBorderColor=Color.Transparent))
    Choice("ABO",draft.abo,listOf("","A","B","AB","O")){draft=draft.copy(abo=it)}
    Choice("Rh(D)",draft.rhD,listOf("","阳性","阴性")){draft=draft.copy(rhD=it)}
    Choice("Rh(C)",draft.rhC,listOf("","阳性","阴性")){draft=draft.copy(rhC=it)}
@@ -276,10 +281,35 @@ private fun URI(s:String)=java.net.URI(s)
     Button({try{store.saveBloodGroupProfile(draft);saved=store.bloodGroupProfile();editing=false;changed()}catch(e:Exception){error(e.message?:"血型保存失败")}}){Text("保存血型",color=Color.White)}
    }
   }else{
-   listOf("检测日期" to saved.testedDate,"ABO" to saved.abo.let{if(it.isEmpty())it else "${it}型"},"Rh(D)" to saved.rhD,"Rh(C)" to saved.rhC,"Rh(E)" to saved.rhE).forEach{(label,value)->
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,color=Muted);Text(value.ifBlank{"未填写"},color=Ink)}
-   }
+   BloodGroupSummary(saved)
    TextButton({draft=saved;editing=true}){Text("编辑血型")}
+  }
+ }
+}
+
+
+/** Two rows of paired labels/results; Rh fill shares the actual page-background token. */
+@Composable fun BloodGroupSummary(profile:BloodGroupProfile) {
+ Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+  Text("检测日期",color=Muted,fontSize=13.sp)
+  Text(profile.testedDate.ifBlank{"未填写"},color=Muted,fontSize=13.sp)
+ }
+ @Composable fun Item(label:String,value:String,abo:Boolean,modifier:Modifier){
+  Row(modifier.testTag("blood-group-$label"),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+   Text(label,color=Muted,fontSize=14.sp,maxLines=1)
+   Box(Modifier.background(if(abo)SelectedTint else Warm,RoundedCornerShape(50)).padding(horizontal=12.dp,vertical=8.dp),contentAlignment=Alignment.Center){
+    Text(value.ifBlank{"未填写"},color=Ink,fontSize=14.sp,fontWeight=FontWeight.SemiBold,maxLines=1)
+   }
+  }
+ }
+ Column(Modifier.fillMaxWidth().padding(vertical=4.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   Item("ABO",profile.abo.takeIf{it.isNotBlank()}?.let{"${it}型"}.orEmpty(),true,Modifier.weight(1f))
+   Item("Rh(D)",profile.rhD,false,Modifier.weight(1f))
+  }
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   Item("Rh(C)",profile.rhC,false,Modifier.weight(1f))
+   Item("Rh(E)",profile.rhE,false,Modifier.weight(1f))
   }
  }
 }
