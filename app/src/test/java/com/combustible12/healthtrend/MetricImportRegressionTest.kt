@@ -73,6 +73,15 @@ class MetricImportRegressionTest {
   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
  }
 
+ @Test fun reportedUnitIsNeverReplacedByDictionaryDefault() {
+  val parsed=ReportParser.parse("PDW-CV 血小板分布宽度CV 13.0 fL 9-17")
+  assertEquals(1,parsed.size)
+  assertEquals("PDW-CV",parsed.single().metricKey)
+  assertEquals("fL",parsed.single().unit)
+  val withoutUnit=ReportParser.parse("PDW-SD 血小板分布宽度SD 13.0 9-17")
+  assertEquals(1,withoutUnit.size)
+  assertEquals("",withoutUnit.single().unit)
+ }
  @Test fun commonUnitsConvertValueAndBothReferenceLimitsTogether() {
   val metric="CREA"
   val value=UnitNormalizer.normalize(metric,0.8,"mg/dL")
