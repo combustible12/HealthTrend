@@ -355,6 +355,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
   val key=row.key.trim()
   when {
    row.name.isBlank()->problems+="${label}：请输入中文项目名称"
+   distributionWidthIdentityProblem(key,row.name,row.unit)!=null->problems+="${label}：${distributionWidthIdentityProblem(key,row.name,row.unit)}"
    key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
     problems+="${label}：需要确认项目身份"
    row.text.isBlank()->problems+="${label}：检测结果不能为空"
