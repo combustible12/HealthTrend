@@ -5,6 +5,18 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun mismatchBetweenWidthIdentityAndReportedUnitBlocksSave() {
+  assertNotNull(distributionWidthIdentityProblem("PDW-CV","血小板分布宽度CV","fL"))
+  assertNotNull(distributionWidthIdentityProblem("PDW-SD","血小板分布宽度SD","%"))
+  assertNotNull(distributionWidthIdentityProblem("RDW-CV","红细胞分布宽度SD","%"))
+  assertNotNull(distributionWidthIdentityProblem("PDW","血小板分布宽度","fL"))
+  assertNull(distributionWidthIdentityProblem("PDW-CV","血小板分布宽度CV","%"))
+  assertNull(distributionWidthIdentityProblem("PDW-SD","血小板分布宽度SD","fL"))
+  val bad=ReportDraft(hospital="模拟医院",type="血常规",date="2026-10-16",
+   rows=listOf(DraftRow(name="血小板分布宽度CV",key="PDW-CV",text="14.2",unit="fL")))
+  assertFalse(bad.valid())
+  assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("SD")})
+ }
  @Test fun plateletDistributionWidthCvAndSdHaveDistinctIdentities() {
   assertEquals("PDW-CV",UnifiedMetricStandard.resolveName("血小板分布宽度CV"))
   assertEquals("PDW-SD",UnifiedMetricStandard.resolveName("血小板分布宽度SD"))
