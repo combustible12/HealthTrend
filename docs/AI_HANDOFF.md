@@ -1,5 +1,7 @@
 # HealthTrend｜ChatGPT ↔ Codex 开发交接
 
+> **用户历史明确要求的权威记录：** [USER_CONFIRMED_RULES.md](./USER_CONFIRMED_RULES.md)。核验开始前必须先阅读该文件；用户的最新明确指令高于旧开发计划/助手推断。不要再让用户重复纠正 PDW-CV/SD、固定粘贴格式、历史数据安全、图片 OCR 与报告 OCR 的区别、冻结趋势/病程等已确定规则。
+
 > **强制核验规范：** [METRIC_IDENTITY_AUDIT_RULES.md](./METRIC_IDENTITY_AUDIT_RULES.md)。任何新一轮指标词典医学核验、身份对齐、导入映射修改之前必须先读这份规则；进度与验收口径以该规范和本轮复审台账为准，历史记录不得覆盖新规则。
 
 
