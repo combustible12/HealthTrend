@@ -13,7 +13,6 @@ import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,7 +90,7 @@ class AppUpdater(private val context:Context){
  fun resumableDownloadedApk():File?=File(context.cacheDir,"updates/healthtrend.apk").takeIf{it.isFile&&runCatching{validate(it);true}.getOrDefault(false)}
 }
 private fun URI(s:String)=java.net.URI(s)
-@Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={},updates:()->Unit={}){
+@Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
  val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  var archiveRevision by remember{mutableIntStateOf(0)}
  var restoreEvent by remember{mutableStateOf<HealthStore.ReportReplacement?>(null)}
@@ -178,9 +177,7 @@ private fun URI(s:String)=java.net.URI(s)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
-  Card(onClick=updates,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=16.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("应用更新",fontWeight=FontWeight.SemiBold);Text("检查并升级 ›",color=Muted)}
-  }
+  AppUpdateCard(error)
   val archived=remember(archiveRevision){store.archivedReportReplacements().filter{it.restoredAt==null}}
   if(archived.isNotEmpty())Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
@@ -195,7 +192,7 @@ private fun URI(s:String)=java.net.URI(s)
  }
 }
 
-@Composable fun AppUpdatePage(close:()->Unit,error:(String)->Unit){
+@Composable fun AppUpdateCard(error:(String)->Unit){
  val ctx=LocalContext.current
  val updater=remember{AppUpdater(ctx)}
  val credentials=remember{UpdateCredentials(ctx)}
@@ -204,10 +201,10 @@ private fun URI(s:String)=java.net.URI(s)
  var status by remember{mutableStateOf("")}
  var token by remember{mutableStateOf(credentials.load())}
  var showAuth by remember{mutableStateOf(false)}
- FullPage("应用更新",close,navigationIcon=Icons.Outlined.ArrowBack){m->
-  Column(m.padding(horizontal=30.dp,vertical=24.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
-   Text("以后有新功能时，在这里点一次即可检查、下载并进入系统安装界面。安卓仍会要求你最后确认一次安装。",fontSize=17.sp,lineHeight=25.sp,color=Ink)
-   Text("当前版本 ${BuildConfig.VERSION_NAME}",fontSize=18.sp,color=Ink)
+ Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+  Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Text("应用更新",fontWeight=FontWeight.SemiBold)
+   Text("当前版本 ${BuildConfig.VERSION_NAME}",fontSize=13.sp,color=Muted)
    Button({
     busy=true;status="正在检查更新…"
     scope.launch{

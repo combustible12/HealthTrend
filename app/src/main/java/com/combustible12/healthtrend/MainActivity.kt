@@ -98,7 +98,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)};val draftStore=remember{ReportDraftStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
  var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
- var recordsOpen by rememberSaveable{mutableStateOf(false)};var updatesOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
+ var recordsOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
  var replacementReport by remember{mutableStateOf<LabReport?>(null)};var replacementDraftId by remember{mutableStateOf<String?>(null)};var replacementCandidates by remember{mutableStateOf<List<LabReport>>(emptyList())};var selectedReplacementId by remember{mutableStateOf<String?>(null)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
@@ -174,9 +174,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  LaunchedEffect(tab){if(tab==2)runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  LaunchedEffect(Unit){runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
- val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&!updatesOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
+ val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
- Box(Modifier.fillMaxSize().then(if(recordsOpen||updatesOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
+ Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   var mainPageDrag by remember{mutableFloatStateOf(0f)}
@@ -205,13 +205,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
     },{record->change{store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
-    4->Mine(m,store,{error=it},{revision++},{recordsOpen=true},{updatesOpen=true})
+    4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
   }
   }
  }
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
- if(updatesOpen)AppUpdatePage({updatesOpen=false}){error=it}
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||draftsOpen||report!=null||entry!=null||viewer!=null,topAction={TextButton({draftsOpen=true}){Text("待核对草稿")}}){m->
   Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
  }
