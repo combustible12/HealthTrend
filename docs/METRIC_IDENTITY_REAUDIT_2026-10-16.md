@@ -23,3 +23,8 @@
 `ReportParser.resolvedUnit` 原来会把用户真实来源单位（如 PDW-CV 行出现 fL）强制替换成词典预期的 %。已更改为始终保存解析得到的**来源单位原文**，即使不一致也不伪造单位。提交 [185762e](https://github.com/combustible12/HealthTrend/commit/185762e4394642ed592c8f1621544dc24f377710)；已编写合成用例 [be1ba0c](https://github.com/combustible12/HealthTrend/commit/be1ba0cc71098a37f59b3cdfb4efeeb8d7a5c437)，但**未运行测试或编译**。
 
 **下一批先检查：** RDW-CV/SD、PDW-CV/旧 PDW、五种白细胞绝对值与百分比、NRBC 的测量分母；同时核实源代码与名称冲突是否在保存前强制复核。趋势图冻结、既有真实数据不可修改。
+
+## 2026-10-16 CV/SD 身份与单位一致性硬校验
+- 用户纠正：fL 与 % 对于 CV/SD 是**不同测量身份**，不是仅保留原单位即可。保留原来源数据的同时，录入保存必须拦下身份和单位矛盾。
+- 新增 `distributionWidthIdentityProblem`：CV 配 fL、SD 配 %、名称中 CV/SD 与代码冲突、旧模糊 PDW/RDW 带指向性名称或单位时，要求人工核对。调用于草稿校验及最终 HealthStore 持久化入口，禁止错误数据入库。代码 `947ac4e`、`d0df6b1`、`f5be1f1`；合成用例 `930b9c3`。
+- 不靠单位自动改成另一个身份，不变更任何历史报告或趋势图。**未执行测试、未编译、未发布**。重新逐项医学来源核验进度仍 **10/112，剩余 102**；以上是程序安全校验，不计入术语核验数。
