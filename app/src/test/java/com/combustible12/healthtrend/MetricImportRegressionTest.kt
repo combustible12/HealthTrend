@@ -5,6 +5,41 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun clippedWidthNamesResolveBySourceUnitWithoutGuessingMissingUnits() {
+  val cases=listOf(
+   Triple("PDW 血小板分布宽度 16.40 % 15-17","PDW-CV","16.40"),
+   Triple("PDW 血小板分布宽度 9.0 fL 6.5-12","PDW-SD","9.0"),
+   Triple("RDW 红细胞分布宽度 13.00 % 11-16","RDW-CV","13.00"),
+   Triple("RDW 红细胞分布宽度 41 fL 35-56","RDW-SD","41")
+  )
+  cases.forEach{(line,expected,originalText)->
+   val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(line)).single()
+   assertEquals(expected,parsed.metricKey)
+   assertEquals(originalText,parsed.textValue)
+   assertEquals(if(expected.endsWith("CV")) "%" else "fL",parsed.unit)
+   assertNotNull(parsed.referenceLow)
+   assertNotNull(parsed.referenceHigh)
+  }
+  val missing=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "PDW 血小板分布宽度 12.00 9-17")).single()
+  assertEquals("PDW",missing.metricKey)
+  assertEquals("",missing.unit)
+  val explicit=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "PDW-CV 血小板分布宽度CV 12.00 fL 9-17")).single()
+  assertEquals("PDW-CV",explicit.metricKey)
+  assertEquals("fL",explicit.unit)
+  assertNotNull(distributionWidthIdentityProblem(explicit.metricKey,explicit.displayName,explicit.unit))
+ }
+ @Test fun fixedClipboardPreservesDistinctIdentitiesAndSourcePrecision() {
+  val source="模拟医院\\n血常规\\n2026-10-16\\nWBC 白细胞 5.00 10^9/L 3.5-9.5\\nRDW 红细胞分布宽度 13.00 % 11-16\\nRDW 红细胞分布宽度 41 fL 35-56"
+  val draft=pastedReportDraft(source,null)
+  assertEquals(3,draft.rows.size)
+  assertEquals(listOf("WBC","RDW-CV","RDW-SD"),draft.rows.map{it.key})
+  assertEquals(listOf("5.00","13.00","41"),draft.rows.map{it.text})
+  assertEquals(listOf("10^9/L","%","fL"),draft.rows.map{it.unit})
+  assertEquals("3.5",draft.rows[0].low)
+  assertEquals("9.5",draft.rows[0].high)
+ }
  @Test fun explicitCodeAndChineseMeasurementConflictRequiresReview() {
   val cases=listOf(
    Triple("AST/ALT 谷丙/谷草 0.82","AST/ALT","ALT/AST"),
