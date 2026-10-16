@@ -169,3 +169,10 @@
 - 发现原趋势传入的横轴日期只包含测过该指标的报告，漏测日期可能被跳过导致连线错误。已用同检查类型的完整报告日期生成横轴，保留漏测断线：[a8e7d0d](https://github.com/combustible12/HealthTrend/commit/a8e7d0dd67ebdaee1e6a3b95734aedc1e6a67b5d)。
 - 历史 `CUSTOM-UUID` 不应靠中文名自动归并。新增可持久化、显式确认后生效、可撤销的趋势**只读身份映射接口**，仅映射历史自定义身份到已存在标准指标，趋势分组/查询读取映射但绝不改写旧报告：[9a0a355](https://github.com/combustible12/HealthTrend/commit/9a0a355acd6d6c7392199509f8205c7e4fedcc0e)、[19cdd4b](https://github.com/combustible12/HealthTrend/commit/19cdd4b4bfca874e46d83c3af22a9bf8826f7149)。**映射管理 UI 尚未接入，旧身份不会未经确认自动合并，因此功能仍未闭环**。
 - 添加未测日期、易混指标身份的合成回归代码：[b2bf3d6](https://github.com/combustible12/HealthTrend/commit/b2bf3d654da69b67fcdc3b608b14819da58c26e9)。**测试未执行、未编译、未发布，全部正式验收 [ ] 保持不变**。仍需检查同日多报告横轴、单位不可比数据点、滑动冲突以及映射 UI。
+
+
+### 2026-10-16 用户调整施工优先级：医学资料核验优先，趋势冻结
+- 用户明确要求先完成医学资料逐项核验，**趋势图当前不再修改**；这条新规则优先于旧日志中的“紧急趋势施工”顺序。
+- [33439cb](https://github.com/combustible12/HealthTrend/commit/33439cb5f928f818cab812ea8c46698b7c97c4e8) 已依据 LOINC 官方条目补充 `NEUT%`、`LYMPH%`、`MONO%`、`EOS%`、`BASO%`、`MPV` 六项候选医学术语与适用条件。概念/候选术语证据累计 **21/110**；剩余 **89** 项；完整设备/方法级审定仍 **0/110**。
+- 不猜参考范围、检测方法或未预设单位；这轮仅更新医学审核文档及施工记录，**没有改任何 Kotlin 源码、历史报告、趋势或病程**。
+- 主清单 2.4 **代码 [ ]、验收 [ ]** 保持不变；未执行测试、编译或发布。
