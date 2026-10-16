@@ -40,7 +40,8 @@ class PartialRangeIntegrationTest {
   val r=result(parsed("0.1??-0.400","↓","0.150"))
   assertNull(r.trendReferenceRange().first);assertEquals(ResultStatus.LOW,r.status())
  }
- @Test fun previousReleaseSerializedDraftAndEmbeddedReportRemainReadable() {
+ @Test fun androidComposeReleaseSerializedDraftAndEmbeddedReportRemainReadable() {
+  // Fixture uses the Android release Compose plugin, not a standalone compiler.
   val encoded=javaClass.getResourceAsStream("/legacy-reference-draft.b64")!!.bufferedReader().use{it.readText().trim()}
   val old=java.io.ObjectInputStream(java.util.Base64.getDecoder().decode(encoded).inputStream()).use{it.readObject() as ReportDraft}
   assertEquals("5.00",old.rows.single().text)
