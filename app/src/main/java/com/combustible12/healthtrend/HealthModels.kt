@@ -155,7 +155,7 @@ object UnitNormalizer {
    metricKey=="GLU" && u=="mmol/l" -> value to "mmol/L"
    metricKey=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
    metricKey=="UREA" && u=="mmol/l" -> value to "mmol/L"
-   metricKey=="UREA" && u=="mg/dl" -> value/6.006 to "mmol/L"
+   // UREA mg/dL may be confused with BUN mg/dL: keep the source unit until identity is confirmed.
    else -> value to unit
   }
  }
