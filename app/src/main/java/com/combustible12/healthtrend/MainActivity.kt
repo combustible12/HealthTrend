@@ -357,6 +357,18 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+/** Aliases are requested details, never a permanent label above a trend title. */
+@Composable fun TrendMetricTitle(title:String,aliases:List<String>){
+ var showAliases by remember(title){mutableStateOf(false)}
+ Text(title,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,
+  overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{showAliases=true})
+ if(showAliases)AlertDialog(onDismissRequest={showAliases=false},title={Text(title)},
+  text={Column(Modifier.heightIn(max=320.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("其他别名",fontWeight=FontWeight.SemiBold)
+   Text(aliases.filter{it.isNotBlank()&&it!=title}.distinct().joinToString("、").ifBlank{"暂无其他别名"})
+  }},confirmButton={TextButton({showAliases=false}){Text("关闭")}})
+}
+
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit){
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
@@ -443,21 +455,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
     val metricAliases=aliasesFor(key)
-    if(metricAliases.isNotEmpty()){
-     val matchedAliases=if(searching)metricAliases.filter{it.contains(query,true)} else emptyList()
-     val canonicalTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
-     val others=metricAliases.filterNot{it in matchedAliases || it==canonicalTitle}
-     val note=if(matchedAliases.isNotEmpty())
-      "搜索“${matchedAliases.joinToString("、")}”，对应“$canonicalTitle（$key）”"+if(others.isEmpty())"" else "；其他别名："+others.joinToString("、")
-      else "其他别名："+metricAliases.filterNot{it==canonicalTitle}.joinToString("、")
-     if(note!="其他别名：")Text(note,color=Muted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis)
-    }
     var meaningDetail by remember{mutableStateOf(false)}
     val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val fixedTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
-      Text(fixedTitle,fontWeight=FontWeight.Bold,fontSize=16.sp,color=Ink,maxLines=1,overflow=TextOverflow.Ellipsis)
+      TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{meaningDetail=true})}
      }
      Column(horizontalAlignment=Alignment.End){

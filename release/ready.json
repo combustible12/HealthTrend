@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "a50cdacef148cbcf7024d3d37fc57144a469aa71",
+  "sourceBaseCommit": "4c87f8a550d03ecc6543c140b981ec6fdc5f5dc4",
   "validationMode": "compile-and-test-before-publish",
-  "versionCode": 2026101706,
-  "versionName": "1.0.104"
+  "versionCode": 2026101707,
+  "versionName": "1.0.105"
 }
