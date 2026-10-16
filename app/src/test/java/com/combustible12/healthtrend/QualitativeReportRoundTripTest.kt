@@ -1,0 +1,34 @@
+package com.combustible12.healthtrend
+
+import org.junit.Assert.*
+import org.junit.Test
+
+/** Covers the import -> editable draft -> re-opened draft path without touching real patient data. */
+class QualitativeReportRoundTripTest {
+ @Test fun clipboardImportPreservesReferenceText() {
+  val raw="HIV 人免疫缺陷病毒抗体（定性） 阴性  阴性"
+  val parsed=ReportParser.parse(raw)
+  assertTrue("qualitative item should be parsed",parsed.isNotEmpty())
+  val item=parsed.first()
+  assertEquals("阴性",item.textValue)
+  assertEquals("阴性",item.referenceRaw)
+  val draft=DraftRow.from(item)
+  assertEquals("阴性",draft.rangeRaw())
+  val reopened=DraftRow.from(draft.parsed())
+  assertEquals(draft.text,reopened.text)
+  assertEquals(draft.referenceRaw,reopened.referenceRaw)
+  assertEquals(ReferenceAgreement.MATCH,LabResultValues.agreement(reopened.text,reopened.referenceRaw))
+ }
+ @Test fun positiveAntibodyIsNotReplacedByNegativeReference() {
+  val parsed=ReportParser.parse("HBsAb 乙肝表面抗体 阳性  阴性").first()
+  val draft=DraftRow.from(parsed)
+  assertEquals("阳性",draft.parsed().textValue)
+  assertEquals("阴性",draft.parsed().referenceRaw)
+  assertEquals(ReferenceAgreement.MISMATCH,LabResultValues.agreement(draft.text,draft.referenceRaw))
+ }
+ @Test fun legacyMissingReferenceRemainsMissing() {
+  val draft=DraftRow(key="HIV",name="人免疫缺陷病毒抗体（定性）",text="阴性",referenceRaw="")
+  assertEquals("",draft.parsed().referenceRaw)
+  assertEquals(ReferenceAgreement.UNKNOWN,LabResultValues.agreement(draft.text,draft.referenceRaw))
+ }
+}
