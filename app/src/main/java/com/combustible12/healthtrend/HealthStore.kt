@@ -11,12 +11,9 @@ import java.io.File
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
- // Existing confirmed reports, trends and course records are immutable on app startup.
- // Legacy repairs must be opt-in after an external backup, never automatic.
- init {
-  if(!prefs.contains("templates") && !prefs.contains("reports") &&
-     !prefs.contains("course_records")) migrateCurrentTemplates()
- }
+ // Startup must never seed obsolete hospital templates on a fresh install.
+ // Existing legacy templates remain stored unchanged for compatibility/backup.
+ // Historical repairs are explicit opt-in operations, never automatic.
  private fun read(key:String)=JSONArray(prefs.getString(key,"[]"))
  private fun write(key:String,a:JSONArray){
   // A durable rollback checkpoint is written BEFORE changing critical datasets.
