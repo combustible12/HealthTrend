@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
   points.forEach{point->
    val (report,result)=point
    val widthPx=maxOf(measurer.measure(result.textValue,TextStyle(fontSize=13.sp)).size.width,measurer.measure(trendShortDate(report.testedAtEpochMillis),TextStyle(fontSize=10.sp)).size.width)
-   val width=with(density){widthPx.toDp()}.coerceAtLeast(28.dp)
-   val color=statusColor(result.status())
+   val width=with(density){widthPx.toDp()}.coerceAtLeast(48.dp) + 8.dp
+   val color=when(result.referenceAgreement()) {\n    ReferenceAgreement.MATCH -> TrendBlue\n    ReferenceAgreement.MISMATCH -> Bad\n    ReferenceAgreement.UNKNOWN -> Muted\n   }
    Column(Modifier.width(width).clickable{onPointClick(point)}.semantics{contentDescription="${result.rawName} ${dateText(report.testedAtEpochMillis)} ${report.hospitalKey} ${result.textValue}"},horizontalAlignment=Alignment.CenterHorizontally){
-    Box(Modifier.height(125.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){Box(Modifier.padding(bottom=8.dp).width(12.dp).height(54.dp).background(color,RoundedCornerShape(3.dp)))}
+    Box(Modifier.height(72.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){\n     Text(result.textValue,fontSize=12.sp,color=color,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))\n    }
     Text(trendShortDate(report.testedAtEpochMillis),fontSize=10.sp,color=Muted,maxLines=1)
     Text(result.textValue,fontSize=13.sp,color=color,maxLines=1)
    }
