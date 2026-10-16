@@ -76,11 +76,22 @@ data class LabResult(
  val id:String,val reportId:String,val hospitalKey:String,val reportType:String,val templateVersion:Int?,val metricKey:String,val rawName:String,
  val value:Double?,val unitAtTest:String,val referenceLowAtTest:Double?,val referenceHighAtTest:Double?,val testedAtEpochMillis:Long,
  val editedByUser:Boolean=false,val textValue:String=value?.toString().orEmpty(),val comparator:String="",val rawLine:String="",
- val normalizedValue:Double?=value,val normalizedUnit:String=unitAtTest
+ val normalizedValue:Double?=value,val normalizedUnit:String=unitAtTest,
+ val referenceRaw:String="",val reportFlag:String=""
 ):java.io.Serializable{
  fun status():ResultStatus {
   val n=value ?: return ResultStatus.UNKNOWN
   if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN
+  if(reportFlag.length>1)return ResultStatus.UNKNOWN
+  if('?' in referenceRaw) {
+   val interval=PartialReferenceRanges.interval(referenceRaw,n,reportFlag.singleOrNull()) ?: return ResultStatus.UNKNOWN
+   return when {
+    n < interval.lowerLimit -> ResultStatus.LOW
+    n > interval.upperLimit -> ResultStatus.HIGH
+    n >= interval.lower.maximum && n <= interval.upper.minimum -> ResultStatus.NORMAL
+    else -> ResultStatus.UNKNOWN
+   }
+  }
   return when {
    referenceLowAtTest!=null && n<referenceLowAtTest -> ResultStatus.LOW
    referenceHighAtTest!=null && n>referenceHighAtTest -> ResultStatus.HIGH

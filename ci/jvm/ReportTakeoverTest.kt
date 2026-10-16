@@ -185,3 +185,30 @@ class ReportTakeoverTest {
   assertTrue(s.templates().isEmpty());assertNull(s.reports().single().templateVersion)
  }
 }
+
+/** Real storage and clipboard roundtrip with disk-backed platform doubles. */
+class PartialRangeStorageTest {
+ @Test fun saveReopenEditExportAndUpgradePreserveEvidenceAndCourse(){
+  val context=Context();val store=HealthStore(context)
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",0)
+  prefs.edit().putString("course_records","[]").commit()
+  val draft=pastedReportDraft("合成医院\n血常规\n2026-10-16\nPCT 血小板压积 0.250 ↑ % 0.188-0.2??",store=store)
+  assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+  store.saveReport(materializeReportDraft(draft,store))
+  val reopened=HealthStore(Context(context.root)).reports().single()
+  assertEquals("0.188-0.2??",reopened.results.single().referenceRaw)
+  assertEquals("↑",reopened.results.single().reportFlag)
+  assertTrue(store.standardRanges("PCT").isEmpty())
+  assertTrue(store.referenceRangeHistory("PCT").isEmpty())
+  val edited=ReportDraft.from(reopened).let{it.copy(rows=it.rows.map{r->r.copy(text="0.260")})}
+  store.saveReport(materializeReportDraft(edited,store))
+  val saved=HealthStore(context).reports().single()
+  assertEquals("0.188-0.2??",saved.results.single().referenceRaw)
+  val imported=pastedReportDraft(store.exportReportAsPastedText(saved),store=store)
+  assertEquals("0.188-0.2??",imported.rows.single().parsed().referenceRaw)
+  assertEquals("↑",imported.rows.single().reportFlag)
+  assertEquals("[]",prefs.getString("course_records",null))
+  val before=prefs.getString("reports",null)
+  HealthStore(context).reports();assertEquals(before,prefs.getString("reports",null))
+ }
+}

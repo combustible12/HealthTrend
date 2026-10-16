@@ -481,7 +481,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }
     val rangeDisplayRows=compatiblePoints.map{(_,x)->
      val rr=rangeKey(x)
-     "参考范围: ${rangeText(rr.low,rr.high)} ${rr.unit}".trim()
+     "参考范围: ${x.referenceRaw.takeIf{'?' in it}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()
     }.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
@@ -604,7 +604,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(labDisplayTitle(x.rawName,x.metricKey));IconButton({selected=null;openCourse(r.testedAtEpochMillis)}){Icon(Icons.Outlined.Timeline,"打开当天病程",tint=Accent)}}},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
-   Text("当次参考：${rangeText(x.referenceLowAtTest,x.referenceHighAtTest)} · ${x.status().label()}",color=Muted)
+   Text("当次参考：${x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}} · ${x.status().label()}",color=Muted)
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
    if(editing)TextButton({val v=editValue.trim().toDoubleOrNull();if(v!=null&&v.isFinite()){edit(r,x,v);val persisted=store.reports().firstOrNull{it.id==r.id}?.results?.firstOrNull{it.id==x.id}?:x.withEditedValue(v);selected=r to persisted;editing=false}}){Text("保存")}
@@ -773,6 +773,9 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
       val left=if(slot==0)0f else (center+with(density){centered[slot-1].toPx()})/2f
       val right=if(slot==timeline.lastIndex)size.width else (center+with(density){centered[slot+1].toPx()})/2f
       val (rl,rh)=referenceBands[i]
+      if(rl==null || rh==null){
+       listOfNotNull(rl,rh).forEach{bound->drawLine(Good.copy(alpha=.55f),Offset(left,y(bound)),Offset(right,y(bound)),1.5.dp.toPx(),pathEffect=dash)}
+      }
       if(rl!=null&&rh!=null){val top=y(rh);val bottom=y(rl);drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(left,top),Offset(right,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(left,bottom),Offset(right,bottom),1.5.dp.toPx(),pathEffect=dash)}
      }
     }else when{

@@ -1,15 +1,20 @@
 package com.combustible12.healthtrend
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
-data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String=""):java.io.Serializable {
- fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"})}
- fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||low.toDoubleOrNull()?.isFinite()==true)&&(high.isBlank()||high.toDoubleOrNull()?.isFinite()==true)&&ReportParser.valid(listOf(parsed()))
- companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=p.referenceLow?.toString().orEmpty(),high=p.referenceHigh?.toString().orEmpty(),raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
+data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String="",val referenceRaw:String="",val reportFlag:String=""):java.io.Serializable {
+ fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,text.trim().trimStart('<','>','≤','≥').toDoubleOrNull(),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
+ fun rangeRaw():String {
+  val original=PartialReferenceRanges.parts(referenceRaw)
+  return if(referenceRaw.isNotBlank() && original.first==low && original.second==high)referenceRaw
+   else if(low.isNotBlank()&&high.isNotBlank())"$low-$high" else if(low.isNotBlank())"≥$low" else if(high.isNotBlank())"≤$high" else ""
+ }
+ fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||PartialReferenceRanges.bound(low)!=null)&&(high.isBlank()||PartialReferenceRanges.bound(high)!=null)&&ReportParser.valid(listOf(parsed()))
+ companion object{fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=PartialReferenceRanges.parts(p.referenceRaw).first.takeIf{it.isNotBlank()}?:p.referenceLow?.toString().orEmpty(),high=PartialReferenceRanges.parts(p.referenceRaw).second.takeIf{it.isNotBlank()}?:p.referenceHigh?.toString().orEmpty(),referenceRaw=p.referenceRaw,reportFlag=p.reportFlag,raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
 }
 data class ReportDraft(val draftId:String=newId(),val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
  fun parsed()=rows.map{it.parsed()}
  fun valid()=reportValidationProblems(this).isEmpty()
- companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),x.rawLine)},existing=r)}
+ companion object{fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,PartialReferenceRanges.parts(x.referenceRaw).first.takeIf{it.isNotBlank()}?:x.referenceLowAtTest?.toString().orEmpty(),PartialReferenceRanges.parts(x.referenceRaw).second.takeIf{it.isNotBlank()}?:x.referenceHighAtTest?.toString().orEmpty(),x.rawLine,referenceRaw=x.referenceRaw,reportFlag=x.reportFlag)},existing=r)}
 }
 /** Frozen ambiguous identities may survive ordinary edits without being reclassified. */
 internal fun unchangedLegacyIdentity(row:DraftRow,report:LabReport?):Boolean {
@@ -57,9 +62,9 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
    row.text.trim().trimStart('<','>','≤','≥').toDoubleOrNull()?.isFinite()!=true&&
     d.existing?.results?.singleOrNull{it.id==row.id}?.textValue!=row.text->
     problems+="${label}：检测结果不是有效数值"
-   row.low.isNotBlank()&&row.low.toDoubleOrNull()?.isFinite()!=true->
+   row.low.isNotBlank()&&PartialReferenceRanges.bound(row.low)==null->
     problems+="${label}：参考下限无效"
-   row.high.isNotBlank()&&row.high.toDoubleOrNull()?.isFinite()!=true->
+   row.high.isNotBlank()&&PartialReferenceRanges.bound(row.high)==null->
     problems+="${label}：参考上限无效"
    row.low.toDoubleOrNull()!=null&&row.high.toDoubleOrNull()!=null&&
     row.low.toDouble() > row.high.toDouble()->

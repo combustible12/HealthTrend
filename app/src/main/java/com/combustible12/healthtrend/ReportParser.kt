@@ -1,7 +1,7 @@
 package com.combustible12.healthtrend
 
 /** Values, units and limits come from the source, never population defaults. */
-data class ParsedLabResult(val metricKey:String,val displayName:String,val value:Double?,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val rawLine:String,val primary:Boolean,val textValue:String=value?.toString().orEmpty(),val comparator:String="")
+data class ParsedLabResult(val metricKey:String,val displayName:String,val value:Double?,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val rawLine:String,val primary:Boolean,val textValue:String=value?.toString().orEmpty(),val comparator:String="",val referenceRaw:String="",val reportFlag:String="")
 object ReportParser {
  val primaryKeys=setOf("WBC","NEUT#","HGB","PLT","ALT","AST","TBIL","ALB","CREA","UREA","UA","CEA","AFP","CA125","CA153","CA199","SCC")
  private val differentialBases=setOf("NEUT","LYMPH","MONO","EOS","BASO","NRBC")
@@ -120,11 +120,13 @@ object ReportParser {
   val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: "待核对"
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
-  val limits=Regex("([-+]?\\d+(?:\\.\\d+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?\\d+(?:\\.\\d+)?)").find(suffix)
-  val one=if(limits==null)Regex("(?:<=|>=|[<>≤≥])\\s*[-+]?\\d+(?:\\.\\d+)?").find(suffix) ?: Regex("[-+]?\\d+(?:\\.\\d+)?\\s*--(?:\\s|$)").find(suffix) else null
+  val limits=Regex("([-+]?[\\d?]+(?:\\.[\\d?]+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?[\\d?]+(?:\\.[\\d?]+)?)").find(suffix)
+  val one=if(limits==null)Regex("(?:<=|>=|[<>≤≥])\\s*[-+]?\\d+(?:\\.[\\d?]+)?").find(suffix) ?: Regex("[-+]?\\d+(?:\\.[\\d?]+)?\\s*--(?:\\s|$)").find(suffix) else null
   val low=limits?.groupValues?.get(1)?.toDoubleOrNull() ?: one?.value?.let{v->when{v.trim().startsWith(">")||v.trim().startsWith("≥")->v.replace(Regex("[>=≥\\s]"),"").toDoubleOrNull();v.trim().endsWith("--")->v.replace("--","").trim().toDoubleOrNull();else->null}}
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.trim().startsWith("<")||it.trim().startsWith("≤")}?.replace(Regex("[<=≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
+  val referenceRaw=limitMatch?.value?.trim().orEmpty()
+  val reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString("")
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
@@ -147,7 +149,7 @@ object ReportParser {
    }
   }
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
-  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"})
+  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
  }
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&it.textValue.isNotBlank()&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }

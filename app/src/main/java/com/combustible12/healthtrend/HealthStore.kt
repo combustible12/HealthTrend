@@ -158,7 +158,7 @@ class HealthStore(private val context:Context) {
    check(stored.results.map{it.metricKey to it.textValue}==prepared.results.map{it.metricKey to it.textValue}){"替换后报告内容校验失败"}
    check(archivedReportReplacements().any{it.id==event.id&&it.oldReport.results==old.results}){"旧报告封存校验失败"}
   }catch(e:Exception){prefs.edit().putString("reports",beforeReports).putString("report_replacement_archive",beforeArchive).commit();throw e}
-  prepared.results.forEach{if(it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)addStandardRange(it.metricKey,it.unitAtTest,it.referenceLowAtTest,it.referenceHighAtTest)}
+  prepared.results.forEach{if('?' !in it.referenceRaw&&(it.referenceLowAtTest!=null||it.referenceHighAtTest!=null))addStandardRange(it.metricKey,it.unitAtTest,it.referenceLowAtTest,it.referenceHighAtTest)}
   return event
  }
  @Synchronized fun restoreArchivedReport(replacementId:String){
@@ -187,7 +187,7 @@ class HealthStore(private val context:Context) {
   data class Evidence(val report:LabReport,val result:LabResult)
   val evidence=reports().flatMap{report->report.results
    .filter{canonicalMetricKey(it.metricKey)==identity &&
-    (it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)}
+    (it.referenceLowAtTest!=null||it.referenceHighAtTest!=null)&&'?' !in it.referenceRaw}
    .map{result->
     val lower=UnitNormalizer.normalize(identity,result.referenceLowAtTest,result.unitAtTest)
     val upper=UnitNormalizer.normalize(identity,result.referenceHighAtTest,result.unitAtTest)
@@ -306,7 +306,8 @@ class HealthStore(private val context:Context) {
     stored.results.map{it.textValue}==ordered.results.map{it.textValue} &&
     stored.results.map{it.unitAtTest}==ordered.results.map{it.unitAtTest} &&
     stored.results.map{it.referenceLowAtTest}==ordered.results.map{it.referenceLowAtTest} &&
-    stored.results.map{it.referenceHighAtTest}==ordered.results.map{it.referenceHighAtTest}){
+    stored.results.map{it.referenceHighAtTest}==ordered.results.map{it.referenceHighAtTest} &&
+    stored.results.map{it.referenceRaw to it.reportFlag}==ordered.results.map{it.referenceRaw to it.reportFlag}){
     "报告保存验证失败：重新读取的数据与保存内容不一致"
    }
    check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
@@ -319,7 +320,7 @@ class HealthStore(private val context:Context) {
   }
   // Only after the report itself has passed read-back verification.
   ordered.results.forEach{result->
-   if(result.referenceLowAtTest!=null||result.referenceHighAtTest!=null){
+   if('?' !in result.referenceRaw&&(result.referenceLowAtTest!=null||result.referenceHighAtTest!=null)){
     addStandardRange(result.metricKey,result.unitAtTest,
      result.referenceLowAtTest,result.referenceHighAtTest)
    }
@@ -878,13 +879,13 @@ class HealthStore(private val context:Context) {
    uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},
    items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit)
     LabResult(newId(),id,h.trim(),t.trim(),null,p.metricKey,p.displayName,p.value,unit,
-     p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)
+     p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second,p.referenceRaw,p.reportFlag)
    },raw,system.trim())
  }
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
   // The editor has applied the selected version. Snapshot exactly what the user confirmed.
-  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second)},raw,system.trim())
+  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second,p.referenceRaw,p.reportFlag)},raw,system.trim())
  }
  @Synchronized fun entries()=rows(read("entries"),::entryFromJson).sortedByDescending{it.occurredAtEpochMillis}
  @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
@@ -932,8 +933,11 @@ class HealthStore(private val context:Context) {
    append('\n').append(canonicalMetricKey(row.metricKey)).append(' ')
    append(preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName)
    append(' ').append(row.textValue).append(' ')
-   append(row.unitAtTest.ifBlank{"-"}) 
-   if(row.referenceLowAtTest!=null||row.referenceHighAtTest!=null){
+   append(row.unitAtTest.ifBlank{"-"})
+   if(row.reportFlag.isNotBlank())append(' ').append(row.reportFlag)
+   if(row.referenceRaw.isNotBlank()){
+    append(' ').append(row.referenceRaw)
+   }else if(row.referenceLowAtTest!=null||row.referenceHighAtTest!=null){
     append(' ').append(row.referenceLowAtTest?.toString()?:"")
     append('-').append(row.referenceHighAtTest?.toString()?:"")
    }
@@ -973,12 +977,12 @@ class HealthStore(private val context:Context) {
   "report_identity_links","report_replacement_archive","trend_identity_mappings"
  ).any{read(it).length()>0}
  fun exportBackup():String=JSONObject().put("schema",3).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
- private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
+ private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("referenceRaw",it.referenceRaw).put("reportFlag",it.reportFlag).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
   return LabReport(id,h,t,date,version,rows(o.getJSONArray("images")){x->ReportImage(x.getString("uri"),x.getInt("page"),x.getLong("at"))},rows(o.getJSONArray("results")){x->
    val key=x.getString("key");val value=x.doubleOrNull("value");val unit=x.getString("unit");val normalized=UnitNormalizer.normalize(key,value,unit)
-   LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second)
+   LabResult(x.getString("id"),id,h,t,version,key,x.getString("raw"),value,unit,x.doubleOrNull("low"),x.doubleOrNull("high"),date,x.optBoolean("edited"),x.optString("text",value?.toString().orEmpty()),x.optString("cmp"),x.optString("line"),normalized.first,normalized.second,x.optString("referenceRaw"),x.optString("reportFlag"))
   },o.optString("ocr"),o.optString("system"))
  }
  private fun replacementToJson(r:ReportReplacement)=JSONObject().put("id",r.id).put("old",reportToJson(r.oldReport)).put("new",reportToJson(r.newReport)).put("at",r.replacedAt).put("restored",r.restoredAt?:JSONObject.NULL)
