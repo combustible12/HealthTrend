@@ -5,6 +5,17 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun plateletDistributionWidthCvAndSdHaveDistinctIdentities() {
+  assertEquals("PDW-CV",UnifiedMetricStandard.resolveName("血小板分布宽度CV"))
+  assertEquals("PDW-SD",UnifiedMetricStandard.resolveName("血小板分布宽度SD"))
+  assertEquals("PDW-CV",ReportParser.key("PDW-CV"))
+  assertEquals("PDW-SD",ReportParser.key("PDW-SD"))
+  assertEquals("%",UnifiedMetricStandard.definition("PDW-CV")?.unit)
+  assertEquals("fL",UnifiedMetricStandard.definition("PDW-SD")?.unit)
+  assertEquals("",UnifiedMetricStandard.definition("PDW")?.unit)
+  assertNotEquals(canonicalMetricKey("PDW"),canonicalMetricKey("PDW-CV"))
+  assertNotEquals(canonicalMetricKey("PDW-CV"),canonicalMetricKey("PDW-SD"))
+ }
  @Test fun colonSeparatedInverseRatiosKeepDirections() {
   assertEquals("AST/ALT",canonicalMetricKey("AST:ALT"))
   assertEquals("ALT/AST",canonicalMetricKey("ALT:AST"))
