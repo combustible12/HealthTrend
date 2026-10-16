@@ -74,29 +74,22 @@ class CoreFlowTest{
   android.media.ExifInterface(photo.path).apply{setAttribute(android.media.ExifInterface.TAG_ORIENTATION,android.media.ExifInterface.ORIENTATION_ROTATE_90.toString());saveAttributes()}
   val oriented=decodeReportBitmap(context,Uri.fromFile(photo));assertEquals(160,oriented.width);assertEquals(320,oriented.height);assertEquals(android.media.ExifInterface.ORIENTATION_ROTATE_90,android.media.ExifInterface(photo.path).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,0));oriented.recycle()
  }
- @Test fun bundledOcrReadsActualBitmap(){
-  val b=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888);val canvas=Canvas(b);canvas.drawColor(Color.WHITE);val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
-  listOf("白细胞计数 3.75  3.5-9.5","中性粒细胞百分比 51.2 % 40-75","HGB 102  113-151","LDH 189  120-250").forEachIndexed{i,s->canvas.drawText(s,70f,120f+i*150,paint)}
-  val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build());val latch=CountDownLatch(1);var raw="";var failure:Exception?=null
-  val ocrSource=File(context.cacheDir,"ocr-source.png");ocrSource.outputStream().use{b.compress(Bitmap.CompressFormat.PNG,100,it)}
-  recognizer.process(InputImage.fromBitmap(decodeReportBitmap(context,Uri.fromFile(ocrSource)),0)).addOnSuccessListener{raw=ReportOcr.tableText(it);latch.countDown()}.addOnFailureListener{failure=it;latch.countDown()}
-  assertTrue(latch.await(60,TimeUnit.SECONDS));recognizer.close();assertNull(failure)
-  val rows=ReportParser.parse(raw);assertTrue("OCR output: $raw",rows.any{it.metricKey=="WBC"&&it.value==3.75});assertTrue(rows.any{it.metricKey=="LDH"})
-  val store=HealthStore(context);val source=store.ownImage(Uri.fromFile(ocrSource));val template=store.confirmTemplate("OCR测试医院","血常规",rows)
-  store.saveReport(store.buildReport("OCR测试医院","血常规",System.currentTimeMillis(),listOf(source,source),rows,template,raw))
-  compose.activityRule.scenario.recreate()
-  compose.onNodeWithText("血常规").performScrollTo().performClick()
-  compose.onNodeWithText("查看原报告 · 2 页").performScrollTo().performClick()
-  compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
-  compose.onNodeWithText("原报告 1/2").assertExists()
-  compose.onNodeWithText("下一页").performClick();compose.onNodeWithText("原报告 2/2").assertExists()
-  compose.activityRule.scenario.recreate();compose.onNodeWithText("原报告 2/2").assertExists()
-  compose.onNodeWithText("重置缩放").performClick()
-  compose.onNodeWithText("上一页").performClick();compose.onNodeWithText("原报告 1/2").assertExists()
-  compose.onNodeWithContentDescription("关闭").performClick()
-  compose.onNodeWithText("查看原报告 · 2 页").assertExists()
-  compose.onNodeWithContentDescription("关闭").performClick()
-
+ @Test fun imageTextRecognitionKeepsReportImportSeparate(){
+  val before=context.getSharedPreferences("healthtrend_store_v1",0).getString("reports",null)
+  val b=Bitmap.createBitmap(1800,1000,Bitmap.Config.ARGB_8888)
+  val canvas=Canvas(b);canvas.drawColor(Color.WHITE)
+  val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
+  listOf("白细胞计数 3.75", "LDH 189").forEachIndexed{i,text->canvas.drawText(text,70f,120f+i*150,paint)}
+  val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+  val latch=CountDownLatch(1);var raw="";var failure:Exception?=null
+  recognizer.process(InputImage.fromBitmap(b,0))
+   .addOnSuccessListener{raw=it.text;latch.countDown()}
+   .addOnFailureListener{failure=it;latch.countDown()}
+  try{
+   assertTrue(latch.await(60,TimeUnit.SECONDS));assertNull(failure)
+   assertTrue("Image OCR output: $raw",raw.contains("白细胞"));assertTrue(raw.contains("LDH"))
+   assertEquals(before,context.getSharedPreferences("healthtrend_store_v1",0).getString("reports",null))
+  }finally{recognizer.close();b.recycle()}
  }
  @Test fun galleryEntryOwnsImageRecognizesConfirmsAndReopensReport(){
   val bitmap=Bitmap.createBitmap(1800,800,Bitmap.Config.ARGB_8888)

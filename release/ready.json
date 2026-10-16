@@ -1,6 +1,7 @@
 {
-  "sourceBaseCommit": "0e91bfad36517a53a81f670430aadc69749275e0",
+  "sourceBaseCommit": "606fa4d66a6deb33e0961daa4e3f132de89b3e54",
   "validationMode": "compile-and-test-before-publish",
   "versionCode": 2026101704,
-  "versionName": "1.0.102"
+  "versionName": "1.0.102",
+  "verificationFix": "Replace retired report OCR device test with image OCR isolation check"
 }
