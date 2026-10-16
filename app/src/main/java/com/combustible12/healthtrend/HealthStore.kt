@@ -370,6 +370,7 @@ class HealthStore(private val context:Context) {
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
+  require(r.results.none{distributionWidthIdentityProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目CV/SD身份与单位不一致，请核对后保存"}
   // Report-local metric order and data are independent of legacy hospital templates.
   val ordered=r
   write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
