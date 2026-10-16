@@ -93,3 +93,8 @@
 - 既有 ZIP 独立空目录恢复用例继续比较完整 `report_identity_links`，因此同步覆盖新增证据快照的备份/恢复；旧报告内容和图片关联比较保持不变。
 - 实际命令：`KOTLIN_TEST_LIBS=/workspace/scratch/5041f88669d1/kotlin-tests python3 ci/run_report_jvm.py`。变基到最新 `main` 后首次执行为 **57 项、1 项失败**，定位为截断 RDW 已按 `%` 归入 CV 后仍被复核层误拦截；修复 `metricNeedsReview` 衔接后重跑，生产核心 Kotlin 编译通过，JUnit **57/57** 通过，失败 0；仅有既有未使用参数警告。
 - 未使用真实患者数据。Android 编译及 Compose UI 操作、原生 SharedPreferences 升级/恢复、用户验收尚未完成，不记为通过。
+
+### 2026-10-16 身份映射提交 Android quick 首次结果
+- Run `38901628770`：`compileDebugKotlin` **通过**；`testDebugUnitTest` 137 项中 2 项失败。
+- 两项均为 `ReportParserTest` 仍期待截断 `RDW/PDW` 加 `%` 后保持普通身份，与同日最新用户规则“已知分布宽度族时 `%`→CV、`fL`→SD”冲突。生产解析和新增专项测试均已按新规则工作，因此同步修正旧断言，不回退代码。
+- 修正后需重新运行 Android quick；在新运行完成前仅记录首次编译通过，不宣称完整 Android 单测通过。

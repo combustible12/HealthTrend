@@ -557,16 +557,16 @@ AST/ALT 谷草/谷丙 0.88""")
   assertEquals("0.00",row("BASO#").textValue);assertEquals("0.0",row("BASO%").textValue);assertEquals("34.20",row("HCT").textValue)
   assertEquals(3.5,row("WBC").referenceLow!!,0.0);assertEquals(9.5,row("WBC").referenceHigh!!,0.0)
   assertEquals("10^9/L",row("LYMPH#").unit);assertEquals("%",row("NEUT%").unit)
-  assertEquals("%",row("PDW").unit);assertEquals("",row("P-LCR").unit);assertEquals("",row("PCT").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
+  assertEquals("%",row("PDW-CV").unit);assertEquals("",row("P-LCR").unit);assertEquals("",row("PCT").unit);assertEquals(0.108,row("PCT").referenceLow!!,0.0);assertNull(row("PCT").referenceHigh);assertEquals("P-LCC",rows.last().metricKey)
   val expected=listOf(
    "WBC" to Triple(7.25,3.5,9.5),"NEUT#" to Triple(5.77,2.0,7.0),"NEUT%" to Triple(79.4,50.0,70.0),
    "LYMPH#" to Triple(1.31,0.8,4.0),"LYMPH%" to Triple(18.1,20.0,40.0),"MONO#" to Triple(0.12,0.12,1.2),
    "MONO%" to Triple(1.7,3.0,12.0),"EOS#" to Triple(0.05,0.02,0.5),"EOS%" to Triple(0.8,0.5,5.0),
    "BASO#" to Triple(0.0,0.0,0.1),"BASO%" to Triple(0.0,0.0,1.0),"RBC" to Triple(3.99,3.68,5.13),
    "HGB" to Triple(113.0,113.0,151.0),"HCT" to Triple(34.2,34.0,45.0),"MCV" to Triple(85.7,80.0,100.0),
-   "MCH" to Triple(28.3,27.0,34.0),"MCHC" to Triple(330.0,320.0,360.0),"RDW" to Triple(12.8,11.0,16.0),
+   "MCH" to Triple(28.3,27.0,34.0),"MCHC" to Triple(330.0,320.0,360.0),"RDW-CV" to Triple(12.8,11.0,16.0),
    "RDW-SD" to Triple(40.0,35.0,56.0),"PLT" to Triple(232.0,100.0,300.0),"MPV" to Triple(9.1,6.5,12.0),
-   "PDW" to Triple(16.4,15.0,17.0),"P-LCR" to Triple(21.8,11.0,45.0),"P-LCC" to Triple(51.0,30.0,90.0)
+   "PDW-CV" to Triple(16.4,15.0,17.0),"P-LCR" to Triple(21.8,11.0,45.0),"P-LCC" to Triple(51.0,30.0,90.0)
   )
   expected.forEach{(key,v)->val x=row(key);assertEquals(key,v.first,x.value!!,0.0);assertEquals(key,v.second,x.referenceLow!!,0.0);assertEquals(key,v.third,x.referenceHigh!!,0.0)}
  }
@@ -581,7 +581,7 @@ AST/ALT 谷草/谷丙 0.88""")
  @Test fun specificChineseLabelWinsOverGenericSubstring(){
   assertEquals("RDW-SD",ReportParser.parse("RDW-SD 红细胞分布宽度SD 40 35-56 fL").single().metricKey)
   assertEquals("PCT",ReportParser.parse("PCT 血小板压积 0.212 >=0.108").single().metricKey)
-  assertEquals("PDW",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 %").single().metricKey)
+  assertEquals("PDW-CV",ReportParser.parse("PDW 血小板分布宽度 16.4 15-17 %").single().metricKey)
   assertEquals("MPV",ReportParser.parse("MPV 平均血小板体积 9.1 6.5-12 fL").single().metricKey)
   assertEquals("P-LCR",ReportParser.parse("P-LCR 大型血小板比率 21.8 11-45").single().metricKey)
  }

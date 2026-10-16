@@ -296,3 +296,4 @@
 - `ReportEditor` 新增集中“历史身份映射”管理入口；关联必须由用户选择统一指标确认，可撤销且保留旧事件。不得按中文相似度自动合并，普通 `PDW` 不可作为目标。
 - 映射只供新报告管理模块解释，未改历史报告内容、图片或别名，未接入冻结的 `trend_identity_mappings`；趋势、病程、`course_records`、TreatmentVault 均未修改。
 - `ci/jvm/ReportTakeoverTest` 已覆盖只读盘点、证据快照、重复确认拒绝、撤销/重建、旧报告不变及 ZIP 备份恢复；合并远端最新截断名称规则后修复复核层衔接，聚焦 Kotlin/JVM **57/57** 通过。Android 编译/UI、原生升级恢复和用户验收仍须分别记录。
+- Android quick run `38901628770` 编译通过，137 项单测有 2 个过期的截断宽度普通身份断言失败；已按最新 `%`→CV 规则同步 `ReportParserTest` 并触发复验。复验未完成前不能记完整 Android 单测通过。
