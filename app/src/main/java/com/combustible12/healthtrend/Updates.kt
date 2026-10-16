@@ -230,7 +230,7 @@ private fun URI(s:String)=java.net.URI(s)
       }
      }catch(e:Exception){status=e.message?:"更新失败";error(status)}finally{busy=false}
     }
-   },enabled=!busy,modifier=Modifier.fillMaxWidth().height(60.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Ink,contentColor=Color.White)){
+   },enabled=!busy,modifier=Modifier.fillMaxWidth().height(40.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Ink,contentColor=Color.White)){
     Icon(Icons.Outlined.SystemUpdateAlt,null);Spacer(Modifier.width(8.dp));Text(if(busy)"正在处理…" else "一键更新并升级",fontSize=17.sp,fontWeight=FontWeight.SemiBold)
    }
  }
