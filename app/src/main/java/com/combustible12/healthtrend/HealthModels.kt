@@ -107,6 +107,23 @@ data class LabResult(
  fun trendReferenceRange():Pair<Double?,Double?> =
   UnitNormalizer.normalize(metricKey,referenceLowAtTest,unitAtTest).first to
   UnitNormalizer.normalize(metricKey,referenceHighAtTest,unitAtTest).first
+ /** User-approved plotting estimate only; never writes the report or changes status(). */
+ fun trendPlotReferenceRange():Pair<Double?,Double?> {
+  val partial=if('?' in referenceRaw&&reportFlag.length<=1)PartialReferenceRanges.interval(referenceRaw,value,reportFlag.singleOrNull()) else null
+  if('?' in referenceRaw&&partial==null)return null to null
+  return UnitNormalizer.normalize(metricKey,partial?.lowerLimit?:referenceLowAtTest,unitAtTest).first to
+   UnitNormalizer.normalize(metricKey,partial?.upperLimit?:referenceHighAtTest,unitAtTest).first
+ }
+ fun trendRangeEstimateText():String {
+  if('?' !in referenceRaw||reportFlag.length>1)return ""
+  val partial=PartialReferenceRanges.interval(referenceRaw,value,reportFlag.singleOrNull())?:return ""
+  val bounds=trendPlotReferenceRange()
+  fun number(v:Double)=java.math.BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()
+  return listOfNotNull(
+   bounds.first?.takeUnless{partial.lower.exact}?.let{"估计下限≈${number(it)}"},
+   bounds.second?.takeUnless{partial.upper.exact}?.let{"估计上限≈${number(it)}"}
+  ).joinToString("，")
+ }
  fun withEditedValue(newValue:Double,displayText:String?=null)=copy(value=newValue,textValue=displayText?.trim()?.takeIf{it.toDoubleOrNull()==newValue}?:formatEditedValue(newValue,textValue),comparator="",editedByUser=true,normalizedValue=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).first,normalizedUnit=UnitNormalizer.normalize(metricKey,newValue,unitAtTest).second)
  private fun formatEditedValue(v:Double,previous:String):String{
   val decimals=previous.substringAfter('.', "").takeWhile{it.isDigit()}.length

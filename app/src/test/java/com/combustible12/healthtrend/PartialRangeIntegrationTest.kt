@@ -20,16 +20,22 @@ class PartialRangeIntegrationTest {
   assertEquals("0.188-0.3??",d.copy(high="0.3??").parsed().referenceRaw)
  }
  private fun result(p:ParsedLabResult)=LabResult("synthetic","synthetic","合成医院","血常规",null,p.metricKey,p.displayName,p.value,p.unit,p.referenceLow,p.referenceHigh,1L,textValue=p.textValue,referenceRaw=p.referenceRaw,reportFlag=p.reportFlag)
- @Test fun completeValueEntersTrendWithoutInventedUpperLine(){
+ @Test fun completeValueEntersTrendWithExplicitPlotEstimateAndUnchangedSource(){
   val r=result(parsed());assertEquals(0.250,r.normalizedValue!!,0.0)
   assertEquals(0.188,r.trendReferenceRange().first!!,0.0);assertNull(r.trendReferenceRange().second)
+  assertEquals(0.249,r.trendPlotReferenceRange().second!!,0.0)
+  assertTrue(r.trendRangeEstimateText().contains("估计上限≈0.249"))
+  assertEquals("0.188-0.2??",r.referenceRaw)
   assertEquals(ResultStatus.HIGH,r.status())
  }
  @Test fun absentFlagRemainsUncertainAndConflictRequiresReview(){
   assertEquals(ResultStatus.UNKNOWN,result(parsed(flag="")).status())
+  assertEquals(0.299,result(parsed(flag="")).trendPlotReferenceRange().second!!,0.0)
   val conflict=parsed(value="0.150")
   assertTrue(DraftRow.from(conflict).referenceNeedsReview())
   assertTrue(metricNeedsReview(conflict,null));assertEquals(ResultStatus.UNKNOWN,result(conflict).status())
+  assertEquals(null to null,result(conflict).trendPlotReferenceRange())
+  assertEquals("",result(conflict).trendRangeEstimateText())
  }
  @Test fun completeAndLegacyBoundsKeepExistingProjection(){
   val r=result(parsed("0.188-0.280",flag=""))
@@ -39,6 +45,8 @@ class PartialRangeIntegrationTest {
  @Test fun lowFlagConstrainsLowerWithoutInventingLine(){
   val r=result(parsed("0.1??-0.400","↓","0.150"))
   assertNull(r.trendReferenceRange().first);assertEquals(ResultStatus.LOW,r.status())
+  assertEquals(0.151,r.trendPlotReferenceRange().first!!,0.0)
+  assertTrue(r.trendRangeEstimateText().contains("估计下限≈0.151"))
  }
  @Test fun androidComposeReleaseSerializedDraftAndEmbeddedReportRemainReadable() {
   // Fixture uses the Android release Compose plugin, not a standalone compiler.

@@ -483,7 +483,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }
     val rangeDisplayRows=compatiblePoints.map{(_,x)->
      val rr=rangeKey(x)
-     "参考范围: ${x.referenceRaw.takeIf{'?' in it}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()
+     "参考范围: ${x.referenceRaw.takeIf{'?' in it}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=compatiblePoints.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
@@ -511,7 +511,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     if(compatiblePoints.isNotEmpty()){
      Spacer(Modifier.height(if(rangeDisplayRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
-     val referenceBands=compatiblePoints.map{(_,x)->x.trendReferenceRange()}
+     val referenceBands=compatiblePoints.map{(_,x)->x.trendPlotReferenceRange()}
      Spark(
       points=compatiblePoints.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
       color=trendColor,
@@ -537,11 +537,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      TrendPreviewDialog(
       points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
       color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
-      referenceBands=series.map{(_,r)->r.trendReferenceRange()},
+      referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
       segmentKeys=series.map{it.first.hospitalKey},
       segmentColors=series.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
-      onDismiss={previewSeries=null}
+      onDismiss={previewSeries=null},
+      referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct()
      )
     }
    }
@@ -775,10 +776,12 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
       val left=if(slot==0)0f else (center+with(density){centered[slot-1].toPx()})/2f
       val right=if(slot==timeline.lastIndex)size.width else (center+with(density){centered[slot+1].toPx()})/2f
       val (rl,rh)=referenceBands[i]
-      if(rl==null || rh==null){
-       listOfNotNull(rl,rh).forEach{bound->drawLine(Good.copy(alpha=.55f),Offset(left,y(bound)),Offset(right,y(bound)),1.5.dp.toPx(),pathEffect=dash)}
+      referenceBandPixels(rl,rh,size.height,::y)?.let{(top,bottom)->
+       drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),bottom-top))
       }
-      if(rl!=null&&rh!=null){val top=y(rh);val bottom=y(rl);drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(left,top),Offset(right,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(left,bottom),Offset(right,bottom),1.5.dp.toPx(),pathEffect=dash)}
+      rh?.let{drawLine(Good.copy(alpha=.55f),Offset(left,y(it)),Offset(right,y(it)),1.5.dp.toPx(),pathEffect=dash)}
+      rl?.let{drawLine(Good.copy(alpha=.55f),Offset(left,y(it)),Offset(right,y(it)),1.5.dp.toPx(),pathEffect=dash)}
+
      }
     }else when{
      referenceLow!=null&&referenceHigh!=null->{val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
@@ -808,11 +811,12 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
   }
  }
 }
-@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit){
+@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList()){
  Dialog(onDismissRequest=onDismiss){
   Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(20.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
+    if(referenceNotes.isNotEmpty())Text(referenceNotes.joinToString("；"),color=Muted,fontSize=12.sp)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
      Canvas(Modifier.fillMaxWidth().height(160.dp)){
       val bandValues=referenceBands.flatMap{listOfNotNull(it.first,it.second)}
@@ -826,10 +830,13 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
         val left=if(i==0)0f else (xs[i-1]+xs[i])/2f
         val right=if(i==points.lastIndex)size.width else (xs[i]+xs[i+1])/2f
         val (rl,rh)=referenceBands[i]
-        if(rl!=null&&rh!=null){
-         val top=y(rh);val bottom=y(rl)
-         drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),(bottom-top).coerceAtLeast(1f)))
+        referenceBandPixels(rl,rh,size.height,::y)?.let{(top,bottom)->
+         drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),bottom-top))
         }
+        val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
+        rh?.let{drawLine(Good.copy(alpha=.55f),Offset(left,y(it)),Offset(right,y(it)),1.5.dp.toPx(),pathEffect=dash)}
+        rl?.let{drawLine(Good.copy(alpha=.55f),Offset(left,y(it)),Offset(right,y(it)),1.5.dp.toPx(),pathEffect=dash)}
+
        }
       }
       val plotted=points.indices.map{i->Offset(xs[i],y(points[i].second))}
