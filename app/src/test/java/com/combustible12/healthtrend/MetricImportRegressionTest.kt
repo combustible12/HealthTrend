@@ -148,6 +148,20 @@ class MetricImportRegressionTest {
   assertFalse(draft.valid())
   assertTrue(reportValidationProblems(draft).any{it.contains("检查类型")})
  }
+ @Test fun missingMeasurementDateRemainsOnTrendTimeline() {
+  fun report(id:String,date:Long)=LabReport(id,"模拟医院","血常规",date,null,emptyList(),emptyList())
+  val old=report("first",1000L)
+  val missing=report("missing",2000L)
+  val latest=report("latest",3000L)
+  assertEquals(listOf(1000L,2000L,3000L),trendTimelineDates(listOf(old,missing,latest),listOf(old,latest),0L))
+ }
+ @Test fun canonicalIdentityDoesNotGuessDifferentMeasurements() {
+  assertNotEquals(canonicalMetricKey("NEUT#"),canonicalMetricKey("NEUT%"))
+  assertNotEquals(canonicalMetricKey("RDW-CV"),canonicalMetricKey("RDW-SD"))
+  assertNotEquals(canonicalMetricKey("AST/ALT"),canonicalMetricKey("ALT/AST"))
+  assertNotEquals(canonicalMetricKey("PCT"),canonicalMetricKey("PCTIN"))
+  assertNotEquals(canonicalMetricKey("CUSTOM-EXAMPLE"),canonicalMetricKey("WBC"))
+ }
  @Test fun detailedRowValidationIdentifiesBadBounds() {
   val draft=ReportDraft(hospital="模拟医院",type="生化",date="2026-10-14",
    rows=listOf(DraftRow(name="肌酐",key="CREA",text="1.0",unit="mg/dL",low="2",high="1")))
