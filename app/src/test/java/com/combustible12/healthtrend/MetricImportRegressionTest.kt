@@ -31,7 +31,7 @@ class MetricImportRegressionTest {
   assertNotNull(distributionWidthIdentityProblem(explicit.metricKey,explicit.displayName,explicit.unit))
  }
  @Test fun fixedClipboardPreservesDistinctIdentitiesAndSourcePrecision() {
-  val source="模拟医院\\n血常规\\n2026-10-16\\nWBC 白细胞 5.00 10^9/L 3.5-9.5\\nRDW 红细胞分布宽度 13.00 % 11-16\\nRDW 红细胞分布宽度 41 fL 35-56"
+  val source="模拟医院\n血常规\n2026-10-16\nWBC 白细胞 5.00 10^9/L 3.5-9.5\nRDW 红细胞分布宽度 13.00 % 11-16\nRDW 红细胞分布宽度 41 fL 35-56"
   val draft=pastedReportDraft(source,null)
   assertEquals(3,draft.rows.size)
   assertEquals(listOf("WBC","RDW-CV","RDW-SD"),draft.rows.map{it.key})
