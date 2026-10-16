@@ -808,8 +808,12 @@ class HealthStore(private val context:Context) {
    val persistedRanges=standardRanges(key).map{range->
     ObservedReferenceRange("", "",key,range.unit,range.low,range.high,0L,0L,0)
    }
+   // Keep every distinct source interval in this metric's pool. An identical
+   // interval recorded by different hospitals remains separately attributable.
+   // Source hospital identifies the interval record, never the metric identity.
    val ranges=(persistedRanges+savedRanges+templateRanges).distinctBy{
-    listOf(it.unit,it.lower?.toString(),it.upper?.toString())
+    listOf(it.hospitalKey,it.reportType,it.metricKey,it.unit,
+     it.lower?.toString(),it.upper?.toString())
    }
    val units=rememberedUnits(key)
    val common=definition?.unit?.takeIf{it.isNotBlank()}
