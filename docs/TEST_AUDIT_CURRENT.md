@@ -74,3 +74,9 @@
 
 ### 2026-10-16 同步守卫异常
 提交 `033faeb` 的 Android compile check 已启动；同一提交的 change-sync workflow 因工作流文件尾部重复残片而在创建作业前失败，并非测试断言失败。已修复 YAML，修复后的 workflow 尚待远端运行，不能记为通过。
+
+### 2026-10-16 报告 OCR 移除回归范围
+- 用户确认报告数据导入只保留固定格式粘贴和手工录入，OCR 仅属于图片资料模块。
+- 删除报告导入的 OCR 入口、识别器调用和双栏 OCR 重建测试；新增静态边界检查，要求 `ReportImport.kt` 不引用 ML Kit、`ReportOcr`、相机或相册识别入口，同时确认 `ImageDocuments.kt` 的 OCR 索引实现仍存在。
+- 历史 `rawOcr`、报告原图和图片关联的读取/备份恢复测试继续保留。`python3 ci/check_report_ocr_boundary.py` 通过；聚焦 Kotlin/JVM 回归 **52/52** 通过。
+- 上一提交 `033faeb` 的 Android `compileDebugKotlin` 已通过；完整 `testDebugUnitTest` 共 135 项、7 项失败，均位于 `ReportParserTest`。失败项目为固定格式行单位/范围旧断言及“检查类型可空”旧断言，尚未逐项按最新规则处理，不能记为完整单元测试通过。本次报告 OCR 移除提交的 Android CI 尚待运行。

@@ -1,27 +1,13 @@
 package com.combustible12.healthtrend
 
-import android.net.Uri
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
-import com.google.android.gms.tasks.Task
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import kotlinx.coroutines.*
-import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
-class ImportActions(val camera:()->Unit,val gallery:()->Unit,val paste:(String)->Unit,val manual:()->Unit,val busy:Boolean,val message:String)
-private suspend fun <T> Task<T>.result():T=suspendCancellableCoroutine{c->addOnSuccessListener{if(c.isActive)c.resume(it)}.addOnFailureListener{if(c.isActive)c.resumeWithException(it)}.addOnCanceledListener{c.cancel()}}
+class ImportActions(val paste:(String)->Unit,val manual:()->Unit,val busy:Boolean,val message:String)
 class ReportImportViewModel(application:Application):AndroidViewModel(application){
  private val context=application.applicationContext
  private val store=HealthStore(context)
@@ -42,42 +28,12 @@ class ReportImportViewModel(application:Application):AndroidViewModel(applicatio
    }catch(e:Exception){if(e is CancellationException)throw e;pendingError="粘贴的数据无法导入：${e.message}"}finally{busy=false}
   }
  }
- fun recognize(uris:List<Uri>){if(uris.isEmpty()||busy)return;busy=true;message="正在保存原图和识别报告…"
-  viewModelScope.launch{
-   val owned=mutableListOf<String>();val texts=mutableListOf<String>();val failures=mutableListOf<String>()
-   try{
-    val recognizer=TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-    try{uris.forEachIndexed{i,uri->
-     val saved=withContext(Dispatchers.IO){store.ownImage(uri)};owned.add(saved)
-     message="正在识别第 ${i+1}/${uris.size} 页…"
-     try{
-      val input=withContext(Dispatchers.IO){InputImage.fromBitmap(decodeReportBitmap(context,Uri.parse(saved),maxDimension=12000),0)}
-      val t=recognizer.process(input).result()
-      texts.add(ReportOcr.tableText(t))
-     }catch(e:Exception){if(e is CancellationException)throw e;failures.add("第 ${i+1} 页识别失败，原图已保留，可手动补录。")}
-    }}finally{recognizer.close()}
-    val raw=texts.joinToString("\n\n");val parsed=store.reconcileParsedMetrics(ReportParser.parse(raw))
-    val meta=ReportMetadata.extract(raw,parsed)
-    val hospital=meta.hospital
-    val date=meta.date
-    val type=meta.reportType
-    val resolved=store.reconcileParsedMetrics(parsed)
-    pendingDraft=ReportDraft(hospital=hospital,type=type,date=date,images=owned,ocr=raw,rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain)
-    message=failures.joinToString("\n")
-   }catch(e:Exception){if(e is CancellationException)throw e;pendingError="报告导入未完成：${e.message}"}finally{busy=false}
-  }
- }
-
 }
-@Composable fun rememberReportImport(store:HealthStore,ready:(ReportDraft)->Unit,error:(String)->Unit,deliver:Boolean=true):ImportActions {
- val context=LocalContext.current
+@Composable fun rememberReportImport(ready:(ReportDraft)->Unit,error:(String)->Unit,deliver:Boolean=true):ImportActions {
  val model:ReportImportViewModel=viewModel()
- var cameraUri by rememberSaveable{mutableStateOf<Uri?>(null)}
  LaunchedEffect(model.pendingDraft,deliver){if(deliver)model.pendingDraft?.let{ready(it);model.consumeDraft()}}
  LaunchedEffect(model.pendingError){model.pendingError?.let{error(it);model.consumeError()}}
- val gallery=rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()){model.recognize(it)}
- val camera=rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()){success->val uri=cameraUri;if(success&&uri!=null)model.recognize(listOf(uri)) else if(uri!=null)runCatching{discardCameraDestination(context,uri)};cameraUri=null}
- return ImportActions(camera={if(!model.busy)try{val uri=createCameraDestination(context);cameraUri=uri;camera.launch(uri)}catch(e:Exception){error("无法启动相机：${e.message}")}},gallery={if(!model.busy)gallery.launch(arrayOf("image/*"))},paste={model.paste(it)},manual={if(!model.busy)ready(ReportDraft(rows=listOf(DraftRow())))},busy=model.busy,message=model.message)
+ return ImportActions(paste={model.paste(it)},manual={if(!model.busy)ready(ReportDraft(rows=listOf(DraftRow())))},busy=model.busy,message=model.message)
 }
 
 private val pastedMetadataLabel=Regex("^(医院|医疗机构|检查日期|检验日期|报告日期|日期|检查类型|报告类型|类型)\\s*[:：]")
@@ -85,8 +41,8 @@ internal fun normalizePastedReportText(raw:String)=raw.lines().map{it.trim()}.fi
  .joinToString("\n"){it.replace('｜','|').split('|').joinToString(" "){part->part.trim()}.replace(Regex("\\s+")," ")}
 
 /**
- * Converts chat-assisted, clipboard or plain-text report data into the same draft used
- * by camera/gallery OCR. Each new report independently owns its measured rows;
+ * Converts manually verified clipboard or plain-text report data into a report draft.
+ * The report-data module does not perform OCR. Each new report owns its measured rows;
  * legacy hospital templates are not consulted for matching or review.
  */
 internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,store:HealthStore?=null):ReportDraft{
@@ -98,7 +54,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  if(parsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
  val meta=ReportMetadata.extract(raw,parsed)
  // Clipboard data already has an explicit metric code on every row. Exact canonical
- // code matching is sufficient here; do not run the OCR-only "independent result"
+ // code matching is sufficient here; do not run heuristics intended for noisy image text,
  // heuristic, because units such as 10^9/L contain digits before the printed range.
  // The standard pool determines identity. Report source name, unit and printed
  // reference interval remain attached to this test, independent of hospital.
@@ -107,40 +63,6 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
   hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain
  )
-}
-
-/** Spatial reconstruction prevents OCR block order from separating a result from its name. */
-internal data class OcrCell(val text:String,val left:Int,val right:Int,val cy:Int,val h:Int)
-internal fun reconstructOcrTable(cells:List<OcrCell>):String{
- if(cells.isEmpty())return ""
- val minX=cells.minOf{it.left};val maxX=cells.maxOf{it.right};val width=(maxX-minX).coerceAtLeast(1)
- // Infer a divider from row-local gaps. Full-width headers do not contribute, so they cannot
- // bridge the two analyzer tables and accidentally merge NEUT with MPV on the same line.
- val candidates=cells.groupBy{cell->
-  val tolerance=(cell.h.coerceAtLeast(1)*.7).toInt().coerceAtLeast(1)
-  cell.cy/tolerance
- }.values.mapNotNull{row->
-  val sorted=row.sortedBy{it.left};if(sorted.size<2)null else sorted.zipWithNext()
-   .map{(a,b)->(b.left-a.right) to ((a.right+b.left)/2)}
-   .filter{it.first>width*.08}.maxByOrNull{it.first}
- }
- val center=(minX+maxX)/2
- val split=candidates.filter{kotlin.math.abs(it.second-center)<width*.3}.map{it.second}.sorted().let{if(it.isEmpty())null else it[it.size/2]}
- val columns=if(split==null)listOf(cells) else listOf(cells.filter{(it.left+it.right)/2<split},cells.filter{(it.left+it.right)/2>=split}).filter{it.isNotEmpty()}
- return columns.joinToString("\n"){column->
-  val rows=mutableListOf<MutableList<OcrCell>>()
-  column.sortedWith(compareBy<OcrCell>{it.cy}.thenBy{it.left}).forEach{cell->
-   val row=rows.lastOrNull();val base=row?.firstOrNull()
-   if(base!=null&&kotlin.math.abs(cell.cy-base.cy)<=minOf(cell.h,base.h)*.55)row.add(cell) else rows.add(mutableListOf(cell))
-  }
-  rows.joinToString("\n"){row->row.sortedBy{it.left}.joinToString("  "){it.text}}
- }
-}
-object ReportOcr {
- fun tableText(t:com.google.mlkit.vision.text.Text):String {
-  val cells=t.textBlocks.flatMap{it.lines}.mapNotNull{line->line.boundingBox?.let{b->OcrCell(line.elements.joinToString(" "){it.text},b.left,b.right,b.centerY(),b.height())}}
-  return reconstructOcrTable(cells).ifBlank{t.text}
- }
 }
 
 /** New reports are reviewed by their own parsed identity/value/range, never by a hospital template.
@@ -154,7 +76,7 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  return false
 }
 
-/** Rebind OCR fields when the hospital, panel or laboratory system changes. */
+/** Rebind unresolved pasted fields when the hospital, panel or laboratory system changes. */
 fun retargetImportedDraft(
  d:ReportDraft,store:HealthStore,
  hospital:String=d.hospital,type:String=d.type,system:String=d.system

@@ -15,7 +15,6 @@ def segment(file,start,end):
 (work/'Date.kt').write_text('package com.combustible12.healthtrend\nimport java.time.*\nimport java.time.format.DateTimeFormatter\n'+segment('MainActivity.kt','private val stamp=','fun ResultStatus.label'))
 text=(src/'ReportImport.kt').read_text()
 text=text[text.index('private val pastedMetadataLabel'): ] if 'private val pastedMetadataLabel' in text else text[text.index('private val pasted'):]
-text=text[:text.index('object ReportOcr')]+text[text.index('/** New reports are reviewed'):]
 (work/'Import.kt').write_text('package com.combustible12.healthtrend\n'+text)
 files=[src/(x+'.kt') for x in ['HealthModels','UnifiedMetricStandard','ReportParser','HealthStore','HistoryReplacement','ReportEditing','HealthBackup','LegacyReportCompatibility']]
 files+=list((root/'ci/jvm').glob('*.kt'))+list(work.glob('*.kt'))

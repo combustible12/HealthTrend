@@ -610,22 +610,6 @@ AST/ALT 谷草/谷丙 0.88""")
   assertEquals("2026-09-18",meta.date)
  }
 
- @Test fun twoColumnOcrHeaderCannotMergeIndependentRows(){
-  val cells=listOf(
-   OcrCell("霞浦县中医院检验报告单",0,1000,50,40),
-   OcrCell("%NEUT 中性粒细胞百分比 79.4 50.0-70.0 %",20,450,200,30),
-   OcrCell("MPV 平均血小板体积 9.1 6.5-12 fL",560,980,200,30),
-   OcrCell("#LYMPH 淋巴细胞计数 1.31 0.8-4.0 10^9/L",20,450,240,30),
-   OcrCell("PDW 血小板分布宽度 16.4 15-17 %",560,980,240,30)
-  )
-  val text=reconstructOcrTable(cells)
-  val lines=text.lines()
-  assertTrue(lines.any{it.contains("%NEUT")&&!it.contains("MPV")})
-  assertTrue(lines.any{it.contains("MPV")&&!it.contains("%NEUT")})
-  assertEquals(79.4,ReportParser.parse(text).first{it.metricKey=="NEUT%"}.value!!,0.0)
-  assertEquals(9.1,ReportParser.parse(text).first{it.metricKey=="MPV"}.value!!,0.0)
- }
-
  @Test fun suffixNrbcNotationAlsoKeepsPrecisionAndOneSidedRange(){
   val rows=ReportParser.parse("NRBC% 有核红细胞比率 0.00 <=9999.99\nNRBC# 有核红细胞计数 0.000 <=9999.99")
   val pct=rows.single{it.metricKey=="NRBC%"};val count=rows.single{it.metricKey=="NRBC#"}
