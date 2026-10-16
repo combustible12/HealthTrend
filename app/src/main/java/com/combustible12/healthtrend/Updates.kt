@@ -266,6 +266,7 @@ private fun URI(s:String)=java.net.URI(s)
      options.forEach{option->FilterChip(selected=value==option,onClick={onSelect(option)},label={Text(option.ifEmpty{"未填写"})})}
     }
    }
+   OutlinedTextField(value=draft.testedDate,onValueChange={draft=draft.copy(testedDate=it)},placeholder={Text("检测日期 YYYY-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth())
    Choice("ABO",draft.abo,listOf("","A","B","AB","O")){draft=draft.copy(abo=it)}
    Choice("Rh(D)",draft.rhD,listOf("","阳性","阴性")){draft=draft.copy(rhD=it)}
    Choice("Rh(C)",draft.rhC,listOf("","阳性","阴性")){draft=draft.copy(rhC=it)}
@@ -275,7 +276,7 @@ private fun URI(s:String)=java.net.URI(s)
     Button({try{store.saveBloodGroupProfile(draft);saved=store.bloodGroupProfile();editing=false;changed()}catch(e:Exception){error(e.message?:"血型保存失败")}}){Text("保存血型",color=Color.White)}
    }
   }else{
-   listOf("ABO" to saved.abo.let{if(it.isEmpty())it else "${it}型"},"Rh(D)" to saved.rhD,"Rh(C)" to saved.rhC,"Rh(E)" to saved.rhE).forEach{(label,value)->
+   listOf("检测日期" to saved.testedDate,"ABO" to saved.abo.let{if(it.isEmpty())it else "${it}型"},"Rh(D)" to saved.rhD,"Rh(C)" to saved.rhC,"Rh(E)" to saved.rhE).forEach{(label,value)->
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,color=Muted);Text(value.ifBlank{"未填写"},color=Ink)}
    }
    TextButton({draft=saved;editing=true}){Text("编辑血型")}

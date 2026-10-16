@@ -16,7 +16,7 @@ class ReportTakeoverTest {
   prefs.edit().putString("course_records","[]").putString("reports","[]").commit()
   s.savePatientProfile(PatientProfile(name="合成资料",bloodType="旧血型原文"))
   val before=prefs.getString("reports",null)
-  val p=BloodGroupProfile("AB","阳性","阴性","阳性")
+  val p=BloodGroupProfile("AB","阳性","阴性","阳性","2026-01-15")
   s.saveBloodGroupProfile(p)
   assertEquals(p,HealthStore(Context(c.root)).bloodGroupProfile())
   assertEquals("旧血型原文",s.patientProfile().bloodType)
