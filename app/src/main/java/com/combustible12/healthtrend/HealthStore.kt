@@ -263,7 +263,25 @@ class HealthStore(private val context:Context) {
    }
   }
  }
- @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
+ @Synchronized fun deleteReport(id:String){
+  val before=read("reports").toString()
+  val original=reports()
+  if(original.none{it.id==id})return
+  val expected=original.filterNot{it.id==id}
+  try {
+   write("reports",JSONArray().apply{expected.forEach{put(reportToJson(it))}})
+   val actual=reports()
+   check(actual.map{it.id}.toSet()==expected.map{it.id}.toSet() &&
+    actual.size==expected.size &&
+    actual.none{it.id==id}){
+    "报告删除验证失败：原报告仍存在或其他报告丢失"
+   }
+  }catch(e:Exception){
+   runCatching{write("reports",JSONArray(before))}
+    .onFailure{rollback->e.addSuppressed(rollback)}
+   throw e
+  }
+ }
  private fun historyReplacementBatch(text:String):HistoryReplacementBatch{
   val o=JSONObject(text)
   require(o.getString("format")=="healthtrend-history-replacement-v1"){"不是 HealthTrend 历史核对文件"}
