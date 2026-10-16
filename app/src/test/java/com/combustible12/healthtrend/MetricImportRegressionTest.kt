@@ -5,6 +5,13 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun colonSeparatedInverseRatiosKeepDirections() {
+  assertEquals("AST/ALT",canonicalMetricKey("AST:ALT"))
+  assertEquals("ALT/AST",canonicalMetricKey("ALT:AST"))
+  assertNotEquals(canonicalMetricKey("ALT:AST"),canonicalMetricKey("AST:ALT"))
+  assertEquals("ALT/AST",ReportParser.key("ALT:AST"))
+  assertEquals("AST/ALT",ReportParser.key("AST:ALT"))
+ }
  @Test fun inverseLiverRatiosKeepDifferentIdentities() {
   assertEquals("AST/ALT", ReportParser.key("谷草/谷丙"))
   assertEquals("ALT/AST", ReportParser.key("谷丙/谷草"))
