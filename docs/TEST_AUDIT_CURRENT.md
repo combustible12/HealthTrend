@@ -71,3 +71,6 @@
 
 ### 2026-10-16 Android 集中编译请求
 已更新 `ci/compile-trigger.txt`，请求 GitHub Android quick workflow 对提交 `8809b5a` 执行 `compileDebugKotlin` 与 `testDebugUnitTest`。当前仅记录已请求，结果尚未返回，不能记为通过。
+
+### 2026-10-16 同步守卫异常
+提交 `033faeb` 的 Android compile check 已启动；同一提交的 change-sync workflow 因工作流文件尾部重复残片而在创建作业前失败，并非测试断言失败。已修复 YAML，修复后的 workflow 尚待远端运行，不能记为通过。
