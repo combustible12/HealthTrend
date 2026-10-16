@@ -28,3 +28,4 @@ Run standalone pending-draft roundtrip regression test 2026-10-14.
 
 2026-10-17 partial reference end-to-end compile and JVM regression
 2026-10-17 verify legacy draft serialization compatibility and source-precision assertions after efc3aba.
+2026-10-17 verify actual Android Compose serialization signatures and full test suite.

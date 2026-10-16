@@ -22,6 +22,6 @@ tests=[root/'app/src/test/java/com/combustible12/healthtrend'/ (x+'.kt') for x i
 tests.append(root/'ci/jvm/ReportTakeoverTest.kt')
 files.remove(root/'ci/jvm/ReportTakeoverTest.kt')
 cp=os.pathsep.join(str(libs/x) for x in ['stdlib.jar','json.jar','junit.jar','hamcrest.jar','annotations.jar'])
-compiler=os.pathsep.join(str(libs/x) for x in ['compiler.jar','stdlib.jar','reflect.jar','script.jar','trove.jar','annotations.jar'])
+compiler=os.pathsep.join(str(libs/x) for x in ['compiler.jar','stdlib.jar','reflect.jar','script.jar','trove.jar','annotations.jar','coroutines.jar'])
 subprocess.run(['java','-cp',compiler,'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-no-stdlib','-no-reflect','-jvm-target','17','-cp',cp,'-d',str(work/'tests.jar'),*map(str,files+tests)],check=True)
 subprocess.run(['java','-cp',str(work/'tests.jar')+os.pathsep+cp+os.pathsep+str(root/'app/src/test/resources'),'org.junit.runner.JUnitCore',*['com.combustible12.healthtrend.'+p.stem for p in tests], 'com.combustible12.healthtrend.PartialRangeStorageTest'],check=True)

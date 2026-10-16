@@ -8,6 +8,8 @@
 - 标准范围学习/历史候选排除含问号范围。异常颜色使用保守区间约束；矛盾保留并待核对。未知边界保留 null，完整结果仍绘点；局部图保留确定边界，不为未知上限填充阴影。整体趋势复用同一边界投影。
 - 聚焦 JVM 最终 **75/75 通过**（实际执行 `ci/run_report_jvm.py`）；含旧版 Java 序列化草稿及嵌入报告读回。新增字段保持原 serialVersionUID，并在反序列化时补充空默认值。
 - 功能提交 `efc3abaf710b19fed96c2d436ea01b78d55e9b63`，Android quick `38942327864` Kotlin 编译通过，150 项单测 2 项失败：ReportParserTest 第39/55行旧断言强制范围数字转换为 Double 字符串，与原文精度保留规则冲突。现更新为原始 `42.00`、`9`、`50`；不是跳过测试。含兼容修复的完整 Android 复验与发布待执行。
+- `7f2319b8f6f7dd7fc69e9c4cfa4b28e4d18cb6f3` Android quick `38942726674` 编译通过，151项中仅旧草稿兼容测试失败。已定位根因：Compose 编译插件注入 public `$stable`，导致自动 serialVersionUID 不同于单独 Kotlin 编译。已用基线 ea68502 + Kotlin 2.0.21 + 同版 Compose 插件重建合成旧草稿；保留 Android 原签名（DraftRow -2490116718920370338、ReportDraft -5255338370631356265、LabResult -3909522735447564327、LabReport -5053754111289098495），不是删除兼容测试。最终本地及Android复验待返回。
+
 - 未修改病程、course_records、指标身份定义或历史报告；合成测试使用虚构医院和虚构数据。
 - 当前余项：Android 完整复验、签名 APK 发布与下载核实。真机覆盖安装验证未执行，不能冒称已测。
 

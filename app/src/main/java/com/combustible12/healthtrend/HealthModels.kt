@@ -70,7 +70,9 @@ fun labDisplayTitle(name:String,key:String):String{
 }
 data class HospitalLabTemplate(val hospitalKey:String,val reportType:String,val version:Int,val confirmed:Boolean,val fields:List<LabFieldTemplate>,val systemKey:String=""):java.io.Serializable
 data class LabFieldTemplate(val metricKey:String,val displayName:String,val unit:String,val referenceLow:Double?,val referenceHigh:Double?,val trendMeaning:String=metricPurpose(metricKey).orEmpty()):java.io.Serializable
-data class LabReport(val id:String,val hospitalKey:String,val reportType:String,val testedAtEpochMillis:Long,val templateVersion:Int?,val sourceImages:List<ReportImage>,val results:List<LabResult>,val rawOcr:String="",val systemKey:String=""):java.io.Serializable
+data class LabReport(val id:String,val hospitalKey:String,val reportType:String,val testedAtEpochMillis:Long,val templateVersion:Int?,val sourceImages:List<ReportImage>,val results:List<LabResult>,val rawOcr:String="",val systemKey:String=""):java.io.Serializable {
+ companion object {private const val serialVersionUID:Long=-5053754111289098495L}
+}
 data class ReportImage(val uri:String,val pageIndex:Int,val importedAtEpochMillis:Long):java.io.Serializable
 data class LabResult(
  val id:String,val reportId:String,val hospitalKey:String,val reportType:String,val templateVersion:Int?,val metricKey:String,val rawName:String,
@@ -79,7 +81,7 @@ data class LabResult(
  val normalizedValue:Double?=value,val normalizedUnit:String=unitAtTest,
  val referenceRaw:String="",val reportFlag:String=""
 ):java.io.Serializable{
- companion object {private const val serialVersionUID:Long=4841742225906257837L}
+ companion object {private const val serialVersionUID:Long=-3909522735447564327L}
  private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())
  fun status():ResultStatus {
   val n=value ?: return ResultStatus.UNKNOWN

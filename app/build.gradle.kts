@@ -29,3 +29,8 @@ dependencies {
  implementation("androidx.compose.material:material-icons-extended")
  implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 }
+
+// Keep CI failure causes visible instead of only a test name and line number.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+ testLogging { exceptionFormat=org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+}
