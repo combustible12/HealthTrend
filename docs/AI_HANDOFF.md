@@ -1,20 +1,14 @@
 # HealthTrend｜ChatGPT ↔ Codex 开发交接
 
-## 当前状态：不完整参考范围全链路（2026-10-17）
+## 当前状态：不完整参考范围全链路已发布（2026-10-17）
 
-基线 `ea68502883a41d44502b043d237c4e4b93376cc1`。本节覆盖下方历史快照。
+本节为唯一当前状态，下方旧施工状态只用于历史追溯。
 
-- 已接入 ReportParser → DraftRow/ReportDraft → 人工编辑 → materializeReportDraft → JSON 持久化 → 文本导出再导入；新增可选 referenceRaw/reportFlag，不运行历史迁移。
-- 标准范围学习/历史候选排除含问号范围。异常颜色使用保守区间约束；矛盾保留并待核对。未知边界保留 null，完整结果仍绘点；局部图保留确定边界，不为未知上限填充阴影。整体趋势复用同一边界投影。
-- 聚焦 JVM 最终 **75/75 通过**（实际执行 `ci/run_report_jvm.py`）；含旧版 Java 序列化草稿及嵌入报告读回。新增字段保持原 serialVersionUID，并在反序列化时补充空默认值。
-- 功能提交 `efc3abaf710b19fed96c2d436ea01b78d55e9b63`，Android quick `38942327864` Kotlin 编译通过，150 项单测 2 项失败：ReportParserTest 第39/55行旧断言强制范围数字转换为 Double 字符串，与原文精度保留规则冲突。现更新为原始 `42.00`、`9`、`50`；不是跳过测试。含兼容修复的完整 Android 复验与发布待执行。
-- `7f2319b8f6f7dd7fc69e9c4cfa4b28e4d18cb6f3` Android quick `38942726674` 编译通过，151项中仅旧草稿兼容测试失败。已定位根因：Compose 编译插件注入 public `$stable`，导致自动 serialVersionUID 不同于单独 Kotlin 编译。已用基线 ea68502 + Kotlin 2.0.21 + 同版 Compose 插件重建合成旧草稿；保留 Android 原签名（DraftRow -2490116718920370338、ReportDraft -5255338370631356265、LabResult -3909522735447564327、LabReport -5053754111289098495），不是删除兼容测试。最终本地及Android复验待返回。
-
-- **最终功能验证**：`606fb9e8688a6ce66f17e2b810cdb8048b57b3fc`；本地 Kotlin 2.0.21 聚焦 JVM **75/75** 通过；Android quick `38943369594` 的 compileDebugKotlin、testDebugUnitTest 均成功（相同151项测试集）。原序列化失败已修复，未跳过。同步守卫此前未把资源样本变化计为测试文件更新，现同步更新受影响用例名称/样本来源说明，不绕过守卫。
-- 发布准备：1.0.100 / 2026101702，沿用持久签名；release工作流增加最终单测及XML数量统计，通过后才组装并发布。当前仅准备触发，APK发布结果须以工作流为准。
-
-- 未修改病程、course_records、指标身份定义或历史报告；合成测试使用虚构医院和虚构数据。
-- 当前余项：最终发布作业、签名 APK 发布与下载核实。真机覆盖安装验证未执行，不能冒称已测。
+- 已完成问号范围解析、原始异常提示内部约束、人工核对/编辑、无损保存重开、导出再导入、标准范围池隔离及趋势图必要适配。未知边界不画虚假精确线/阴影，完整结果正常绘点。
+- 功能验证提交 `606fb9e8688a6ce66f17e2b810cdb8048b57b3fc`；发布提交 `1890cf91a0f694447b98aa6aa530423d2305d828`。本地聚焦 JVM **75/75** 通过；Android quick `38943369594` 编译和单测通过；正式发布 run `38943657050` **成功**，最终 XML 统计 **151 tests / 0 failures / 0 errors / 0 skipped**，签名 release APK 构建通过。
+- **正式版本 1.0.100 / 2026101702**：[APK](https://github.com/combustible12/HealthTrend/releases/download/v2026101702/HealthTrend.apk)。已实际下载，ZIP完整性/包名/版本/签名均验证；SHA-256 `aa49521ee7ff19d40b5e42de0775c0112c0fba3e03008a2d2278ae3049c21c0d`，大小 56868592 bytes。
+- 与上一版 v2026101701 签名证书相同：`5acccb7b281fbe2878ff8e62b57e4a1149c82bcf40e3c0b36d8e709c9da95628`。支持覆盖安装；旧 JSON 无迁移回写，旧 Android Compose 序列化草稿及内嵌报告兼容测试通过。不修改病程/course_records、既有身份或历史结果。
+- 必要自动验证及发布待办 **0**。未执行用户手机的实际覆盖安装/界面手势实测，不将上述自动测试冒称真机验收。完整测试证据及此前失败根因见 [本次测试记录](./TEST_RESULTS_2026-10-17_PARTIAL_RANGES.md)。
 
 
 ## 当前施工状态：旧模板清理与历史报告接管（2026-10-16 Work）
