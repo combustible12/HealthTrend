@@ -21,6 +21,32 @@ object MetricDictionary {
  }
 }
 
+/** Protect distinct CV (relative dispersion) and SD (absolute width) identities.
+ * A conflicting source unit or explicit CV/SD label requires manual correction;
+ * never reinterpret fL as % or silently switch a confirmed metric key.
+ * Null means this identity has no specialized CV/SD guard.
+ */
+fun distributionWidthIdentityProblem(metricKey:String,name:String,unit:String):String? {
+ val key=canonicalMetricKey(metricKey)
+ val family=when(key){
+  "PDW","PDW-CV","PDW-SD"->"PDW"
+  "RDW","RDW-CV","RDW-SD"->"RDW"
+  else->return null
+ }
+ val rawUnit=unit.trim().lowercase()
+ val isPercent=rawUnit in setOf("%","％")
+ val isVolume=rawUnit=="fl"
+ val label=name.uppercase().replace("－","-").replace(" ","")
+ val explicitCv=label.contains("CV")||label.contains("变异系数")
+ val explicitSd=label.contains("SD")||label.contains("标准差")
+ if(explicitCv&&explicitSd)return "指标名称同时包含CV和SD，请核对"
+ if(key=="$family-CV"&&(explicitSd||isVolume))return "CV指标与SD名称或fL单位冲突，请核对身份"
+ if(key=="$family-SD"&&(explicitCv||isPercent))return "SD指标与CV名称或%单位冲突，请核对身份"
+ if(key==family&&(explicitCv||explicitSd||isPercent||isVolume))
+  return "未区分CV/SD的旧指标身份需要核对，不得直接按单位自动归类"
+ return null
+}
+
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
  val raw=name.trim()
