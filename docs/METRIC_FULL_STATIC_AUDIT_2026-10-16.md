@@ -2,7 +2,7 @@
 
 **审核层级分开**：本次一次性把 **112/112 项** 的源码 ID、中文名称、别名、单位预设与身份风险逐项列出来并做静态复核；**医学官方资料已逐一确证的项目仍只有此前复审台账的 20/112 项，剩余 92 项尚未完成逐项目术语来源核对**，绝不能把这两个数字混为一谈。软件自动化测试、真实设备的导入/编辑/保存验收也尚未执行。
 
-来源为当前 [UnifiedMetricStandard.kt](../app/src/main/java/com/combustible12/healthtrend/UnifiedMetricStandard.kt)；此表是代码清单，不是医院方法认证。身份审核遵从 [固定核验规范](./METRIC_IDENTITY_AUDIT_RULES.md)。LOINC 测量身份需区别 analyte、property、specimen、timing、scale、method；见 [官方结构说明](https://loinc.org/kb/faq/structure) 与 [官方映射建议](https://loinc.org/kb/users-guide/recommendations-for-best-practices-in-using-and-mapping-to-loinc)。
+来源为当前 [UnifiedMetricStandard.kt](../app/src/main/java/com/combustible12/healthtrend/UnifiedMetricStandard.kt)；此表是代码清单，不需要医院或仪器认证。身份审核遵从 [固定核验规范](./METRIC_IDENTITY_AUDIT_RULES.md)。LOINC 测量身份需区别 analyte、property、specimen、timing、scale、method；见 [官方结构说明](https://loinc.org/kb/faq/structure) 与 [官方映射建议](https://loinc.org/kb/users-guide/recommendations-for-best-practices-in-using-and-mapping-to-loinc)。
 
 ### 本轮代码检查结果
 - **112 项定义均已枚举**；无完全重复的标准中文名称；未预设单位 **15 项**（如 DDIMER、PDW、VITD25），必须保留原报告值，不擅自填单位。
@@ -128,5 +128,5 @@
 ## 严格剩余数量
 - **代码层逐项清点：112/112 项完成，剩余 0 项**（仅静态核对，并非全链路正确性证明）。
 - **逐项目外部医学术语核验：20/112 项已有此前复审记录，剩余 92 项**（尚未逐项验证官方匹配，不能当作“完成”）。
-- **具体医院设备/检测方法认证：0/112 项**，只可由真实报告/仪器资料逐项确认。
+- **医院、仪器、检测方法认证：不属于本项目词典任务，不设进度项。** 医院只作为报告来源标签，不参与身份判定。
 - **程序运行验证：未执行**。需要实际运行合成测试与手机端导入核对后才可标记通过。
