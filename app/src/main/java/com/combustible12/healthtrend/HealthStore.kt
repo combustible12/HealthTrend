@@ -260,12 +260,10 @@ class HealthStore(private val context:Context) {
   return reports
  }
  /**
-  * Preserve every reference interval observed in reports. A hospital may use
-  * multiple intervals for the same test; none replaces earlier test-time bounds.
-  * No analyzer identifier is required or inferred.
+  * Preserve reference intervals by metric identity + unit + bounds only.
+  * Hospital stays on LabReport, never inside the dictionary or its range key.
   */
  data class ObservedReferenceRange(
-  val hospitalKey:String,val reportType:String,
   val metricKey:String,val unit:String,val lower:Double?,val upper:Double?,
   val firstObservedAt:Long,val lastObservedAt:Long,val reportCount:Int
  )
@@ -285,19 +283,17 @@ class HealthStore(private val context:Context) {
    }
   }
   return evidence.groupBy{e->listOf(
-   e.report.hospitalKey.trim(),e.report.reportType.trim(),
    identity,e.result.unitAtTest,e.result.referenceLowAtTest?.toString().orEmpty(),
    e.result.referenceHighAtTest?.toString().orEmpty()
   )}.values.map{group->
    val first=group.first()
-   ObservedReferenceRange(first.report.hospitalKey,first.report.reportType,
-    identity,first.result.unitAtTest,
+   ObservedReferenceRange(identity,first.result.unitAtTest,
     first.result.referenceLowAtTest,first.result.referenceHighAtTest,
     group.minOf{it.report.testedAtEpochMillis},
     group.maxOf{it.report.testedAtEpochMillis},
     group.map{it.report.id}.distinct().size)
   }.sortedWith(compareBy<ObservedReferenceRange>{it.firstObservedAt}
-   .thenBy{it.hospitalKey}.thenBy{it.reportType})
+   .thenBy{it.unit}.thenBy{it.lower}.thenBy{it.upper})
  }
  data class StandardRange(val metricKey:String,val unit:String,val low:Double?,val high:Double?)
  private fun normalizedStandardRange(key:String,unit:String,low:Double?,high:Double?):StandardRange {
@@ -800,20 +796,18 @@ class HealthStore(private val context:Context) {
      (it.referenceLow!=null||it.referenceHigh!=null)}.map{field->
      val low=UnitNormalizer.normalize(key,field.referenceLow,field.unit)
      val high=UnitNormalizer.normalize(key,field.referenceHigh,field.unit)
-     ObservedReferenceRange(template.hospitalKey,template.reportType,key,
+     ObservedReferenceRange(key,
       if(field.referenceLow!=null)low.second else high.second,low.first,high.first,
       0L,0L,0)
     }
    }
    val persistedRanges=standardRanges(key).map{range->
-    ObservedReferenceRange("", "",key,range.unit,range.low,range.high,0L,0L,0)
+    ObservedReferenceRange(key,range.unit,range.low,range.high,0L,0L,0)
    }
-   // Keep every distinct source interval in this metric's pool. An identical
-   // interval recorded by different hospitals remains separately attributable.
-   // Source hospital identifies the interval record, never the metric identity.
-   val ranges=(persistedRanges+savedRanges+templateRanges).distinctBy{
-    listOf(it.hospitalKey,it.reportType,it.metricKey,it.unit,
-     it.lower?.toString(),it.upper?.toString())
+   // Multiple ranges per identity, independent of hospital. The original
+   // report (including hospital and exact test-time range) remains unchanged.
+   val ranges=(savedRanges+persistedRanges+templateRanges).distinctBy{
+    listOf(it.metricKey,it.unit,it.lower?.toString(),it.upper?.toString())
    }
    val units=rememberedUnits(key)
    val common=definition?.unit?.takeIf{it.isNotBlank()}
