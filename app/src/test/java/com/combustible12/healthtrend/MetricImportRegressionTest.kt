@@ -5,6 +5,26 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun explicitCodeAndChineseMeasurementConflictRequiresReview() {
+  val cases=listOf(
+   Triple("AST/ALT 谷丙/谷草 0.82","AST/ALT","ALT/AST"),
+   Triple("CKMB/CK 肌酸激酶同工酶 2.5","CKMB/CK","CKMB"),
+   Triple("NEUT# 中性粒细胞百分比 52.0 % 40-75","NEUT#","NEUT%"),
+   Triple("RDW-CV 红细胞分布宽度SD 42.0 fL 35-56","RDW-CV","RDW-SD")
+  )
+  cases.forEach{(line,code,nameIdentity)->
+   val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(line)).single()
+   assertEquals(code,parsed.metricKey)
+   assertEquals(nameIdentity,ReportParser.key(parsed.displayName))
+   assertTrue(reconciledMetricIdentity(code,nameIdentity).startsWith("待核对:代码名称冲突:$code"))
+  }
+ }
+ @Test fun matchingExplicitCodeAndChineseMeasurementRemainsConfirmed() {
+  val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
+   "AST/ALT 谷草/谷丙 1.22"
+  )).single()
+  assertEquals("AST/ALT",reconciledMetricIdentity(parsed.metricKey,ReportParser.key(parsed.displayName)))
+ }
  @Test fun mismatchBetweenWidthIdentityAndReportedUnitBlocksSave() {
   assertNotNull(distributionWidthIdentityProblem("PDW-CV","血小板分布宽度CV","fL"))
   assertNotNull(distributionWidthIdentityProblem("PDW-SD","血小板分布宽度SD","%"))

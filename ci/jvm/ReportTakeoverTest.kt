@@ -10,6 +10,13 @@ import java.io.File
 
 /** Synthetic records only. Runs with ci/jvm disk-backed Android platform doubles. */
 class ReportTakeoverTest {
+ @Test fun productionReconciliationMarksExplicitCodeNameConflictsForReview(){
+  val store=HealthStore(Context())
+  val input="合成医院\n血常规\n2026-10-16\nAST/ALT 谷丙/谷草 0.82"
+  val draft=pastedReportDraft(input,store=store)
+  assertTrue(draft.rows.single().key.startsWith("待核对:代码名称冲突:AST/ALT"))
+  assertFalse(draft.valid())
+ }
  private fun seed(context:Context):HealthStore {
   val results=JSONArray()
   listOf(Triple("CUSTOM-synthetic","白细胞计数","10^9/L"),Triple("PDW","血小板分布宽度","fL"),Triple("HCT","红细胞压积","%"))

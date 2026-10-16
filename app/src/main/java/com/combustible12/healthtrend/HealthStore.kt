@@ -8,6 +8,13 @@ import java.io.File
 
 @Volatile var debugLog:String=""
 
+/** Keep both pieces of evidence visible when a report code and Chinese name disagree. */
+internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):String {
+ val explicit=canonicalMetricKey(explicitInput)
+ val named=canonicalMetricKey(namedInput)
+ return if(namedInput!="未识别"&&named!=explicit)"待核对:代码名称冲突:$explicit" else explicit
+}
+
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
@@ -554,12 +561,19 @@ class HealthStore(private val context:Context) {
   return matching.singleOrNull()?:"未识别"
  }
  /** Apply the user dictionary to parsed rows without replacing source text.
-  * Only unresolved identities can be filled. A known explicit code always wins. */
+  * A complete explicit code is strong evidence, but it must agree with an
+  * independently recognizable Chinese measurement identity. Conflicts stay
+  * reviewable and preserve the explicit code in the pending key/raw line. */
  fun reconcileParsedMetrics(rows:List<ParsedLabResult>):List<ParsedLabResult> =
   rows.map{row->
    if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
-      !row.metricKey.startsWith("待核对:"))row
-   else{
+      !row.metricKey.startsWith("待核对:")){
+    val explicit=canonicalMetricKey(row.metricKey)
+    val named=resolveMetricKey(row.displayName,row.unit)
+    val reconciled=reconciledMetricIdentity(explicit,named)
+    if(reconciled!=explicit)row.copy(metricKey=reconciled)
+    else row
+   }else{
     val byName=resolveMetricKey(row.displayName,row.unit)
     val key=if(byName!="未识别")byName else resolveMetricKey(row.rawLine,row.unit)
     if(key=="未识别")row else row.copy(metricKey=key)
