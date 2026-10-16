@@ -26,6 +26,22 @@ class QualitativeReportRoundTripTest {
   assertEquals("阴性",draft.parsed().referenceRaw)
   assertEquals(ReferenceAgreement.MISMATCH,LabResultValues.agreement(draft.text,draft.referenceRaw))
  }
+ @Test fun draftSurvivesSerializationAndKeepsReferenceAndIdentity() {
+  val original=ReportDraft(
+   hospital="测试医院",type="传染病筛查",date="2026-08-26",
+   rows=listOf(
+    DraftRow(id="old-1",name="人免疫缺陷病毒抗体（定性）",key="HIV",text="阴性",referenceRaw="阴性"),
+    DraftRow(id="old-2",name="乙肝表面抗体",key="HBsAb",text="阳性",referenceRaw="阴性")
+   ))
+  val output=java.io.ByteArrayOutputStream()
+  java.io.ObjectOutputStream(output).use{it.writeObject(original)}
+  val restored=java.io.ObjectInputStream(java.io.ByteArrayInputStream(output.toByteArray())).use{it.readObject() as ReportDraft}
+  assertEquals(original.rows.map{it.id},restored.rows.map{it.id})
+  assertEquals(original.rows.map{it.key},restored.rows.map{it.key})
+  assertEquals(original.rows.map{it.text},restored.rows.map{it.text})
+  assertEquals(original.rows.map{it.referenceRaw},restored.rows.map{it.referenceRaw})
+  assertEquals(original.date,restored.date)
+ }
  @Test fun legacyMissingReferenceRemainsMissing() {
   val draft=DraftRow(key="HIV",name="人免疫缺陷病毒抗体（定性）",text="阴性",referenceRaw="")
   assertEquals("",draft.parsed().referenceRaw)
