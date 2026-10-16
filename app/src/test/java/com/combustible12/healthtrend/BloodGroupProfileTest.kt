@@ -3,6 +3,7 @@ package com.combustible12.healthtrend
 import org.junit.Assert.*
 import org.junit.Test
 
+/** JSON tests use the real JVM org.json implementation, never Android stubs. */
 class BloodGroupProfileTest {
  @Test fun oldInstallationStartsEmpty(){assertTrue(BloodGroupProfile.fromJson(null).isEmpty)}
  @Test fun allFourFieldsRoundTrip(){val p=BloodGroupProfile("AB","阳性","阴性","阳性","2026-01-15");assertEquals(p,BloodGroupProfile.fromJson(p.toJson().toString()))}
