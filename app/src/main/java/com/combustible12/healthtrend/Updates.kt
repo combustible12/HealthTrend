@@ -176,6 +176,7 @@ private fun URI(s:String)=java.net.URI(s)
    PatientField("备注",patient.note,{patient=patient.copy(note=it)})
    Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料",color=Color.White)}}
   }else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years}.getOrNull();Text(listOfNotNull(patient.sex.takeIf{it.isNotBlank()},patient.birthDate.takeIf{it.isNotBlank()},age?.let{"${it}岁"},patient.bloodType.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
+  BloodGroupCard(store,error,changed)
   Card(onClick=records,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text("查看报告 ›",color=Muted)}
   }
@@ -248,5 +249,36 @@ private fun URI(s:String)=java.net.URI(s)
    },enabled=!busy,modifier=Modifier.fillMaxWidth().height(40.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Ink,contentColor=Color.White)){
     Icon(Icons.Outlined.SystemUpdateAlt,null);Spacer(Modifier.width(8.dp));Text(if(busy)"正在处理…" else "一键更新并升级",fontSize=17.sp,fontWeight=FontWeight.SemiBold)
    }
+ }
+}
+
+
+@Composable private fun BloodGroupCard(store:HealthStore,error:(String)->Unit,changed:()->Unit) {
+ var saved by remember{mutableStateOf(store.bloodGroupProfile())}
+ var draft by remember{mutableStateOf(saved)}
+ var editing by remember{mutableStateOf(false)}
+ Paper {
+  Text("血型四项",fontWeight=FontWeight.Bold)
+  if(editing){
+   @Composable fun Choice(label:String,value:String,options:List<String>,onSelect:(String)->Unit){
+    Text(label,color=Muted,fontSize=13.sp)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+     options.forEach{option->FilterChip(selected=value==option,onClick={onSelect(option)},label={Text(option.ifEmpty{"未填写"})})}
+    }
+   }
+   Choice("ABO",draft.abo,listOf("","A","B","AB","O")){draft=draft.copy(abo=it)}
+   Choice("Rh(D)",draft.rhD,listOf("","阳性","阴性")){draft=draft.copy(rhD=it)}
+   Choice("Rh(C)",draft.rhC,listOf("","阳性","阴性")){draft=draft.copy(rhC=it)}
+   Choice("Rh(E)",draft.rhE,listOf("","阳性","阴性")){draft=draft.copy(rhE=it)}
+   Row {
+    TextButton({draft=saved;editing=false}){Text("取消")}
+    Button({try{store.saveBloodGroupProfile(draft);saved=store.bloodGroupProfile();editing=false;changed()}catch(e:Exception){error(e.message?:"血型保存失败")}}){Text("保存血型",color=Color.White)}
+   }
+  }else{
+   listOf("ABO" to saved.abo.let{if(it.isEmpty())it else "${it}型"},"Rh(D)" to saved.rhD,"Rh(C)" to saved.rhC,"Rh(E)" to saved.rhE).forEach{(label,value)->
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,color=Muted);Text(value.ifBlank{"未填写"},color=Ink)}
+   }
+   TextButton({draft=saved;editing=true}){Text("编辑血型")}
+  }
  }
 }

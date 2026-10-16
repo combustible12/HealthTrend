@@ -11,6 +11,22 @@ import java.net.URI
 
 /** Synthetic records only. Runs with ci/jvm disk-backed Android platform doubles. */
 class ReportTakeoverTest {
+ @Test fun bloodGroupSaveReopenExportAndBackupPreserveAllFields(){
+  val c=Context();val s=HealthStore(c);val prefs=c.getSharedPreferences("healthtrend_store_v1",0)
+  prefs.edit().putString("course_records","[]").putString("reports","[]").commit()
+  s.savePatientProfile(PatientProfile(name="合成资料",bloodType="旧血型原文"))
+  val before=prefs.getString("reports",null)
+  val p=BloodGroupProfile("AB","阳性","阴性","阳性")
+  s.saveBloodGroupProfile(p)
+  assertEquals(p,HealthStore(Context(c.root)).bloodGroupProfile())
+  assertEquals("旧血型原文",s.patientProfile().bloodType)
+  assertEquals(before,prefs.getString("reports",null));assertEquals("[]",prefs.getString("course_records",null))
+  assertEquals(p,BloodGroupProfile.fromJson(JSONObject(s.exportBackup()).getJSONObject("bloodGroupProfile").toString()))
+  val zip=File(c.cacheDir,"blood.zip");HealthBackup(c,s).export(Uri.fromFile(zip))
+  val dest=Context();HealthBackup(dest,HealthStore(dest)).restoreIntoEmpty(Uri.fromFile(zip))
+  assertEquals(p,HealthStore(Context(dest.root)).bloodGroupProfile())
+  s.saveBloodGroupProfile(BloodGroupProfile());assertTrue(s.bloodGroupProfile().isEmpty)
+ }
  @Test fun productionReconciliationMarksExplicitCodeNameConflictsForReview(){
   val store=HealthStore(Context())
   val input="合成医院\n血常规\n2026-10-16\nAST/ALT 谷丙/谷草 0.82"
