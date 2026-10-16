@@ -224,31 +224,43 @@ class HealthStore(private val context:Context) {
    val preserved=old!=null&&old.metricKey==result.metricKey&&old.rawName==result.rawName&&old.unitAtTest==result.unitAtTest
    !preserved&&distributionWidthIdentityProblem(result.metricKey,result.rawName,result.unitAtTest)!=null
   }){"报告项目CV/SD身份与单位不一致，请核对后保存"}
-  // Report-local metric order and data are independent of legacy hospital templates.
+  // Verify persisted content before recording secondary reference-range observations.
+  // If verification fails, restore the exact previous reports JSON.
+  val originalReports=read("reports").toString()
   val ordered=r
-  write("reports",JSONArray().apply{(reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}})
-  // A report contributes only its observed, validated intervals. Existing choices
-  // are reused. Changes to the pool never rewrite historical report snapshots.
+  try {
+   write("reports",JSONArray().apply{
+    (reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}
+   })
+   val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
+   check(stored.hospitalKey==ordered.hospitalKey &&
+    stored.reportType==ordered.reportType &&
+    stored.testedAtEpochMillis==ordered.testedAtEpochMillis &&
+    stored.results.size==ordered.results.size &&
+    stored.results.map{it.id}==ordered.results.map{it.id} &&
+    stored.results.map{it.metricKey}==ordered.results.map{it.metricKey} &&
+    stored.results.map{it.rawName}==ordered.results.map{it.rawName} &&
+    stored.results.map{it.value}==ordered.results.map{it.value} &&
+    stored.results.map{it.textValue}==ordered.results.map{it.textValue} &&
+    stored.results.map{it.unitAtTest}==ordered.results.map{it.unitAtTest} &&
+    stored.results.map{it.referenceLowAtTest}==ordered.results.map{it.referenceLowAtTest} &&
+    stored.results.map{it.referenceHighAtTest}==ordered.results.map{it.referenceHighAtTest}){
+    "报告保存验证失败：重新读取的数据与保存内容不一致"
+   }
+   check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
+    "报告保存验证失败：原图关联未持久化"
+   }
+  }catch(e:Exception){
+   runCatching{write("reports",JSONArray(originalReports))}
+    .onFailure{rollback->e.addSuppressed(rollback)}
+   throw e
+  }
+  // Only after the report itself has passed read-back verification.
   ordered.results.forEach{result->
    if(result.referenceLowAtTest!=null||result.referenceHighAtTest!=null){
     addStandardRange(result.metricKey,result.unitAtTest,
      result.referenceLowAtTest,result.referenceHighAtTest)
    }
-  }
-  // Both newly created and edited reports must persist their source images.
-  val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
-  check(stored.results.size==ordered.results.size &&
-   stored.results.map{it.id}==ordered.results.map{it.id} &&
-   stored.results.map{it.metricKey}==ordered.results.map{it.metricKey} &&
-   stored.results.map{it.value}==ordered.results.map{it.value} &&
-   stored.results.map{it.textValue}==ordered.results.map{it.textValue} &&
-   stored.results.map{it.unitAtTest}==ordered.results.map{it.unitAtTest} &&
-   stored.results.map{it.referenceLowAtTest}==ordered.results.map{it.referenceLowAtTest} &&
-   stored.results.map{it.referenceHighAtTest}==ordered.results.map{it.referenceHighAtTest}){
-   "报告保存验证失败：重新读取的数据与保存内容不一致"
-  }
-  check(r.sourceImages.all{image->stored.sourceImages.any{it.uri==image.uri}}){
-   "报告保存验证失败：原图关联未持久化"
   }
  }
  @Synchronized fun deleteReport(id:String){write("reports",JSONArray().apply{reports().filterNot{it.id==id}.forEach{put(reportToJson(it))}})}
