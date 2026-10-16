@@ -27,24 +27,12 @@ object ReportParser {
   return if(compact.startsWith("10^"))"×$compact" else compact
  }
  private fun resolvedUnit(metricKey:String,ocr:String):String{
-  val expected=canonicalUnits[metricKey]?:return ocr
-  // Blank on the printed report stays blank. Hospital templates may fill a previously
-  // confirmed fixed unit later, but the generic parser must not invent source data.
-  if(ocr.isBlank())return ""
-  val got=normalizedUnit(ocr);val want=normalizedUnit(expected)
-  if(got.equals(want,true))return expected
-  // Known CBC families are dimension-specific. A valid-looking unit from the neighboring
-  // OCR column (for example %NEUT receiving MPV's fL) is still invalid for this metric.
-  val countKeys=setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC")
-  val percentKeys=setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","RDW-CV","PCT","PDW-CV","P-LCR")
-  if(metricKey in countKeys)return expected
-  if(metricKey in percentKeys)return expected
-  if(metricKey in setOf("MCV","RDW-SD","PDW-SD","MPV","MCH","MCHC","RBC"))return expected
-  // Chemistry can legitimately arrive in convertible alternatives; preserve those until
-  // value and reference range are normalized together.
-  val validAlternative=Regex("(?i)^(?:[×]?10\\^-?\\d+/L|[a-zA-Zμ]+/[a-zA-Z]+|[a-zA-Zμ]+|%)$").matches(got)
-  return if(validAlternative) ocr else expected
+  // Never replace a source unit merely because the dictionary expects another.
+  // A disagreement is a review problem, not permission to fabricate source data.
+  // Blank on the report must also stay blank.
+  return ocr.trim()
  }
+
  fun key(name:String):String {
   // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
