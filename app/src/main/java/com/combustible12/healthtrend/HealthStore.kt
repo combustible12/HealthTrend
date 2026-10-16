@@ -788,22 +788,12 @@ class HealthStore(private val context:Context) {
       .sortedWith(compareByDescending<String>{it.length}.thenBy{it}).firstOrNull()
     ?:key
    val savedRanges=referenceRangeHistory(key)
-   val templateRanges=templates().flatMap{template->
-    template.fields.filter{canonicalMetricKey(it.metricKey)==key &&
-     (it.referenceLow!=null||it.referenceHigh!=null)}.map{field->
-     val low=UnitNormalizer.normalize(key,field.referenceLow,field.unit)
-     val high=UnitNormalizer.normalize(key,field.referenceHigh,field.unit)
-     ObservedReferenceRange(key,
-      if(field.referenceLow!=null)low.second else high.second,low.first,high.first,
-      0L,0L,0)
-    }
-   }
    val persistedRanges=standardRanges(key).map{range->
     ObservedReferenceRange(key,range.unit,range.low,range.high,0L,0L,0)
    }
    // Multiple ranges per identity, independent of hospital. The original
    // report (including hospital and exact test-time range) remains unchanged.
-   val ranges=(savedRanges+persistedRanges+templateRanges).distinctBy{
+   val ranges=(savedRanges+persistedRanges).distinctBy{
     listOf(it.metricKey,it.unit,it.lower?.toString(),it.upper?.toString())
    }
    val units=rememberedUnits(key)
@@ -818,11 +808,10 @@ class HealthStore(private val context:Context) {
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
-  val templateUnits=templates().flatMap{it.fields}.filter{canonical==null||it.metricKey==canonical}.map{it.unit}
-  return (reportUnits+templateUnits).map{it.trim()}.filter{it.isNotBlank()}.distinct()
+  return reportUnits.map{it.trim()}.filter{it.isNotBlank()}.distinct()
  }
  fun rememberedHospitals():List<String> =
-  (reports().map{it.hospitalKey}+templates().map{it.hospitalKey}+entries().map{it.hospital})
+  (reports().map{it.hospitalKey}+entries().map{it.hospital})
    .map{it.trim()}.filter{it.isNotBlank()}.distinct().sorted()
  @Synchronized fun updateValue(reportId:String,resultId:String,value:Double,displayText:String?=null){require(value.isFinite());val r=reports().first{it.id==reportId};saveReport(r.copy(results=r.results.map{if(it.id==resultId)it.withEditedValue(value,displayText)else it}))}
  private fun storedTemplates()=rows(read("templates"),::templateFromJson)
