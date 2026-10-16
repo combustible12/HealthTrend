@@ -16,7 +16,7 @@ object MetricDictionary {
  )
  fun canonical(raw:String):String {
   val code=raw.trim().uppercase().replace('／','/').replace('％','%')
-  val compound=if(code in setOf("AST:ALT","A:G","CKMB:CK"))code.replace(':','/') else code
+  val compound=if(code in setOf("AST:ALT","ALT:AST","A:G","CKMB:CK"))code.replace(':','/') else code
   return aliases[compound]?:compound
  }
 }
