@@ -4,7 +4,7 @@ package com.combustible12.healthtrend
 data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String="",val referenceRaw:String="",val reportFlag:String=""):java.io.Serializable {
  fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,LabResultValues.numeric(text),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
  fun rangeRaw():String {
-  if(LabResultValues.kind(text)!=LabValueKind.NUMBER&&low.isBlank()&&high.isBlank())return referenceRaw
+  if(LabResultValues.kind(text)!=LabValueKind.NUMBER){\n   // Qualitative reference values must never be reconstructed as numeric bounds.\n   return referenceRaw.trim()\n  }
   val original=PartialReferenceRanges.parts(referenceRaw)
   return if(referenceRaw.isNotBlank() && original.first==low && original.second==high)referenceRaw
    else if(low.isNotBlank()&&high.isNotBlank())"$low-$high" else if(low.isNotBlank())"≥$low" else if(high.isNotBlank())"≤$high" else ""
