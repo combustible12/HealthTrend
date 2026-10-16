@@ -187,3 +187,9 @@
 4. **身份明确存在歧义时必须待核对，不自动并错**，包括 PDW（通用身份已冻结）、PDW-CV/SD、NRBC#/%、P-LCR/P-LCC、D-二聚体FEU/DDU、尿素/肌酐比值方向等。不能因为不强制 LOINC 就放弃身份准确性。
 5. 上述12项 `NRBC%`、`PDW`、`PDW-CV`、`P-LCC`、`GLOB`、`TBA`、`UREA/CREA`、`OSM`、`CYFRA21-1`、`DDIMER`、`CPEP`、`VITD25` **均已经存在于当前 `UnifiedMetricStandard.kt`**；其中预设单位为空者按来源单位录入，不因此删除或重新创建项目。不能把词典有项目误报为用户已有成功导入的报告数据。
 6. 本要求覆盖此前把“需唯一医学标准编码认证”误当作“能否正常保存报告项目”的门槛；如代码仍存在这种阻拦，应列为待修复并以合成数据测试验证，不能仅据本规则声称导入已修好。
+
+## 2026-10-16 用户要求处理两项：旧医院模板残留清理与历史数据接管
+- **旧医院模板残留清理（已改代码、待运行验收）**：`MainActivity.kt` 移除模板编辑页状态、模板列表加载、模板管理入口；`Updates.kt` 的「我的」去除旧模板编辑参数及未使用卡片；`HealthStore.kt` 的统一指标池不再从旧医院模板抽取参考范围或默认单位，医院提示也不再从模板派生。启动阶段以前已停止自动种模板；**旧 `templates` 数据本身不删除**。提交 `1b163bc`、`1f43d91`、`67fd4cf`、`1b06fc3`。
+- **历史数据接管（已有兼容读取代码、接管链路待最终验收）**：`HealthStore.reports()` 读取旧报告存储，`ReportDraft.from(current)` 与 `ReportEditor` 支持编辑旧报告，`saveReport` 保留原报告 ID、原图及旧 `templateVersion` 元数据；新报告使用 `buildReportFromPool` 而不是旧模板。历史原数据不自动迁移或改写；旧 `CUSTOM-UUID` 映射仍需用户逐项确认。保存及备份→恢复必须通过独立测试后才能认定真正安全接管。
+- 新增合成测试 `MetricImportRegressionTest.legacyTemplateDoesNotTakeOverNewClipboardReport`（`eae23bf`），**代码已写未执行**。趋势、病程冻结；旧 `latestTemplate` 趋势说明兼容调用暂保留，不为清理残留而改趋势。旧模板匹配帮助函数在非新路径上仍保留供兼容/测试，不能称全仓零残留。
+- 当前完成状态：**两项已完成本轮代码改造，历史接管的运行/升级/恢复验收尚未完成**。没有编译、测试或发布 APK。
