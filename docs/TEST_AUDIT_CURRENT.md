@@ -20,3 +20,6 @@
 - `ci/check_change_sync.py`：按 `git diff` 检查 App 源码、相关测试、用户规则、总进度、交接与本文件是否同步；包含 6 个自检场景。
 - `.github/workflows/change-sync.yml`：PR 和 main push 上运行，不需要 Android 编译；测试枚举来源于 Git 跟踪文件，而非手工维护的测试总数。
 - **限制**：若只修改测试文件以外的业务代码（例如 `ci/` 自身），应另核对相关规则；当前检查器尚不能评估断言语义是否最新。未经 Workflow 运行证实，不能宣称关卡已经在 GitHub 上通过。
+
+### 2026-10-16 新增回归覆盖
+- `MetricImportRegressionTest.unifiedRangeIdentityNeverContainsHospitalOrReportType`：明确禁止医院/检查类型字段重返 `ObservedReferenceRange`，核对统一池范围的指标身份结构。**代码已添加，测试未运行**。尚需实测多来源报告合并相同区间、保留不同区间及原报告不变。
