@@ -15,3 +15,5 @@ Final recheck after retired-template UI removal 2026-10-14.
 Run standalone pending-draft roundtrip regression test 2026-10-14.
 
 2026-10-14 one-shot unified 110-item metric registry audit regression.
+
+2026-10-16 compile code-name conflict review and legacy takeover on 8809b5a.

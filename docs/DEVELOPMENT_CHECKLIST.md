@@ -296,3 +296,6 @@
 - **历史数据接管（已有兼容读取代码、接管链路待最终验收）**：`HealthStore.reports()` 读取旧报告存储，`ReportDraft.from(current)` 与 `ReportEditor` 支持编辑旧报告，`saveReport` 保留原报告 ID、原图及旧 `templateVersion` 元数据；新报告使用 `buildReportFromPool` 而不是旧模板。历史原数据不自动迁移或改写；旧 `CUSTOM-UUID` 映射仍需用户逐项确认。保存及备份→恢复必须通过独立测试后才能认定真正安全接管。
 - 新增合成测试 `MetricImportRegressionTest.legacyTemplateDoesNotTakeOverNewClipboardReport`（`eae23bf`），**代码已写未执行**。趋势、病程冻结；旧 `latestTemplate` 趋势说明兼容调用暂保留，不为清理残留而改趋势。旧模板匹配帮助函数在非新路径上仍保留供兼容/测试，不能称全仓零残留。
 - 当前完成状态：**两项已完成本轮代码改造，历史接管的运行/升级/恢复验收尚未完成**。没有编译、测试或发布 APK。
+
+### 2026-10-16 Android 集中编译请求
+已更新 `ci/compile-trigger.txt`，请求 GitHub Android quick workflow 对提交 `8809b5a` 执行 `compileDebugKotlin` 与 `testDebugUnitTest`。当前仅记录已请求，结果尚未返回，不能记为通过。

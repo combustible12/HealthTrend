@@ -68,3 +68,6 @@
 - 修复 `reconcileParsedMetrics`：报告完整代码仍保留为证据，但当中文名称能独立识别且指向不同身份时，生成 `待核对:代码名称冲突:<原代码>`，不能直接保存。覆盖 `AST/ALT`/`ALT/AST`、绝对计数/百分比、CV/SD。代码和名称一致时正常确认。
 - 新增纯函数回归与真实粘贴入口合成测试；聚焦 Kotlin/JVM 核心编译及 **52/52** 测试通过。没有使用真实报告。Android 编译、UI 与升级测试仍待执行，不记验收。
 - 本轮未修改趋势绘制、趋势映射逻辑、病程或 `course_records`。内置指标仍为 112，本轮医学来源新增核验 0。
+
+### 2026-10-16 Android 集中编译请求
+已更新 `ci/compile-trigger.txt`，请求 GitHub Android quick workflow 对提交 `8809b5a` 执行 `compileDebugKotlin` 与 `testDebugUnitTest`。当前仅记录已请求，结果尚未返回，不能记为通过。
