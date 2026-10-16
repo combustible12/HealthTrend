@@ -31,6 +31,23 @@ class UnifiedMetricStandardAuditTest {
   assertEquals(distinct.size,distinct.map{canonicalMetricKey(it)}.toSet().size)
   distinct.forEach{assertNotNull("Missing distinct definition: $it",UnifiedMetricStandard.definition(it))}
  }
+ @Test fun everyStandardMetricCodeIsAcceptedAsAnExplicitIdentity(){
+  UnifiedMetricStandard.keys().forEach{key->
+   assertEquals("Explicit identifier not recognized: $key",key,ReportParser.key(key))
+  }
+ }
+ @Test fun clinicalOppositesNeverMerge(){
+  val groups=listOf(
+   listOf("RDW-CV","RDW-SD"),listOf("PDW-CV","PDW-SD","PDW"),
+   listOf("NEUT#","NEUT%"),listOf("LYMPH#","LYMPH%"),
+   listOf("MONO#","MONO%"),listOf("EOS#","EOS%"),
+   listOf("BASO#","BASO%"),listOf("NRBC#","NRBC%"),
+   listOf("PCT","PCTIN"),listOf("CRP","HSCRP"),
+   listOf("CK","CKMB","CKMB/CK"),listOf("AST","ALT","AST/ALT","ALT/AST"),
+   listOf("CTNI","CTNT")
+  )
+  groups.forEach{keys->assertEquals("Identity merge: $keys",keys.size,keys.map(::canonicalMetricKey).toSet().size)}
+ }
  @Test fun noUniversalReferenceIntervalIsDefinedInTheCatalogue(){
   // Intervals belong to each patient report and must not be fabricated here.
   assertTrue(UnifiedMetricStandard.keys().all{it.isNotBlank()})
