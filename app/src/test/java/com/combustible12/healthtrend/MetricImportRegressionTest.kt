@@ -17,6 +17,17 @@ class MetricImportRegressionTest {
   assertFalse(bad.valid())
   assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("SD")})
  }
+ @Test fun legacyTemplateDoesNotTakeOverNewClipboardReport() {
+  val source="示例医院\n血常规\n2026-10-16\nWBC 白细胞计数 5.00 10^9/L 3.5-9.5"
+  val legacy=HospitalLabTemplate("旧医院","血常规",1,true,listOf(
+   LabFieldTemplate("PLT","血小板计数","10^9/L",100.0,300.0)
+  ))
+  val draft=pastedReportDraft(source,legacy)
+  assertEquals(1,draft.rows.size)
+  assertEquals("WBC",draft.rows.single().key)
+  assertEquals("10^9/L",draft.rows.single().unit)
+  assertEquals("5.00",draft.rows.single().text)
+ }
  @Test fun plateletDistributionWidthCvAndSdHaveDistinctIdentities() {
   assertEquals("PDW-CV",UnifiedMetricStandard.resolveName("血小板分布宽度CV"))
   assertEquals("PDW-SD",UnifiedMetricStandard.resolveName("血小板分布宽度SD"))
