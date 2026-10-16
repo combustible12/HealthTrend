@@ -62,6 +62,14 @@ class UpdateGuardTest {
   rejects("新版签名与当前安装版不一致") { AppUpdater(context).validate(fixture) }
  }
 
+ @Test fun installedVersionCacheIsDiscardedInsteadOfOpeningInstallerAgain() {
+  val cache=File(context.cacheDir,"updates/healthtrend.apk")
+  cache.parentFile!!.mkdirs()
+  File(context.applicationInfo.sourceDir).copyTo(cache,overwrite=true)
+  assertNull(AppUpdater(context).resumableDownloadedApk())
+  assertFalse(cache.exists())
+ }
+
  @Test fun damagedDownloadCannotOpenInstaller() {
   val damaged = File(context.cacheDir, "qa-invalid-update.apk")
   try {

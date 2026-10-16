@@ -52,7 +52,7 @@ class AppUpdater(private val context:Context){
   var next=url
   repeat(6){
    val uri=URI(next);require(uri.scheme=="https"&&uri.host in setOf("api.github.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com")){"更新地址不受信任"}
-   val c=URL(next).openConnection() as HttpURLConnection;c.instanceFollowRedirects=false;c.connectTimeout=15000;c.readTimeout=30000;c.setRequestProperty("Accept",accept);c.setRequestProperty("X-GitHub-Api-Version","2022-11-28")
+   val c=URL(next).openConnection() as HttpURLConnection;c.instanceFollowRedirects=false;c.useCaches=false;c.setRequestProperty("Cache-Control","no-cache, no-store");c.setRequestProperty("Pragma","no-cache");c.connectTimeout=15000;c.readTimeout=30000;c.setRequestProperty("Accept",accept);c.setRequestProperty("X-GitHub-Api-Version","2022-11-28")
    if(uri.host=="api.github.com"&&token.isNotBlank())c.setRequestProperty("Authorization","Bearer $token")
    val status=c.responseCode
    if(status in 300..399){next=URL(URL(next),c.getHeaderField("Location")?:error("更新重定向无效")).toString();c.disconnect()}else{
@@ -62,12 +62,17 @@ class AppUpdater(private val context:Context){
   };error("更新重定向过多")
  }
  fun check(token:String):AvailableUpdate?{
-  val c=connect("https://api.github.com/repos/combustible12/HealthTrend/releases/latest",token)
+  val c=connect("https://api.github.com/repos/combustible12/HealthTrend/releases/latest?check=${System.currentTimeMillis()}",token)
   val json=try{c.inputStream.bufferedReader().use{JSONObject(it.readText())}}finally{c.disconnect()}
   if(json.optBoolean("draft")||json.optBoolean("prerelease"))return null
   val version=Regex("版本代码[:： ]+(\\d+)").find(json.optString("body"))?.groupValues?.get(1)?.toLongOrNull()?:return null
+  if(!UpdateVersionPolicy.isNewer(version,installedVersion()))return null
   val a=json.getJSONArray("assets");val apk=(0 until a.length()).map{a.getJSONObject(it)}.firstOrNull{it.getString("name").endsWith(".apk") }?:return null
   return AvailableUpdate(json.optString("name",json.getString("tag_name")),version,apk.getString("url"),json.optString("body"))
+ }
+ @Suppress("DEPRECATION") private fun installedVersion():Long {
+  val installed=context.packageManager.getPackageInfo(context.packageName,0)
+  return if(Build.VERSION.SDK_INT>=28)installed.longVersionCode else installed.versionCode.toLong()
  }
  @Suppress("DEPRECATION") fun validate(file:File):Long{
   val pm=context.packageManager;val flags=if(Build.VERSION.SDK_INT>=28)PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
@@ -76,6 +81,7 @@ class AppUpdater(private val context:Context){
   val installed=pm.getPackageInfo(context.packageName,flags)
   val next=if(Build.VERSION.SDK_INT>=28)archive.longVersionCode else archive.versionCode.toLong()
   val current=if(Build.VERSION.SDK_INT>=28)installed.longVersionCode else installed.versionCode.toLong()
+  require(UpdateVersionPolicy.isNewer(next,current)){"下载版本没有高于当前版本"}
   val old=(if(Build.VERSION.SDK_INT>=28)installed.signingInfo?.apkContentsSigners else installed.signatures)?:error("无法读取已安装版本签名")
   val fresh=(if(Build.VERSION.SDK_INT>=28)archive.signingInfo?.apkContentsSigners else archive.signatures)?:error("无法读取新版签名")
   require(old.size==fresh.size&&old.all{o->fresh.any{it==o}}){"新版签名与当前安装版不一致，无法保留数据直接升级。请使用相同签名重新构建。"}
@@ -87,7 +93,16 @@ class AppUpdater(private val context:Context){
   try{var count=0L;var lastProgress=0L;c.inputStream.use{input->temp.outputStream().use{out->val buffer=ByteArray(32768);while(true){val n=input.read(buffer);if(n<0)break;out.write(buffer,0,n);count+=n;require(count<250_000_000L){"更新文件过大"};val now=System.currentTimeMillis();if(now-lastProgress>200){onProgress(count,c.contentLengthLong);lastProgress=now}}}};val version=validate(temp);require(version==update.version){"发布信息与 APK 版本不匹配"};check(temp.renameTo(dest));return dest}catch(e:Exception){temp.delete();throw e}finally{c.disconnect()}
  }
  fun install(file:File){validate(file);if(Build.VERSION.SDK_INT>=26&&!context.packageManager.canRequestPackageInstalls()){context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));return};val uri=FileProvider.getUriForFile(context,context.packageName+".files",file);context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))}
- fun resumableDownloadedApk():File?=File(context.cacheDir,"updates/healthtrend.apk").takeIf{it.isFile&&runCatching{validate(it);true}.getOrDefault(false)}
+ fun resumableDownloadedApk(expectedVersion:Long?=null):File? {
+  val file=File(context.cacheDir,"updates/healthtrend.apk")
+  if(!file.isFile)return null
+  val version=runCatching{validate(file)}.getOrNull()
+  if(version==null || !UpdateVersionPolicy.canReuse(version,installedVersion(),expectedVersion)){
+   file.delete();return null
+  }
+  return file
+ }
+
 }
 private fun URI(s:String)=java.net.URI(s)
 @Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
@@ -215,18 +230,18 @@ private fun URI(s:String)=java.net.URI(s)
     busy=true;status="正在检查更新…"
     scope.launch{
      try{
-      val cached=withContext(Dispatchers.IO){updater.resumableDownloadedApk()}
-      if(cached!=null){status="已找到下载完成的更新，请在系统界面确认安装";updater.install(cached)}else{
-       val update=withContext(Dispatchers.IO){updater.check(credentials.load())}
-       if(update==null)status="当前已经是最新正式版本"
-       else{
+      val update=withContext(Dispatchers.IO){updater.check(credentials.load())}
+      if(update==null)status="当前已经是最新正式版本"
+      else{
+       val cached=withContext(Dispatchers.IO){updater.resumableDownloadedApk(update.version)}
+       val file=if(cached!=null)cached else{
         status="发现 ${update.name}，正在下载…"
-        val file=withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->
+        withContext(Dispatchers.IO){updater.download(update,credentials.load()){n,total->
          scope.launch{status=if(total>0)"正在下载 ${(n*100/total)}%"else"已下载 ${n/1024} KB"}
         }}
-        status="下载校验通过，请在系统界面确认安装"
-        updater.install(file)
        }
+       status="下载校验通过，请在系统界面确认安装"
+       updater.install(file)
       }
      }catch(e:Exception){status=e.message?:"更新失败";error(status)}finally{busy=false}
     }
