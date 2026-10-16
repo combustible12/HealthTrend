@@ -76,8 +76,17 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  // An explicit analyzer code must not silently override a conflicting Chinese
  // measurement name. Unknown names still require manual review upstream.
  val namedIdentity=ReportParser.key(p.displayName)
+ val clippedWidthFamily=when(p.displayName.trim()){
+  "红细胞分布宽度","红细胞体积分布宽度"->"RDW"
+  "血小板分布宽度","血小板体积分布宽度"->"PDW"
+  else->null
+ }
+ val clippedIdentity=clippedWidthFamily?.let{family->when(p.unit.trim().lowercase()){
+  "%","％"->"$family-CV";"fl"->"$family-SD";else->null
+ }}
  if(namedIdentity!="未识别" &&
-    canonicalMetricKey(namedIdentity)!=canonicalMetricKey(p.metricKey))return true
+    canonicalMetricKey(namedIdentity)!=canonicalMetricKey(p.metricKey)&&
+    canonicalMetricKey(clippedIdentity.orEmpty())!=canonicalMetricKey(p.metricKey))return true
  if(distributionWidthIdentityProblem(p.metricKey,p.displayName,p.unit)!=null)return true
  return false
 }

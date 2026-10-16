@@ -399,24 +399,59 @@ class HealthStore(private val context:Context) {
  }
 
  /** Report-management links are explicit audit events, separate from frozen trend mappings. */
- data class ReportIdentityLink(val id:String,val source:String,val target:String,val confirmedAt:Long,val revokedAt:Long?)
+ data class ReportIdentityLink(
+  val id:String,val source:String,val target:String,val confirmedAt:Long,val revokedAt:Long?,
+  val reportIds:List<String> = emptyList(),val resultIds:List<String> = emptyList(),
+  val sourceNames:List<String> = emptyList(),val sourceUnits:List<String> = emptyList()
+ )
+ data class ReportIdentityCandidate(
+  val source:String,val sourceNames:List<String>,val sourceUnits:List<String>,
+  val reportIds:List<String>,val resultIds:List<String>,
+  val activeTarget:String?,val activeLinkId:String?
+ )
  @Synchronized fun reportIdentityLinks():List<ReportIdentityLink> = rows(read("report_identity_links")){o->
   ReportIdentityLink(o.getString("id"),o.getString("source"),o.getString("target"),o.getLong("at"),
-   if(o.isNull("revoked"))null else o.getLong("revoked"))
+   if(o.isNull("revoked"))null else o.getLong("revoked"),
+   o.optJSONArray("reports").stringList(),o.optJSONArray("results").stringList(),
+   o.optJSONArray("names").stringList(),o.optJSONArray("units").stringList())
  }
- fun reportPoolIdentity(source:String):String = reportIdentityLinks().lastOrNull{
-  it.source==source&&it.revokedAt==null
- }?.target?:source
+ fun reportPoolIdentity(sourceInput:String):String {
+  return reportIdentityLinks().lastOrNull{it.source.equals(sourceInput,true)&&it.revokedAt==null}?.target?:sourceInput
+ }
+ /** Complete read-only inventory for explicit historical identity review.
+  * Merely listing candidates never creates a link or changes a report. */
+ fun reportIdentityCandidates():List<ReportIdentityCandidate>{
+  val links=reportIdentityLinks()
+  return reports().flatMap{report->report.results.map{result->report to result}}
+   .filter{(_,result)->result.metricKey.startsWith("CUSTOM-",true)}
+   .groupBy{(_,result)->result.metricKey.trim().lowercase()}
+   .map{(_,occurrences)->
+    val source=occurrences.first().second.metricKey.trim()
+    val active=links.lastOrNull{it.source.equals(source,true)&&it.revokedAt==null}
+    ReportIdentityCandidate(source,
+     occurrences.map{it.second.rawName.trim()}.filter{it.isNotBlank()}.distinct().sorted(),
+     occurrences.map{it.second.unitAtTest.trim()}.filter{it.isNotBlank()}.distinct().sorted(),
+     occurrences.map{it.first.id}.distinct().sorted(),occurrences.map{it.second.id}.distinct().sorted(),
+     active?.target,active?.id)
+   }.sortedBy{it.source}
+ }
  @Synchronized fun confirmReportIdentityLink(source:String,targetInput:String){
+  val normalizedSource=source.trim()
   val target=canonicalMetricKey(targetInput)
-  require(source.startsWith("CUSTOM-")){"仅为历史自定义指标建立关联"}
+  require(normalizedSource.startsWith("CUSTOM-",true)){"仅为历史自定义指标建立关联"}
   require(target!="PDW"&&UnifiedMetricStandard.definition(target)!=null){"请选择明确的统一指标，普通PDW已冻结"}
-  val matches=reports().flatMap{it.results}.filter{it.metricKey==source}
+  val occurrences=reports().flatMap{report->report.results.map{report to it}}
+   .filter{(_,result)->result.metricKey.equals(normalizedSource,true)}
+  val matches=occurrences.map{it.second}
   require(matches.isNotEmpty()){"没有对应历史指标"}
+  val persistedSource=matches.first().metricKey
   require(matches.all{val explicit=ReportParser.key(it.rawName);explicit=="未识别"||canonicalMetricKey(explicit)==target}){"原报告名称包含不同或模糊测量身份，请先核对"}
   require(matches.none{distributionWidthIdentityProblem(target,it.rawName,it.unitAtTest)!=null}){"测量身份与原报告冲突"}
-  require(reportIdentityLinks().none{it.source==source&&it.revokedAt==null}){"请先撤销原关联"}
-  writeReportIdentityLinks(reportIdentityLinks()+ReportIdentityLink(newId(),source,target,System.currentTimeMillis(),null))
+  require(reportIdentityLinks().none{it.source.equals(persistedSource,true)&&it.revokedAt==null}){"请先撤销原关联"}
+  writeReportIdentityLinks(reportIdentityLinks()+ReportIdentityLink(newId(),persistedSource,target,System.currentTimeMillis(),null,
+   occurrences.map{it.first.id}.distinct().sorted(),matches.map{it.id}.distinct().sorted(),
+   matches.map{it.rawName.trim()}.filter{it.isNotBlank()}.distinct().sorted(),
+   matches.map{it.unitAtTest.trim()}.filter{it.isNotBlank()}.distinct().sorted()))
  }
  @Synchronized fun revokeReportIdentityLink(id:String){
   writeReportIdentityLinks(reportIdentityLinks().map{if(it.id==id&&it.revokedAt==null)it.copy(revokedAt=System.currentTimeMillis())else it})
@@ -424,7 +459,9 @@ class HealthStore(private val context:Context) {
  private fun writeReportIdentityLinks(links:List<ReportIdentityLink>){
   write("report_identity_links",JSONArray().apply{links.forEach{
    put(JSONObject().put("id",it.id).put("source",it.source).put("target",it.target)
-    .put("at",it.confirmedAt).put("revoked",it.revokedAt?:JSONObject.NULL))
+    .put("at",it.confirmedAt).put("revoked",it.revokedAt?:JSONObject.NULL)
+    .put("reports",JSONArray(it.reportIds)).put("results",JSONArray(it.resultIds))
+    .put("names",JSONArray(it.sourceNames)).put("units",JSONArray(it.sourceUnits)))
   }})
  }
 

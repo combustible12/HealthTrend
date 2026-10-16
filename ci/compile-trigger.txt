@@ -21,3 +21,5 @@ Run standalone pending-draft roundtrip regression test 2026-10-14.
 2026-10-16 compile report-import OCR removal on e4662c9.
 
 2026-10-16 rerun parser rules and frozen generic PDW regression.
+
+2026-10-16: compile explicit historical metric identity mapping and run Android unit tests.

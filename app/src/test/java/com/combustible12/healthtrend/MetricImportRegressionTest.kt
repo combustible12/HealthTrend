@@ -5,6 +5,14 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun identityAuditRevocationPreservesEvidenceSnapshot() {
+  val event=HealthStore.ReportIdentityLink("link","CUSTOM-synthetic","WBC",1000L,null,
+   reportIds=listOf("report"),resultIds=listOf("result"),sourceNames=listOf("白细胞计数"),sourceUnits=listOf("10^9/L"))
+  val revoked=event.copy(revokedAt=2000L)
+  assertEquals(event.reportIds,revoked.reportIds);assertEquals(event.resultIds,revoked.resultIds)
+  assertEquals(event.sourceNames,revoked.sourceNames);assertEquals(event.sourceUnits,revoked.sourceUnits)
+  assertEquals("CUSTOM-synthetic",revoked.source);assertEquals("WBC",revoked.target)
+ }
  @Test fun conflictingPastedIdentitiesRequireReviewBeforeSaving() {
   val wrong=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(
    "NEUT# 中性粒细胞百分比 52.0 % 40-75")).single()

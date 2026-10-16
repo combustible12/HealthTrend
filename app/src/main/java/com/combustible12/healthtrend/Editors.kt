@@ -110,19 +110,42 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  var linkSource by remember{mutableStateOf<String?>(null)}
  var linkTarget by remember{mutableStateOf("")}
+ var linkTargetQuery by remember{mutableStateOf("")}
  var linkError by remember{mutableStateOf("")}
  var linkRevision by remember{mutableIntStateOf(0)}
+ var showIdentityManager by remember{mutableStateOf(false)}
  if(linkSource!=null)AlertDialog(onDismissRequest={linkSource=null},title={Text("关联统一指标")},text={
   Column{
-   Text("确认后保留原指标身份、数值和单位，可随时撤销。",fontSize=12.sp)
+   val candidate=remember(linkSource,linkRevision){store.reportIdentityCandidates().firstOrNull{it.source==linkSource}}
+   Text("确认后保留原指标身份、数值和单位，可随时撤销。不会自动改写旧报告。",fontSize=12.sp)
+   candidate?.let{Text("来源名称：${it.sourceNames.joinToString("、")}\n来源单位：${it.sourceUnits.ifEmpty{listOf("空")}.joinToString("、")}\n涉及 ${it.reportIds.size} 份报告 / ${it.resultIds.size} 条结果",fontSize=12.sp,color=Muted)}
+   Field(linkTargetQuery,{linkTargetQuery=it},"搜索统一指标")
    Column(Modifier.heightIn(max=280.dp).verticalScroll(rememberScrollState())){
-    UnifiedMetricStandard.keys().filter{it!="PDW"}.forEach{key->
-     TextButton({linkTarget=key}){Text((if(linkTarget==key)"✓ " else "")+UnifiedMetricStandard.definition(key)!!.name)}
+    UnifiedMetricStandard.keys().filter{key->key!="PDW"&&run{val definition=UnifiedMetricStandard.definition(key)!!;linkTargetQuery.isBlank()||key.contains(linkTargetQuery,true)||definition.name.contains(linkTargetQuery,true)}}.forEach{key->
+     TextButton({linkTarget=key}){Text((if(linkTarget==key)"✓ " else "")+UnifiedMetricStandard.definition(key)!!.name+" · "+key)}
     }
    }
    if(linkError.isNotBlank())Text(linkError,color=Bad)
   }
  },confirmButton={TextButton({try{store.confirmReportIdentityLink(linkSource!!,linkTarget);linkRevision++;linkSource=null}catch(e:Exception){linkError=e.message.orEmpty()}},enabled=linkTarget.isNotBlank()){Text("确认关联")}},dismissButton={TextButton({linkSource=null}){Text("取消")}})
+ if(showIdentityManager){
+  val candidates=remember(linkRevision){store.reportIdentityCandidates()}
+  AlertDialog(onDismissRequest={showIdentityManager=false},title={Text("历史指标身份映射")},text={
+   Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    Text("仅显示历史 CUSTOM 指标。所有关联都需人工确认，可撤销；不会按相似名称自动合并或改写旧报告。",fontSize=12.sp,color=Muted)
+    if(candidates.isEmpty())Text("没有待管理的历史自定义指标",color=Muted)
+    candidates.forEach{candidate->Column{
+     Text(candidate.sourceNames.joinToString("、").ifBlank{candidate.source},fontSize=14.sp)
+     Text("${candidate.source} · ${candidate.reportIds.size}份报告 · 单位 ${candidate.sourceUnits.ifEmpty{listOf("空")}.joinToString("/")}",fontSize=11.sp,color=Muted)
+     if(candidate.activeTarget==null)TextButton({linkSource=candidate.source;linkTarget="";linkTargetQuery="";linkError="";showIdentityManager=false}){Text("选择统一指标")}
+     else Row(verticalAlignment=Alignment.CenterVertically){
+      Text("已关联：${UnifiedMetricStandard.definition(candidate.activeTarget)?.name} · ${candidate.activeTarget}",modifier=Modifier.weight(1f),fontSize=12.sp)
+      TextButton({candidate.activeLinkId?.let(store::revokeReportIdentityLink);linkRevision++}){Text("撤销")}
+     }
+    }}
+   }
+  },confirmButton={TextButton({showIdentityManager=false}){Text("关闭")}})
+ }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",{if(d.existing==null)saveDraft(d) else onClose()},hidden=editing!=null,topAction={TextButton({saveDraft(d)}){Text("暂存草稿")}},bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
@@ -131,6 +154,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    TextButton({showMetricCatalogue=true}){Text("统一指标库")}
    TextButton({showDictionaryTransfer=true;dictionaryError=""}){Text("词典导入导出")}
    TextButton({showAliasManager=true}){Text("管理指标别名")}
+   if(remember(linkRevision){store.reportIdentityCandidates().isNotEmpty()})TextButton({showIdentityManager=true}){Text("历史身份映射")}
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
@@ -148,7 +172,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
     if(d.existing!=null&&r.key.startsWith("CUSTOM-")){
      val link=remember(r.key,linkRevision){store.reportIdentityLinks().lastOrNull{it.source==r.key&&it.revokedAt==null}}
-     if(link==null)TextButton({linkSource=r.key;linkTarget="";linkError=""}){Text("关联统一指标")}
+     if(link==null)TextButton({linkSource=r.key;linkTarget="";linkTargetQuery="";linkError=""}){Text("关联统一指标")}
      else Row(verticalAlignment=Alignment.CenterVertically){
       Text("已关联："+UnifiedMetricStandard.definition(link.target)?.name,modifier=Modifier.weight(1f),fontSize=12.sp)
       TextButton({store.revokeReportIdentityLink(link.id);linkRevision++}){Text("撤销关联")}

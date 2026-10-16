@@ -56,15 +56,31 @@ class ReportTakeoverTest {
  }
  @Test fun identityLinksAreExplicitAuditedReversibleAndLeaveHistoryUntouched(){
   val c=Context();val s=seed(c);val before=s.reports()
+  val initial=s.reportIdentityCandidates().single()
+  assertEquals("CUSTOM-synthetic",initial.source);assertEquals(listOf("白细胞计数"),initial.sourceNames)
+  assertEquals(listOf("10^9/L"),initial.sourceUnits);assertNull(initial.activeTarget)
+  assertTrue(s.reportIdentityLinks().isEmpty());assertEquals(before,s.reports())
   assertEquals("CUSTOM-synthetic",s.reportPoolIdentity("CUSTOM-synthetic"))
   s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
   assertEquals("WBC",s.reportPoolIdentity("CUSTOM-synthetic"));assertEquals(before,s.reports())
   assertTrue(s.unifiedMetricPool().single{it.key=="WBC"}.linkedLegacyKeys.contains("CUSTOM-synthetic"))
   val event=s.reportIdentityLinks().single();assertTrue(event.confirmedAt>0)
+  assertEquals(listOf(before.single().id),event.reportIds);assertEquals(listOf(before.single().results.first().id),event.resultIds)
+  assertEquals(listOf("白细胞计数"),event.sourceNames);assertEquals(listOf("10^9/L"),event.sourceUnits)
+  assertEquals("WBC",s.reportIdentityCandidates().single().activeTarget)
   s.revokeReportIdentityLink(event.id)
   assertEquals("CUSTOM-synthetic",s.reportPoolIdentity("CUSTOM-synthetic"));assertNotNull(s.reportIdentityLinks().single().revokedAt)
+  assertNull(s.reportIdentityCandidates().single().activeTarget);assertEquals(before,s.reports())
   assertTrue(runCatching{s.confirmReportIdentityLink("CUSTOM-synthetic","PDW")}.isFailure)
   assertTrue(runCatching{s.confirmReportIdentityLink("PDW","PDW-SD")}.isFailure)
+ }
+ @Test fun identityLinkCanBeReconfirmedOnlyAfterRevocationAndKeepsEventHistory(){
+  val s=seed(Context());s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
+  assertTrue(runCatching{s.confirmReportIdentityLink("CUSTOM-synthetic","HGB")}.isFailure)
+  s.revokeReportIdentityLink(s.reportIdentityLinks().single().id)
+  s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")
+  assertEquals(2,s.reportIdentityLinks().size);assertNotNull(s.reportIdentityLinks().first().revokedAt)
+  assertNull(s.reportIdentityLinks().last().revokedAt);assertEquals("WBC",s.reportPoolIdentity("custom-synthetic"))
  }
  @Test fun actualZipBackupRestoresIntoIndependentEmptyDirectory(){
   val c=Context();val s=seed(c);s.confirmReportIdentityLink("CUSTOM-synthetic","WBC")

@@ -87,3 +87,9 @@
 - 失败均在 `ReportParserTest`：2 项仍以报告 OCR 噪声为输入、3 项要求用词典单位覆盖来源单位、1 项把检查类型视为可空、1 项因普通 PDW 冻结校验导致固定格式整份无效。
 - 按最新规则更新：删除报告 OCR 专属断言；来源单位照录；检查类型必填；普通 PDW 保留原身份和单位且不自动归类，只有名称明确 CV/SD 与普通身份冲突时拦截。
 - 更新后 OCR 边界检查通过，聚焦 Kotlin/JVM 回归 **52/52** 通过；Android 完整测试已请求重新运行，结果尚未返回。
+
+### 2026-10-16 历史指标身份映射专项回归
+- 新增/扩展 `ci/jvm/ReportTakeoverTest`：候选盘点不写事件或报告；确认事件包含报告 ID、结果 ID、原名称和原单位快照；活动关联不可覆盖；撤销保留事件并允许再次明确确认；大小写查询不改写原 CUSTOM 身份。
+- 既有 ZIP 独立空目录恢复用例继续比较完整 `report_identity_links`，因此同步覆盖新增证据快照的备份/恢复；旧报告内容和图片关联比较保持不变。
+- 实际命令：`KOTLIN_TEST_LIBS=/workspace/scratch/5041f88669d1/kotlin-tests python3 ci/run_report_jvm.py`。变基到最新 `main` 后首次执行为 **57 项、1 项失败**，定位为截断 RDW 已按 `%` 归入 CV 后仍被复核层误拦截；修复 `metricNeedsReview` 衔接后重跑，生产核心 Kotlin 编译通过，JUnit **57/57** 通过，失败 0；仅有既有未使用参数警告。
+- 未使用真实患者数据。Android 编译及 Compose UI 操作、原生 SharedPreferences 升级/恢复、用户验收尚未完成，不记为通过。
