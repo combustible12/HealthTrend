@@ -514,7 +514,42 @@ class HealthStore(private val context:Context) {
   updateReportImages(reportId,items)
  }
 
- fun trend(key:String)=reports().flatMap{r->r.results.filter{canonicalMetricKey(it.metricKey)==canonicalMetricKey(key) && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
+ /** Explicit, persistent display-only identity mapping. Never change stored report metricKeys.
+  * Only old CUSTOM identities may be linked to an existing standard identity;
+  * no name similarity or unit inference is permitted.
+  */
+ @Synchronized fun trendIdentityMappings():Map<String,String> =
+  rows(read("trend_identity_mappings")){o->
+   val source=canonicalMetricKey(o.optString("source"))
+   val target=canonicalMetricKey(o.optString("target"))
+   if(source.startsWith("CUSTOM-")&&target.isNotBlank()&&source!=target)source to target else null
+  }.filterNotNull().toMap()
+ fun trendIdentity(metricKey:String):String{
+  val key=canonicalMetricKey(metricKey)
+  return trendIdentityMappings()[key]?:key
+ }
+ @Synchronized fun confirmTrendIdentityMapping(sourceInput:String,targetInput:String){
+  val source=canonicalMetricKey(sourceInput)
+  val target=canonicalMetricKey(targetInput)
+  require(source.startsWith("CUSTOM-")){"仅允许为历史自定义指标建立显式兼容映射"}
+  require(target.isNotBlank()&&target!=source&&!target.startsWith("CUSTOM-")){"请选择不同的现有标准指标"}
+  require(UnifiedMetricStandard.definition(target)!=null){"目标不在标准指标词典中"}
+  require(reports().any{report->report.results.any{canonicalMetricKey(it.metricKey)==source}}){"未找到该历史自定义指标"}
+  val mappings=trendIdentityMappings().toMutableMap()
+  mappings[source]=target
+  write("trend_identity_mappings",JSONArray().apply{mappings.toSortedMap().forEach{(from,to)->
+   put(JSONObject().put("source",from).put("target",to))
+  }})
+ }
+ @Synchronized fun removeTrendIdentityMapping(sourceInput:String){
+  val source=canonicalMetricKey(sourceInput)
+  val mappings=trendIdentityMappings().toMutableMap()
+  if(mappings.remove(source)==null)return
+  write("trend_identity_mappings",JSONArray().apply{mappings.toSortedMap().forEach{(from,to)->
+   put(JSONObject().put("source",from).put("target",to))
+  }})
+ }
+ fun trend(key:String)=reports().flatMap{r->r.results.filter{trendIdentity(it.metricKey)==trendIdentity(key) && it.value!=null && it.comparator.isEmpty()}.map{r to it}}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.second.id})
  /** User aliases are separate from hospital templates and historical report snapshots. */
  @Synchronized fun metricAliases():Map<String,String>{
   val data=read("metric_aliases")
