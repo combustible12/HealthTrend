@@ -28,7 +28,11 @@ jobs:
           python-version: '3.11'
       - name: Enumerate all current test files
         run: |
-          git ls-files 'app/src/test/**' 'app/src/androidTest/**' | grep -E '\\.(kt|java)        run: python3 ci/check_change_sync.py --self-test
+          git ls-files 'app/src/test/**' 'app/src/androidTest/**' | grep -E '[.](kt|java)' | sort | tee current-test-files.txt
+          test -s current-test-files.txt || { echo 'No tracked tests found'; exit 1; }
+          cat current-test-files.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify policy checker self-tests
+        run: python3 ci/check_change_sync.py --self-test
       - name: Enforce synchronized source, tests and current docs
         env:
           EVENT_NAME: ${{ github.event_name }}
