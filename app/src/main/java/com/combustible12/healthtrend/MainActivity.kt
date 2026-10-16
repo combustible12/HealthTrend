@@ -454,7 +454,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
-   val valueColor=when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->if(latest.value==null)Muted else Ink}
+   val valueColor=if(latest.value==null)qualitativeTrendColor(latest) else when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
    TrendPaper{
     val metricAliases=aliasesFor(key)
     var meaningDetail by remember{mutableStateOf(false)}
