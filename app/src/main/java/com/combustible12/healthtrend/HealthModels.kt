@@ -10,6 +10,8 @@ fun canonicalMetricKey(raw:String):String=MetricDictionary.canonical(raw)
 
 object MetricDictionary {
  private val aliases=mapOf(
+  "ANTI-HBS" to "HBSAB","ANTI-HBE" to "HBEAB","ANTI-HBC" to "HBCAB",
+  "ANTI-HIV" to "HIVAB","HIV-AB" to "HIVAB","ANTI-TP" to "TPAB","TP-AB" to "TPAB",
   "CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA",
   "UREA/CR" to "UREA/CREA","PI" to "PHOS","P" to "PHOS",
   "PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB"

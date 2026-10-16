@@ -5,6 +5,24 @@ import org.junit.Test
 
 /** Synthetic dictionary checks; not a substitute for per-analyte clinical review. */
 class UnifiedMetricStandardAuditTest {
+ @Test fun urineAndStoolDefinitionsNeverCollapseIntoBloodOrChemistry(){
+  val urine=UnifiedMetricStandard.keysForType("尿液分析");val stool=UnifiedMetricStandard.keysForType("粪便常规")
+  assertEquals(10,urine.size);assertEquals(12,stool.size);assertTrue(urine.intersect(stool).isEmpty())
+  (urine+stool).forEach{key->val d=UnifiedMetricStandard.definition(key)!!;assertEquals(key,ReportParser.key(d.name));assertEquals("",d.unit)}
+  assertEquals("WBC",ReportParser.key("白细胞"));assertEquals("RBC",ReportParser.key("红细胞"))
+  assertEquals("GLU",ReportParser.key("葡萄糖"));assertEquals("TP",ReportParser.key("总蛋白"))
+  assertEquals("UR-LEU",ReportParser.key("尿白细胞酯酶"));assertEquals("ST-WBC",ReportParser.key("粪便白细胞"))
+ }
+ @Test fun infectiousScreeningHasSevenDistinctIdentitiesAndNoInventedUnits(){
+  val keys=setOf("HBSAG","HBSAB","HBEAG","HBEAB","HBCAB","HIVAB","TPAB")
+  assertEquals(keys,UnifiedMetricStandard.keysForType("传染病筛查"))
+  keys.forEach{key->val d=requireNotNull(UnifiedMetricStandard.definition(key));assertEquals("",d.unit);assertEquals(key,ReportParser.key(d.name))}
+  assertEquals("HBSAB",canonicalMetricKey("anti-HBs"));assertEquals("HIVAB",canonicalMetricKey("anti-HIV"))
+  assertEquals("TPAB",ReportParser.key("梅毒螺旋体特异性抗体（定性）"))
+  assertEquals("TP",ReportParser.key("TP"));assertEquals("总蛋白",UnifiedMetricStandard.definition("TP")!!.name)
+  assertNotEquals(canonicalMetricKey("TP"),canonicalMetricKey("TPAB"))
+  assertNotEquals(canonicalMetricKey("HIV"),canonicalMetricKey("HIVAB"))
+ }
  @Test fun catalogueHasUniqueKeysChineseNamesAndNoBlindAliasMerging(){
   val keys=UnifiedMetricStandard.keys()
   assertTrue("Catalogue unexpectedly empty",keys.size>=100)
