@@ -272,6 +272,7 @@ class HealthStore(private val context:Context) {
   // Report editors can hold an older snapshot than an attachment import.
   // Keep persisted images when that snapshot is saved; never silently discard them.
   val persisted=reports().firstOrNull{it.id==normalized.id}
+  ReportCategoryPolicy.validateSave(normalized,persisted)
   val existingImages=persisted?.sourceImages.orEmpty()
   val r=if(existingImages.isEmpty())normalized else normalized.copy(
    sourceImages=(existingImages+normalized.sourceImages).distinctBy{it.uri}
@@ -301,6 +302,7 @@ class HealthStore(private val context:Context) {
    val stored=reports().firstOrNull{it.id==r.id}?:error("报告保存验证失败：重新读取不到报告")
    check(stored.hospitalKey==ordered.hospitalKey &&
     stored.reportType==ordered.reportType &&
+    stored.reportName==ordered.reportName &&
     stored.testedAtEpochMillis==ordered.testedAtEpochMillis &&
     stored.results.size==ordered.results.size &&
     stored.results.map{it.id}==ordered.results.map{it.id} &&
@@ -878,6 +880,9 @@ class HealthStore(private val context:Context) {
  }
  /** Deterministic, editable clipboard format. Never fabricate unmeasured fields. */
  fun exportReportAsPastedText(report:LabReport):String = buildString {
+  val heading=ReportNaming.title(report)
+  val categoryIssues=ReportCategoryPolicy.problems(heading.category,heading.name,report.results.map{it.metricKey})
+  require(categoryIssues.isEmpty()){categoryIssues.joinToString("；")}
   append(report.hospitalKey).append('\n')
   ReportNaming.title(report).lines().forEach{append(it).append('\n')}
   append(dateText(report.testedAtEpochMillis).take(10))

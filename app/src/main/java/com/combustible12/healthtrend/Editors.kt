@@ -167,7 +167,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    if(remember(linkRevision){store.reportIdentityCandidates().isNotEmpty()})TextButton({showIdentityManager=true}){Text("历史身份映射")}
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
-  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查大类",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
+  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查大类",remember(d.hospital,store){(ReportCategoryPolicy.filingCategories+store.reports().map{it.reportType}.filterNot(ReportCategoryPolicy::forbiddenCategory)).distinct()})}
   Field(d.reportName,{value->d=d.copy(reportName=value)},"正式检查组合名称（可留空）")
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   PhotoInputButtons(draftImageInput,true,"添加报告原图")
@@ -413,7 +413,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else photoInput.gallery()},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
   item{TextButton({
    val clipboard=exportContext.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-   clipboard.setPrimaryClip(android.content.ClipData.newPlainText("检验报告",store.exportReportAsPastedText(r)))
+   try{clipboard.setPrimaryClip(android.content.ClipData.newPlainText("检验报告",store.exportReportAsPastedText(r)))}catch(e:Exception){imageError=e.message?:"导出前请核对检查分类"}
   }){Text("复制标准格式报告")}}
   item{PhotoInputButtons(photoInput,!busy,"相册添加原图")}
   item{DataSearchField(reportSearch,{reportSearch=it},"搜索报告文字、项目、结果或参考范围")}

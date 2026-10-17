@@ -26,6 +26,9 @@ internal object ReportNaming {
    name.contains("血型")->"血型检查"
    name.contains("甲功")||name.contains("甲状腺")->"甲状腺功能"
    name.contains("生化")->"生化"
+   name.contains("肝功")->"肝功能"
+   name.contains("肾功")->"肾功能"
+   name.contains("凝血")->"凝血功能"
    name.contains("TPPA",true)||name.contains("梅毒")||name.contains("HIV",true)||name.contains("HCV",true)->"传染病筛查"
    name.contains("糖类抗原")||name.contains("肿瘤标志")||name.contains("CA724",true)||name.contains("CA72-4",true)->"肿瘤标志物"
    else->fallback
@@ -46,7 +49,7 @@ internal object ReportNaming {
   val rows=header(raw)
   return when(rows.size){
    2->ReportHeading(rows[0],classify(rows[1],rows[0]).name.takeUnless{rows[1]==rows[0]}.orEmpty())
-   1->classify(rows.single(),fallback)
+   1->if(ReportCategoryPolicy.forbiddenCategory(rows.single()))ReportHeading(rows.single()) else classify(rows.single(),fallback)
    else->ReportHeading(fallback)
   }
  }

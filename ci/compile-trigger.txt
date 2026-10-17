@@ -24,3 +24,5 @@
 2026-10-17 verify search across time filters and displayed converted values
 
 2026-10-17 verify formal panel-only second report heading
+
+2026-10-17 verify report category consistency through review save and export

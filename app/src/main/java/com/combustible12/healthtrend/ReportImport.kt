@@ -62,7 +62,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  val resolved=parsed
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,reportName=meta.reportName,date=meta.date,ocr=raw,
-  rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain
+  rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain+if(ReportCategoryPolicy.problems(meta.reportType,meta.reportName,resolved.map{it.metricKey}).isEmpty())emptySet() else setOf("type")
  )
 }
 
@@ -180,7 +180,7 @@ object ReportMetadata {
    keys.intersect(setOf("CREA","UREA","UA")).size>=2->"肾功能"
    else->"检查报告"
   }
-  val type=explicit.ifBlank{inferred}
+  val type=explicit.ifBlank{if(inferred!="检查报告")inferred else ReportCategoryPolicy.infer(items.map{it.metricKey})?:inferred}
   val uncertain=buildSet{if(hospital.isBlank())add("hospital");if(date.isBlank())add("date");if(explicit.isBlank())add("type")}
   val heading=ReportNaming.resolve(raw,type)
   return ReportMetadataResult(hospital,heading.category,date,uncertain,heading.name)
