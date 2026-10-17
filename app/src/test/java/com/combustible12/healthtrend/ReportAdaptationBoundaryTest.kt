@@ -27,6 +27,10 @@ class ReportAdaptationBoundaryTest {
   assertEquals("PDW-CV",conflict.metricKey);assertTrue(metricNeedsReview(conflict,null))
   assertTrue(ReportParser.parse("大血小板 12.00 - 10-20").single().metricKey.startsWith("待核对:"))
   assertEquals("",ReportParser.parse("HGB 100 garbage 90-120").single().unit)
+  listOf("红细胞体积分布宽度","血小板体积分布宽度").forEach{name->
+   val p=ReportParser.parse("$name 12.00 - 10-20").single()
+   assertTrue(metricNeedsReview(p,null));assertFalse(p.metricKey.endsWith("-CV")||p.metricKey.endsWith("-SD"))
+  }
  }
  @Test fun uncertainReferenceConditionsArePreservedForManualSelection(){
   val p=ReportParser.parse("UR-SG\t尿比重\t1.020\t-\t成人随机尿1.003-1.030；新生儿1.002-1.004；晨尿>1.020").single()

@@ -88,6 +88,7 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  val clippedIdentity=clippedWidthFamily?.let{family->when(p.unit.trim().lowercase()){
   "%","％"->"$family-CV";"fl"->"$family-SD";else->null
  }}
+ if(clippedWidthFamily!=null && clippedIdentity==null && p.metricKey in setOf("RDW","PDW"))return true
  if(namedIdentity!="未识别" &&
     reconciledMetricIdentity(p.metricKey,namedIdentity).startsWith("待核对:")&&
     canonicalMetricKey(clippedIdentity.orEmpty())!=canonicalMetricKey(p.metricKey))return true
