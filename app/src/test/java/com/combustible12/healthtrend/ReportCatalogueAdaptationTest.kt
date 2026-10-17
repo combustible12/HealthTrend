@@ -12,7 +12,7 @@ class ReportCatalogueAdaptationTest {
    "Anti-HCV 丙肝抗体 0.08 S/CO 0-1" to "HCVAB",
    "HIVAg/Ab 人免疫缺陷病毒抗原/抗体联合检测 0.03 S/CO 0-1" to "HIVAGAB",
    "TPPA 梅毒螺旋体抗体 阴性 - 阴性" to "TPPA")
-  rows.forEach{(line,key)->val p=ReportParser.parse(line).single();assertEquals(line,key,p.metricKey);assertTrue(DraftRow.from(p).valid())}
+  rows.forEach{(line,key)->listOf(line,ReportParser.bindExplicitLeadingIdentities(line)).forEach{input->val p=ReportParser.parse(input).single();assertEquals(input,key,p.metricKey);assertTrue(DraftRow.from(p).valid())}}
   assertNotEquals(ReportParser.key("HIV抗体"),ReportParser.key("HIV抗原/抗体联合检测"))
   assertNotEquals(ReportParser.key("TP"),ReportParser.key("TPPA"))
   assertNotEquals(ReportParser.key("TPAB"),ReportParser.key("TPPA"))

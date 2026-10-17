@@ -35,7 +35,7 @@ object ReportParser {
 
  fun key(name:String):String {
   // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
-  val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull()
+  val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull{canonicalMetricKey(it) in metricIdentityKeys}
   if(identity in metricIdentityKeys)return canonicalMetricKey(identity!!)
   if(identity!=null && canonicalMetricKey(identity) in metricIdentityKeys)return canonicalMetricKey(identity)
   val label=name.trim().replace('：',':').replace('／','/')
