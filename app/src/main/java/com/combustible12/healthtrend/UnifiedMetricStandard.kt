@@ -71,7 +71,7 @@ object UnifiedMetricStandard {
   Triple("TP","总蛋白","g/L" to "血清总蛋白"),
   Triple("ALB","白蛋白","g/L" to "血清白蛋白"),
   Triple("GLOB","球蛋白","g/L" to "总球蛋白"),
-  Triple("A/G","白蛋白/球蛋白","" to "白球比"),
+  Triple("A/G","白蛋白/球蛋白","" to "白球比|白球比例"),
   Triple("ALT","谷丙转氨酶","U/L" to "丙氨酸氨基转移酶|谷丙氨酸氨基转移酶"),
   Triple("AST","谷草转氨酶","U/L" to "天门冬氨酸氨基转移酶|天冬氨酸氨基转移酶"),
   Triple("AST/ALT","谷草/谷丙","" to "谷草谷丙比"),

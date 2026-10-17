@@ -5,6 +5,18 @@ import org.junit.Test
 
 /** Synthetic dictionary checks; not a substitute for per-analyte clinical review. */
 class UnifiedMetricStandardAuditTest {
+ @Test fun albuminGlobulinRatioAliasPreservesDimensionlessSourceRange(){
+  assertEquals("A/G",UnifiedMetricStandard.resolveName("白球比例"))
+  assertEquals("A/G",ReportParser.key("白球比例"))
+  assertEquals("A/G",ReportParser.key("白球比"))
+  val parsed=ReportParser.parse("A/G 白球比例 1.750 - 1.0-2.5").single()
+  assertEquals("A/G",parsed.metricKey);assertEquals("白球比例",parsed.displayName)
+  assertEquals("1.750",parsed.textValue);assertEquals("",parsed.unit)
+  assertEquals(1.0,parsed.referenceLow!!,0.0);assertEquals(2.5,parsed.referenceHigh!!,0.0)
+  assertEquals("1.0-2.5",parsed.referenceRaw)
+  assertEquals("",UnifiedMetricStandard.definition("A/G")!!.unit)
+  assertNotEquals("ALT/AST",parsed.metricKey);assertNotEquals("AST/ALT",parsed.metricKey)
+ }
  @Test fun hpvNucleicAcidPanelPreservesGenotypesAndPooledIdentity(){
   val keys=setOf("HPV16-DNA","HPV18-DNA","HPV-OTHER12-DNA")
   assertEquals(keys,UnifiedMetricStandard.keysForType("HPV"))
