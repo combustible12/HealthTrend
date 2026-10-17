@@ -356,7 +356,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){BasicTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp).background(Color.White,RoundedCornerShape(14.dp)).padding(14.dp),textStyle=LocalTextStyle.current.copy(color=Ink,fontSize=16.sp))}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
-@Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+@Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){val heading=ReportNaming.title(r);Text(heading.category,fontWeight=FontWeight.Bold);if(heading.name.isNotBlank())Text(heading.name,fontSize=13.sp,color=Muted)};IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 /** Units belong to the reference rows; keep the latest result summary compact. */
 @Composable internal fun TrendLatestSummary(value:String,status:String,color:Color){
  Column(horizontalAlignment=Alignment.End){
@@ -892,11 +892,11 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(LabReport)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
- val types=reports.map{it.reportType}.distinct().sorted()
+ val types=reports.map{ReportNaming.title(it).category}.distinct().sorted()
  val filters=listOf("全部")+types
  Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
- val visible=reports.filter{filter=="全部"||it.reportType==filter}
- val grouped=visible.groupBy{it.reportType}.toList().sortedBy{it.first}
+ val visible=reports.filter{filter=="全部"||ReportNaming.title(it).category==filter}
+ val grouped=visible.groupBy{ReportNaming.title(it).category}.toList().sortedBy{it.first}
  if(grouped.isEmpty())Paper{Text("暂无检查报告")}
  grouped.forEach{(type,items)->
   Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)

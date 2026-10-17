@@ -61,7 +61,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // reference interval remain attached to this test, independent of hospital.
  val resolved=parsed
  return ReportDraft(
-  hospital=meta.hospital,type=meta.reportType,date=meta.date,ocr=raw,
+  hospital=meta.hospital,type=meta.reportType,reportName=meta.reportName,date=meta.date,ocr=raw,
   rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain
  )
 }
@@ -112,7 +112,7 @@ fun retargetImportedDraft(
  })
 }
 
-data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>)
+data class ReportMetadataResult(val hospital:String,val reportType:String,val date:String,val uncertain:Set<String>,val reportName:String="")
 object ReportMetadata {
  private val dateRegex=Regex("(20\\d{2})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})(?:\\s*[日号]?)")
  fun extract(raw:String,items:List<ParsedLabResult>):ReportMetadataResult{
@@ -182,6 +182,7 @@ object ReportMetadata {
   }
   val type=explicit.ifBlank{inferred}
   val uncertain=buildSet{if(hospital.isBlank())add("hospital");if(date.isBlank())add("date");if(explicit.isBlank())add("type")}
-  return ReportMetadataResult(hospital,type,date,uncertain)
+  val heading=ReportNaming.resolve(raw,type)
+  return ReportMetadataResult(hospital,heading.category,date,uncertain,heading.name)
  }
 }

@@ -46,13 +46,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 val LocalPageVisible=staticCompositionLocalOf{true}
-@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,topAction:@Composable ()->Unit={},bottom:@Composable ()->Unit={},content:@Composable (Modifier)->Unit){
+@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,topAction:@Composable ()->Unit={},bottom:@Composable ()->Unit={},subtitle:String="",content:@Composable (Modifier)->Unit){
  val active=!hidden&&LocalPageVisible.current
  val focus=LocalFocusManager.current
  BackHandler(enabled=active,onBack=onClose)
  LaunchedEffect(active){if(active)focus.clearFocus()}
  Surface(color=Warm,modifier=Modifier.fillMaxSize().then(if(active)Modifier else Modifier.clearAndSetSemantics{})){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
-  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回")};Text(title,fontSize=21.sp,modifier=Modifier.weight(1f));topAction()}
+  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回")};Column(Modifier.weight(1f)){Text(title,fontSize=21.sp);if(subtitle.isNotBlank())Text(subtitle,fontSize=13.sp,color=Muted)};topAction()}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
   Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
  }}
@@ -157,7 +157,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    if(remember(linkRevision){store.reportIdentityCandidates().isNotEmpty()})TextButton({showIdentityManager=true}){Text("历史身份映射")}
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
-  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查类型",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
+  run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查大类",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
+  Field(d.reportName,{value->d=d.copy(reportName=value)},"检查名称（可留空）")
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   PhotoInputButtons(draftImageInput,true,"添加报告原图")
   if(d.images.isNotEmpty())TextButton({viewingDraftImage=0}){Text("查看原报告 · ${d.images.size} 页")}
@@ -392,7 +393,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  var imageError by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
  val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()){busy=true;scope.launch{try{withContext(Dispatchers.IO){store.addReportImages(r.id,uris)};onImagesChanged()}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{busy=false}}}},{imageError=it})
- FullPage(r.reportType,close,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ FullPage(ReportNaming.title(r).category,close,subtitle=ReportNaming.title(r).name,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else photoInput.gallery()},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
   item{TextButton({
    val clipboard=exportContext.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

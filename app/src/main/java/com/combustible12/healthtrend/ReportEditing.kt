@@ -19,11 +19,12 @@ data class DraftRow(val id:String=newId(),val name:String="",val key:String="",v
  companion object{private const val serialVersionUID:Long=-2490116718920370338L
  fun from(p:ParsedLabResult)=DraftRow(name=p.displayName,key=p.metricKey,text=p.textValue,unit=p.unit,low=PartialReferenceRanges.parts(p.referenceRaw).first.takeIf{it.isNotBlank()}?:p.referenceLow?.toString().orEmpty(),high=PartialReferenceRanges.parts(p.referenceRaw).second.takeIf{it.isNotBlank()}?:p.referenceHigh?.toString().orEmpty(),referenceRaw=p.referenceRaw,reportFlag=p.reportFlag,raw=p.rawLine,uncertain=p.metricKey.isBlank()||p.textValue.isBlank()||(p.referenceLow==null)!=(p.referenceHigh==null))}
 }
-data class ReportDraft(val draftId:String=newId(),val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null):java.io.Serializable{
+data class ReportDraft(val draftId:String=newId(),val hospital:String="",val type:String="血常规",val system:String="",val date:String=dateText(System.currentTimeMillis()),val images:List<String> = emptyList(),val ocr:String="",val rows:List<DraftRow> = emptyList(),val uncertain:Set<String> = emptySet(),val newTemplate:Boolean=false,val existing:LabReport?=null,val reportName:String=""):java.io.Serializable{
+ private fun readResolve():Any=copy(reportName=reportName.orEmpty())
  fun parsed()=rows.map{it.parsed()}
  fun valid()=reportValidationProblems(this).isEmpty()
  companion object{private const val serialVersionUID:Long=-5255338370631356265L
- fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,PartialReferenceRanges.parts(x.referenceRaw).first.takeIf{it.isNotBlank()}?:x.referenceLowAtTest?.toString().orEmpty(),PartialReferenceRanges.parts(x.referenceRaw).second.takeIf{it.isNotBlank()}?:x.referenceHighAtTest?.toString().orEmpty(),x.rawLine,referenceRaw=x.referenceRaw,reportFlag=x.reportFlag)},existing=r)}
+ fun from(r:LabReport)=ReportDraft(hospital=r.hospitalKey,type=r.reportType,reportName=ReportNaming.title(r).name,system=r.systemKey,date=dateText(r.testedAtEpochMillis),images=r.sourceImages.map{it.uri},ocr=r.rawOcr,rows=r.results.map{x->DraftRow(x.id,x.rawName,x.metricKey,x.textValue,x.unitAtTest,PartialReferenceRanges.parts(x.referenceRaw).first.takeIf{it.isNotBlank()}?:x.referenceLowAtTest?.toString().orEmpty(),PartialReferenceRanges.parts(x.referenceRaw).second.takeIf{it.isNotBlank()}?:x.referenceHighAtTest?.toString().orEmpty(),x.rawLine,referenceRaw=x.referenceRaw,reportFlag=x.reportFlag)},existing=r)}
 }
 /** Frozen ambiguous identities may survive ordinary edits without being reclassified. */
 internal fun unchangedLegacyIdentity(row:DraftRow,report:LabReport?):Boolean {
@@ -47,7 +48,7 @@ fun materializeReportDraft(d:ReportDraft,store:HealthStore):LabReport {
    metricKey=row.key,rawName=row.name,unitAtTest=row.unit,
    editedByUser=old!=null||fresh.editedByUser)
  }
- return created.copy(id=id,templateVersion=old?.templateVersion,results=results,
+ return created.copy(id=id,reportName=d.reportName.trim().takeUnless{it==d.type}.orEmpty(),templateVersion=old?.templateVersion,results=results,
   sourceImages=if(old!=null&&d.images==old.sourceImages.map{it.uri})old.sourceImages else d.images.distinct().mapIndexed{index,uri->
    images[uri]?.copy(pageIndex=index)?:ReportImage(uri,index,System.currentTimeMillis())
   })

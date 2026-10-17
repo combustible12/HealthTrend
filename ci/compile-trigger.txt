@@ -16,3 +16,5 @@
 2026-10-17 preserve declared report metadata through complete-panel export/import and unresolved specimen edits; no release
 
 2026-10-17 remove hospital-template runtime dependencies
+
+2026-10-17 verify report category/name headings and reversible clipboard format
