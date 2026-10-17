@@ -278,7 +278,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    title={Text("修改正式中文名称")},
    text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
     Text("指标代码：$key",fontSize=12.sp,color=Muted)
-    Text("只修改统一指标的展示名称，不改历史报告和医院模板",fontSize=12.sp,color=Muted)
+    Text("只修改统一指标的展示名称，不改历史报告原始数据",fontSize=12.sp,color=Muted)
     Field(preferredInput,{preferredInput=it},"正式中文名称")
     if(preferredError.isNotBlank())Text(preferredError,color=Bad,fontSize=12.sp)
    }},
