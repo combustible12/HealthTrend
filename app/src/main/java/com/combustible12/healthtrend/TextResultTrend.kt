@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,10 +35,10 @@ import androidx.compose.ui.unit.sp
    val color=qualitativeTrendColor(result)
    Column(Modifier.width(width).clickable{onPointClick(point)}.semantics{contentDescription="${result.rawName} ${dateText(report.testedAtEpochMillis)} ${report.hospitalKey} ${label}"},horizontalAlignment=Alignment.CenterHorizontally){
     Box(Modifier.heightIn(min=72.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){
-     Text(label,style=chipStyle,color=color,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
+     Text(label,style=chipStyle,color=color,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
     }
-    Text(trendShortDate(report.testedAtEpochMillis),style=dateStyle,color=Muted)
-    Text(label,style=valueStyle,color=color)
+    Text(trendShortDate(report.testedAtEpochMillis),style=dateStyle,color=Muted,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth())
+    Text(label,style=valueStyle,color=color,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth())
    }
   }
  }

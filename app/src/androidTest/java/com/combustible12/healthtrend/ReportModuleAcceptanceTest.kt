@@ -28,7 +28,7 @@ class ReportModuleAcceptanceTest {
  private fun noOverflow(node:SemanticsNodeInteraction){
   val layouts=mutableListOf<TextLayoutResult>()
   node.performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; width=${it.didOverflowWidth}; height=${it.didOverflowHeight}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
+  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; width=${it.didOverflowWidth}; height=${it.didOverflowHeight}; paragraph=${it.multiParagraph.width}x${it.multiParagraph.height}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
  }
  private fun screenshot(name:String){
   val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: error("Android screenshot unavailable")
@@ -120,7 +120,7 @@ class ReportModuleAcceptanceTest {
   screenshot("numeric-point-dialog")
   compose.onNodeWithText("关闭").performClick()
   compose.onNodeWithText("整体").performScrollTo().performClick()
-  compose.onNodeWithText("整体趋势 · HGB").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("整体趋势 · 血红蛋白").performScrollTo().assertIsDisplayed()
   screenshot("numeric-overall")
  }
  @Test fun deviceStoreEditReplacementExportReimportAndDeletePreserveIdentity(){
