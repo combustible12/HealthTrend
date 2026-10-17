@@ -32,7 +32,10 @@ class CatalogueStorageRoundTripTest {
   val legacy=store.buildReportFromPool("合成医院","血常规",1000000000000L,emptyList(),ReportParser.parse("PDW 血小板分布宽度 13.00 % 10-17"))
    .let{r->r.copy(results=r.results.map{it.copy(metricKey="PDW")})}
   store.saveReport(legacy)
-  val parsed=ReportParser.parse(lines.joinToString("\n"))
+  val actualPaste=pastedReportDraft("合成医院\n合成检验\n2026-10-01\n"+lines.joinToString("\n"),store=store)
+  assertFalse(actualPaste.rows.map{it.key}.toString(),actualPaste.rows.any{it.key.startsWith("待核对:")})
+  assertFalse(actualPaste.rows.toString(),actualPaste.rows.any{it.uncertain})
+  val parsed=actualPaste.parsed()
   assertEquals(lines.size,parsed.size)
   val draft=ReportDraft(hospital="合成医院",type="合成检验",date="2026-10-01",rows=parsed.map{DraftRow.from(it)})
   assertTrue(reportValidationProblems(draft).toString(),draft.valid())

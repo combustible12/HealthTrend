@@ -52,6 +52,20 @@ fun distributionWidthIdentityProblem(metricKey:String,name:String,unit:String):S
  return null
 }
 
+/** Used only for recognition of new rows; never migrates a saved metric identity. */
+internal fun sourceDistributionWidthIdentity(name:String,unit:String):String? {
+ val family=when(name.trim()){
+  "红细胞分布宽度","红细胞体积分布宽度"->"RDW"
+  "血小板分布宽度","血小板体积分布宽度"->"PDW"
+  else->return null
+ }
+ return when(unit.trim().lowercase()){
+  "%","％"->"$family-CV"
+  "fl"->"$family-SD"
+  else->null
+ }
+}
+
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
 fun labDisplayTitle(name:String,key:String):String{
  val raw=name.trim()

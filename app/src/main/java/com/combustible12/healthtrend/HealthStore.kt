@@ -12,6 +12,8 @@ import java.io.File
 internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):String {
  val explicit=canonicalMetricKey(explicitInput)
  val named=canonicalMetricKey(namedInput)
+ // A generic antibody name does not contradict an explicit TPPA method code.
+ if(explicit=="TPPA"&&named=="TPAB")return explicit
  return if(namedInput!="未识别"&&named!=explicit)"待核对:代码名称冲突:$explicit" else explicit
 }
 
@@ -660,6 +662,7 @@ class HealthStore(private val context:Context) {
  fun resolveMetricKey(label:String,unit:String=""):String {
   val clean=label.trim().replace('：',':').replace('／','/')
   if(clean.isBlank())return "未识别"
+  sourceDistributionWidthIdentity(clean,unit)?.let{return it}
   // New-report recognition must not learn identities from legacy report raw names.
   // Those names remain available in metricCatalogue() for history/presentation only.
   val catalogue=recognitionMetricCatalogue()

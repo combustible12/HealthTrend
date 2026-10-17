@@ -106,12 +106,17 @@ object ReportParser {
   if(fields.size !in 4..5)return null
   val code=fields[0].trim().trim('（','）','(',')');val name=fields[1].trim();val result=fields[2].trim()
   if(!name.any{it.code in 0x3400..0x9fff}||!LabResultValues.valid(result))return null
-  if(LabResultValues.kind(result)==LabValueKind.NUMBER && (fields.size<5||LabResultValues.kind(fields[4])!=LabValueKind.QUALITATIVE))return null
+  // Some clipboard rows omit the blank unit column entirely. A qualitative
+  // fourth token is the reference, not a unit; preserve both with or without '-'.
+  val omittedUnit=fields.getOrElse(4){""}.isBlank() && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
+  val reference=if(omittedUnit)fields[3] else fields.getOrElse(4){""}
+  val sourceUnit=if(omittedUnit)"" else fields[3].trim().takeUnless{it=="-"}.orEmpty()
+  if(LabResultValues.kind(result)==LabValueKind.NUMBER && LabResultValues.kind(reference)!=LabValueKind.QUALITATIVE)return null
   var identity=key(code)
   val named=UnifiedMetricStandard.resolveName(name)
   if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
   if(identity=="未识别")identity=named?:"待核对:$name"
-  return ParsedLabResult(identity,name,LabResultValues.numeric(result),fields[3].trim().takeUnless{it=="-"}.orEmpty(),null,null,source,identity in primaryKeys,result.trimEnd('↑','↓'),referenceRaw=fields.getOrElse(4){""}.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
+  return ParsedLabResult(identity,name,LabResultValues.numeric(result),sourceUnit,null,null,source,identity in primaryKeys,result.trimEnd('↑','↓'),referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   // Decode only comparison entities. Keep rawLine verbatim for source review.

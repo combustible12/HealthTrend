@@ -87,7 +87,7 @@ fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
   "%","％"->"$family-CV";"fl"->"$family-SD";else->null
  }}
  if(namedIdentity!="未识别" &&
-    canonicalMetricKey(namedIdentity)!=canonicalMetricKey(p.metricKey)&&
+    reconciledMetricIdentity(p.metricKey,namedIdentity).startsWith("待核对:")&&
     canonicalMetricKey(clippedIdentity.orEmpty())!=canonicalMetricKey(p.metricKey))return true
  if(distributionWidthIdentityProblem(p.metricKey,p.displayName,p.unit)!=null)return true
  return false

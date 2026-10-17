@@ -3,3 +3,4 @@
 2026-10-17 recognize white-globulin ratio alias as existing A/G, compile and test only
 
 2026-10-17 catalogue import/unit/flag/storage adaptation and baseline syntax repair; compile and test only
+2026-10-17 fix omitted qualitative unit column and production identity reconciliation after logged test failures

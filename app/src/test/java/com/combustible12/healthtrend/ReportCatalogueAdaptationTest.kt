@@ -50,6 +50,11 @@ class ReportCatalogueAdaptationTest {
   val partial=ReportParser.parse("PCT 血小板压积 0.250 Y % 0.188-0.2??").single()
   assertEquals("Y",partial.reportFlag);assertEquals(ResultStatus.UNKNOWN,result(partial).status())
  }
+ @Test fun omittedAndExplicitBlankUnitsRetainQualitativeReference(){
+  listOf("TPPA 梅毒螺旋体抗体 阴性 阴性","TPPA 梅毒螺旋体抗体 阴性 - 阴性").forEach{line->
+   val p=ReportParser.parse(line).single();assertEquals("阴性",p.textValue);assertEquals("阴性",p.referenceRaw);assertEquals("",p.unit)
+  }
+ }
  @Test fun qualitativeReferenceIgnoresStaleNumericEditorBounds(){
   val row=DraftRow(key="TPPA",name="梅毒螺旋体抗体",text="阴性",low="0",high="1",referenceRaw="阴性")
   assertEquals("阴性",row.parsed().referenceRaw)
