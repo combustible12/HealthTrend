@@ -105,6 +105,7 @@ fun retargetImportedDraft(
  if(d.existing!=null||(hospital==d.hospital&&type==d.type&&system==d.system))return next
  // Reclassifying source metadata must never rebuild a template or change manually corrected rows.
  return next.copy(rows=d.rows.map {row->
+  if(requiresExplicitMetricIdentityConfirmation(row.key,row.name))return@map row
   if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
    val known=SpecimenNames.resolve(row.name,type)?:store.resolveMetricKey(row.name,row.unit)
    if(known=="未识别")row else row.copy(key=known,uncertain=false)

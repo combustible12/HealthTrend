@@ -110,6 +110,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  LaunchedEffect(d.rows,aliasRevision) {
   if(d.existing!=null)return@LaunchedEffect
   val reconciled=d.rows.map {row->
+   if(requiresExplicitMetricIdentityConfirmation(row.key,row.name))return@map row
    if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
     val identity=store.resolveMetricKey(row.name,row.unit)
     if(identity!="未识别")row.copy(key=identity,uncertain=false) else row
@@ -329,6 +330,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   val originalCode=originalResult?.metricKey
   val fixed=false
   MetricEditor(row,{changed->
+   if(requiresExplicitMetricIdentityConfirmation(changed.key,changed.name)){
+    d=d.copy(rows=d.rows.map{if(it.id==changed.id)changed else it})
+    return@MetricEditor
+   }
    // A user pressing 完成核对 explicitly confirms this Chinese name.
    // If no known identity can be resolved, register a durable custom UUID.
    // Existing explicit metric codes must never be overwritten.
@@ -373,7 +378,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 }}}
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){
  var unlock by rememberSaveable(row.id){mutableStateOf(false)}
- FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
+ FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()&&(lockIdentity||(!requiresExplicitMetricIdentityConfirmation(row.key,row.name)&&metricIdentityNameProblem(row.key,row.name,row.unit)==null))){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
   LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock,lockIdentity)
   if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
  }}

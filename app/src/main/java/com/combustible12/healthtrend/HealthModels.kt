@@ -26,6 +26,19 @@ object MetricDictionary {
  }
 }
 
+/** These states carry unresolved source evidence; only an explicit row confirmation may clear them. */
+internal fun requiresExplicitMetricIdentityConfirmation(key:String,name:String):Boolean =
+ name.trim()=="待核对"||key.startsWith("待核对:代码名称冲突:")||key.startsWith("待核对:未知复合代码:")
+
+/** New/changed rows cannot pair a known code with another known measurement name. */
+internal fun metricIdentityNameProblem(key:String,name:String,unit:String):String? {
+ val canonical=canonicalMetricKey(key)
+ if(canonical !in ReportParser.builtInMetricKeys())return null
+ val clipped=sourceDistributionWidthIdentity(name,unit)?.takeIf{canonical.endsWith("-CV")||canonical.endsWith("-SD")}
+ val named=clipped?:SpecimenNames.resolve(name,canonical)?:ReportParser.key(name)
+ return if(reconciledMetricIdentity(canonical,named).startsWith("待核对:"))"项目代码与中文名称属于不同指标，请核对" else null
+}
+
 /** Protect distinct CV (relative dispersion) and SD (absolute width) identities.
  * A conflicting source unit or explicit CV/SD label requires manual correction;
  * never reinterpret fL as % or silently switch a confirmed metric key.

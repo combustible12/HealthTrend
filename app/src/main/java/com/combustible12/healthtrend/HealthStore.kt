@@ -140,6 +140,7 @@ class HealthStore(private val context:Context) {
   require(r.results.all{it.metricKey.isNotBlank()&&it.metricKey!="未识别"&&!it.metricKey.startsWith("待核对:")&&it.reportId==r.id}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
   require(r.results.none{distributionWidthIdentityProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目CV/SD身份与单位不一致，请核对后保存"}
+  require(r.results.none{it.rawName.trim()=="待核对"||metricIdentityNameProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目代码与中文名称尚未核对"}
   require(old.id==r.id){"替换报告必须沿用原报告 ID"}
  }
  /** Atomically replaces one active report while retaining both versions as a reversible audit event. */
@@ -292,6 +293,11 @@ class HealthStore(private val context:Context) {
    val preserved=old!=null&&old.metricKey==result.metricKey&&old.rawName==result.rawName&&old.unitAtTest==result.unitAtTest
    !preserved&&distributionWidthIdentityProblem(result.metricKey,result.rawName,result.unitAtTest)!=null
   }){"报告项目CV/SD身份与单位不一致，请核对后保存"}
+  require(r.results.none{result->
+   val old=persisted?.results?.singleOrNull{it.id==result.id}
+   val preserved=old!=null&&old.metricKey==result.metricKey&&old.rawName==result.rawName&&old.unitAtTest==result.unitAtTest
+   !preserved&&(result.rawName.trim()=="待核对"||metricIdentityNameProblem(result.metricKey,result.rawName,result.unitAtTest)!=null)
+  }){"报告项目代码与中文名称尚未核对"}
   // Verify persisted content before recording secondary reference-range observations.
   // If verification fails, restore the exact previous reports JSON.
   val originalReports=read("reports").toString()
@@ -645,7 +651,7 @@ class HealthStore(private val context:Context) {
   * reviewable and preserve the explicit code in the pending key/raw line. */
  fun reconcileParsedMetrics(rows:List<ParsedLabResult>,reportType:String=""):List<ParsedLabResult> =
   rows.map{row->
-   if(row.displayName=="待核对"||(row.metricKey.startsWith("待核对:代码名称冲突:")||row.metricKey.startsWith("待核对:未知复合代码:")))return@map row
+   if(requiresExplicitMetricIdentityConfirmation(row.metricKey,row.displayName))return@map row
    if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
       !row.metricKey.startsWith("待核对:")){
     val explicit=canonicalMetricKey(row.metricKey)

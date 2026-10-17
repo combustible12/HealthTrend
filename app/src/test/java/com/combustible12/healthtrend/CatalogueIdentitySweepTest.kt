@@ -27,6 +27,8 @@ class CatalogueIdentitySweepTest {
    val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("$key $name 2.340 ${d.unit.ifBlank{"-"}} 0-9")).single()
    assertTrue("$key must not accept $other: $row",metricNeedsReview(row,null))
    assertNotEquals(other,row.metricKey)
+   val manual=ReportDraft(hospital="合成医院",type="合成检验",date="2001-01-02",rows=listOf(DraftRow(key=key,name=name,text="2.340",unit=d.unit)))
+   assertFalse("Manual editing must not bypass identity conflict: $key / $other",manual.valid())
    cases++
   }}}
   println("CONFUSABLE_SWEEP cases=$cases failures=0")

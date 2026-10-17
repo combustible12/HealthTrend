@@ -69,6 +69,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
    !unchangedLegacyIdentity(row,d.existing)&&distributionWidthIdentityProblem(key,row.name,row.unit)!=null->problems+="${label}：${distributionWidthIdentityProblem(key,row.name,row.unit)}"
    key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
     problems+="${label}：需要确认项目身份"
+   !unchangedLegacyIdentity(row,d.existing)&&metricIdentityNameProblem(key,row.name,row.unit)!=null->problems+="${label}：${metricIdentityNameProblem(key,row.name,row.unit)}"
    row.text.isBlank()->problems+="${label}：检测结果不能为空"
    !LabResultValues.valid(row.text)&&
     d.existing?.results?.singleOrNull{it.id==row.id}?.textValue!=row.text->

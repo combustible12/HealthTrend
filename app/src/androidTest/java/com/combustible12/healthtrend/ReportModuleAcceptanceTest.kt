@@ -98,6 +98,11 @@ class ReportModuleAcceptanceTest {
   assertTrue(imported.rows.single().key.startsWith("待核对:"));assertFalse(imported.valid())
   compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Unknown compound must not save")},{},{})}}
   compose.onNodeWithText("保存",useUnmergedTree=true).assertIsNotEnabled()
+  compose.onNodeWithText("编辑",useUnmergedTree=true).performScrollTo().performClick()
+  compose.onNode(hasSetTextAction() and hasText("2.340")).performTextReplacement("3.450")
+  compose.onNodeWithText("完成核对",useUnmergedTree=true).assertIsNotEnabled()
+  compose.onNodeWithContentDescription("关闭").performClick()
+  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsNotEnabled()
  }
  @Test fun enzymeRatiosRemainSeparateAndChineseThroughEditorSave(){
   val store=HealthStore(context);var saved:LabReport?=null

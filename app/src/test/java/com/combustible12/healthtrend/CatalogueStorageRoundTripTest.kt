@@ -12,6 +12,18 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
 class CatalogueStorageRoundTripTest {
+ @Test fun storageAndReplacementRejectCodeNameMismatchWithoutChangingReports(){
+  val context=RuntimeEnvironment.getApplication()
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context)
+  val d=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST 谷草转氨酶 2.340 U/L 0-9",store=store)
+  val original=materializeReportDraft(d,store);store.saveReport(original)
+  val wrong=original.copy(results=original.results.map{it.copy(metricKey="AST/ALT")})
+  try{store.saveReport(wrong);fail("Store must reject code/name mismatch")}catch(expected:IllegalArgumentException){}
+  assertEquals(original,store.reports().single())
+  try{store.replaceReportWithConfirmed(original.id,wrong);fail("Replacement must reject code/name mismatch")}catch(expected:IllegalArgumentException){}
+  assertEquals(original,store.reports().single());assertTrue(store.archivedReportReplacements().isEmpty())
+ }
  @Test fun repeatedReconciliationCannotClearUnknownOrConflictingIdentity(){
   val context=RuntimeEnvironment.getApplication()
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
@@ -21,6 +33,9 @@ class CatalogueStorageRoundTripTest {
    assertFalse(line,draft.valid());assertTrue(line,draft.rows.single().key.startsWith("待核对:"))
    val repeated=store.reconcileParsedMetrics(draft.parsed(),"生化")
    assertEquals(line,draft.rows.single().key,repeated.single().metricKey)
+   listOf(retargetImportedDraft(draft,store,hospital="另一合成医院"),retargetImportedDraft(draft,store,type="检查报告")).forEach{retargeted->
+    assertEquals(line,draft.rows.single().key,retargeted.rows.single().key);assertFalse(line,retargeted.valid())
+   }
   }
   val unnamed=ReportDraft(hospital="合成医院",type="生化",date="2001-01-02",rows=listOf(DraftRow(key="AST",name="待核对",text="2.340")))
   assertFalse(unnamed.valid())
