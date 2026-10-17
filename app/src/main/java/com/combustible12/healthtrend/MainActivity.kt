@@ -469,7 +469,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
-   val points=list.filter{(searching||trendCategoryMatches(category,it.first,it.second))&&it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
+   val points=list.filter{(searching||trendCategoryMatches(category,it.first,it.second))&&(searching||it.first.testedAtEpochMillis>=cutoff)}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()

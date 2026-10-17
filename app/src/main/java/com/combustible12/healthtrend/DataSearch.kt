@@ -16,8 +16,10 @@ internal object DataSearch {
  fun resultFields(x:LabResult,aliases:Map<String,String> = emptyMap(),preferred:String?=null):List<String> {
   val key=canonicalMetricKey(x.metricKey)
   val definition=UnifiedMetricStandard.definition(key)
+  val normalized=UnitNormalizer.normalize(key,x.value,x.unitAtTest)
+  val bounds=x.trendReferenceRange()
   return listOf(x.rawName,key,labDisplayTitle(x.rawName,key),definition?.name.orEmpty(),preferred.orEmpty(),x.textValue,x.unitAtTest,x.referenceRaw,
-   x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),rangeText(x.referenceLowAtTest,x.referenceHighAtTest),x.rawLine,x.reportFlag,x.resultStatusLabel())+
+   x.referenceLowAtTest?.toString().orEmpty(),x.referenceHighAtTest?.toString().orEmpty(),rangeText(x.referenceLowAtTest,x.referenceHighAtTest),x.rawLine,x.reportFlag,x.resultStatusLabel(),normalized.first?.toString().orEmpty(),normalized.second,definition?.unit.orEmpty(),rangeText(bounds.first,bounds.second))+
    definition?.aliases.orEmpty()+ReportParser.builtInAliasNames(key)+aliases.filterValues{canonicalMetricKey(it)==key}.keys+dates(x.testedAtEpochMillis)
  }
  fun reportFields(r:LabReport):List<String> {

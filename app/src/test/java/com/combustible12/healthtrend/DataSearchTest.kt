@@ -27,13 +27,16 @@ class DataSearchTest {
  }
  @Test fun detailMatchesOnlyCorrespondingRowsAndPreservesOriginals(){
   val report=report();val row=report.results.single()
-  val other=row.copy(metricKey="WBC",rawName="白细胞",textValue="5.20",unitAtTest="10^9/L",referenceLowAtTest=3.0,referenceHighAtTest=10.0,referenceRaw="3-10",rawLine="")
+  val other=row.copy(metricKey="WBC",rawName="白细胞",value=5.2,normalizedValue=5.2,textValue="5.20",unitAtTest="10^9/L",referenceLowAtTest=3.0,referenceHighAtTest=10.0,referenceRaw="3-10",rawLine="")
   assertTrue(DataSearch.row("123.00",report,row))
   assertFalse(DataSearch.row("123.00",report,other))
   assertTrue(DataSearch.row("合成甲医院 5.20",report,other))
   val qualitative=row.copy(metricKey="HBSAB",rawName="乙肝表面抗体",value=null,textValue="阳性(+)",unitAtTest="",referenceLowAtTest=null,referenceHighAtTest=null,referenceRaw="阴性(-)",rawLine="")
   assertTrue(DataSearch.row("阳性",report,qualitative))
   assertTrue(DataSearch.row("阴性",report,qualitative))
+  val converted=row.copy(value=12.3,textValue="12.30",unitAtTest="g/dL",referenceLowAtTest=11.0,referenceHighAtTest=15.0,referenceRaw="11-15",rawLine="")
+  assertTrue(DataSearch.row("123.0",report,converted))
+  assertTrue(DataSearch.row("g/dL",report,converted))
   assertEquals("123.00",row.textValue)
  }
  @Test fun courseAndEntriesIncludeNumericAndDateFields(){
