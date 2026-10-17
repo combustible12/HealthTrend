@@ -48,7 +48,7 @@ fun materializeReportDraft(d:ReportDraft,store:HealthStore):LabReport {
    metricKey=row.key,rawName=row.name,unitAtTest=row.unit,
    editedByUser=old!=null||fresh.editedByUser)
  }
- return created.copy(id=id,reportName=d.reportName.trim().takeUnless{it==d.type}.orEmpty(),templateVersion=old?.templateVersion,results=results,
+ return created.copy(id=id,reportName=ReportNaming.formalPanelName(d.reportName).takeUnless{it==d.type}.orEmpty(),templateVersion=old?.templateVersion,results=results,
   sourceImages=if(old!=null&&d.images==old.sourceImages.map{it.uri})old.sourceImages else d.images.distinct().mapIndexed{index,uri->
    images[uri]?.copy(pageIndex=index)?:ReportImage(uri,index,System.currentTimeMillis())
   })

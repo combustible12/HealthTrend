@@ -7,6 +7,15 @@ internal data class ReportHeading(val category:String,val name:String="") {
 internal object ReportNaming {
  private val categories=setOf("血常规","生化","肝功能","肾功能","电解质及肾功能","肿瘤标志物","传染病筛查","甲状腺","甲状腺功能","凝血","凝血功能","尿液分析","尿常规","尿液检查","粪便常规","粪便检查","血型","血型检查","检查报告")
  private fun isList(s:String)=Regex("[,，、;；]").containsMatchIn(s)||Regex("测定").findAll(s).count()>1
+ /** Only explicit recognized panel names qualify; a short analyte name is not a panel. */
+ fun formalPanelName(source:String):String {
+  val name=source.trim()
+  if(name.isBlank()||isList(name))return ""
+  val numbered=Regex("[一二三四五六七八九十百两0-9]+项(?:检查|检测|测定)?(?:[（(][^）)]*[）)])?$").containsMatchIn(name)
+  val hepatitis=Regex("^(?:乙肝|乙型肝炎)(?:二|两)对半(?:[（(][^）)]*[）)])?$").matches(name)
+  val known=name in setOf("血细胞分析","血细胞分析(成人)","血细胞分析（成人）","常规生化全套检查","生化全套检查","生化全套")
+  return name.takeIf{numbered||hepatitis||known}.orEmpty()
+ }
  fun classify(source:String,fallback:String):ReportHeading {
   val name=source.trim()
   if(name.isBlank())return ReportHeading(fallback)
@@ -21,7 +30,7 @@ internal object ReportNaming {
    name.contains("糖类抗原")||name.contains("肿瘤标志")||name.contains("CA724",true)||name.contains("CA72-4",true)->"肿瘤标志物"
    else->fallback
   }
-  return ReportHeading(category,if(isList(name))"" else name.takeUnless{it==category}.orEmpty())
+  return ReportHeading(category,formalPanelName(name).takeUnless{it==category}.orEmpty())
  }
  /** Only the heading before an explicit date is read; result rows never supply a title. */
  fun header(raw:String):List<String> {
@@ -44,7 +53,7 @@ internal object ReportNaming {
  fun title(report:LabReport):ReportHeading {
   val classified=classify(report.reportType,report.reportType)
   val saved=report.reportName.orEmpty().trim()
-  if(report.reportName!=null)return ReportHeading(report.reportType,saved.takeUnless{it==report.reportType}.orEmpty())
+  if(report.reportName!=null)return ReportHeading(report.reportType,formalPanelName(saved).takeUnless{it==report.reportType}.orEmpty())
   // Read-only recovery of a specific original heading, never a storage migration.
   val source=resolve(report.rawOcr,classified.category)
   return if(source.category==classified.category&&source.name.isNotBlank())source else classified

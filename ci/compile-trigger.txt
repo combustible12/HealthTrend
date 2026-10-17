@@ -22,3 +22,5 @@
 2026-10-17 verify all stored text and numeric search and date-only report exports
 
 2026-10-17 verify search across time filters and displayed converted values
+
+2026-10-17 verify formal panel-only second report heading

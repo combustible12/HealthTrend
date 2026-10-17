@@ -168,7 +168,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   }
   run{RememberedField(d.hospital,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,hospital=value),"hospital",value)},"医院",remember(store){store.rememberedHospitals()})}
   run{RememberedField(d.type,{value->d=updateOcrMetadata(retargetImportedDraft(d,store,type=value),"type",value)},"检查大类",remember(d.hospital,store){(store.reports().map{it.reportType}+listOf("血常规","生化")).distinct()})}
-  Field(d.reportName,{value->d=d.copy(reportName=value)},"检查名称（可留空）")
+  Field(d.reportName,{value->d=d.copy(reportName=value)},"正式检查组合名称（可留空）")
   run{Field(d.date,{value->d=updateOcrMetadata(d,"date",value)},"检查日期/时间")}
   PhotoInputButtons(draftImageInput,true,"添加报告原图")
   if(d.images.isNotEmpty())TextButton({viewingDraftImage=0}){Text("查看原报告 · ${d.images.size} 页")}

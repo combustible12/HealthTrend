@@ -50,12 +50,21 @@ class ReportHeadingRoundTripTest {
    Triple("甲功五项","甲状腺功能","甲功五项"),
    Triple("输注前血型4项","血型检查","输注前血型4项"),
    Triple("常规生化全套检查","生化","常规生化全套检查"),
-   Triple("梅毒螺旋体抗体（TPPA）","传染病筛查","梅毒螺旋体抗体（TPPA）"),
-   Triple("糖类抗原CA724测定","肿瘤标志物","糖类抗原CA724测定"))
+   Triple("梅毒螺旋体抗体（TPPA）","传染病筛查",""),
+   Triple("糖类抗原CA724测定","肿瘤标志物",""))
   examples.forEach{(title,category,name)->
    val heading=ReportNaming.resolve("合成医院\n$title\n$day",category)
    assertEquals(title,ReportHeading(category,name),heading)
   }
+ }
+ @Test fun arbitraryNamesAndAnalytesCannotBecomeSecondLine(){
+  for(name in listOf("糖类抗原CA724测定","TPPA","任意检查名称","FT3、FT4、TSH","甲胎蛋白 癌胚抗原"))assertEquals(name,"",ReportNaming.formalPanelName(name))
+  for(name in listOf("甲功五项","输注前血型4项","乙肝二对半(定性)","乙肝两对半（定性）"))assertEquals(name,name,ReportNaming.formalPanelName(name))
+  val store=store()
+  val original=store.buildReportFromPool("合成医院","肿瘤标志物",parseDate(day)!!,emptyList(),ReportParser.parse("CA724 糖类抗原724 2.00 U/mL 0-10")).copy(reportName="糖类抗原CA724测定")
+  assertEquals(listOf("肿瘤标志物"),ReportNaming.title(original).lines())
+  val draft=ReportDraft.from(original).copy(reportName="任意单项名")
+  assertEquals("",materializeReportDraft(draft,store).reportName)
  }
  @Test fun categoryOnlyAndOldStoredReportStayUnchanged(){
   val store=store()
