@@ -59,6 +59,17 @@ class TwelveImageAcceptanceAuditTest {
    "合成链路通过"
   }catch(e:Exception){"未完成:${e.message.orEmpty().substringBefore('\n')}"}
  }
+ @Test fun changingUnresolvedSpecimenTypeDoesNotRewriteSavedIdentities(){
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context)
+  val pending=ReportDraft(hospital="合成医院",type="检查报告",date="2001-01-01",rows=listOf(DraftRow(name="镜检白细胞",key="待核对:镜检白细胞",text="未检出")))
+  assertEquals("ST-WBC",retargetImportedDraft(pending,store,type="粪便常规").rows.single().key)
+  val old=store.buildReportFromPool("合成医院","生化",1000000000000L,emptyList(),ReportParser.parse("GLU 葡萄糖 4.000 mmol/L 3-6"))
+  val edited=retargetImportedDraft(ReportDraft.from(old),store,type="尿液分析")
+  assertEquals(old.results.map{it.metricKey},edited.rows.map{it.key})
+  assertEquals("尿液分析",ReportMetadata.extract("合成医院\n尿液分析\n2001-01-01\n葡萄糖 阴性 - 阴性",emptyList()).reportType)
+  assertEquals("传染病筛查",ReportMetadata.extract("合成医院\n传染病筛查\n2001-01-01\nHBSAG 乙肝表面抗原 阴性 - 阴性",emptyList()).reportType)
+ }
  @Test fun completePanelsKeepAllRowsAcrossBothImportPaths(){
   val data=JSONArray(javaClass.getResourceAsStream("/twelve-image-terms.json")!!.bufferedReader().use{it.readText()})
   val groups=(0 until data.length()).map{data.getJSONObject(it)}.filter{it.getString("kind")!="血型卡片"}
@@ -84,6 +95,9 @@ class TwelveImageAcceptanceAuditTest {
    val reloaded=HealthStore(context)
    assertEquals(report,reloaded.reports().single())
    val exported=pastedReportDraft(reloaded.exportReportAsPastedText(report),store=reloaded)
+   assertEquals(draft.hospital,exported.hospital)
+   assertEquals(draft.type,exported.type)
+   assertEquals(draft.date,exported.date)
    assertEquals(draft.rows.map{it.key},exported.rows.map{it.key})
    assertEquals(draft.rows.map{it.text},exported.rows.map{it.text})
    assertEquals(draft.rows.map{it.unit},exported.rows.map{it.unit})

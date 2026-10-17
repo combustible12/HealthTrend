@@ -106,7 +106,7 @@ fun retargetImportedDraft(
  // Reclassifying source metadata must never rebuild a template or change manually corrected rows.
  return next.copy(rows=d.rows.map {row->
   if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
-   val known=store.resolveMetricKey(row.name,row.unit)
+   val known=SpecimenNames.resolve(row.name,type)?:store.resolveMetricKey(row.name,row.unit)
    if(known=="未识别")row else row.copy(key=known,uncertain=false)
   }else row
  })
@@ -143,7 +143,14 @@ object ReportMetadata {
   // year conflict is strong evidence that OCR changed 2026 into 2016. Require review.
   val yearConflict=candidate.isNotBlank()&&administrativeDates.any{it.substring(5)==candidate.substring(5)&&it.substring(0,4)!=candidate.substring(0,4)}
   val date=candidate.takeUnless{yearConflict}.orEmpty()
-  val explicit=when{
+  // Explicit report metadata must survive export/import unchanged. Body analyte
+  // keywords can infer a missing type, but cannot overwrite a supplied header.
+  val labelledType=lines.firstNotNullOfOrNull{line->
+   Regex("^(?:检查类型|报告类型|类型)\\s*[:：]\\s*(.+)$").matchEntire(line)?.groupValues?.get(1)?.trim()?.takeIf{it.isNotBlank()}
+  }
+  val knownHeaders=setOf("血常规","生化","肝功能","肾功能","肿瘤标志物","传染病筛查","甲状腺","甲状腺功能","凝血","凝血功能","尿液分析","尿常规","粪便常规","血型","电解质及肾功能")
+  val declared=labelledType?:lines.firstOrNull{it in knownHeaders}
+  val explicit=declared?:when{
    raw.contains("乙肝二对半")||raw.contains("乙肝两对半")||raw.contains("HBsAg")||raw.contains("抗-HCV")||raw.contains("Anti-HCV")->"传染病筛查"
    raw.contains("游离-T3")||raw.contains("游离-T4")||raw.contains("促甲状腺素")||raw.contains("FT3")&&raw.contains("FT4")->"甲状腺功能"
    raw.contains("粪便常规")||raw.contains("粪便分析")->"粪便常规"

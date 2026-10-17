@@ -13,3 +13,4 @@
 2026-10-17 close all twelve-image import gaps with mandatory 190+190 production round trips and boundaries; no release
 2026-10-17 preserve missing-unit distribution-width review after full twelve-image gate passed and logged boundary failure
 2026-10-17 verify eighteen complete panels in both input forms after row and boundary gates passed; no release
+2026-10-17 preserve declared report metadata through complete-panel export/import and unresolved specimen edits; no release
