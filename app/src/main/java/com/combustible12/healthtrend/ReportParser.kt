@@ -69,7 +69,7 @@ object ReportParser {
   true
  }
  private fun normalizeCode(raw:String):String{
-  val c=raw.uppercase().replace("％","%").replace('：',':').replace('／','/').trim().let{code->
+  val c=raw.uppercase().replace(Regex("\\s+"),"").replace("％","%").replace('：',':').replace('／','/').trim().let{code->
    if(code in setOf("AST:ALT","ALT:AST","A:G","CKMB:CK"))code.replace(':','/') else code
   }
   val base=c.trimStart('#','%').trimEnd('#','%')
@@ -108,21 +108,26 @@ object ReportParser {
   if(!name.any{it.code in 0x3400..0x9fff}||!LabResultValues.valid(result))return null
   // Some clipboard rows omit the blank unit column entirely. A qualitative
   // fourth token is the reference, not a unit; preserve both with or without '-'.
-  val omittedUnit=fields.getOrElse(4){""}.isBlank() && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
+  val omittedUnit=fields.getOrElse(4){""}.isBlank() && fields[3].trim()!="-" && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
   val reference=if(omittedUnit)fields[3] else fields.getOrElse(4){""}
   val sourceUnit=if(omittedUnit)"" else fields[3].trim().takeUnless{it=="-"}.orEmpty()
-  if(LabResultValues.kind(result)==LabValueKind.NUMBER && LabResultValues.kind(reference)!=LabValueKind.QUALITATIVE)return null
+  val numeric=LabResultValues.numeric(result)
+  if(numeric!=null && '\t' !in source && LabResultValues.kind(reference)!=LabValueKind.QUALITATIVE)return null
+  val bounds=if(numeric!=null)PartialReferenceRanges.parts(reference) else "" to ""
   var identity=key(code)
   val named=UnifiedMetricStandard.resolveName(name)
   if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
   if(identity=="未识别")identity=named?:"待核对:$name"
-  return ParsedLabResult(identity,name,LabResultValues.numeric(result),sourceUnit,null,null,source,identity in primaryKeys,result.trimEnd('↑','↓'),referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
+  return ParsedLabResult(identity,name,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
- fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
+ fun parse(text:String,reportType:String=""):List<ParsedLabResult> = segments(text).mapNotNull { source ->
   // Decode only comparison entities. Keep rawLine verbatim for source review.
   val decoded=source.replace("&lt;","<",true).replace("&gt;",">",true)
   val cleaned=decoded.replace(Regex("(?<=\\d)\\s+[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
    .replace(Regex("(?<=\\s)[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
+  StructuredReportRows.prepare(cleaned,reportType)?.let{structured->
+   clipboardTextResult(structured)?.let{return@mapNotNull it.copy(rawLine=source,reportFlag=sourceReportFlag(source))}
+  }
   clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=source,reportFlag=sourceReportFlag(source))}
   val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null

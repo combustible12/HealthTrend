@@ -699,12 +699,12 @@ class HealthStore(private val context:Context) {
   * A complete explicit code is strong evidence, but it must agree with an
   * independently recognizable Chinese measurement identity. Conflicts stay
   * reviewable and preserve the explicit code in the pending key/raw line. */
- fun reconcileParsedMetrics(rows:List<ParsedLabResult>):List<ParsedLabResult> =
+ fun reconcileParsedMetrics(rows:List<ParsedLabResult>,reportType:String=""):List<ParsedLabResult> =
   rows.map{row->
    if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
       !row.metricKey.startsWith("待核对:")){
     val explicit=canonicalMetricKey(row.metricKey)
-    val named=resolveMetricKey(row.displayName,row.unit)
+    val named=SpecimenNames.resolve(row.displayName,reportType)?:resolveMetricKey(row.displayName,row.unit)
     val reconciled=reconciledMetricIdentity(explicit,named)
     if(reconciled!=explicit)row.copy(metricKey=reconciled)
     else row

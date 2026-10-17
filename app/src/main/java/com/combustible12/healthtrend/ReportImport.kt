@@ -50,7 +50,8 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // Clipboard rows commonly start with an explicit analyzer code (for example "TP 总蛋白 78.10 ...").
  // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
  // guess by name and never consults or changes legacy templates.
- val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized)).let{rows->store?.reconcileParsedMetrics(rows)?:rows}
+ val sourceType=ReportMetadata.extract(raw,emptyList()).reportType
+ val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized),sourceType).let{rows->store?.reconcileParsedMetrics(rows,sourceType)?:rows}
  if(parsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
  val meta=ReportMetadata.extract(raw,parsed)
  // Clipboard data already has an explicit metric code on every row. Exact canonical
@@ -71,13 +72,14 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
 @Suppress("UNUSED_PARAMETER")
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
+ if(Regex("成人|新生儿|晨尿").containsMatchIn(p.referenceRaw))return true
  if(p.reportFlag.length>1 || sourceFlagConflict(p.reportFlag,p.value,p.referenceLow,p.referenceHigh))return true
  if('?' in p.referenceRaw && PartialReferenceRanges.interval(p.referenceRaw,p.value,p.reportFlag.singleOrNull())==null)return true
  // A legacy confirmed template must not override a malformed interval or suppress review.
  if(p.referenceLow!=null&&p.referenceHigh!=null&&p.referenceLow>p.referenceHigh)return true
  // An explicit analyzer code must not silently override a conflicting Chinese
  // measurement name. Unknown names still require manual review upstream.
- val namedIdentity=ReportParser.key(p.displayName)
+ val namedIdentity=SpecimenNames.resolve(p.displayName,p.metricKey)?:ReportParser.key(p.displayName)
  val clippedWidthFamily=when(p.displayName.trim()){
   "红细胞分布宽度","红细胞体积分布宽度"->"RDW"
   "血小板分布宽度","血小板体积分布宽度"->"PDW"

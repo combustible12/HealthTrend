@@ -9,7 +9,7 @@ internal fun qualitativeTrendColor(result:LabResult):Color {
  // HBsAb is the protective surface antibody. Other HBV antibodies do not share this rule.
  if(key in setOf("HBSAB","ANTI-HBS") && positive)return Good
  return when(result.referenceAgreement()){
-  ReferenceAgreement.MATCH -> Good
+  ReferenceAgreement.MATCH -> Muted
   ReferenceAgreement.MISMATCH -> Bad
   ReferenceAgreement.UNKNOWN -> Muted
  }

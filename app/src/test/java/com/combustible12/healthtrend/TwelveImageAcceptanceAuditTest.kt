@@ -10,7 +10,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
-/** Audit completion is NOT a claim that all terms pass. Each gap is printed into the acceptance table.
+/** Every non-card occurrence must pass both paths; each gap fails this gate and is logged.
  * Fixtures contain only generic analyte terms and units; all values/dates/ranges are synthetic. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
@@ -51,8 +51,11 @@ class TwelveImageAcceptanceAuditTest {
    if(after.results!=saved.results)return "编辑改变结果"
    val exported=pastedReportDraft(reopened.exportReportAsPastedText(after),store=reopened).rows.single()
    if(exported.key!=key||exported.text!=value||exported.unit!=unit||exported.parsed().referenceRaw!=reference)return "导出再导入变化"
-   val point=reopened.trend(key).single().second
-   if(point.textValue!=value)return "趋势入口变化"
+   val series=reopened.trend(key)
+   if(kind=="带比较符数值"){
+    if(series.isNotEmpty())return "比较符结果被当作精确趋势点"
+    if(after.results.single().comparator!="<")return "结果比较符丢失"
+   }else if(series.single().second.textValue!=value)return "趋势入口变化"
    "合成链路通过"
   }catch(e:Exception){"未完成:${e.message.orEmpty().substringBefore('\n')}"}
  }
@@ -70,5 +73,7 @@ class TwelveImageAcceptanceAuditTest {
   }
   assertEquals(113,keys.size);assertEquals(4,cards)
   println("HT12_TOTAL|194|113|$direct|$standard|$cards")
+  assertEquals("原名称入口仍有未完成项，查看HT12逐行日志",190,direct)
+  assertEquals("固定格式入口仍有未完成项，查看HT12逐行日志",190,standard)
  }
 }
