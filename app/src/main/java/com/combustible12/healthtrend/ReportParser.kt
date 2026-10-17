@@ -150,7 +150,7 @@ object ReportParser {
   val named=UnifiedMetricStandard.resolveName(name)
   if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
   if(identity=="未识别"){
-   val compound=code.any{it in "/:_-"}&&code.split(Regex("[/:_\\-]")).any{canonicalMetricKey(normalizeCode(it)) in metricIdentityKeys}
+   val compound=code.any{it in "/:_-"}&&!code.startsWith("CUSTOM-",true)
    identity=if(compound)"待核对:未知复合代码:$code" else named?:"待核对:$name"
   }
   val displayName=if(identity in setOf("AST/ALT","ALT/AST") && named==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name

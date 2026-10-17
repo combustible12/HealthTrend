@@ -16,7 +16,7 @@ class CatalogueStorageRoundTripTest {
   val context=RuntimeEnvironment.getApplication()
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
   val store=HealthStore(context)
-  listOf("AST / UNKNOWN 2.340 - 0-9","CK - UNKNOWN 2.340 - 0-9","CA - 999 2.340 - 0-9","AST ZZZ 2.340 - 0-9","AST/ALT 谷草转氨酶 2.340 - 0-9","AST / UNKNOWN 谷草转氨酶 2.340 - 0-9","CK - UNKNOWN 肌酸激酶 2.340 - 0-9").forEach{line->
+  listOf("AST / UNKNOWN 2.340 - 0-9","CK - UNKNOWN 2.340 - 0-9","CA - 999 2.340 - 0-9","AST ZZZ 2.340 - 0-9","AST/ALT 谷草转氨酶 2.340 - 0-9","AST / UNKNOWN 谷草转氨酶 2.340 - 0-9","CK - UNKNOWN 肌酸激酶 2.340 - 0-9","HPV16-XYZ 人乳头瘤病毒16型核酸 2.340 - 0-9").forEach{line->
    val draft=pastedReportDraft("合成医院\n生化\n2001-01-02\n$line",store=store)
    assertFalse(line,draft.valid());assertTrue(line,draft.rows.single().key.startsWith("待核对:"))
    val repeated=store.reconcileParsedMetrics(draft.parsed(),"生化")
