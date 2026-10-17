@@ -15,7 +15,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
 class TwelveImageAcceptanceAuditTest {
- private val context get()=RuntimeEnvironment.getApplication<android.app.Application>()
+ private val context get()=RuntimeEnvironment.getApplication()
  private fun audit(row:JSONObject,standard:Boolean):String {
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
   val store=HealthStore(context)
