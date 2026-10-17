@@ -19,8 +19,9 @@ class TextResultTrendTest {
   val points=listOf(point("one","阴性"),point("two","阳性"));var clicked=""
   compose.setContent{MaterialTheme{TextResultTrend(points){clicked=it.second.id}}}
   compose.onAllNodesWithText("01/15",useUnmergedTree=true).assertCountEquals(2)
-  compose.onAllNodesWithText("阳性",useUnmergedTree=true)[0].assertExists().performClick()
+  compose.onAllNodesWithText("阳性",useUnmergedTree=true).assertCountEquals(1)
+  compose.onNodeWithText("阳性",useUnmergedTree=true).performClick()
   compose.runOnIdle{assertEquals("two",clicked)}
-  compose.onAllNodesWithText("阴性",useUnmergedTree=true)[0].assertExists()
+  compose.onAllNodesWithText("阴性",useUnmergedTree=true).assertCountEquals(1)
  }
 }

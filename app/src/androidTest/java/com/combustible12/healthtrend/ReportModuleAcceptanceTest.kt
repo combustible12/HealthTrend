@@ -53,6 +53,7 @@ class ReportModuleAcceptanceTest {
   compose.onAllNodesWithText("阴性(-)",useUnmergedTree=true).assertCountEquals(0)
   compose.onAllNodesWithText("阳性(+)",useUnmergedTree=true).assertCountEquals(0)
   for(label in listOf("阴性","阳性","++","+++",values.last())){
+   compose.onAllNodesWithText(label,useUnmergedTree=true).assertCountEquals(1)
    val node=compose.onAllNodesWithText(label,useUnmergedTree=true)[0]
    node.performScrollTo().assertIsDisplayed();noOverflow(node)
   }
