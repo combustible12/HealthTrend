@@ -16,8 +16,9 @@ object MetricDictionary {
   "ANTI-HIV" to "HIVAB","HIV-AB" to "HIVAB","ANTI-TP" to "TPAB","TP-AB" to "TPAB",
   "CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA",
   "UREA/CR" to "UREA/CREA","PI" to "PHOS","P" to "PHOS",
-  "PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB"
+  "PHOSPHATE" to "PHOS","CK-MB" to "CKMB","CK_MB" to "CKMB","CK-MB/CK" to "CKMB/CK"
  )
+ internal fun sourceCodeAliases():Set<String> = aliases.keys
  fun canonical(raw:String):String {
   val code=raw.trim().uppercase().replace('／','/').replace('％','%')
   val compound=if(code in setOf("AST:ALT","ALT:AST","A:G","CKMB:CK"))code.replace(':','/') else code

@@ -81,6 +81,24 @@ class ReportModuleAcceptanceTest {
   noOverflow(compose.onNodeWithText("1234567890.000"));noOverflow(compose.onNodeWithText("mOsm/kgH2O"))
   screenshot("numeric-complex-unit-large-font")
  }
+ @Test fun sourceTypographyDoesNotCollapseSimilarCodesInEditor(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val source="合成医院\n生化\n2001-01-02\nCK - MB 2.340 U/L 0-9\nCKMB / CK 0.340 - 0-9\nUREA：CREA 0.050 - 0-9\nAG 2.340 mmol/L 0-9\nA / G 1.500 - 0-9"
+  val imported=pastedReportDraft(source,store=store)
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  assertEquals(listOf("CKMB","CKMB/CK","UREA/CREA","AG","A/G"),imported.rows.map{it.key})
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
+  imported.rows.forEach{row->compose.onNodeWithText(row.name,useUnmergedTree=true).performScrollTo().assertIsDisplayed()}
+  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsEnabled().performClick()
+  compose.runOnIdle{assertNotNull(saved);assertEquals(imported.rows.map{it.key},HealthStore(context).reports().single().results.map{it.metricKey})}
+ }
+ @Test fun unknownCompoundCannotBecomeKnownMetricOrEnableSave(){
+  val store=HealthStore(context)
+  val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST / UNKNOWN 谷草转氨酶 2.340 - 0-9",store=store)
+  assertTrue(imported.rows.single().key.startsWith("待核对:"));assertFalse(imported.valid())
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Unknown compound must not save")},{},{})}}
+  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsNotEnabled()
+ }
  @Test fun enzymeRatiosRemainSeparateAndChineseThroughEditorSave(){
   val store=HealthStore(context);var saved:LabReport?=null
   val source="合成医院\n生化\n2001-01-02\nAST 24.00 U/L 0-40\nALT 12.00 U/L 0-40\nAST / ALT 2.000\nALT：AST 0.500"

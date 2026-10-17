@@ -645,6 +645,7 @@ class HealthStore(private val context:Context) {
   * reviewable and preserve the explicit code in the pending key/raw line. */
  fun reconcileParsedMetrics(rows:List<ParsedLabResult>,reportType:String=""):List<ParsedLabResult> =
   rows.map{row->
+   if(row.displayName=="待核对"||(row.metricKey.startsWith("待核对:代码名称冲突:")||row.metricKey.startsWith("待核对:未知复合代码:")))return@map row
    if(row.metricKey.isNotBlank() && row.metricKey!="未识别" &&
       !row.metricKey.startsWith("待核对:")){
     val explicit=canonicalMetricKey(row.metricKey)

@@ -50,7 +50,7 @@ object ReportParser {
   return chemistryNames.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: aliases.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: "未识别"
  }
  private val metricIdentityKeys=UnifiedMetricStandard.keys()+setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","PDW-CV","PDW-SD","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","ALT/AST","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","AMY","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
- internal fun bindExplicitLeadingIdentities(text:String):String=normalizeCompoundCodes(text).lines().joinToString("\n"){line->
+ internal fun bindExplicitLeadingIdentities(text:String):String=normalizeSourceCodes(text).lines().joinToString("\n"){line->
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(trimmed))return@joinToString trimmed
@@ -69,8 +69,8 @@ object ReportParser {
   true
  }
  private fun normalizeCode(raw:String):String{
-  val c=raw.uppercase().replace(Regex("\\s+"),"").replace("％","%").replace('：',':').replace('／','/').trim().let{code->
-   if(code in setOf("AST:ALT","ALT:AST","A:G","CKMB:CK"))code.replace(':','/') else code
+  val c=raw.uppercase().replace(Regex("\\s+"),"").replace("％","%").replace('：',':').replace('／','/').replace('＃','#').replace('－','-').replace('–','-').replace('—','-').trim().let{code->
+   if(canonicalMetricKey(code.replace(':','/')) in metricIdentityKeys)code.replace(':','/') else code
   }
   val base=c.trimStart('#','%').trimEnd('#','%')
   val marker=when{
@@ -87,17 +87,39 @@ object ReportParser {
    .sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}+
   ")(?![A-Za-z0-9/#%\\-])"
  )
- // Normalize only complete known compound codes before any segmentation. A colon,
- // full-width slash or spaces around the slash must not turn one ratio into two enzymes.
- private fun normalizeCompoundCodes(text:String):String {
-  var normalized=text
-  metricIdentityKeys.filter{'/' in it}.sortedByDescending{it.length}.forEach{key->
-   val pattern=key.split('/').joinToString("\\s*[/／:：]\\s*"){Regex.escape(it)}
-   normalized=normalized.replace(Regex("(?<![A-Za-z0-9/#%])"+pattern+"(?![A-Za-z0-9/#%])",RegexOption.IGNORE_CASE),key)
+ // Only complete known codes may consume separator whitespace. Longest-first
+ // protects CKMB/CK from CK, CA-125 from CA, and CV/SD from the generic family.
+ private val sourceCodePrefix by lazy {
+  val differential=metricIdentityKeys.filter{it.endsWith('#')||it.endsWith('%')}.map{it.takeLast(1)+it.dropLast(1)}
+  val codes=metricIdentityKeys+MetricDictionary.sourceCodeAliases()+differential
+  val patterns=codes.sortedByDescending{it.length}.joinToString("|"){code->
+   code.mapIndexed{index,ch->when(ch){
+    '/'->"[ \t]*[/／:：][ \t]*"
+    '-'->if(code.getOrNull(index+1)?.isDigit()==true)"(?:[-－–—]|[ \t]+[-－–—][ \t]+)" else "[ \t]*[-－–—][ \t]*"
+    '_'->"[ \t]*_[ \t]*"
+    '#'->"[#＃]"
+    '%'->"[%％]"
+    else->Regex.escape(ch.toString())
+   }}.joinToString("")
   }
-  return normalized
+  Regex("^([ \t]*[（(]?[ \t]*)($patterns)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
  }
- private fun segments(text:String)=normalizeCompoundCodes(text).lines().flatMap{raw->
+ // Capture a complete code-shaped prefix before considering a shorter known key.
+ // Unknown compounds must stay unknown; a known prefix is not evidence for identity.
+ private val compoundSourcePrefix=Regex("^([ \t]*[（(]?[ \t]*)([#＃%％]?[A-Za-z][A-Za-z0-9#＃%％]*(?:(?:[ \t]*[/／:：_][ \t]*[A-Za-z0-9#＃%％]+)|(?:[ \t]*[-－–—][ \t]*[A-Za-z][A-Za-z0-9#＃%％]*)|(?:[ \t]+[-－–—][ \t]+[0-9]+))+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
+ private fun normalizeSourceCodes(text:String):String=text.lines().joinToString("\n"){line->
+  val compound=compoundSourcePrefix.find(line)
+  if(compound!=null){
+   val code=canonicalMetricKey(normalizeCode(compound.groupValues[2]))
+   val replacement=if(code in metricIdentityKeys||compound.groupValues[1].any{it=='（'||it=='('})code else "（$code）"
+   return@joinToString line.replaceRange(compound.groups[2]!!.range,replacement)
+  }
+  val match=sourceCodePrefix.find(line)?:return@joinToString line
+  val code=canonicalMetricKey(normalizeCode(match.groupValues[2]))
+  if(code !in metricIdentityKeys)return@joinToString line
+  line.replaceRange(match.groups[2]!!.range,code)
+ }
+ private fun segments(text:String)=normalizeSourceCodes(text).lines().flatMap{raw->
   // A bound clipboard row starts with "(CODE)". It is already one complete metric row;
   // never rescan its Chinese name for additional code-like substrings.
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
@@ -127,7 +149,10 @@ object ReportParser {
   var identity=key(code)
   val named=UnifiedMetricStandard.resolveName(name)
   if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
-  if(identity=="未识别")identity=named?:"待核对:$name"
+  if(identity=="未识别"){
+   val compound=code.any{it in "/:_-"}&&code.split(Regex("[/:_\\-]")).any{canonicalMetricKey(normalizeCode(it)) in metricIdentityKeys}
+   identity=if(compound)"待核对:未知复合代码:$code" else named?:"待核对:$name"
+  }
   val displayName=if(identity in setOf("AST/ALT","ALT/AST") && named==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
   return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
@@ -159,7 +184,8 @@ object ReportParser {
   // Codes are internal identities; show the Chinese label without a leading analyzer code.
   val chineseName=withoutIdentity.replace(Regex("(?i)^[#%]?[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim()
   // A code alone is not a display name. Keep embedded Latin letters in genuine Chinese names.
-  val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: UnifiedMetricStandard.definition(safeIdentity)?.name ?: "待核对"
+  val codeOnly=withoutIdentity.isBlank()||canonicalMetricKey(normalizeCode(withoutIdentity))==safeIdentity
+  val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: (if(codeOnly)UnifiedMetricStandard.definition(safeIdentity)?.name else null) ?: "待核对"
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?[\\d?]+(?:\\.[\\d?]+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?[\\d?]+(?:\\.[\\d?]+)?)").find(suffix)
@@ -173,7 +199,7 @@ object ReportParser {
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*(?:\\^|[eE])?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
-  var k=safeIdentity
+  var k=if(name=="待核对")"待核对:"+parsedName else safeIdentity
   val unit=if(isText)"" else resolvedUnit(k,ocrUnit)
   // A clipped distribution-width label identifies the family, while % / fL
   // identifies CV / SD. Never override an explicit CV/SD code or name.

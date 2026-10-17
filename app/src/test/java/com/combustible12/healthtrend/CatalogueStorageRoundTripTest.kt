@@ -12,6 +12,47 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
 class CatalogueStorageRoundTripTest {
+ @Test fun repeatedReconciliationCannotClearUnknownOrConflictingIdentity(){
+  val context=RuntimeEnvironment.getApplication()
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context)
+  listOf("AST / UNKNOWN 2.340 - 0-9","CK - UNKNOWN 2.340 - 0-9","CA - 999 2.340 - 0-9","AST ZZZ 2.340 - 0-9","AST/ALT 谷草转氨酶 2.340 - 0-9","AST / UNKNOWN 谷草转氨酶 2.340 - 0-9","CK - UNKNOWN 肌酸激酶 2.340 - 0-9").forEach{line->
+   val draft=pastedReportDraft("合成医院\n生化\n2001-01-02\n$line",store=store)
+   assertFalse(line,draft.valid());assertTrue(line,draft.rows.single().key.startsWith("待核对:"))
+   val repeated=store.reconcileParsedMetrics(draft.parsed(),"生化")
+   assertEquals(line,draft.rows.single().key,repeated.single().metricKey)
+  }
+  val unnamed=ReportDraft(hospital="合成医院",type="生化",date="2001-01-02",rows=listOf(DraftRow(key="AST",name="待核对",text="2.340")))
+  assertFalse(unnamed.valid())
+ }
+ @Test fun allCatalogueMetricsSurviveImportStorageEditAndExport(){
+  val context=RuntimeEnvironment.getApplication()
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context);val failures=mutableListOf<String>()
+  UnifiedMetricStandard.keys().forEach{key->
+   try{
+    val d=UnifiedMetricStandard.definition(key)!!
+    val category=ReportCategoryPolicy.infer(listOf(key))?:"合成检验"
+    val source="合成医院\n$category\n2001-01-02\n$key ${d.name} 2.340 ${d.unit.ifBlank{"-"}} 0-9"
+    val imported=pastedReportDraft(source,store=store)
+    assertEquals(key,imported.rows.single().key)
+    assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+    val report=materializeReportDraft(imported,store);store.saveReport(report)
+    val reopened=HealthStore(context)
+    val saved=reopened.reports().single{it.id==report.id}
+    val edited=materializeReportDraft(ReportDraft.from(saved).let{it.copy(rows=it.rows.map{r->r.copy(text="3.450")})},reopened)
+    reopened.saveReport(edited)
+    val latest=HealthStore(context).reports().single{it.id==report.id}
+    val roundtrip=pastedReportDraft(reopened.exportReportAsPastedText(latest),store=reopened)
+    assertTrue(reportValidationProblems(roundtrip).toString(),roundtrip.valid())
+    assertEquals(listOf(key,"3.450",d.unit,"0-9"),roundtrip.rows.single().let{listOf(it.key,it.text,it.unit,it.rangeRaw())})
+    assertEquals("2.340",report.results.single().textValue)
+   }catch(e:AssertionError){failures+="$key: ${e.message}"}catch(e:Exception){failures+="$key: ${e.message}"}
+  }
+  println("CATALOGUE_STORAGE keys=${UnifiedMetricStandard.keys().size} failures=${failures.size}")
+  failures.forEach{println("STORAGE_FAIL $it")}
+  assertTrue(failures.joinToString("\n"),failures.isEmpty())
+ }
  @Test fun compoundOnlyCodesImportSaveReopenAndExportWithChineseNames(){
   val context=RuntimeEnvironment.getApplication()
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()

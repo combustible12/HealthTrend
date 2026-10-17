@@ -65,7 +65,7 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
   val label="第${index+1}项（${row.name.ifBlank{"未命名"}}）"
   val key=row.key.trim()
   when {
-   row.name.isBlank()->problems+="${label}：请输入中文项目名称"
+   (row.name.isBlank()||row.name.trim()=="待核对")&&!unchangedLegacyIdentity(row,d.existing)->problems+="${label}：请输入中文项目名称"
    !unchangedLegacyIdentity(row,d.existing)&&distributionWidthIdentityProblem(key,row.name,row.unit)!=null->problems+="${label}：${distributionWidthIdentityProblem(key,row.name,row.unit)}"
    key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
     problems+="${label}：需要确认项目身份"
