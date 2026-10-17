@@ -12,6 +12,25 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
 class CatalogueStorageRoundTripTest {
+ @Test fun compoundOnlyCodesImportSaveReopenAndExportWithChineseNames(){
+  val context=RuntimeEnvironment.getApplication()
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context)
+  val raw="合成医院\n生化\n2001-01-02\nAST 24.00 U/L 0-40\nALT 12.00 U/L 0-40\nAST : ALT 2.000\nALT／AST 0.500\nA / G 1.500\nCKMB:CK 0.050\nUREA / CREA 0.060"
+  val draft=pastedReportDraft(raw,store=store)
+  assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+  assertEquals(7,draft.rows.size)
+  assertEquals(listOf("AST","ALT","AST/ALT","ALT/AST","A/G","CKMB/CK","UREA/CREA"),draft.rows.map{it.key})
+  assertTrue(draft.rows.none{it.name=="待核对"})
+  store.saveReport(materializeReportDraft(draft,store))
+  val reopened=HealthStore(context)
+  val saved=reopened.reports().single()
+  val exported=reopened.exportReportAsPastedText(saved)
+  assertTrue(exported,exported.contains("AST/ALT 谷草/谷丙 2.000"))
+  val imported=pastedReportDraft(exported,store=reopened)
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  assertEquals(draft.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())},imported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())})
+ }
  @Test fun importSaveReopenEditExportAndTrendRetainNewCatalogueSemantics(){
   val context=RuntimeEnvironment.getApplication()
   val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)

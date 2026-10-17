@@ -5,6 +5,50 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun compoundCodesKeepDirectionAndChineseNamesBeforeSegmentation() {
+  val names=mapOf("AST/ALT" to "谷草/谷丙","ALT/AST" to "谷丙/谷草","A/G" to "白蛋白/球蛋白","CKMB/CK" to "肌酸激酶同工酶/肌酸激酶","UREA/CREA" to "尿素/肌酐")
+  names.forEach{(key,name)->
+   listOf(key,key.replace("/",":"),key.replace("/","／"),key.replace("/"," / ")).forEach{code->
+    listOf("$code 2.340","$code $name 2.340  1.0-3.0").forEach{source->
+     val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source)).single()
+     assertEquals(source,key,row.metricKey);assertEquals(source,name,row.displayName)
+     assertEquals("2.340",row.textValue);assertEquals("",row.unit)
+    }
+    val source="$code 2.340"
+    assertEquals(source,ReportParser.parse(source).single().rawLine)
+   }
+  }
+  val combined=ReportParser.parse("AST 24.00 U/L 0-40\nALT 12.00 U/L 0-40\nAST : ALT 2.000")
+  assertEquals(listOf("AST","ALT","AST/ALT"),combined.map{it.metricKey})
+  assertEquals("谷草/谷丙",ReportParser.parse("谷草/谷丙比值 2.000").single().displayName)
+  assertEquals("待核对",ReportParser.parse("ZZUNKNOWN 2.000").single().displayName)
+ }
+ @Test fun preservingOriginalLineDoesNotCopyAnotherMetricsFlag(){
+  val rows=ReportParser.parse("谷草转氨酶 AST 24.00 U/L 0-40 ALT 80.00 ↑ U/L 0-40")
+  assertEquals(listOf("AST","ALT"),rows.map{it.metricKey})
+  assertEquals("",rows[0].reportFlag);assertEquals("↑",rows[1].reportFlag)
+ }
+ @Test fun ratioCodeCannotBeConfirmedAsAnIndividualEnzyme(){
+  listOf("AST/ALT","ALT/AST").forEach{ratio->
+   listOf("AST" to "谷草转氨酶","ALT" to "谷丙转氨酶").forEach{(enzyme,name)->
+    val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("$ratio $name 2.000")).single()
+    assertTrue(metricNeedsReview(row,null))
+    assertNotEquals(enzyme,row.metricKey)
+    assertTrue(reconciledMetricIdentity(row.metricKey,enzyme).startsWith("待核对:"))
+   }
+  }
+ }
+ @Test fun duplicateWarningIdentifiesRowsWithoutConfusingPendingNames() {
+  val d=ReportDraft(hospital="合成医院",type="生化",date="2001-01-02",rows=listOf(
+   DraftRow(key="AST",name="谷草转氨酶",text="24"),DraftRow(key="AST/ALT",name="谷草/谷丙",text="2.000")))
+  assertFalse(reportValidationProblems(d).any{it.startsWith("项目代码重复")})
+  val duplicate=d.copy(rows=d.rows+DraftRow(key="AST",name="谷草转氨酶",text="25"))
+  val message=reportValidationProblems(duplicate).single{it.startsWith("项目代码重复")}
+  assertTrue(message.contains("AST"));assertTrue(message.contains("第1项"));assertTrue(message.contains("第3项"))
+  val pending=d.copy(rows=listOf(DraftRow(key="待核对:甲",name="甲",text="1"),DraftRow(key="待核对:甲",name="甲",text="2")))
+  assertFalse(reportValidationProblems(pending).any{it.startsWith("项目代码重复")})
+  assertFalse(pending.valid())
+ }
  @Test fun replacementAuditKeepsBothVersionsUntilExplicitRestore() {
   val oldResult=LabResult("old-row","old-report","合成医院","血常规",1,"WBC","白细胞计数",5.0,"10^9/L",3.5,9.5,1_760_000_000_000L,textValue="5.00")
   val old=LabReport("old-report","合成医院","血常规",1_760_000_000_000L,1,listOf(ReportImage("file:///synthetic-old.jpg",0,1_000L)),listOf(oldResult))

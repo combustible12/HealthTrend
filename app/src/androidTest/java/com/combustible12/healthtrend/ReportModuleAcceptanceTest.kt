@@ -81,6 +81,26 @@ class ReportModuleAcceptanceTest {
   noOverflow(compose.onNodeWithText("1234567890.000"));noOverflow(compose.onNodeWithText("mOsm/kgH2O"))
   screenshot("numeric-complex-unit-large-font")
  }
+ @Test fun enzymeRatiosRemainSeparateAndChineseThroughEditorSave(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val source="合成医院\n生化\n2001-01-02\nAST 24.00 U/L 0-40\nALT 12.00 U/L 0-40\nAST / ALT 2.000\nALT：AST 0.500"
+  val imported=pastedReportDraft(source,store=store)
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  assertEquals(listOf("AST","ALT","AST/ALT","ALT/AST"),imported.rows.map{it.key})
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
+  listOf("谷草转氨酶","谷丙转氨酶","谷草/谷丙","谷丙/谷草").forEach{label->
+   compose.onNodeWithText(label,useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  }
+  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsEnabled().performClick()
+  compose.runOnIdle{
+   assertNotNull(saved)
+   val reopened=HealthStore(context).reports().single()
+   assertEquals(listOf("AST","ALT","AST/ALT","ALT/AST"),reopened.results.map{it.metricKey})
+   val reimported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
+   assertTrue(reimported.valid())
+   assertEquals(imported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())},reimported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())})
+  }
+ }
  @Test fun editorSavesAndDetailSearchUsesOriginalDataWhileDisplayingChinese(){
   val store=HealthStore(context);var saved:LabReport?=null
   compose.setContent{MaterialTheme{ReportEditor(draft(),store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}

@@ -50,7 +50,7 @@ object ReportParser {
   return chemistryNames.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: aliases.entries.sortedByDescending{it.key.length}.firstOrNull{label==it.key || label.startsWith(it.key+" ") || label.startsWith(it.key+"（") || label.startsWith(it.key+"(")}?.value ?: "未识别"
  }
  private val metricIdentityKeys=UnifiedMetricStandard.keys()+setOf("WBC","NEUT#","NEUT%","LYMPH#","LYMPH%","MONO#","MONO%","EOS#","EOS%","BASO#","BASO%","RBC","HGB","HCT","MCV","MCH","MCHC","RDW","RDW-CV","RDW-SD","PLT","PCT","MPV","PDW","PDW-CV","PDW-SD","P-LCR","P-LCC","NRBC#","NRBC%","TP","ALB","GLOB","A/G","TBIL","DBIL","IBIL","ALT","AST","AST/ALT","ALT/AST","GGT","ALP","CHE","TBA","PA","UREA","CREA","UA","LDH","SCC","AFP","CEA","CA125","CA153","CA199","CA724","CYFRA21-1","NSE","HE4","UREA/CREA","AMY","GLU","K","NA","CL","HCO3","CA","MG","PHOS","AG","OSM","CK","CKMB","CKMB/CK","TG","CHOL","APOA1","APOB","HDLC","LDLC")
- internal fun bindExplicitLeadingIdentities(text:String):String=text.lines().joinToString("\n"){line->
+ internal fun bindExplicitLeadingIdentities(text:String):String=normalizeCompoundCodes(text).lines().joinToString("\n"){line->
   val trimmed=line.trim()
   if(trimmed.isBlank())return@joinToString line
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(trimmed))return@joinToString trimmed
@@ -87,7 +87,17 @@ object ReportParser {
    .sortedByDescending{it.length}.joinToString("|"){Regex.escape(it)}+
   ")(?![A-Za-z0-9/#%\\-])"
  )
- private fun segments(text:String)=text.lines().flatMap{raw->
+ // Normalize only complete known compound codes before any segmentation. A colon,
+ // full-width slash or spaces around the slash must not turn one ratio into two enzymes.
+ private fun normalizeCompoundCodes(text:String):String {
+  var normalized=text
+  metricIdentityKeys.filter{'/' in it}.sortedByDescending{it.length}.forEach{key->
+   val pattern=key.split('/').joinToString("\\s*[/／:：]\\s*"){Regex.escape(it)}
+   normalized=normalized.replace(Regex("(?<![A-Za-z0-9/#%])"+pattern+"(?![A-Za-z0-9/#%])",RegexOption.IGNORE_CASE),key)
+  }
+  return normalized
+ }
+ private fun segments(text:String)=normalizeCompoundCodes(text).lines().flatMap{raw->
   // A bound clipboard row starts with "(CODE)". It is already one complete metric row;
   // never rescan its Chinese name for additional code-like substrings.
   if(Regex("^\\s*[（(][^（）()]+[）)]").containsMatchIn(raw))return@flatMap listOf(raw)
@@ -118,17 +128,18 @@ object ReportParser {
   val named=UnifiedMetricStandard.resolveName(name)
   if((identity=="TP"&&named=="TPAB")||(code.equals("HIV",true)&&named=="HIVAB"))identity=named!!
   if(identity=="未识别")identity=named?:"待核对:$name"
-  return ParsedLabResult(identity,name,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
+  val displayName=if(identity in setOf("AST/ALT","ALT/AST") && named==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
+  return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
- fun parse(text:String,reportType:String=""):List<ParsedLabResult> = segments(text).mapNotNull { source ->
+ fun parse(text:String,reportType:String=""):List<ParsedLabResult> = text.lines().flatMap { original -> segments(original).map { it to original } }.mapNotNull { (source,original) ->
   // Decode only comparison entities. Keep rawLine verbatim for source review.
   val decoded=source.replace("&lt;","<",true).replace("&gt;",">",true)
   val cleaned=decoded.replace(Regex("(?<=\\d)\\s+[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
    .replace(Regex("(?<=\\s)[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
   StructuredReportRows.prepare(cleaned,reportType)?.let{structured->
-   clipboardTextResult(structured)?.let{return@mapNotNull it.copy(rawLine=source,reportFlag=sourceReportFlag(source))}
+   clipboardTextResult(structured)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
   }
-  clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=source,reportFlag=sourceReportFlag(source))}
+  clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
   val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
@@ -148,7 +159,7 @@ object ReportParser {
   // Codes are internal identities; show the Chinese label without a leading analyzer code.
   val chineseName=withoutIdentity.replace(Regex("(?i)^[#%]?[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim()
   // A code alone is not a display name. Keep embedded Latin letters in genuine Chinese names.
-  val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: "待核对"
+  val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: UnifiedMetricStandard.definition(safeIdentity)?.name ?: "待核对"
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?[\\d?]+(?:\\.[\\d?]+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?[\\d?]+(?:\\.[\\d?]+)?)").find(suffix)
@@ -180,7 +191,7 @@ object ReportParser {
    }
   }
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
-  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,source,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
+  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,original,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
  }
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&LabResultValues.valid(it.textValue)&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
 }

@@ -28,3 +28,4 @@
 2026-10-17 verify report category consistency through review save and export
 
 2026-10-17 verify confirmed replacement category guard and profession label variants
+2026-10-18 compound identity and Chinese label regression

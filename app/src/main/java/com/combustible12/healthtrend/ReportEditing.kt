@@ -85,8 +85,11 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
   }
  }
 
- val identities=d.rows.map{canonicalMetricKey(it.key.removePrefix("待核对:").trim())}
- if(identities.distinct().size!=identities.size)problems+="项目代码重复"
+ d.rows.withIndex().filter{it.value.key.isNotBlank()&&it.value.key!="未识别"&&!it.value.key.startsWith("待核对:")}
+  .groupBy{canonicalMetricKey(it.value.key.trim())}.filterValues{it.size>1}.forEach{(key,rows)->
+   val items=rows.joinToString("、"){"第${it.index+1}项（${it.value.name.ifBlank{"未命名"}}）"}
+   problems+="项目代码重复：$key，$items"
+  }
  // A source report can include two measurements of the same canonical metric
  // only if the user explicitly separates them; do not silently overwrite one.
  if(d.rows.any{it.key=="未识别"||it.key.isBlank()})problems+="存在未确认的项目代码"
