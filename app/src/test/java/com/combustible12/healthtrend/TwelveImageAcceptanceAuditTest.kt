@@ -59,6 +59,38 @@ class TwelveImageAcceptanceAuditTest {
    "合成链路通过"
   }catch(e:Exception){"未完成:${e.message.orEmpty().substringBefore('\n')}"}
  }
+ @Test fun completePanelsKeepAllRowsAcrossBothImportPaths(){
+  val data=JSONArray(javaClass.getResourceAsStream("/twelve-image-terms.json")!!.bufferedReader().use{it.readText()})
+  val groups=(0 until data.length()).map{data.getJSONObject(it)}.filter{it.getString("kind")!="血型卡片"}
+   .groupBy{it.getString("image")+it.getString("panel")}
+  assertEquals(18,groups.size)
+  groups.forEach{(panel,rows)->listOf(false,true).forEach{standard->
+   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+   val store=HealthStore(context)
+   val lines=rows.map{r->
+    val key=r.getString("key");val kind=r.getString("kind")
+    val value=when(kind){"阴阳性"->"阴性";"弱阳性"->"弱阳性";"半定量"->"2+";"未检出"->"未检出";"描述"->"合成描述";"带比较符数值"->"<0.700";else->"7.2300"}
+    val reference=when(kind){"阴阳性","弱阳性","半定量"->"阴性";"未检出"->"未检出";"描述"->"";else->"1.000-9.000"}
+    val unit=r.getString("unit").ifBlank{"-"}
+    if(standard)listOf(key,UnifiedMetricStandard.definition(key)!!.name,value,unit,reference).joinToString("\t")
+    else "${r.getString("name")} $value $unit $reference"
+   }
+   val draft=pastedReportDraft("合成医院\n${rows.first().getString("type")}\n2001-01-01\n"+lines.joinToString("\n"),store=store)
+   assertEquals("$panel rows ($standard)",rows.size,draft.rows.size)
+   assertEquals(rows.map{it.getString("key")},draft.rows.map{it.key})
+   assertFalse("$panel review ($standard)",draft.rows.any{it.uncertain})
+   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+   val report=materializeReportDraft(draft,store);store.saveReport(report)
+   val reloaded=HealthStore(context)
+   assertEquals(report,reloaded.reports().single())
+   val exported=pastedReportDraft(reloaded.exportReportAsPastedText(report),store=reloaded)
+   assertEquals(draft.rows.map{it.key},exported.rows.map{it.key})
+   assertEquals(draft.rows.map{it.text},exported.rows.map{it.text})
+   assertEquals(draft.rows.map{it.unit},exported.rows.map{it.unit})
+   assertEquals(draft.rows.map{it.parsed().referenceRaw},exported.rows.map{it.parsed().referenceRaw})
+   println("HT12_PANEL|$panel|$standard|${rows.size}|PASS")
+  }}
+ }
  @Test fun evaluateEveryVisibleProjectOccurrenceAndPrintActualOutcomes(){
   val data=JSONArray(javaClass.getResourceAsStream("/twelve-image-terms.json")!!.bufferedReader().use{it.readText()})
   assertEquals(194,data.length())
