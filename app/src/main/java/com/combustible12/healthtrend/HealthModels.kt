@@ -11,6 +11,7 @@ fun canonicalMetricKey(raw:String):String=MetricDictionary.canonical(raw)
 object MetricDictionary {
  private val aliases=mapOf(
   "ANTI-HBS" to "HBSAB","ANTI-HBE" to "HBEAB","ANTI-HBC" to "HBCAB",
+  "ANTI-HCV" to "HCVAB","HCV-AB" to "HCVAB","HIVAG/AB" to "HIVAGAB","HIV-AG/AB" to "HIVAGAB",
   "ANTI-HIV" to "HIVAB","HIV-AB" to "HIVAB","ANTI-TP" to "TPAB","TP-AB" to "TPAB",
   "CR" to "CREA","CRE" to "CREA","CREAT" to "CREA","CREATININE" to "CREA",
   "UREA/CR" to "UREA/CREA","PI" to "PHOS","P" to "PHOS",
@@ -88,7 +89,7 @@ data class LabResult(
  fun status():ResultStatus {
   val n=value ?: return when(referenceAgreement()){ReferenceAgreement.MATCH->ResultStatus.NORMAL;ReferenceAgreement.MISMATCH->ResultStatus.HIGH;ReferenceAgreement.UNKNOWN->ResultStatus.UNKNOWN}
   if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN
-  if(reportFlag.length>1)return ResultStatus.UNKNOWN
+  if(reportFlag.length>1 || sourceFlagConflict(reportFlag,n,referenceLowAtTest,referenceHighAtTest))return ResultStatus.UNKNOWN
   if('?' in referenceRaw) {
    val interval=PartialReferenceRanges.interval(referenceRaw,n,reportFlag.singleOrNull()) ?: return ResultStatus.UNKNOWN
    return when {
@@ -178,9 +179,9 @@ object UnitNormalizer {
   if(value==null)return null to normalize(metricKey,1.0,unit).second
   val u=unit.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
-   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l") -> value to "10^9/L"
+   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l","10e9/l") -> value to "10^9/L"
    metricKey in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR") && u=="%" -> value to "%"
-   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l") -> value to "10^12/L"
+   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l","10e12/l") -> value to "10^12/L"
    metricKey in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
    metricKey=="HGB" && u=="g/dl" -> value*10.0 to "g/L"
    metricKey=="ALB" && u=="g/dl" -> value*10.0 to "g/L"

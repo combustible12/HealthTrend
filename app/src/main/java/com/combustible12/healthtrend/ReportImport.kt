@@ -71,7 +71,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
 @Suppress("UNUSED_PARAMETER")
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
- if(p.reportFlag.length>1)return true
+ if(p.reportFlag.length>1 || sourceFlagConflict(p.reportFlag,p.value,p.referenceLow,p.referenceHigh))return true
  if('?' in p.referenceRaw && PartialReferenceRanges.interval(p.referenceRaw,p.value,p.reportFlag.singleOrNull())==null)return true
  // A legacy confirmed template must not override a malformed interval or suppress review.
  if(p.referenceLow!=null&&p.referenceHigh!=null&&p.referenceLow>p.referenceHigh)return true

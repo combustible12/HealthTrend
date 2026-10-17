@@ -36,8 +36,8 @@ class UnifiedMetricStandardAuditTest {
   assertEquals("GLU",ReportParser.key("葡萄糖"));assertEquals("TP",ReportParser.key("总蛋白"))
   assertEquals("UR-LEU",ReportParser.key("尿白细胞酯酶"));assertEquals("ST-WBC",ReportParser.key("粪便白细胞"))
  }
- @Test fun infectiousScreeningHasSevenDistinctIdentitiesAndNoInventedUnits(){
-  val keys=setOf("HBSAG","HBSAB","HBEAG","HBEAB","HBCAB","HIVAB","TPAB")
+ @Test fun infectiousScreeningHasDistinctIdentitiesAndNoInventedUnits(){
+  val keys=setOf("HBSAG","HBSAB","HBEAG","HBEAB","HBCAB","HIVAB","HIVAGAB","HCVAB","TPAB","TPPA")
   assertEquals(keys,UnifiedMetricStandard.keysForType("传染病筛查"))
   keys.forEach{key->val d=requireNotNull(UnifiedMetricStandard.definition(key));assertEquals("",d.unit);assertEquals(key,ReportParser.key(d.name))}
   assertEquals("HBSAB",canonicalMetricKey("anti-HBs"));assertEquals("HIVAB",canonicalMetricKey("anti-HIV"))

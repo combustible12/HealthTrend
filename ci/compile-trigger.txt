@@ -1,3 +1,5 @@
 2026-10-17 qualitative report module: compile JVM and UI test sources, no APK release
 2026-10-17 blood group 2x2 solid-fill layout; compile and tests only, no release
 2026-10-17 recognize white-globulin ratio alias as existing A/G, compile and test only
+
+2026-10-17 catalogue import/unit/flag/storage adaptation and baseline syntax repair; compile and test only

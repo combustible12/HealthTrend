@@ -4,12 +4,15 @@ package com.combustible12.healthtrend
 data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String="",val referenceRaw:String="",val reportFlag:String=""):java.io.Serializable {
  fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,LabResultValues.numeric(text),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
  fun rangeRaw():String {
-  if(LabResultValues.kind(text)!=LabValueKind.NUMBER){\n   // Qualitative reference values must never be reconstructed as numeric bounds.\n   return referenceRaw.trim()\n  }
+  if(LabResultValues.kind(text)!=LabValueKind.NUMBER){
+   // Qualitative reference values must never be reconstructed as numeric bounds.
+   return referenceRaw.trim()
+  }
   val original=PartialReferenceRanges.parts(referenceRaw)
   return if(referenceRaw.isNotBlank() && original.first==low && original.second==high)referenceRaw
    else if(low.isNotBlank()&&high.isNotBlank())"$low-$high" else if(low.isNotBlank())"≥$low" else if(high.isNotBlank())"≤$high" else ""
  }
- fun referenceNeedsReview():Boolean = reportFlag.length>1 ||
+ fun referenceNeedsReview():Boolean = sourceFlagConflict(reportFlag,LabResultValues.numeric(text),low.toDoubleOrNull(),high.toDoubleOrNull()) || reportFlag.length>1 ||
   ('?' in rangeRaw() && PartialReferenceRanges.interval(rangeRaw(),parsed().value,reportFlag.singleOrNull())==null)
  fun valid()=name.isNotBlank()&&key.isNotBlank()&&text.isNotBlank()&&(low.isBlank()||PartialReferenceRanges.bound(low)!=null)&&(high.isBlank()||PartialReferenceRanges.bound(high)!=null)&&ReportParser.valid(listOf(parsed()))
  private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())

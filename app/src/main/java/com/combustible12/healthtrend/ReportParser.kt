@@ -114,8 +114,12 @@ object ReportParser {
   return ParsedLabResult(identity,name,LabResultValues.numeric(result),fields[3].trim().takeUnless{it=="-"}.orEmpty(),null,null,source,identity in primaryKeys,result.trimEnd('↑','↓'),referenceRaw=fields.getOrElse(4){""}.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
  fun parse(text:String):List<ParsedLabResult> = segments(text).mapNotNull { source ->
-  clipboardTextResult(source)?.let{return@mapNotNull it}
-  val line=source.trim().replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
+  // Decode only comparison entities. Keep rawLine verbatim for source review.
+  val decoded=source.replace("&lt;","<",true).replace("&gt;",">",true)
+  val cleaned=decoded.replace(Regex("(?<=\\d)\\s+[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
+   .replace(Regex("(?<=\\s)[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
+  clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=source,reportFlag=sourceReportFlag(source))}
+  val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val match=numeric.find(line)
   val textual=Regex("^(.*?)\\s+(弱阳性|阴性(?:[（(][-][）)])?|阳性(?:[（(][+][）)])?|未检出|未见|检出|可疑|正常|异常|[1-4][+]|[+-]{1,4}|±)(.*)$").find(line)
@@ -143,11 +147,11 @@ object ReportParser {
   val high=limits?.groupValues?.get(2)?.toDoubleOrNull() ?: one?.value?.takeIf{it.trim().startsWith("<")||it.trim().startsWith("≤")}?.replace(Regex("[<=≤\\s]"),"")?.toDoubleOrNull()
   val limitMatch=limits?:one
   val referenceRaw=if(isText)suffix.removePrefix("-").trim() else limitMatch?.value?.trim().orEmpty()
-  val reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString("")
+  val reportFlag=sourceReportFlag(source)
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
-  val ocrUnit=Regex("(?i)(?:[×x]?10\\s*\\^?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
+  val ocrUnit=Regex("(?i)(?:[×x]?10\\s*(?:\\^|[eE])?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   var k=safeIdentity
   val unit=if(isText)"" else resolvedUnit(k,ocrUnit)
   // A clipped distribution-width label identifies the family, while % / fL
