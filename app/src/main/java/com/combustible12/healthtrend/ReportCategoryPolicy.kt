@@ -4,7 +4,7 @@ package com.combustible12.healthtrend
 internal object ReportCategoryPolicy {
  val filingCategories=listOf("血常规","生化","肝功能","肾功能","电解质及肾功能","凝血功能","肿瘤标志物","甲状腺功能","传染病筛查","尿液检查","粪便检查","血型检查")
  private val forbidden=setOf("免疫","免疫学","临床免疫","免疫检查","免疫检验","生化免疫","病毒学","化学发光","elisa","其他","综合","常规检查")
- fun forbiddenCategory(category:String)=category.trim().lowercase().removeSuffix("检验报告").removeSuffix("报告") in forbidden
+ fun forbiddenCategory(category:String)=category.trim().lowercase().filterNot(Char::isWhitespace).substringBefore('(').substringBefore('（').removeSuffix("检验报告").removeSuffix("报告") in forbidden
  private fun canonical(category:String)=when(category.trim()){
   "甲状腺"->"甲状腺功能";"凝血"->"凝血功能"
   "尿液分析","尿常规"->"尿液检查";"粪便常规","大便常规"->"粪便检查"

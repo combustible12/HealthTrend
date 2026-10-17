@@ -36,7 +36,7 @@ class ReportCategoryPolicyTest {
   assertEquals(corrected.rows.map{listOf(it.key,it.text,it.unit,it.referenceRaw)},roundTrip.rows.map{listOf(it.key,it.text,it.unit,it.referenceRaw)})
  }
  @Test fun forbiddenProfessionOrAssayLabelsAreNotAcceptedWithOrWithoutPanel(){
-  for(category in listOf("免疫","免疫学","临床免疫","生化免疫","病毒学","化学发光","ELISA")){
+  for(category in listOf("免疫","免疫学","临床免疫","生化免疫","病毒学","化学发光","ELISA","免疫学（定性）","免 疫")){
    val d=pastedReportDraft(source(category))
    assertEquals(category,d.type);assertFalse(category,d.valid())
    val single=pastedReportDraft("合成医院\n$category\n2001-01-02\nHBSAG 乙肝表面抗原 阴性  阴性")
@@ -74,6 +74,14 @@ class ReportCategoryPolicyTest {
   assertEquals(old.results.map{it.textValue},corrected.results.map{it.textValue})
   store.saveReport(corrected);assertEquals("传染病筛查",store.reports().single().reportType)
   assertEquals("[]",prefs.getString("course_records",null))
+ }
+ @Test fun confirmedReplacementCannotBypassTheSameCategoryGuard(){
+  val store=store();val date=parseDate("2001-01-02")!!
+  val old=store.buildReportFromPool("合成医院","血常规",date,emptyList(),ReportParser.parse("HGB 血红蛋白 123.00 g/L 110-150"))
+  store.saveReport(old)
+  val bad=store.buildReportFromPool("合成医院","血常规",date,emptyList(),ReportParser.parse("HBSAG 乙肝表面抗原 阴性 - 阴性"))
+  rejected{store.replaceReportWithConfirmed(old.id,bad)}
+  assertEquals(old,store.reports().single());assertTrue(store.archivedReportReplacements().isEmpty())
  }
  @Test fun unknownMetricNeverGetsGuessedIntoAnInfectionCategory(){
   assertNull(ReportCategoryPolicy.infer(listOf("CUSTOM-synthetic")))

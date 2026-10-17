@@ -133,6 +133,7 @@ class HealthStore(private val context:Context) {
   }
  }
  private fun validateReplacementReport(r:LabReport,old:LabReport){
+  ReportCategoryPolicy.validateSave(r,null)
   require(r.results.isNotEmpty()){"报告至少需要一项检验结果"}
   require(r.hospitalKey.isNotBlank()&&r.reportType.isNotBlank()&&r.testedAtEpochMillis>0){"报告来源或日期无效"}
   require(r.results.all{it.value==null||it.value.isFinite()}){"报告包含无效数值"}
