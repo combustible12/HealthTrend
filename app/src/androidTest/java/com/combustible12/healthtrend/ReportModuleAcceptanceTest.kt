@@ -56,6 +56,11 @@ class ReportModuleAcceptanceTest {
    compose.onAllNodesWithText(label,useUnmergedTree=true).assertCountEquals(1)
    val node=compose.onAllNodesWithText(label,useUnmergedTree=true)[0]
    node.performScrollTo().assertIsDisplayed();noOverflow(node)
+   if(label!=values.last()){
+    val layouts=mutableListOf<TextLayoutResult>()
+    node.performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+    compose.runOnIdle{layouts.forEach{assertEquals("Short result stays on one line: $label",1,it.lineCount)}}
+   }
   }
   compose.onAllNodesWithText("+++",useUnmergedTree=true)[0].performScrollTo().performClick()
   compose.runOnIdle{assertEquals("x3",clicked)}
