@@ -28,14 +28,17 @@ class ReportModuleAcceptanceTest {
  private fun noOverflow(node:SemanticsNodeInteraction){
   val layouts=mutableListOf<TextLayoutResult>()
   node.performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
+  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; width=${it.didOverflowWidth}; height=${it.didOverflowHeight}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
  }
  private fun screenshot(name:String){
-  val roots=compose.onAllNodes(isRoot()).fetchSemanticsNodes()
-  val image=compose.onAllNodes(isRoot())[roots.lastIndex].captureToImage().asAndroidBitmap()
-  val folder=File(context.getExternalFilesDir(null),"report-qa").apply{mkdirs()}
-  File(folder,"$name.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)}
+  val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: error("Android screenshot unavailable")
+  val bytes=java.io.ByteArrayOutputStream().also{image.compress(Bitmap.CompressFormat.PNG,100,it)}.toByteArray()
+  val encoded=android.util.Base64.encodeToString(bytes,android.util.Base64.NO_WRAP)
+  val chunks=encoded.chunked(2000)
+  chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @get:Rule val testName=org.junit.rules.TestName()
+ @After fun captureFinalState(){screenshot("final-"+testName.methodName)}
  private fun textTrend(scale:Float){
   val store=HealthStore(context);val report=materializeReportDraft(draft(),store)
   val values=listOf("阴性(-)","阳性(+)","++","+++","可疑，建议结合其他检查结果复核")
@@ -117,7 +120,7 @@ class ReportModuleAcceptanceTest {
   screenshot("numeric-point-dialog")
   compose.onNodeWithText("关闭").performClick()
   compose.onNodeWithText("整体").performScrollTo().performClick()
-  compose.onNodeWithText("整体趋势 · HGB").assertIsDisplayed()
+  compose.onNodeWithText("整体趋势 · HGB").performScrollTo().assertIsDisplayed()
   screenshot("numeric-overall")
  }
  @Test fun deviceStoreEditReplacementExportReimportAndDeletePreserveIdentity(){

@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -390,6 +391,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit,resultChanged:()->Unit={}){
+ val trendFocus=LocalFocusManager.current
  var textRevision by remember{mutableIntStateOf(0)}
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
@@ -522,14 +524,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
      if(compatiblePoints.isNotEmpty() && rangeDisplayRows.isNotEmpty()){
       TextButton(
-       onClick={previewSeries=compatiblePoints},
+       onClick={trendFocus.clearFocus();previewSeries=compatiblePoints},
        modifier=Modifier.align(Alignment.TopEnd).heightIn(min=24.dp),
        contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)
       ){Text("整体",fontSize=12.sp,color=Accent)}
      }
     }
     if(textPoints.isNotEmpty()){
-     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({textPreview=true}){Text("整体",fontSize=12.sp,color=Accent)}}
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({trendFocus.clearFocus();textPreview=true}){Text("整体",fontSize=12.sp,color=Accent)}}
      TextResultTrend(textPoints,onPointClick={selected=it})
     }
     if(textPreview)AlertDialog(onDismissRequest={textPreview=false},title={Text(labDisplayTitle(latest.rawName,key))},text={TextResultTrend(textPoints,onPointClick={selected=it;textPreview=false})},confirmButton={TextButton({textPreview=false}){Text("关闭")}})
@@ -551,7 +553,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       valueLabels=compatiblePoints.map{it.second.textValue},
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(reports,compatiblePoints.map{it.first},cutoff),
-      onShowPreview={previewSeries=compatiblePoints}
+      onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}
      )
     }
     TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=28.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
@@ -839,7 +841,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList()){
  Dialog(onDismissRequest=onDismiss){
   Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Column(Modifier.padding(20.dp).fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
     if(referenceNotes.isNotEmpty())Text(referenceNotes.joinToString("；"),color=Muted,fontSize=12.sp)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{

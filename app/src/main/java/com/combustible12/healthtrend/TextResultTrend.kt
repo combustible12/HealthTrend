@@ -34,11 +34,11 @@ import androidx.compose.ui.unit.sp
    val width=with(density){widthPx.toDp()}.coerceAtLeast(48.dp) + 8.dp
    val color=qualitativeTrendColor(result)
    Column(Modifier.width(width).clickable{onPointClick(point)}.semantics{contentDescription="${result.rawName} ${dateText(report.testedAtEpochMillis)} ${report.hospitalKey} ${label}"},horizontalAlignment=Alignment.CenterHorizontally){
-    Box(Modifier.height(72.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){
-     Text(label,style=chipStyle,color=color,maxLines=1,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
+    Box(Modifier.heightIn(min=72.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){
+     Text(label,style=chipStyle,color=color,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
     }
-    Text(trendShortDate(report.testedAtEpochMillis),style=dateStyle,color=Muted,maxLines=1)
-    Text(label,style=valueStyle,color=color,maxLines=1)
+    Text(trendShortDate(report.testedAtEpochMillis),style=dateStyle,color=Muted)
+    Text(label,style=valueStyle,color=color)
    }
   }
  }
