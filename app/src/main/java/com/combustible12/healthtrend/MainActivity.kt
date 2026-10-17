@@ -357,6 +357,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+/** Units belong to the reference rows; keep the latest result summary compact. */
+@Composable internal fun TrendLatestSummary(value:String,status:String,color:Color){
+ Column(horizontalAlignment=Alignment.End){
+  Text(value,fontWeight=FontWeight.Bold,fontSize=20.sp,color=color,maxLines=1)
+  Text(status,color=color,fontSize=11.sp)
+ }
+}
+
 /** The short explanation remains fully readable at narrow widths and larger font scales. */
 @Composable internal fun TrendMeaningText(text:String,onClick:()->Unit){
  Text(text,color=Accent,fontSize=12.sp,lineHeight=17.sp,fontWeight=FontWeight.Medium,
@@ -471,14 +479,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
-     Column(horizontalAlignment=Alignment.End){
-      Row(verticalAlignment=Alignment.Bottom){
-       Text(latest.textValue,fontWeight=FontWeight.Bold,fontSize=20.sp,color=valueColor,maxLines=1)
-       Spacer(Modifier.width(4.dp))
-       Text(displayLabUnit(latest.unitAtTest),fontWeight=FontWeight.Normal,fontSize=11.sp,color=valueColor,maxLines=1,modifier=Modifier.padding(bottom=2.dp))
-      }
-      Text(latest.resultStatusLabel(),color=valueColor,fontSize=11.sp)
-     }
+     TrendLatestSummary(latest.textValue,latest.resultStatusLabel(),valueColor)
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}

@@ -7,3 +7,4 @@
 2026-10-17 fix parenthesized ordinary name text masking explicit FDP identity; rerun logged regression failure
 2026-10-17 repair anonymous public updater and HTTP classification, fallback tests; no release
 2026-10-17 show complete trend explanation with wrapping; compile and regression only
+2026-10-17 remove repeated unit from latest trend summary only; no release

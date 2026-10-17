@@ -39,6 +39,12 @@ class TrendMeaningLayoutTest {
   node.performClick()
   compose.runOnIdle{assertTrue(clicked)}
  }
+ @Test fun latestSummaryKeepsPrecisionAndStatusWithoutRepeatingUnit(){
+  compose.setContent{MaterialTheme{TrendLatestSummary("10.540","偏高",Bad)}}
+  compose.onNodeWithText("10.540").assertIsDisplayed()
+  compose.onNodeWithText("偏高").assertIsDisplayed()
+  compose.onNodeWithText("10^9/L").assertDoesNotExist()
+ }
  @Test fun narrowExplanationWrapsWithoutEllipsisAndKeepsClick(){verify(1f)}
  @Test fun enlargedFontStillDisplaysWholeExplanation(){verify(1.8f)}
 }
