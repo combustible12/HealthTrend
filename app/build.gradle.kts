@@ -34,5 +34,5 @@ dependencies {
 
 // Keep CI failure causes visible instead of only a test name and line number.
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
- testLogging { exceptionFormat=org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
+ testLogging { showStandardStreams=true; exceptionFormat=org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }

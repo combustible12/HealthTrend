@@ -1,0 +1,1942 @@
+[
+  {
+    "id": "01-上-01",
+    "image": "01",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "TPPA",
+    "name": "梅毒螺旋体抗体(TPPA)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "01-下-01",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "AFP",
+    "name": "甲胎蛋白",
+    "unit": "ng/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "01-下-02",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "CEA",
+    "name": "癌胚抗原",
+    "unit": "ng/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "01-下-03",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "CA125",
+    "name": "CA-125",
+    "unit": "U/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "01-下-04",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "CA153",
+    "name": "CA-153",
+    "unit": "U/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "01-下-05",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "CA199",
+    "name": "CA-199",
+    "unit": "U/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "01-下-06",
+    "image": "01",
+    "panel": "下",
+    "type": "肿瘤标志物",
+    "key": "SCC",
+    "name": "鳞癌相关抗原测定",
+    "unit": "ng/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-01",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "K",
+    "name": "钾",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-02",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "NA",
+    "name": "钠",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-03",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CL",
+    "name": "氯",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-04",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CA",
+    "name": "钙",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-05",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "HCO3",
+    "name": "血清碳酸氢盐HCO3",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-06",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "MG",
+    "name": "镁",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-07",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "PHOS",
+    "name": "磷",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-08",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "UREA",
+    "name": "尿素",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-09",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CREA",
+    "name": "肌酐",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-10",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "UREA/CREA",
+    "name": "尿素:肌酐",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-11",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "UA",
+    "name": "尿酸",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-12",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "ALT",
+    "name": "丙氨酸氨基转移酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-13",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "AST",
+    "name": "门冬氨酸氨基转移酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-14",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "AST/ALT",
+    "name": "AST:ALT",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-15",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "GGT",
+    "name": "γ-谷氨酰转肽酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-16",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "ALP",
+    "name": "碱性磷酸酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-17",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "TP",
+    "name": "总蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-18",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "ALB",
+    "name": "白蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-19",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "GLOB",
+    "name": "球蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-20",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "A/G",
+    "name": "白蛋白/球蛋白",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-21",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "TBIL",
+    "name": "总胆红素",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-22",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "DBIL",
+    "name": "直接胆红素",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-23",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "IBIL",
+    "name": "非结合胆红素",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-24",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "GLU",
+    "name": "葡萄糖",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-25",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "TG",
+    "name": "甘油三酯",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-26",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CHOL",
+    "name": "总胆固醇",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-27",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "APOA1",
+    "name": "载脂蛋白-A1",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-28",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "APOB",
+    "name": "载脂蛋白-B",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-29",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "HDLC",
+    "name": "高密度脂蛋白胆固醇",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-30",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "LDLC",
+    "name": "低密度脂蛋白胆固醇",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-31",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "LDH",
+    "name": "乳酸脱氢酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-32",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CK",
+    "name": "肌酸激酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-33",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CKMB",
+    "name": "肌酸激酶同工酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-34",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "CKMB/CK",
+    "name": "CKMB/CK",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-35",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "AG",
+    "name": "阴离子隙",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "02-上-36",
+    "image": "02",
+    "panel": "上",
+    "type": "生化",
+    "key": "OSM",
+    "name": "渗透压",
+    "unit": "mOsm/kgH2O",
+    "kind": "数值"
+  },
+  {
+    "id": "02-下-01",
+    "image": "02",
+    "panel": "下",
+    "type": "传染病筛查",
+    "key": "HCVAB",
+    "name": "丙肝病毒抗体(Anti-HCV)",
+    "unit": "S/CO",
+    "kind": "数值"
+  },
+  {
+    "id": "02-下-02",
+    "image": "02",
+    "panel": "下",
+    "type": "传染病筛查",
+    "key": "HIVAGAB",
+    "name": "艾滋病毒抗原/抗体(HIV Ag/Ab)",
+    "unit": "S/CO",
+    "kind": "数值"
+  },
+  {
+    "id": "03-上-01",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-GLU",
+    "name": "葡萄糖",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-02",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-BIL",
+    "name": "胆红素",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-03",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-KET",
+    "name": "酮体",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-04",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-SG",
+    "name": "比重",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "03-上-05",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-PH",
+    "name": "PH",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "03-上-06",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-PRO",
+    "name": "蛋白质",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-07",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-URO",
+    "name": "尿胆原",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-08",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-NIT",
+    "name": "亚硝酸盐",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "03-上-09",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-BLD",
+    "name": "隐血（红细胞）",
+    "unit": "",
+    "kind": "弱阳性"
+  },
+  {
+    "id": "03-上-10",
+    "image": "03",
+    "panel": "上",
+    "type": "尿液分析",
+    "key": "UR-LEU",
+    "name": "白细胞酯酶",
+    "unit": "",
+    "kind": "半定量"
+  },
+  {
+    "id": "03-下-01",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-COLOR",
+    "name": "颜色",
+    "unit": "",
+    "kind": "描述"
+  },
+  {
+    "id": "03-下-02",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-CONSISTENCY",
+    "name": "性状",
+    "unit": "",
+    "kind": "描述"
+  },
+  {
+    "id": "03-下-03",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-ASCARIS",
+    "name": "蛔虫卵",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-04",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-TRICHURIS",
+    "name": "鞭虫卵",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-05",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-HOOKWORM",
+    "name": "钩虫卵",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-06",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-PINWORM",
+    "name": "蛲虫卵",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-07",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-AMOEBA-T",
+    "name": "阿米巴滋养体",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-08",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-AMOEBA-C",
+    "name": "阿米巴包囊体",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-09",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-FUNGI",
+    "name": "霉菌",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-10",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-WBC",
+    "name": "镜检白细胞",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-11",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-RBC",
+    "name": "镜检红细胞",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "03-下-12",
+    "image": "03",
+    "panel": "下",
+    "type": "粪便常规",
+    "key": "ST-FAT",
+    "name": "脂肪球",
+    "unit": "",
+    "kind": "未检出"
+  },
+  {
+    "id": "04-上-01",
+    "image": "04",
+    "panel": "上",
+    "type": "肿瘤标志物",
+    "key": "CA724",
+    "name": "糖类抗原CA72-4",
+    "unit": "U/ml",
+    "kind": "带比较符数值"
+  },
+  {
+    "id": "04-下-01",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "PT",
+    "name": "凝血酶原时间",
+    "unit": "sec",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-02",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "INR",
+    "name": "国际标准化比值",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-03",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "APTT",
+    "name": "活化部分凝血活酶时间",
+    "unit": "Sec",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-04",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "TT",
+    "name": "凝血酶时间",
+    "unit": "Sec",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-05",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "FIB",
+    "name": "纤维蛋白原",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-06",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "FDP",
+    "name": "纤维蛋白(原)降解产物",
+    "unit": "ug/ml",
+    "kind": "数值"
+  },
+  {
+    "id": "04-下-07",
+    "image": "04",
+    "panel": "下",
+    "type": "凝血",
+    "key": "DDIMER",
+    "name": "D-二聚体",
+    "unit": "ug/ml.FEU",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-01",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "UREA",
+    "name": "尿素",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-02",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "CREA",
+    "name": "肌酐",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-03",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "UREA/CREA",
+    "name": "尿素:肌酐",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-04",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "UA",
+    "name": "尿酸",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-05",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "ALT",
+    "name": "丙氨酸氨基转移酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-06",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "AST",
+    "name": "门冬氨酸氨基转移酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-07",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "AST/ALT",
+    "name": "AST:ALT",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "05-上-08",
+    "image": "05",
+    "panel": "上",
+    "type": "生化",
+    "key": "ALB",
+    "name": "白蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "05-下-01",
+    "image": "05",
+    "panel": "下",
+    "type": "血型",
+    "key": "ABO",
+    "name": "ABO血型",
+    "unit": "",
+    "kind": "血型卡片"
+  },
+  {
+    "id": "05-下-02",
+    "image": "05",
+    "panel": "下",
+    "type": "血型",
+    "key": "Rh(D)",
+    "name": "Rh(D)血型",
+    "unit": "",
+    "kind": "血型卡片"
+  },
+  {
+    "id": "05-下-03",
+    "image": "05",
+    "panel": "下",
+    "type": "血型",
+    "key": "Rh(C)",
+    "name": "Rh(C)血型",
+    "unit": "",
+    "kind": "血型卡片"
+  },
+  {
+    "id": "05-下-04",
+    "image": "05",
+    "panel": "下",
+    "type": "血型",
+    "key": "Rh(E)",
+    "name": "Rh(E)血型",
+    "unit": "",
+    "kind": "血型卡片"
+  },
+  {
+    "id": "06-上-01",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "WBC",
+    "name": "白细胞计数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-02",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "NEUT%",
+    "name": "中性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-03",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "LYMPH%",
+    "name": "淋巴细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-04",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MONO%",
+    "name": "单核细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-05",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "EOS%",
+    "name": "嗜酸性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-06",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "BASO%",
+    "name": "嗜碱性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-07",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "NEUT#",
+    "name": "中性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-08",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "LYMPH#",
+    "name": "淋巴细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-09",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MONO#",
+    "name": "单核细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-10",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "EOS#",
+    "name": "嗜酸性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-11",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "BASO#",
+    "name": "嗜碱性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-12",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "RBC",
+    "name": "红细胞计数",
+    "unit": "10^12/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-13",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "HGB",
+    "name": "血红蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-14",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "HCT",
+    "name": "红细胞压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-15",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MCV",
+    "name": "平均红细胞体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-16",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MCH",
+    "name": "平均血红蛋白含量",
+    "unit": "pg",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-17",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MCHC",
+    "name": "平均血红蛋白浓度",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-18",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "RDW-CV",
+    "name": "红细胞体积分布宽度",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-19",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "RDW-SD",
+    "name": "红细胞体积分布宽度",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-20",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "PLT",
+    "name": "血小板计数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-21",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "MPV",
+    "name": "平均血小板体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-22",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "PCT",
+    "name": "血小板压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-23",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "PDW-SD",
+    "name": "血小板分布宽度",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "06-上-24",
+    "image": "06",
+    "panel": "上",
+    "type": "血常规",
+    "key": "P-LCR",
+    "name": "大血小板",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "06-下-01",
+    "image": "06",
+    "panel": "下",
+    "type": "甲状腺",
+    "key": "FT3",
+    "name": "游离-T3",
+    "unit": "pmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-下-02",
+    "image": "06",
+    "panel": "下",
+    "type": "甲状腺",
+    "key": "FT4",
+    "name": "游离-T4",
+    "unit": "pmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "06-下-03",
+    "image": "06",
+    "panel": "下",
+    "type": "甲状腺",
+    "key": "TSH",
+    "name": "促甲状腺素(III代)",
+    "unit": "mIU/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-上-01",
+    "image": "07",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "HBSAG",
+    "name": "乙肝表面抗原(HBsAg)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "07-上-02",
+    "image": "07",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "HBSAB",
+    "name": "乙肝表面抗体(HBsAb)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "07-上-03",
+    "image": "07",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "HBEAG",
+    "name": "乙肝e抗原(HBeAg)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "07-上-04",
+    "image": "07",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "HBEAB",
+    "name": "乙肝e抗体(HBeAb)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "07-上-05",
+    "image": "07",
+    "panel": "上",
+    "type": "传染病筛查",
+    "key": "HBCAB",
+    "name": "乙肝核心抗体(HBcAb)",
+    "unit": "",
+    "kind": "阴阳性"
+  },
+  {
+    "id": "07-下-01",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "WBC",
+    "name": "白细胞计数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-02",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "NEUT%",
+    "name": "中性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-03",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "LYMPH%",
+    "name": "淋巴细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-04",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MONO%",
+    "name": "单核细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-05",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "EOS%",
+    "name": "嗜酸性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-06",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "BASO%",
+    "name": "嗜碱性粒细胞%",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-07",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "NEUT#",
+    "name": "中性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-08",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "LYMPH#",
+    "name": "淋巴细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-09",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MONO#",
+    "name": "单核细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-10",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "EOS#",
+    "name": "嗜酸性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-11",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "BASO#",
+    "name": "嗜碱性粒细胞绝对数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-12",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "RBC",
+    "name": "红细胞计数",
+    "unit": "10^12/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-13",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "HGB",
+    "name": "血红蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-14",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "HCT",
+    "name": "红细胞压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-15",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MCV",
+    "name": "平均红细胞体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-16",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MCH",
+    "name": "平均血红蛋白含量",
+    "unit": "pg",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-17",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MCHC",
+    "name": "平均血红蛋白浓度",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-18",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "RDW-CV",
+    "name": "红细胞体积分布宽度",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-19",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "RDW-SD",
+    "name": "红细胞体积分布宽度",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-20",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "PLT",
+    "name": "血小板计数",
+    "unit": "10^9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-21",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "MPV",
+    "name": "平均血小板体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-22",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "PCT",
+    "name": "血小板压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-23",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "PDW-SD",
+    "name": "血小板分布宽度",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "07-下-24",
+    "image": "07",
+    "panel": "下",
+    "type": "血常规",
+    "key": "P-LCR",
+    "name": "大血小板",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-01",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "CREA",
+    "name": "肌酐",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-02",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "UREA/CREA",
+    "name": "尿素/肌酐",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-03",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "K",
+    "name": "钾",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-04",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "NA",
+    "name": "钠",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-05",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "CL",
+    "name": "氯",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-06",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "HCO3",
+    "name": "碳酸氢根",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-07",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "CA",
+    "name": "钙",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-08",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "MG",
+    "name": "镁",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-09",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "PHOS",
+    "name": "无机磷酸盐",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "08-截图-10",
+    "image": "08",
+    "panel": "截图",
+    "type": "生化",
+    "key": "AG",
+    "name": "阴离子间隙",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-01",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "TP",
+    "name": "总蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-02",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "ALB",
+    "name": "白蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-03",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "GLOB",
+    "name": "球蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-04",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "A/G",
+    "name": "白球比例",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-05",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "TBIL",
+    "name": "总胆红素",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-06",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "ALT",
+    "name": "谷丙转氨酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-07",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "AST",
+    "name": "谷草转氨酶",
+    "unit": "U/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-08",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "ALT/AST",
+    "name": "ALT/AST",
+    "unit": "",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-09",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "UREA",
+    "name": "尿素",
+    "unit": "mmol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "09-截图-10",
+    "image": "09",
+    "panel": "截图",
+    "type": "生化",
+    "key": "CREA",
+    "name": "肌酐",
+    "unit": "umol/L",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-01",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "HGB",
+    "name": "血红蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-02",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "HCT",
+    "name": "红细胞压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-03",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCV",
+    "name": "平均RBC体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-04",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCH",
+    "name": "平均RBC血红蛋白含量",
+    "unit": "pg",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-05",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCHC",
+    "name": "平均RBC血红蛋白浓度",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-06",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "RDW-CV",
+    "name": "红细胞体积分布宽度",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-07",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "PLT",
+    "name": "血小板计数",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-08",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MPV",
+    "name": "平均血小板体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-09",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "PCT",
+    "name": "血小板压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "10-截图-10",
+    "image": "10",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "PDW-CV",
+    "name": "血小板体积分布宽度",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-01",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "EOS#",
+    "name": "嗜酸粒细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-02",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "BASO#",
+    "name": "嗜碱粒细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-03",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "RBC",
+    "name": "红细胞计数",
+    "unit": "10E12/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-04",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "HGB",
+    "name": "血红蛋白",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-05",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "HCT",
+    "name": "红细胞压积",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-06",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCV",
+    "name": "平均RBC体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-07",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCH",
+    "name": "平均RBC血红蛋白含量",
+    "unit": "pg",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-08",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MCHC",
+    "name": "平均RBC血红蛋白浓度",
+    "unit": "g/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-09",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "RDW-CV",
+    "name": "红细胞体积分布宽度",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-10",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "PLT",
+    "name": "血小板计数",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "11-截图-11",
+    "image": "11",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MPV",
+    "name": "平均血小板体积",
+    "unit": "fL",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-01",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "WBC",
+    "name": "白细胞计数",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-02",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "NEUT%",
+    "name": "中性粒细胞百分比",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-03",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "LYMPH%",
+    "name": "淋巴细胞百分比",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-04",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MONO%",
+    "name": "单核细胞百分比",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-05",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "EOS%",
+    "name": "嗜酸粒细胞百分比",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-06",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "BASO%",
+    "name": "嗜碱粒细胞百分比",
+    "unit": "%",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-07",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "NEUT#",
+    "name": "中性粒细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-08",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "LYMPH#",
+    "name": "淋巴细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-09",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "MONO#",
+    "name": "单核细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  },
+  {
+    "id": "12-截图-10",
+    "image": "12",
+    "panel": "截图",
+    "type": "血常规",
+    "key": "EOS#",
+    "name": "嗜酸粒细胞绝对值",
+    "unit": "10E9/L",
+    "kind": "数值"
+  }
+]
