@@ -25,15 +25,16 @@ import androidx.compose.ui.unit.sp
  Row(Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp)){
   points.forEach{point->
    val (report,result)=point
-   val widthPx=maxOf(measurer.measure(result.textValue,TextStyle(fontSize=13.sp)).size.width,measurer.measure(trendShortDate(report.testedAtEpochMillis),TextStyle(fontSize=10.sp)).size.width)
+   val label=qualitativeDisplayText(label)
+   val widthPx=maxOf(measurer.measure(label,TextStyle(fontSize=13.sp)).size.width,measurer.measure(trendShortDate(report.testedAtEpochMillis),TextStyle(fontSize=10.sp)).size.width)
    val width=with(density){widthPx.toDp()}.coerceAtLeast(48.dp) + 8.dp
    val color=qualitativeTrendColor(result)
-   Column(Modifier.width(width).clickable{onPointClick(point)}.semantics{contentDescription="${result.rawName} ${dateText(report.testedAtEpochMillis)} ${report.hospitalKey} ${result.textValue}"},horizontalAlignment=Alignment.CenterHorizontally){
+   Column(Modifier.width(width).clickable{onPointClick(point)}.semantics{contentDescription="${result.rawName} ${dateText(report.testedAtEpochMillis)} ${report.hospitalKey} ${label}"},horizontalAlignment=Alignment.CenterHorizontally){
     Box(Modifier.height(72.dp).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){
-     Text(result.textValue,fontSize=12.sp,color=color,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
+     Text(label,fontSize=12.sp,color=color,maxLines=1,modifier=Modifier.padding(bottom=8.dp).background(color.copy(alpha=0.10f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=5.dp))
     }
     Text(trendShortDate(report.testedAtEpochMillis),fontSize=10.sp,color=Muted,maxLines=1)
-    Text(result.textValue,fontSize=13.sp,color=color,maxLines=1)
+    Text(label,fontSize=13.sp,color=color,maxLines=1)
    }
   }
  }

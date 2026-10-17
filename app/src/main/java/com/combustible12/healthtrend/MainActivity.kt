@@ -484,7 +484,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
-     TrendLatestSummary(latest.textValue,latest.resultStatusLabel(),valueColor)
+     TrendLatestSummary(qualitativeDisplayText(latest.textValue),latest.resultStatusLabel(),valueColor)
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
@@ -499,7 +499,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     }
     val rangeDisplayRows=points.map{(_,x)->
      val rr=rangeKey(x)
-     "参考范围: ${x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(rr.low,rr.high)} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
+     "参考范围: ${qualitativeDisplayText(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(rr.low,rr.high))} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
@@ -628,7 +628,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   AlertDialog(onDismissRequest={selected=null;editing=false},title={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(labDisplayTitle(x.rawName,x.metricKey));IconButton({selected=null;openCourse(r.testedAtEpochMillis)}){Icon(Icons.Outlined.Timeline,"打开当天病程",tint=Accent)}}},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
-   Text("当次参考：${x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}} · ${x.resultStatusLabel()}",color=Muted)
+   Text("当次参考：${qualitativeDisplayText(x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)})} · ${x.resultStatusLabel()}",color=Muted)
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
    if(editing)TextButton({try{if(LabResultValues.valid(editValue)){store.updateResultText(r.id,x.id,editValue);textRevision++;resultChanged();val persisted=store.reports().first{it.id==r.id};selected=persisted to persisted.results.first{it.id==x.id};editing=false}}catch(e:Exception){imageError=e.message?:"保存失败"}},enabled=LabResultValues.valid(editValue)){Text("保存")}

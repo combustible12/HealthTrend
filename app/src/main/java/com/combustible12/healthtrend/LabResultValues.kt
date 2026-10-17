@@ -58,3 +58,14 @@ fun LabResult.withEditedResult(text:String):LabResult {
  val normalized=UnitNormalizer.normalize(metricKey,number,unitAtTest)
  return copy(value=number,textValue=clean,comparator=if(number!=null)clean.takeWhile{it in "<>≤≥"} else "",normalizedValue=normalized.first,normalizedUnit=normalized.second,editedByUser=true)
 }
+
+/** Presentation only: never use this text for persistence, export, or agreement. */
+internal fun qualitativeDisplayText(raw:String):String {
+ val token=raw.trim().filterNot(Char::isWhitespace).replace('（','(').replace('）',')')
+ return when(token){
+  "阳性(+)","阳性","+","(+)"->"阳性"
+  "阴性(-)","阴性","-","(-)"->"阴性"
+  "弱阳性(±)"->"弱阳性"
+  else->raw
+ }
+}

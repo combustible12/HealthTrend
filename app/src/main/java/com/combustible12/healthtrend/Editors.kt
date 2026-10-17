@@ -384,7 +384,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  "date"->{val normalized=normalizeDateText(value);d.copy(date=normalized?:value,uncertain=if(normalized==null)d.uncertain+"date" else d.uncertain-"date")}
  else->d
 }
-@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(value,fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
+@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(qualitativeDisplayText(value),fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
  if(lockMetadata)Text(labDisplayTitle(r.name,r.key),fontSize=18.sp) else {
@@ -437,7 +437,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
     Text("原始："+x.textValue+" "+x.unitAtTest+"，参考范围 "+x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}+" "+x.unitAtTest,color=Muted,fontSize=12.sp)
    }else{
     ResultValueUnit(x.textValue,if(commonUnit.isNotBlank()&&normalized.second==commonUnit)commonUnit else x.unitAtTest)
-    Text("参考范围："+(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
+    Text("参考范围："+qualitativeDisplayText(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
    }
    if(printedName!=standard)Text("原名称："+printedName,color=Muted,fontSize=12.sp)
    if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
