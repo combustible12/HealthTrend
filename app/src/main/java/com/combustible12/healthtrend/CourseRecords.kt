@@ -137,9 +137,7 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
  var search by rememberSaveable{mutableStateOf("")}
  val query=search.trim()
  val shown=records.filter{record->
-  (filter=="全部"||record.phase==filter)&&(
-   query.isBlank()||listOf(record.title,record.symptomText,record.checkText,record.medicineText,record.noteText).any{it.contains(query,ignoreCase=true)}
-  )
+  (query.isNotBlank()||filter=="全部"||record.phase==filter)&&DataSearch.course(query,record)
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  var menuFor by remember{mutableStateOf<String?>(null)}

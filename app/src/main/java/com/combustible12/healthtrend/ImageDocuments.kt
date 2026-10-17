@@ -194,7 +194,7 @@ class ImageDocumentStore(private val context:Context){
   val q=query.trim();if(q.isBlank())return emptyList()
   return all().flatMap{document->document.pages.mapNotNull{page->
    val indexes=matchingBlockIndexes(page.blocks,q)
-   val pageMatches=indexes.isNotEmpty()||containsSearchText(page.fullText,q);val titleMatches=containsSearchText(document.title,q)&&page.pageIndex==0
+   val pageMatches=indexes.isNotEmpty()||containsSearchText(page.fullText,q);val titleMatches=(DataSearch.matches(q,listOf(document.title,dateText(document.createdAt)))&&page.pageIndex==0)||containsSearchText(page.sourceUrl,q)
    if(!pageMatches&&!titleMatches)null
    else ImageSearchHit(document,page,indexes,searchContext(page.fullText,q,indexes.firstOrNull()?.let{page.blocks[it].text}))
   }}

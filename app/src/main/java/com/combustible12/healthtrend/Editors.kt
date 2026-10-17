@@ -59,6 +59,15 @@ val LocalPageVisible=staticCompositionLocalOf{true}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(5.dp)){Text(label,fontSize=13.sp,color=Ink,modifier=Modifier.padding(start=10.dp));Row(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(start=14.dp,end=4.dp),verticalAlignment=Alignment.CenterVertically){BasicTextField(value,onChange,Modifier.weight(1f).padding(vertical=16.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink));if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}}}}
+@Composable fun DataSearchField(value:String,onChange:(String)->Unit,hint:String){
+ Row(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(start=14.dp,end=4.dp),verticalAlignment=Alignment.CenterVertically){
+  Box(Modifier.weight(1f).padding(vertical=14.dp)){
+   if(value.isEmpty())Text(hint,color=Muted,fontSize=14.sp)
+   BasicTextField(value,onChange,Modifier.fillMaxWidth(),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink))
+  }
+  if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空搜索")}
+ }
+}
 @Composable fun RememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,m:Modifier=Modifier){
  val saved=options.map{it.trim()}.filter{it.isNotBlank()}.distinct()
  Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)){
@@ -148,6 +157,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  }
  var editing by rememberSaveable{mutableStateOf<String?>(null)}
  var structureUnlocked by rememberSaveable{mutableStateOf(false)}
+ var rowSearch by rememberSaveable(d.draftId){mutableStateOf("")}
  FullPage(if(d.existing==null)"核对检查报告"else"编辑检查报告",{if(d.existing==null)saveDraft(d) else onClose()},hidden=editing!=null,topAction={TextButton({saveDraft(d)}){Text("暂存草稿")}},bottom={Column { val problems=reportValidationProblems(d); if(problems.isNotEmpty())Text(problems.take(3).joinToString("；"),color=Bad,fontSize=12.sp); Button({save(d)},Modifier.fillMaxWidth(),enabled=problems.isEmpty()){Text("保存")} }}){m->
  ScrollablePageColumn(m,PaddingValues(horizontal=16.dp),Arrangement.spacedBy(12.dp)){
   Row{
@@ -169,8 +179,10 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   }}
   if(draftImageError.isNotBlank())Text(draftImageError,color=Bad)
 
+  DataSearchField(rowSearch,{rowSearch=it},"搜索项目、结果、单位或参考范围")
+  if(d.rows.none{DataSearch.draftRow(rowSearch,it)})Text("没有匹配的项目",color=Muted)
   d.rows.forEachIndexed{i,r->
-   Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+   if(DataSearch.draftRow(rowSearch,r))Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
     if(d.existing!=null&&r.key.startsWith("CUSTOM-")){
      val link=remember(r.key,linkRevision){store.reportIdentityLinks().lastOrNull{it.source==r.key&&it.revokedAt==null}}
      if(link==null)TextButton({linkSource=r.key;linkTarget="";linkTargetQuery="";linkError=""}){Text("关联统一指标")}
@@ -288,7 +300,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    onDismissRequest={showAliasManager=false},
    title={Text("指标别名管理")},
    text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-    Text("别名只关联指标代码，不修改历史数据或医院模板",fontSize=12.sp,color=Muted)
+    Text("别名只关联指标代码，不修改历史数据",fontSize=12.sp,color=Muted)
     Field(aliasInput,{aliasInput=it},"别名")
     Field(aliasKeyInput,{aliasKeyInput=it},"对应项目代码")
     if(aliasError.isNotBlank())Text(aliasError,color=Bad,fontSize=12.sp)
@@ -389,6 +401,10 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
 }}
 @Composable fun ReportDetail(r:LabReport,store:HealthStore,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit,onImagesChanged:()->Unit){
  val exportContext=LocalContext.current
+ var reportSearch by rememberSaveable(r.id){mutableStateOf("")}
+ val searchAliases=store.metricAliases()
+ val searchNames=r.results.associate{canonicalMetricKey(it.metricKey) to store.preferredMetricName(it.metricKey)}
+ val visibleResults=r.results.filter{DataSearch.row(reportSearch,r,it,searchAliases,searchNames[canonicalMetricKey(it.metricKey)])}
  var point by remember{mutableStateOf<LabResult?>(null)};var value by remember{mutableStateOf("")};var confirmDelete by remember{mutableStateOf(false)}
  var imageError by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
@@ -400,8 +416,10 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("检验报告",store.exportReportAsPastedText(r)))
   }){Text("复制标准格式报告")}}
   item{PhotoInputButtons(photoInput,!busy,"相册添加原图")}
+  item{DataSearchField(reportSearch,{reportSearch=it},"搜索报告文字、项目、结果或参考范围")}
+  if(visibleResults.isEmpty())item{Text("没有匹配的项目",color=Muted)}
   if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-  itemsIndexed(r.results,key={_,x->x.id}){_,x->Paper{
+  itemsIndexed(visibleResults,key={_,x->x.id}){_,x->Paper{
    val standard=store.preferredMetricName(x.metricKey)
     ?:UnifiedMetricStandard.definition(x.metricKey)?.name
     ?:labDisplayTitle(x.rawName,x.metricKey)

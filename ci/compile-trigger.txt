@@ -18,3 +18,5 @@
 2026-10-17 remove hospital-template runtime dependencies
 
 2026-10-17 verify report category/name headings and reversible clipboard format
+
+2026-10-17 verify all stored text and numeric search and date-only report exports

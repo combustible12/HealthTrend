@@ -47,6 +47,6 @@ internal object ReportNaming {
   if(report.reportName!=null)return ReportHeading(report.reportType,saved.takeUnless{it==report.reportType}.orEmpty())
   // Read-only recovery of a specific original heading, never a storage migration.
   val source=resolve(report.rawOcr,classified.category)
-  return if(source.category==classified.category)source else classified
+  return if(source.category==classified.category&&source.name.isNotBlank())source else classified
  }
 }

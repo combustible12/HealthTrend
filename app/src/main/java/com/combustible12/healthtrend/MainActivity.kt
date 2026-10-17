@@ -218,7 +218,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
    val stored=remember(revision,draftsOpen){draftStore.all()}
    if(stored.isEmpty())Paper{Text("还没有暂存的报告")}
-   stored.forEach{item->
+   var draftSearch by rememberSaveable{mutableStateOf("")}
+   DataSearchField(draftSearch,{draftSearch=it},"搜索草稿文字和数据")
+   stored.filter{DataSearch.draft(draftSearch,it)}.forEach{item->
     Paper{
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
       Column(Modifier.weight(1f)){
@@ -449,6 +451,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     Spark(points=weights.map{it.measuredAtEpochMillis to it.kilograms},color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={index->weights.getOrNull(index)?.let{editingWeight=it;weightText=it.kilograms.toString();weightDate=java.time.Instant.ofEpochMilli(it.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}},metricKey="WEIGHT",pointDescriptions=weights.map{"体重 "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=weights.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},onShowPreview={})
    }
   }
+  if(query.isNotBlank())weights.filter{DataSearch.weight(query,it)}.forEach{w->
+   Paper{Text("体重 · "+dateText(w.measuredAtEpochMillis),fontWeight=FontWeight.Bold);Text("${w.kilograms} kg");TextButton({editingWeight=w;weightText=w.kilograms.toString();weightDate=dateText(w.measuredAtEpochMillis).take(10).replace('-', '/');showWeight=true}){Text("编辑体重")}}
+  }
   val searching=query.isNotBlank()
   // Load the editable dictionary once per render, not once for every trend row.
   val savedAliases=remember(revision){store.metricAliases()}
@@ -457,7 +462,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val builtInIndex=remember{ReportParser.builtInMetricKeys().associateWith{ReportParser.builtInAliasNames(it)}}
   fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()).distinct()
   val filtered=all.filter{(key,list)->
-   val matchesText=list.any{(_,x)->x.rawName.contains(query,true)||labDisplayTitle(x.rawName,key).contains(query,true)||key.contains(query,true)} || aliasesFor(key).any{it.contains(query,true)} || preferredNames[key]?.contains(query,true)==true
+   val matchesText=list.any{(r,x)->DataSearch.row(query,r,x,savedAliases,preferredNames[key])} || DataSearch.matches(query,aliasesFor(key))
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
@@ -892,12 +897,18 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
 @Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(LabReport)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
+ var recordSearch by rememberSaveable{mutableStateOf("")}
+ val searchContext=LocalContext.current
+ val searchStore=remember(searchContext){HealthStore(searchContext)}
+ val searchAliases=searchStore.metricAliases()
+ val searchNames=reports.flatMap{it.results}.associate{canonicalMetricKey(it.metricKey) to searchStore.preferredMetricName(it.metricKey).orEmpty()}
+ DataSearchField(recordSearch,{recordSearch=it},"搜索全部报告、数据和记录文字")
  val types=reports.map{ReportNaming.title(it).category}.distinct().sorted()
  val filters=listOf("全部")+types
  Row(Modifier.horizontalScroll(rememberScrollState())){filters.forEach{t->FilterChip(filter==t,{setFilter(t)},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
- val visible=reports.filter{filter=="全部"||ReportNaming.title(it).category==filter}
+ val visible=reports.filter{(recordSearch.isNotBlank()||filter=="全部"||ReportNaming.title(it).category==filter)&&DataSearch.report(recordSearch,it,searchAliases,searchNames)}
  val grouped=visible.groupBy{ReportNaming.title(it).category}.toList().sortedBy{it.first}
- if(grouped.isEmpty())Paper{Text("暂无检查报告")}
+ if(grouped.isEmpty())Paper{Text(if(recordSearch.isBlank())"暂无检查报告" else "没有匹配的检查报告")}
  grouped.forEach{(type,items)->
   Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)
   items.sortedByDescending{it.testedAtEpochMillis}.chunked(2).forEach{pair->
@@ -906,6 +917,9 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
     if(pair.size==1)Spacer(Modifier.weight(1f))
    }
   }
+ }
+ if(recordSearch.isNotBlank())entries.filter{DataSearch.entry(recordSearch,it)}.sortedByDescending{it.occurredAtEpochMillis}.forEach{e->
+  Paper(Modifier.clickable{edit(e)}){Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted);Text(listOf(e.note,e.dose,e.frequency,e.route).filter{it.isNotBlank()}.joinToString(" · "))}
  }
 
 }}

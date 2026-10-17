@@ -880,7 +880,7 @@ class HealthStore(private val context:Context) {
  fun exportReportAsPastedText(report:LabReport):String = buildString {
   append(report.hospitalKey).append('\n')
   ReportNaming.title(report).lines().forEach{append(it).append('\n')}
-  append(dateText(report.testedAtEpochMillis))
+  append(dateText(report.testedAtEpochMillis).take(10))
   report.results.forEach{row->
    if(row.value==null){
     append('\n').append(listOf(canonicalMetricKey(row.metricKey),preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName,row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
