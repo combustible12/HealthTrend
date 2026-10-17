@@ -125,7 +125,7 @@ private fun URI(s:String)=java.net.URI(s)
    scope.launch {
     try{
      val summary=withContext(Dispatchers.IO){HealthBackup(ctx,store).export(uri)}
-     backupStatus="备份完成：${summary.reports} 份报告、${summary.courseRecords} 条病程、${summary.templates} 套当前模板、${summary.files} 个文件。请妥善保存 ZIP。"
+     backupStatus="备份完成：${summary.reports} 份报告、${summary.courseRecords} 条病程、${summary.files} 个文件。请妥善保存 ZIP。"
     }catch(e:Exception){backupStatus="备份失败：${e.message ?: "无法写入文件"}，请删除不完整的 ZIP 后重试"}
     finally{backupBusy=false}
    }

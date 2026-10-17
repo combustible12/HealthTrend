@@ -16,7 +16,7 @@ import java.util.zip.ZipOutputStream
  * never overwrite meaningful existing patient data.
  */
 class HealthBackup(private val context:Context,private val store:HealthStore) {
- data class Summary(val files:Int,val bytes:Long,val reports:Int,val templates:Int,val courseRecords:Int)
+ data class Summary(val files:Int,val bytes:Long,val reports:Int,val courseRecords:Int)
  data class Preview(val files:Int,val bytes:Long,val reports:Int,val courseRecords:Int,val createdAt:Long,val version:Int)
 
  private fun sha256()=MessageDigest.getInstance("SHA-256")
@@ -44,7 +44,7 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
   selected.forEach{(name,file)->files.put(JSONObject().put("path",name).put("size",file.length()).put("sha256",digest(file)));total+=file.length()}
   val manifest=JSONObject().put("format","HealthTrendBackup").put("version",2)
    .put("createdAt",System.currentTimeMillis()).put("filesRoot",context.filesDir.canonicalPath)
-   .put("reports",store.reports().size).put("templates",store.templates().size)
+   .put("reports",store.reports().size)
    .put("courseRecords",store.courseRecords().size).put("files",files)
   context.contentResolver.openOutputStream(destination,"w").use{out->
    requireNotNull(out){"无法写入备份文件"}
@@ -56,7 +56,7 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
   // Reopen and verify every byte before claiming success.
   val preview=inspect(destination)
   check(preview.files==selected.size&&preview.bytes==total){"备份校验失败"}
-  return Summary(selected.size,total,store.reports().size,store.templates().size,store.courseRecords().size)
+  return Summary(selected.size,total,store.reports().size,store.courseRecords().size)
  }
 
  private data class Staged(val folder:File,val manifest:JSONObject,val entries:List<Pair<String,File>>,val bytes:Long)

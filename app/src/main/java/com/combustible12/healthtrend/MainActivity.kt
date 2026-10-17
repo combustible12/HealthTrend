@@ -472,7 +472,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    TrendPaper{
     val metricAliases=aliasesFor(key)
     var meaningDetail by remember{mutableStateOf(false)}
-    val trendMeaning=points.asReversed().firstNotNullOfOrNull{(report,_)->store.latestTemplate(report.hospitalKey,report.reportType,report.systemKey)?.fields?.firstOrNull{canonicalMetricKey(it.metricKey)==key}?.trendMeaning?.takeIf(String::isNotBlank)} ?: metricPurpose(key) ?: qualitativeMetricPurpose(key)
+    val trendMeaning=metricPurpose(key) ?: qualitativeMetricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val fixedTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
