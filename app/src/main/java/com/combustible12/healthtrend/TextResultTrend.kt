@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
  Row(Modifier.fillMaxWidth().horizontalScroll(scroll).padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp)){
   points.forEach{point->
    val (report,result)=point
-   val label=qualitativeDisplayText(label)
+   val label=qualitativeDisplayText(result.textValue)
    val widthPx=maxOf(measurer.measure(label,TextStyle(fontSize=13.sp)).size.width,measurer.measure(trendShortDate(report.testedAtEpochMillis),TextStyle(fontSize=10.sp)).size.width)
    val width=with(density){widthPx.toDp()}.coerceAtLeast(48.dp) + 8.dp
    val color=qualitativeTrendColor(result)
