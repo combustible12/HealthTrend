@@ -32,3 +32,4 @@
 2026-10-18 full catalogue source-code identity sweep
 2026-10-18 retain full unknown compound identity even with a known Chinese label
 2026-10-18 protect editor metadata and storage identity confirmation bypasses
+2026-10-18 assert real disabled buttons and explicit identity correction path

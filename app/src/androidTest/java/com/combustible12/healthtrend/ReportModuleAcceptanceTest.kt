@@ -94,15 +94,27 @@ class ReportModuleAcceptanceTest {
  }
  @Test fun unknownCompoundCannotBecomeKnownMetricOrEnableSave(){
   val store=HealthStore(context)
-  val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST / UNKNOWN 谷草转氨酶 2.340 - 0-9",store=store)
-  assertTrue(imported.rows.single().key.startsWith("待核对:"));assertFalse(imported.valid())
+  val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST / UNKNOWN\t谷草转氨酶\t2.340\t-\t0-9",store=store)
+  assertTrue(imported.rows.single().key.startsWith("待核对:"));assertEquals("谷草转氨酶",imported.rows.single().name);assertFalse(imported.valid())
   compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Unknown compound must not save")},{},{})}}
-  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsNotEnabled()
+  compose.onNodeWithText("保存").assertIsNotEnabled()
   compose.onNodeWithText("编辑",useUnmergedTree=true).performScrollTo().performClick()
   compose.onNode(hasSetTextAction() and hasText("2.340")).performTextReplacement("3.450")
-  compose.onNodeWithText("完成核对",useUnmergedTree=true).assertIsNotEnabled()
+  compose.onNodeWithText("完成核对").assertIsNotEnabled()
   compose.onNodeWithContentDescription("关闭").performClick()
-  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsNotEnabled()
+  compose.onNodeWithText("保存").assertIsNotEnabled()
+  screenshot("unknown-compound-blocked")
+  compose.onNodeWithText("编辑",useUnmergedTree=true).performScrollTo().performClick()
+  compose.onNode(hasSetTextAction() and hasText(imported.rows.single().key)).performTextReplacement("AST")
+  compose.onNodeWithText("完成核对").assertIsEnabled().performClick()
+  compose.onNodeWithText("保存").assertIsEnabled()
+ }
+ @Test fun conflictingRatioNameCannotAutoResolveWhenEditorOpens(){
+  val store=HealthStore(context)
+  val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST/ALT 谷草转氨酶 2.340 - 0-9",store=store)
+  assertTrue(imported.rows.single().key.startsWith("待核对:代码名称冲突:"))
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Conflicting identity must not save")},{},{})}}
+  compose.onNodeWithText("保存").assertIsNotEnabled()
  }
  @Test fun enzymeRatiosRemainSeparateAndChineseThroughEditorSave(){
   val store=HealthStore(context);var saved:LabReport?=null
