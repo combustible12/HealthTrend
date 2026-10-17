@@ -33,6 +33,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
+            adb shell am force-stop com.android.launcher3
             adb logcat -G 16M
             gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.combustible12.healthtrend.ReportModuleAcceptanceTest,com.combustible12.healthtrend.TextResultTrendTest,com.combustible12.healthtrend.TrendMeaningLayoutTest,com.combustible12.healthtrend.BloodGroupLayoutTest,com.combustible12.healthtrend.TrendAliasInteractionTest && report_test_status=0 || report_test_status=$?; adb logcat -d -s REPORT_QA:I > report-qa.log; exit "$report_test_status"
       - name: Gather screenshots

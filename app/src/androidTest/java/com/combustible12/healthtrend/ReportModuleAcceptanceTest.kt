@@ -31,7 +31,12 @@ class ReportModuleAcceptanceTest {
   compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; width=${it.didOverflowWidth}; height=${it.didOverflowHeight}; paragraph=${it.multiParagraph.width}x${it.multiParagraph.height}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
  }
  private fun screenshot(name:String){
-  val image=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: error("Android screenshot unavailable")
+  val instrumentation=InstrumentationRegistry.getInstrumentation()
+  val automation=instrumentation.uiAutomation
+  // Android 16 emulator Quickstep can ANR between test activities; it is not this app.
+  android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("am force-stop com.android.launcher3")).use{it.readBytes()}
+  compose.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(200)
+  val image=automation.takeScreenshot() ?: error("Android screenshot unavailable")
   val bytes=java.io.ByteArrayOutputStream().also{image.compress(Bitmap.CompressFormat.PNG,100,it)}.toByteArray()
   val encoded=android.util.Base64.encodeToString(bytes,android.util.Base64.NO_WRAP)
   val chunks=encoded.chunked(2000)
