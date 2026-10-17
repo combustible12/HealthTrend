@@ -357,6 +357,12 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text(r.reportType,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
+/** The short explanation remains fully readable at narrow widths and larger font scales. */
+@Composable internal fun TrendMeaningText(text:String,onClick:()->Unit){
+ Text(text,color=Accent,fontSize=12.sp,lineHeight=17.sp,fontWeight=FontWeight.Medium,
+  softWrap=true,modifier=Modifier.fillMaxWidth().clickable(onClick=onClick))
+}
+
 /** Aliases are requested details, never a permanent label above a trend title. */
 @Composable fun TrendMetricTitle(title:String,aliases:List<String>){
  var showAliases by remember(title){mutableStateOf(false)}
@@ -463,7 +469,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Column(Modifier.weight(1f)){
       val fixedTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
       TrendMetricTitle(fixedTitle,metricAliases)
-      trendMeaning?.let{Text(it,color=Accent,fontSize=12.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.clickable{meaningDetail=true})}
+      trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
      Column(horizontalAlignment=Alignment.End){
       Row(verticalAlignment=Alignment.Bottom){
