@@ -361,10 +361,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){val heading=ReportNaming.title(r);Text(heading.category,fontWeight=FontWeight.Bold);if(heading.name.isNotBlank())Text(heading.name,fontSize=13.sp,color=Muted)};IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
 /** Units belong to the reference rows; keep the latest result summary compact. */
 @Composable internal fun TrendLatestSummary(value:String,status:String,color:Color){
- Column(horizontalAlignment=Alignment.End){
-  Text(value,fontWeight=FontWeight.Bold,fontSize=20.sp,color=color,maxLines=1)
+ Column(Modifier.widthIn(max=160.dp),horizontalAlignment=Alignment.End){
+  Text(value,fontWeight=FontWeight.Bold,fontSize=20.sp,color=color,softWrap=true)
   Text(status,color=color,fontSize=11.sp)
  }
+}
+
+@Composable internal fun TrendReferenceText(text:String){
+ Text(text,color=Muted,fontSize=12.sp,lineHeight=17.sp,softWrap=true)
 }
 
 /** The short explanation remains fully readable at narrow widths and larger font scales. */
@@ -507,7 +511,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val pointHospitalColors=compatiblePoints.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
-      rangeDisplayRows.forEach{text->Text(text,color=Muted,fontSize=12.sp,lineHeight=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+      rangeDisplayRows.forEach{text->TrendReferenceText(text)}
       hospitalRows.forEach{hospital->
        Row(verticalAlignment=Alignment.CenterVertically){
         Canvas(Modifier.size(8.dp)){drawCircle(hospitalColors[hospital]?:Muted)}
