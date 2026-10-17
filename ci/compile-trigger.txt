@@ -5,3 +5,4 @@
 2026-10-17 catalogue import/unit/flag/storage adaptation and baseline syntax repair; compile and test only
 2026-10-17 fix omitted qualitative unit column and production identity reconciliation after logged test failures
 2026-10-17 fix parenthesized ordinary name text masking explicit FDP identity; rerun logged regression failure
+2026-10-17 repair anonymous public updater and HTTP classification, fallback tests; no release

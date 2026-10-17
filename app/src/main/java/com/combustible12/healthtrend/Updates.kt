@@ -61,19 +61,16 @@ class AppUpdater(private val context:Context){
    if(uri.host=="api.github.com"&&token.isNotBlank())c.setRequestProperty("Authorization","Bearer $token")
    val status=c.responseCode
    if(status in 300..399){next=URL(URL(next),c.getHeaderField("Location")?:error("更新重定向无效")).toString();c.disconnect()}else{
-    if(status==401||status==403||status==404){c.disconnect();error("无法读取更新。此仓库为私有仓库，请配置有权访问 HealthTrend 的 GitHub 令牌；也可能尚未发布正式版本。")}
-    if(status !in 200..299){c.disconnect();error("更新服务返回 HTTP $status")};return c
+    if(status !in 200..299){val limited=c.getHeaderField("X-RateLimit-Remaining")=="0";c.disconnect();throw UpdateHttpFailure(status,limited)};return c
    }
   };error("更新重定向过多")
  }
  fun check(token:String):AvailableUpdate?{
-  val c=connect("https://api.github.com/repos/combustible12/HealthTrend/releases/latest?check=${System.currentTimeMillis()}",token)
-  val json=try{c.inputStream.bufferedReader().use{JSONObject(it.readText())}}finally{c.disconnect()}
-  if(json.optBoolean("draft")||json.optBoolean("prerelease"))return null
-  val version=Regex("版本代码[:： ]+(\\d+)").find(json.optString("body"))?.groupValues?.get(1)?.toLongOrNull()?:return null
-  if(!UpdateVersionPolicy.isNewer(version,installedVersion()))return null
-  val a=json.getJSONArray("assets");val apk=(0 until a.length()).map{a.getJSONObject(it)}.firstOrNull{it.getString("name").endsWith(".apk") }?:return null
-  return AvailableUpdate(json.optString("name",json.getString("tag_name")),version,apk.getString("url"),json.optString("body"))
+  val update=UpdateLookup.latest(token){url,auth->
+   val c=connect(url,auth,if(java.net.URI(url).host=="api.github.com")"application/vnd.github+json" else "text/html")
+   try{UpdateResponse(c.inputStream.bufferedReader().use{it.readText()},c.url.toString())}finally{c.disconnect()}
+  }
+  return update.takeIf{UpdateVersionPolicy.isNewer(it.version,installedVersion())}
  }
  @Suppress("DEPRECATION") private fun installedVersion():Long {
   val installed=context.packageManager.getPackageInfo(context.packageName,0)
