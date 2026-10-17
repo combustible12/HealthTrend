@@ -384,7 +384,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  "date"->{val normalized=normalizeDateText(value);d.copy(date=normalized?:value,uncertain=if(normalized==null)d.uncertain+"date" else d.uncertain-"date")}
  else->d
 }
-@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(qualitativeDisplayText(value),modifier=Modifier.weight(1f,fill=false),fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=3.dp))}}
+@Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){BoxWithConstraints{Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(qualitativeDisplayText(value),modifier=Modifier.weight(1f,fill=false),fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.widthIn(max=maxWidth*0.4f).padding(bottom=3.dp))}}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
  if(lockMetadata)Text(labDisplayTitle(r.name,r.key),fontSize=18.sp) else {

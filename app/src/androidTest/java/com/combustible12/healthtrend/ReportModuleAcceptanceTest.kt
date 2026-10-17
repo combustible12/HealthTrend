@@ -28,10 +28,11 @@ class ReportModuleAcceptanceTest {
  private fun noOverflow(node:SemanticsNodeInteraction){
   val layouts=mutableListOf<TextLayoutResult>()
   node.performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse(it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
+  compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertFalse("Overflow: ${it.layoutInput.text.text}; ${it.layoutInput.constraints}; ${it.size}",it.hasVisualOverflow);assertFalse((0 until it.lineCount).any{line->it.isLineEllipsized(line)})}}
  }
  private fun screenshot(name:String){
-  val image=compose.onRoot().captureToImage().asAndroidBitmap()
+  val roots=compose.onAllNodes(isRoot()).fetchSemanticsNodes()
+  val image=compose.onAllNodes(isRoot())[roots.lastIndex].captureToImage().asAndroidBitmap()
   val folder=File(context.getExternalFilesDir(null),"report-qa").apply{mkdirs()}
   File(folder,"$name.png").outputStream().use{image.compress(Bitmap.CompressFormat.PNG,100,it)}
  }
@@ -61,6 +62,11 @@ class ReportModuleAcceptanceTest {
   for(i in 0..1)noOverflow(compose.onAllNodesWithText(result,useUnmergedTree=true)[i])
   screenshot("long-text-large-font")
  }
+ @Test fun longNumericPrecisionAndComplexUnitRemainVisibleAtLargeFont(){
+  compose.setContent{CompositionLocalProvider(LocalDensity provides Density(1f,1.8f)){MaterialTheme{Box(Modifier.width(180.dp)){ResultValueUnit("1234567890.000","mOsm/kgH2O")}}}}
+  noOverflow(compose.onNodeWithText("1234567890.000"));noOverflow(compose.onNodeWithText("mOsm/kgH2O"))
+  screenshot("numeric-complex-unit-large-font")
+ }
  @Test fun editorSavesAndDetailSearchUsesOriginalDataWhileDisplayingChinese(){
   val store=HealthStore(context);var saved:LabReport?=null
   compose.setContent{MaterialTheme{ReportEditor(draft(),store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
@@ -77,6 +83,42 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("阳性(+)").assertDoesNotExist()
   compose.runOnIdle{assertTrue(store.exportReportAsPastedText(report).contains("阳性(+)"));assertEquals(report,HealthStore(context).reports().single())}
   screenshot("detail-search")
+ }
+ @Test fun actualTrendsOpensOverallAndPointDialogWithoutRedundantSigns(){
+  val store=HealthStore(context);val report=materializeReportDraft(draft(),store);store.saveReport(report)
+  compose.setContent{MaterialTheme{Trends(Modifier,store,listOf(report),0,{_,_->},{},{_,_,_->},{},{})}}
+  compose.onAllNodes(hasSetTextAction())[0].performTextInput("HBSAG")
+  compose.onNodeWithText("整体").performScrollTo().performClick()
+  compose.onNodeWithText("关闭").assertIsDisplayed()
+  compose.onAllNodesWithText("阴性(-)",useUnmergedTree=true).assertCountEquals(0)
+  compose.onAllNodesWithText("阴性",useUnmergedTree=true)[0].assertIsDisplayed()
+  screenshot("overall-text-trend")
+  compose.onAllNodesWithText("阴性",useUnmergedTree=true)[0].performClick()
+  compose.onNodeWithText("编辑结果").assertIsDisplayed()
+  compose.onNodeWithText("当次参考：阴性 · 符合参考").assertIsDisplayed()
+  screenshot("point-dialog")
+  compose.onNodeWithText("编辑结果").performClick()
+  compose.onAllNodes(hasSetTextAction())[0].performTextReplacement("+++")
+  compose.onNodeWithText("保存").performClick()
+  compose.onNodeWithText("+++").assertIsDisplayed()
+  compose.runOnIdle{assertEquals("+++",HealthStore(context).reports().single().results.first().textValue)}
+ }
+ @Test fun actualNumericTrendPointPreservesPrecisionAndOpensItsOwnReference(){
+  val store=HealthStore(context)
+  val reports=listOf("2001-01-02" to "100.000","2001-01-03" to "110.00").map{(day,value)->
+   materializeReportDraft(pastedReportDraft("合成医院\n血常规\n$day\nHGB 血红蛋白 $value g/L 90-120"),store).also{store.saveReport(it)}
+  }
+  compose.setContent{MaterialTheme{Trends(Modifier,store,reports,0,{_,_->},{},{_,_,_->},{},{})}}
+  compose.onAllNodes(hasSetTextAction())[0].performTextInput("HGB")
+  val description=trendPointContentDescription("HGB",reports.first().testedAtEpochMillis)
+  compose.onNodeWithContentDescription(description,useUnmergedTree=true).performScrollTo().performClick()
+  compose.onNodeWithText("100.000").assertIsDisplayed()
+  compose.onNodeWithText("当次参考：90-120 · 范围内").assertIsDisplayed()
+  screenshot("numeric-point-dialog")
+  compose.onNodeWithText("关闭").performClick()
+  compose.onNodeWithText("整体").performScrollTo().performClick()
+  compose.onNodeWithText("整体趋势 · HGB").assertIsDisplayed()
+  screenshot("numeric-overall")
  }
  @Test fun deviceStoreEditReplacementExportReimportAndDeletePreserveIdentity(){
   val store=HealthStore(context);val original=materializeReportDraft(draft(),store);store.saveReport(original)
