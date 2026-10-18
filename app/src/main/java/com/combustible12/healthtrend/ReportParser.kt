@@ -98,7 +98,7 @@ object ReportParser {
   val patterns=codes.sortedByDescending{it.length}.joinToString("|"){code->
    code.mapIndexed{index,ch->when(ch){
     '/'->"[ \t]*[/／:：][ \t]*"
-    '-'->if(code.getOrNull(index+1)?.isDigit()==true)"(?:[-－–—‐‑−]|[ \t]+[-－–—‐‑−][ \t]+)" else "[ \t]*[-－–—‐‑−][ \t]*"
+    '-'->if(code.getOrNull(index+1)?.isDigit()==true&&canonicalMetricKey(code.take(index)) in metricIdentityKeys)"(?:[-－–—‐‑−]|[ \t]+[-－–—‐‑−][ \t]+)" else "[ \t]*[-－–—‐‑−][ \t]*"
     '_'->"[ \t]*_[ \t]*"
     '#'->"[#＃]"
     '%'->"[%％]"
@@ -110,8 +110,23 @@ object ReportParser {
  // Capture a complete code-shaped prefix before considering a shorter known key.
  // Unknown compounds must stay unknown; a known prefix is not evidence for identity.
  private val compoundSourcePrefix=Regex("^([ \t]*[（(]?[ \t]*)([#＃%％]?[A-Za-z][A-Za-z0-9#＃%％]*(?:(?:[ \t]*[/／:：_][ \t]*[A-Za-z0-9#＃%％]+)|(?:[ \t]*[-－–—‐‑−][ \t]*[A-Za-z][A-Za-z0-9#＃%％]*)|(?:[ \t]+[-－–—‐‑−][ \t]+[0-9]+))+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
+ // Manufacturer typography: CA 72-4 / CYFRA 21-1 are complete codes.
+ // A plain CA 125 or CA -125 remains calcium plus a result, never CA125.
+ private val spacedNumericCompoundPrefix=Regex("^([ \t]*[（(]?[ \t]*)([A-Za-z][A-Za-z0-9#＃%％]*[ \t]+[0-9]+(?:[ \t]*[-－–—‐‑−/／:：][ \t]*[A-Za-z0-9#＃%％]+)+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
+ private val spacedSimpleNumericPrefix=Regex("^([ \t]*[（(]?[ \t]*)([A-Za-z]+[ \t]+[0-9][A-Za-z0-9]*)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
  private fun normalizeSourceCodes(text:String):String=text.lines().joinToString("\n"){line->
-  val compound=compoundSourcePrefix.find(line)
+  // CA 125 is ambiguous with a calcium result. Join only when the following
+  // complete registered Chinese label independently confirms the combined code.
+  spacedSimpleNumericPrefix.find(line)?.let{m->
+   val code=canonicalMetricKey(normalizeCode(m.groupValues[2]))
+   val d=UnifiedMetricStandard.definition(code)
+   val tail=line.substring(m.range.last+1).trimStart()
+   if(d!=null&&(d.aliases+d.name+builtInAliasNames(code)).any{label->
+    UnifiedMetricStandard.namePrefixLength(tail,label)?.let{end->end==tail.length||tail[end].isWhitespace()||tail[end] in "<>≤≥+-0123456789"}==true
+   })
+    return@joinToString line.replaceRange(m.groups[2]!!.range,code)
+  }
+  val compound=spacedNumericCompoundPrefix.find(line)?:compoundSourcePrefix.find(line)
   if(compound!=null){
    val code=canonicalMetricKey(normalizeCode(compound.groupValues[2]))
    val replacement=if(code in metricIdentityKeys||compound.groupValues[1].any{it=='（'||it=='('})code else "（$code）"

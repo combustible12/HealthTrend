@@ -5,6 +5,31 @@ import org.junit.Test
 
 /** Full catalogue identity sweep; all result/interval values are synthetic. */
 class CatalogueIdentitySweepTest {
+ @Test fun manufacturerSpacedCodesNeverBecomeCalciumOrLoseTheirNumericSuffix(){
+  val names=mapOf("CA72-4" to "CA724","CA19-9" to "CA199","CA15-3" to "CA153","CA12-5" to "CA125","CYFRA21-1" to "CYFRA21-1")
+  names.forEach{(code,key)->
+   val name=UnifiedMetricStandard.definition(key)!!.name
+   val spaced=code.replace(Regex("(?<=[A-Za-z])(?=\\d)")," ")
+   listOf(spaced,spaced.replace("-"," - "),code.replace("-"," -"),code.replace("-","- ")).forEach{form->
+    listOf("$form $name <2.50 U/mL 0-9","$form <2.50 U/mL 0-9").forEach{source->
+     val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source)).single()
+     assertEquals(source,key,row.metricKey);assertEquals(source,"<2.50",row.textValue)
+    }
+   }
+  }
+  listOf("CA 72-UNKNOWN","CA 72 / UNKNOWN","CYFRA 21-UNKNOWN").forEach{code->
+   val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("$code 糖类抗原724 <2.50 U/mL 0-9")).single()
+   assertTrue(code,row.metricKey.startsWith("待核对:"))
+  }
+  listOf("125","-125").forEach{value->
+   val row=ReportParser.parse("CA $value mmol/L -200-200").single()
+   assertEquals("CA",row.metricKey);assertEquals(value,row.textValue)
+  }
+  val ca125=ReportParser.parse("CA 125 糖类抗原125 <2.50 U/mL 0-9").single()
+  assertEquals("CA125",ca125.metricKey);assertEquals("<2.50",ca125.textValue)
+  val ambiguous=pastedReportDraft("合成医院\n生化\n2001-01-02\nCA 125 <2.50 U/mL 0-9")
+  assertFalse(ambiguous.valid())
+ }
  @Test fun unregisteredSymbolicNamesCannotReuseKnownPrefixesOrCodes(){
   listOf("ALB 白蛋白 / UNKNOWN","白蛋白 / UNKNOWN","CA724 糖类抗原72/4","CA724 糖类抗原72:4","CA724 糖类抗原(72/4)","CA724 糖类抗原72+4","GGT Y-谷氨酰转肽酶").forEach{name->
    val source="$name <2.50 g/L 0-9"

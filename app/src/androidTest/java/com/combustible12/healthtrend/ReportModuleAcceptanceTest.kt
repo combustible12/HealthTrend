@@ -117,7 +117,7 @@ class ReportModuleAcceptanceTest {
   screenshot("ambiguous-result-save-disabled")
  }
  @Test fun namePunctuationKeepsCompleteIdentityAcrossEditorAndDisk(){
-  assertSymbolicReport("肿瘤标志物","CA72-4 糖类抗原CA72 - 4 <2.50 U/mL 0-9",listOf("CA724"))
+  assertSymbolicReport("肿瘤标志物","CA 72-4 糖类抗原CA72 - 4 <2.50 U/mL 0-9",listOf("CA724"))
  }
  @Test fun ratioAndGreekNamesKeepIdentityAcrossEditorAndDisk(){
   assertSymbolicReport("生化","A/G 白蛋白 ／ 球蛋白 1.250 - 0-9\nGGT Γ－谷氨酰转肽酶 2.500 U/L 0-9",listOf("A/G","GGT"))
