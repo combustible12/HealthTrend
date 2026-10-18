@@ -371,7 +371,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  )
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
- Row{Text(labDisplayTitle(r.name,r.key).ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
+ Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
  if(templateOnly){Text(displayLabUnit(r.unit),fontSize=22.sp);if(r.trendMeaning.isNotBlank())Text(r.trendMeaning,color=Accent,fontSize=12.sp)} else ResultValueUnit(r.text,r.unit);Text("参考 ${r.rangeRaw().ifBlank{"未录入"}}",color=Muted)
  if(r.referenceNeedsReview())Text("参考范围需人工核对",color=Accent,fontSize=12.sp)
  TextButton(edit,contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),modifier=Modifier.heightIn(min=28.dp)){Text("编辑")}
@@ -392,8 +392,8 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
 @Composable fun ResultValueUnit(value:String,unit:String,large:Boolean=false){BoxWithConstraints{val unitWidth=maxWidth*0.4f;Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){Text(qualitativeDisplayText(value),modifier=Modifier.weight(1f,fill=false),fontSize=if(large)27.sp else 24.sp,fontWeight=FontWeight.Bold);if(unit.isNotBlank())Text(displayLabUnit(unit),fontSize=14.sp,color=Muted,modifier=Modifier.widthIn(max=unitWidth).padding(bottom=3.dp))}}}
 @Composable fun LabRowEditor(r:DraftRow,edit:(DraftRow)->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){Paper{
  Text("指标")
- if(lockMetadata)Text(labDisplayTitle(r.name,r.key),fontSize=18.sp) else {
-  Field(labDisplayTitle(r.name,r.key),{edit(r.copy(name=it))},"项目名称")
+ if(lockMetadata)Text(r.name,fontSize=18.sp) else {
+  Field(r.name,{edit(r.copy(name=it))},"项目名称")
   if(!lockIdentity)Field(r.key,{edit(r.copy(key=it))},"项目代码")
  }
  if(templateOnly)Field(r.trendMeaning,{edit(r.copy(trendMeaning=it))},"趋势说明（箭头在前）")
@@ -434,8 +434,8 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
    val converted=commonUnit.isNotBlank()&&normalized.second==commonUnit &&
     x.value!=null && normalized.first!=x.value
    val compatible=commonUnit.isNotBlank()&&normalized.second==commonUnit
-   val printedName=labDisplayTitle(x.rawName,x.metricKey)
-   Row{Text(standard,modifier=Modifier.weight(1f));Text(x.resultStatusLabel(),color=statusColor(x.status()))}
+   val printedName=x.rawName.takeIf{it.isNotBlank()}?:standard
+   Row{Text(printedName,modifier=Modifier.weight(1f));Text(x.resultStatusLabel(),color=statusColor(x.status()))}
    if(converted){
     ResultValueUnit(normalized.first?.let{String.format(java.util.Locale.US,"%.3f",it).trimEnd('0').trimEnd('.')}?:x.textValue,normalized.second)
     Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
@@ -444,7 +444,6 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
     ResultValueUnit(x.textValue,if(commonUnit.isNotBlank()&&normalized.second==commonUnit)commonUnit else x.unitAtTest)
     Text("参考范围："+qualitativeDisplayText(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
    }
-   if(printedName!=standard)Text("原名称："+printedName,color=Muted,fontSize=12.sp)
    if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
    TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑结果")}
   }}

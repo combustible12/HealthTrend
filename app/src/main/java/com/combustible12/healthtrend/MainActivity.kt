@@ -213,7 +213,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
  if(recordsOpen)FullPage("记录",{recordsOpen=false},hidden=draft!=null||draftsOpen||report!=null||entry!=null||viewer!=null,topAction={TextButton({draftsOpen=true}){Text("待核对草稿")}}){m->
-  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="")
+  Records(m,reports,entries,recordsFilter,{recordsFilter=it},{report=it},{r->viewerReportId=r.id;viewer=r.sourceImages.map{it.uri}},{r->if(!attachingReportImage){attachReportId=r.id;attachPicker.launch(arrayOf("image/*"))}},{entry=it},{kind->entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},title="",deleteReport={r->change{store.deleteReport(r.id)}})
  }
  if(draftsOpen)FullPage("待核对草稿",{draftsOpen=false},hidden=draft!=null){m->
   Column(m.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
@@ -902,7 +902,9 @@ internal fun trendYearLabel(points:List<Pair<Long,Double>>):String{
 }
 internal fun trendShortDate(epochMillis:Long)=dateText(epochMillis).substring(5,10).replace("-","/")
 internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toString() else value.toString().trimEnd('0').trimEnd('.')
-@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(LabReport)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录"){Screen(m,title){
+@Composable fun Records(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,filter:String,setFilter:(String)->Unit,open:(LabReport)->Unit,viewImages:(LabReport)->Unit,addImage:(LabReport)->Unit,edit:(HealthEntry)->Unit,add:(EntryKind)->Unit,title:String="记录",deleteReport:((LabReport)->Unit)?=null){Screen(m,title){
+ var deletingReport by remember{mutableStateOf<LabReport?>(null)}
+ deletingReport?.let{target->ReportDeleteDialog(target,{deletingReport=null}){deleteReport?.invoke(target);deletingReport=null}}
  var recordSearch by rememberSaveable{mutableStateOf("")}
  val searchContext=LocalContext.current
  val searchStore=remember(searchContext){HealthStore(searchContext)}
@@ -919,7 +921,10 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
   Text(type,fontWeight=FontWeight.Bold,fontSize=18.sp)
   items.sortedByDescending{it.testedAtEpochMillis}.chunked(2).forEach{pair->
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Top){
-    pair.forEach{r->Box(Modifier.weight(1f)){ReportCard(r,{open(r)},{viewImages(r)},{addImage(r)})}}
+    pair.forEach{r->Column(Modifier.weight(1f)){
+     ReportCard(r,{open(r)},{viewImages(r)},{addImage(r)})
+     if(deleteReport!=null)TextButton({deletingReport=r},Modifier.align(Alignment.End)){Text("删除报告",color=Bad)}
+    }}
     if(pair.size==1)Spacer(Modifier.weight(1f))
    }
   }
@@ -940,4 +945,12 @@ internal fun formatTrendValue(value:Double)=if(value%1.0==0.0)value.toLong().toS
  Paper{Text("期间共 ${selected.size} 次记录",fontWeight=FontWeight.Bold);selected.groupBy{it.title}.forEach{(name,rows)->Text("$name · ${rows.size} 次 · 最高 ${rows.maxOf{it.severity}}/10");Spark(rows.sortedBy{it.occurredAtEpochMillis}.map{it.occurredAtEpochMillis to it.severity.toDouble()},Accent)}}
  Button({shareText(ctx,"症状报告",text)},Modifier.fillMaxWidth()){Text("分享症状报告")}
  selected.forEach{e->Paper{Text(e.title+" · "+dateText(e.occurredAtEpochMillis),fontWeight=FontWeight.Bold);Text("程度 ${e.severity}/10  ${e.frequency}  ${e.duration}");Text(e.note)}}
+}
+
+/** The target is explicit so cancel cannot mutate records or delete a neighbouring card. */
+@Composable internal fun ReportDeleteDialog(report:LabReport,cancel:()->Unit,confirm:()->Unit){
+ AlertDialog(onDismissRequest=cancel,title={Text("删除这份报告？")},
+  text={Text("${report.hospitalKey}\n${ReportNaming.title(report).category} · ${dateText(report.testedAtEpochMillis)}\n${report.results.size} 个项目")},
+  confirmButton={TextButton(confirm){Text("确认删除",color=Bad)}},
+  dismissButton={TextButton(cancel){Text("取消")}})
 }

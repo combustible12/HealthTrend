@@ -896,11 +896,11 @@ class HealthStore(private val context:Context) {
   append(dateText(report.testedAtEpochMillis).take(10))
   report.results.forEach{row->
    if(row.value==null){
-    append('\n').append(listOf(canonicalMetricKey(row.metricKey),preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName,row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
+    append('\n').append(listOf(canonicalMetricKey(row.metricKey),row.rawName.takeIf{it.isNotBlank()}?:UnifiedMetricStandard.definition(row.metricKey)?.name?:canonicalMetricKey(row.metricKey),row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
     return@forEach
    }
    append('\n').append(canonicalMetricKey(row.metricKey)).append(' ')
-   append(preferredMetricName(row.metricKey)?:UnifiedMetricStandard.definition(row.metricKey)?.name?:row.rawName)
+   append(row.rawName.takeIf{it.isNotBlank()}?:UnifiedMetricStandard.definition(row.metricKey)?.name?:canonicalMetricKey(row.metricKey))
    append(' ').append(row.textValue).append(' ')
    append(row.unitAtTest.ifBlank{"-"})
    if(row.reportFlag.isNotBlank())append(' ').append(row.reportFlag)

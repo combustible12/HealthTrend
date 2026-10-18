@@ -62,7 +62,7 @@ class MetricImportRegressionTest {
   }
   val combined=ReportParser.parse("AST 24.00 U/L 0-40\nALT 12.00 U/L 0-40\nAST : ALT 2.000")
   assertEquals(listOf("AST","ALT","AST/ALT"),combined.map{it.metricKey})
-  assertEquals("谷草/谷丙",ReportParser.parse("谷草/谷丙比值 2.000").single().displayName)
+  assertEquals("谷草/谷丙比值",ReportParser.parse("谷草/谷丙比值 2.000").single().displayName)
   assertEquals("待核对",ReportParser.parse("ZZUNKNOWN 2.000").single().displayName)
  }
  @Test fun preservingOriginalLineDoesNotCopyAnotherMetricsFlag(){

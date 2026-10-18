@@ -129,11 +129,11 @@ object ReportMetadata {
   val preferredDateLabels=listOf("检查日期","检查时间","检验日期","检验时间","报告日期","报告时间")
   val fallbackClinicalLabels=listOf("采样日期","采样时间")
   val excludedDateLabels=listOf("出生","生日","送检","审核","打印")
-  val preferredDates=lines.filter{line->preferredDateLabels.any{line.contains(it)}&&excludedDateLabels.none{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
-  val sampledDates=lines.filter{line->fallbackClinicalLabels.any{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
+  val preferredDates=lines.filter{line->preferredDateLabels.any{line.contains(it)}&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
+  val sampledDates=lines.filter{line->fallbackClinicalLabels.any{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
   // Patient identity fields and report timing are separate domains. Generic date/time labels
   // are accepted only when unambiguous and never allowed to override an explicit clinical date.
-  val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&excludedDateLabels.none{line.contains(it)}}.mapNotNull{dateRegex.find(it)}
+  val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
   val fallbackDates=lines.filter{line->excludedDateLabels.none{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).toList()}
   val dates=when{preferredDates.isNotEmpty()->preferredDates;sampledDates.isNotEmpty()->sampledDates;genericDates.size==1->genericDates;fallbackDates.size==1->fallbackDates;else->emptyList()}
   fun normalized(m:MatchResult)="${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"

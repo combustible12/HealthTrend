@@ -81,4 +81,56 @@ class ReportHeadingRoundTripTest {
   val draft=pastedReportDraft(text)
   assertEquals("生化",draft.type);assertEquals("",draft.reportName);assertEquals("12.00",draft.rows.single().text)
  }
+ @Test fun sourceNamesSurvivePreferredNamesEditReopenAndExport(){
+  val store=store()
+  val cases=listOf(
+   Triple("甲状腺功能","FT3","游离-T3"),Triple("甲状腺功能","FT4","游离-T4"),
+   Triple("甲状腺功能","TSH","促甲状腺素（III代）"),
+   Triple("肿瘤标志物","CA724","糖类抗原CA72-4"),
+   Triple("生化","GGT","γ-谷氨酰转肽酶"),Triple("生化","A/G","白蛋白/球蛋白"),
+   Triple("凝血功能","FDP","纤维蛋白（原）降解产物"),
+   Triple("生化","AST/ALT","谷草/谷丙比值")
+  )
+  cases.forEach{(category,key,name)->
+   val raw="合成医院\n$category\n2001-01-02\n$key\t$name\t2.340\t-\t1.0-3.0"
+   val draft=pastedReportDraft(raw,store=store)
+   assertEquals(raw,name,draft.rows.single().name)
+   assertEquals(raw,key,draft.rows.single().key)
+   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+   val report=materializeReportDraft(draft,store);store.saveReport(report)
+   val context=RuntimeEnvironment.getApplication()
+   val reopened=HealthStore(context).reports().single{it.id==report.id}
+   assertEquals(name,reopened.results.single().rawName)
+   val edited=ReportDraft.from(reopened)
+   assertEquals(name,edited.rows.single().name)
+   store.saveReport(materializeReportDraft(edited,store))
+   store.savePreferredMetricName(key,"合成显示名称")
+   val exported=store.exportReportAsPastedText(reopened)
+   assertTrue(exported,exported.contains(name))
+   assertFalse(exported,exported.contains("合成显示名称"))
+   store.deletePreferredMetricName(key)
+   val imported=pastedReportDraft(exported,store=store)
+   assertEquals(name,imported.rows.single().name)
+   assertEquals(key,imported.rows.single().key)
+   assertEquals("2.340",imported.rows.single().text)
+   store.deleteReport(report.id)
+  }
+ }
+ @Test fun correctingDatePreservesReportIdentityNamesAndOtherReports(){
+  val store=store()
+  val initial=pastedReportDraft("合成医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6",store=store)
+  val report=materializeReportDraft(initial,store);store.saveReport(report)
+  val other=report.copy(id="untouched-report",results=report.results.map{it.copy(id="other-"+it.id,reportId="untouched-report")});store.saveReport(other)
+  val edited=ReportDraft.from(report).copy(date="2001-01-03")
+  store.saveReport(materializeReportDraft(edited,store))
+  val context=RuntimeEnvironment.getApplication()
+  val reopened=HealthStore(context).reports()
+  val changed=reopened.single{it.id==report.id}
+  assertEquals("2001-01-03",dateText(changed.testedAtEpochMillis).take(10))
+  assertEquals(report.results.map{it.rawName},changed.results.map{it.rawName})
+  assertEquals(report.results.map{it.textValue},changed.results.map{it.textValue})
+  assertEquals(other,reopened.single{it.id==other.id})
+  store.deleteReport(changed.id)
+  assertEquals(listOf(other),HealthStore(context).reports())
+ }
 }

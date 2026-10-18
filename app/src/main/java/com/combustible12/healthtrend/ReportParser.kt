@@ -171,7 +171,8 @@ object ReportParser {
    val compound=code.any{it in "/:_-"}&&!code.startsWith("CUSTOM-",true)
    identity=if(compound)"待核对:未知复合代码:$code" else named?:"待核对:$name"
   }
-  val displayName=if(identity in setOf("AST/ALT","ALT/AST") && named==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
+  // Alias resolution chooses identity only; the printed label remains evidence.
+  val displayName=name
   return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
  fun parse(text:String,reportType:String=""):List<ParsedLabResult> = text.lines().flatMap { original -> segments(original).map { it to original } }.mapNotNull { (source,original) ->

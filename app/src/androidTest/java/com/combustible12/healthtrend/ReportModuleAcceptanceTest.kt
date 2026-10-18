@@ -42,6 +42,31 @@ class ReportModuleAcceptanceTest {
   val chunks=encoded.chunked(2000)
   chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @Test fun reportListDeleteRequiresConfirmationAndRetainsOtherReports(){
+  val store=HealthStore(context)
+  val target=materializeReportDraft(draft(),store)
+  val other=target.copy(id="other-report",hospitalKey="另一合成医院",results=target.results.map{it.copy(id="other-"+it.id,reportId="other-report",hospitalKey="另一合成医院")})
+  store.saveReport(target);store.saveReport(other)
+  var deletedId:String?=null
+  compose.setContent{MaterialTheme{
+   val reports=androidx.compose.runtime.remember{androidx.compose.runtime.mutableStateOf(store.reports())}
+   Records(Modifier,reports.value,emptyList(),"全部",{},{},{},{},{},{},deleteReport={selected->
+    deletedId=selected.id;store.deleteReport(selected.id);reports.value=store.reports()
+   })
+  }}
+  compose.onAllNodesWithText("删除报告").onFirst().performScrollTo().performClick()
+  compose.onNodeWithText("取消").performClick()
+  compose.runOnIdle{assertEquals(2,HealthStore(context).reports().size)}
+  compose.onAllNodesWithText("删除报告").onFirst().performScrollTo().performClick()
+  compose.onNodeWithText("确认删除").performClick()
+  compose.runOnIdle{
+   val remaining=HealthStore(context).reports()
+   assertEquals(1,remaining.size)
+   assertNotNull(deletedId)
+   val expected=if(deletedId==target.id)other else target
+   assertEquals(expected,remaining.single())
+  }
+ }
  @get:Rule val testName=org.junit.rules.TestName()
  @After fun captureFinalState(){screenshot("final-"+testName.methodName)}
  private fun textTrend(scale:Float){
