@@ -1,5 +1,5 @@
 {
-  "baseCommit": "368eb8e44cee75617dec6949266bc380d0e0f8f5",
+  "baseCommit": "6acd285446e671db41a01e00a1a8b993320c6bc1",
   "requestedAt": "2026-10-18",
-  "scope": "Revalidate comparison trend integration and gray labels; center existing ratio visibility test targets without production layout changes"
+  "scope": "Correct CA724 standard display name to 糖类抗原72-4; retain legacy alias, storage, thresholds and full regressions"
 }

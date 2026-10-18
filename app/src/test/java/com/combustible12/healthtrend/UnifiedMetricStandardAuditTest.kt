@@ -5,6 +5,20 @@ import org.junit.Test
 
 /** Synthetic dictionary checks; not a substitute for per-analyte clinical review. */
 class UnifiedMetricStandardAuditTest {
+ @Test fun ca724UsesHyphenatedStandardNameAndKeepsLegacyAliases(){
+  assertEquals("糖类抗原72-4",UnifiedMetricStandard.definition("CA724")!!.name)
+  listOf("糖类抗原724","糖类抗原72-4","糖类抗原CA72-4","糖类抗原CA724").forEach{name->
+   assertEquals(name,"CA724",ReportParser.key(name))
+   assertEquals("糖类抗原72-4",standardReportMetricName("CA724",name,"U/mL"))
+   val draft=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\nCA724 $name <1.00 U/mL 0.00-12.10")
+   assertTrue(draft.valid())
+   assertEquals("CA724",draft.rows.single().key)
+   assertEquals("糖类抗原72-4",draft.rows.single().name)
+   assertEquals("<1.00",draft.rows.single().text)
+   assertEquals("0.00-12.10",draft.rows.single().rangeRaw())
+  }
+ }
+
  @Test fun albuminGlobulinRatioAliasPreservesDimensionlessSourceRange(){
   assertEquals("A/G",UnifiedMetricStandard.resolveName("白球比例"))
   assertEquals("A/G",ReportParser.key("白球比例"))

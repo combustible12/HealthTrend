@@ -42,6 +42,28 @@ class ReportModuleAcceptanceTest {
   val chunks=encoded.chunked(2000)
   chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @Test fun ca724LegacyStoredNameDisplaysHyphenWithoutRewritingReport(){
+  val store=HealthStore(context)
+  val draft=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\nCA724 糖类抗原724 <1.00 U/mL 0.00-12.10",store=store)
+  val original=materializeReportDraft(draft,store).let{it.copy(results=it.results.map{r->r.copy(rawName="糖类抗原724")})}
+  store.saveReport(original)
+  val reopened=HealthStore(context).reports().single()
+  assertEquals(original,reopened)
+  assertEquals("糖类抗原724",reopened.results.single().rawName)
+  assertEquals("糖类抗原72-4",standardReportMetricName("CA724",reopened.results.single().rawName,"U/mL"))
+  compose.setContent{MaterialTheme{LabRowSummary(draft.rows.single(),{},null)}}
+  compose.onNodeWithText("糖类抗原72-4").assertIsDisplayed()
+  compose.onNodeWithText("糖类抗原724",substring=false).assertDoesNotExist()
+  compose.onNodeWithText("<1.00").assertIsDisplayed()
+  val exported=store.exportReportAsPastedText(reopened)
+  val reimported=pastedReportDraft(exported,store=store)
+  assertTrue(reimported.valid())
+  assertEquals("CA724",reimported.rows.single().key)
+  assertEquals("糖类抗原72-4",reimported.rows.single().name)
+  assertEquals("<1.00",reimported.rows.single().text)
+  assertEquals("0.00-12.10",reimported.rows.single().rangeRaw())
+  assertEquals(original,HealthStore(context).reports().single())
+ }
  @Test fun aliasesUseOneDictionaryNameInReviewAndStoredReports(){
   val store=HealthStore(context)
   val drafts=listOf("淋巴细胞%","淋巴细胞百分比").map{name->

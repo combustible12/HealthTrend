@@ -117,7 +117,7 @@ object UnifiedMetricStandard {
   Triple("CA125","糖类抗原125","U/mL" to "糖类抗原12-5|糖类抗原CA125|糖类抗原CA12-5"),
   Triple("CA153","糖类抗原153","U/mL" to "糖类抗原15-3|糖类抗原CA15-3"),
   Triple("CA199","糖类抗原199","U/mL" to "糖类抗原19-9|糖类抗原CA19-9"),
-  Triple("CA724","糖类抗原724","U/mL" to "糖类抗原72-4|糖类抗原CA72-4|糖类抗原CA724"),
+  Triple("CA724","糖类抗原72-4","U/mL" to "糖类抗原724|糖类抗原CA72-4|糖类抗原CA724"),
   Triple("HE4","人附睾蛋白4","pmol/L" to "附睾蛋白4"),
   Triple("NSE","神经元特异性烯醇化酶","ng/mL" to "神经元特异性烯醇酶"),
   Triple("CYFRA21-1","细胞角蛋白19片段","ng/mL" to "细胞角蛋白19片段抗原"),
