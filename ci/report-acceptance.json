@@ -1,5 +1,5 @@
 {
-  "baseCommit": "2099bc1",
+  "baseCommit": "599598621dd8d5d811a66698f12c83d004dc0e66",
   "requestedAt": "2026-10-18",
-  "scope": "One dictionary name across alias import review save reopen display and export; immutable archive entry and restore; all JVM regressions and Android device acceptance"
+  "scope": "Revalidate all report flows after preserving generic PDW legacy fixture name; keep CV SD conflict protection"
 }
