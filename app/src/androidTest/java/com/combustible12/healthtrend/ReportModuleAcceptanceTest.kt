@@ -117,11 +117,20 @@ class ReportModuleAcceptanceTest {
   screenshot("ambiguous-result-save-disabled")
  }
  @Test fun namePunctuationKeepsCompleteIdentityAcrossEditorAndDisk(){
+  assertSymbolicReport("肿瘤标志物","CA72-4 糖类抗原CA72 - 4 <2.50 U/mL 0-9",listOf("CA724"))
+ }
+ @Test fun ratioAndGreekNamesKeepIdentityAcrossEditorAndDisk(){
+  assertSymbolicReport("生化","A/G 白蛋白 ／ 球蛋白 1.250 - 0-9\nGGT Γ－谷氨酰转肽酶 2.500 U/L 0-9",listOf("A/G","GGT"))
+ }
+ @Test fun parenthesizedNameKeepsIdentityAcrossEditorAndDisk(){
+  assertSymbolicReport("凝血功能","FDP 纤维蛋白（原）降解产物 <2.50 - 0-9",listOf("FDP"))
+ }
+ private fun assertSymbolicReport(type:String,rows:String,keys:List<String>){
   val store=HealthStore(context);var saved:LabReport?=null
-  val source="合成医院\n生化\n2001-01-02\nCA72-4 糖类抗原CA72 - 4 <2.50 U/mL 0-9\nA/G 白蛋白 ／ 球蛋白 1.250 - 0-9\nGGT Γ－谷氨酰转肽酶 2.500 U/L 0-9\nFDP 纤维蛋白（原）降解产物 <2.50 - 0-9"
+  val source="合成医院\n$type\n2001-01-02\n$rows"
   val imported=pastedReportDraft(source,store=store)
   assertTrue(reportValidationProblems(imported).toString(),imported.valid())
-  assertEquals(listOf("CA724","A/G","GGT","FDP"),imported.rows.map{it.key})
+  assertEquals(keys,imported.rows.map{it.key})
   compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
   imported.rows.forEach{compose.onNodeWithText(it.name,useUnmergedTree=true).performScrollTo().assertIsDisplayed()}
   compose.onNodeWithText("保存").assertIsEnabled().performClick()
