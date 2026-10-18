@@ -42,9 +42,14 @@ internal object StructuredReportRows {
   val tail=head(source,type)?.tail?:return false
   val tokens=tail.split(Regex("\\s+"))
   val first=tokens.firstOrNull().orEmpty()
+  val second=tokens.getOrNull(1).orEmpty()
+  val oneSidedReference=LabResultValues.comparator(second).isNotBlank()&&
+   (tokens.size==2||(tokens.size==3&&units.matches(tokens[2])))
   val startsWithRange=PartialReferenceRanges.parts(first).let{it.first.isNotBlank()||it.second.isNotBlank()} && LabResultValues.numeric(first)==null
   return units.matches(first)||startsWithRange||
-   (LabResultValues.numeric(first)!=null&&tokens.getOrNull(1)?.let{LabResultValues.numeric(it)!=null}==true&&
+   // A sole comparison-qualified second token (optionally followed by its
+   // unit) is a one-sided reference. Extra numeric columns remain ambiguous.
+   (LabResultValues.numeric(first)!=null&&LabResultValues.numeric(second)!=null&&!oneSidedReference&&
     !leadingInterval.containsMatchIn(tail.substringAfter(' ',"").trimStart()))
  }
  private fun head(source:String,type:String):Head? {

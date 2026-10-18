@@ -2,6 +2,19 @@ package com.combustible12.healthtrend
 import org.junit.Test
 import org.junit.Assert.*
 class SourceNamePersistenceTest {
+ @Test fun unitlessOneSidedReferencesAreNotMistakenForSecondResults(){
+  listOf("NRBC%","NRBC#","PCT").forEach{key->
+   val name=UnifiedMetricStandard.definition(key)!!.name
+   listOf("<=9.000",">=0.000","≤9.000","≥0.000","<9.000",">0.000").forEach{reference->
+    val source="$key $name 0.000 $reference"
+    val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source)).single()
+    assertEquals(source,key,row.metricKey);assertEquals(source,"0.000",row.textValue)
+    assertEquals(source,"",row.unit);assertEquals(source,reference,row.referenceRaw)
+   }
+  }
+  val bad=pastedReportDraft("合成医院\n甲状腺功能\n2001-01-02\nFT4 游离-T4 4 13.00 pmol/L 9-20")
+  assertFalse(bad.valid());assertEquals("",bad.rows.single().text)
+ }
  @Test fun recognizedChineseRowsWithoutResultsCannotSilentlyDisappear(){
   listOf("游离-T4","游离-T4 pmol/L","*游离-T4 pmol/L 9.00~20.00").forEach{incomplete->
    val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6\n$incomplete\nTSH 促甲状腺激素 2.100 mIU/L 0.3-5"

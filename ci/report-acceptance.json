@@ -1,5 +1,5 @@
 {
-  "baseCommit": "af3561ef3685a5a26f0b817f9e14ec1e994dac5a",
+  "baseCommit": "4b95b85886326da467678799e49650de3a132fb4",
   "requestedAt": "2026-10-18",
-  "scope": "Module-wide input invariance, shared numeric comparison syntax, per-field dates, named row completeness, save/reopen/export and UI regressions"
+  "scope": "Full report-module audit with unitless one-sided references preserved and ambiguous multi-result rows blocked"
 }
