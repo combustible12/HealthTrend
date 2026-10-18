@@ -15,8 +15,8 @@ object ReportParser {
  fun builtInMetricKeys():Set<String> = metricIdentityKeys
  // A digit inside any-language name or a hyphenated identifier is never a result.
  // Apply this even when an unfamiliar column layout falls back to numeric scanning.
- private val numeric=Regex("(?<![\\p{L}\\d.^×/／:：(（-])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
- private val resultNumeric=Regex("[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ private val numeric=Regex("(?<![\\p{L}\\d.^×/／:：(（-])"+LabResultValues.sourceNumberPattern)
+ private val resultNumeric=Regex(LabResultValues.sourceNumberPattern)
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
  private val canonicalUnits=mapOf(
   "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","MONO#" to "×10^9/L","EOS#" to "×10^9/L","BASO#" to "×10^9/L","PLT" to "×10^9/L",
@@ -182,7 +182,7 @@ object ReportParser {
   }
   // Alias resolution chooses identity only; the printed label remains evidence.
   val displayName=if(name.none{it.code in 0x3400..0x9fff}&&key(name)==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
-  return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
+  return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=LabResultValues.comparator(result),referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
  fun parse(text:String,reportType:String=""):List<ParsedLabResult> = text.lines().flatMap { original -> segments(original).map { it to original } }.mapNotNull { (source,original) ->
   // Decode only comparison entities. Keep rawLine verbatim for source review.
@@ -195,7 +195,7 @@ object ReportParser {
    clipboardTextResult(structured)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
   }
   clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
-  val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
+  val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=(?:<=|>=|[<>≤≥])?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
   val resultStart=StructuredReportRows.resultStart(line,reportType)
   val match=if(resultStart>0)resultNumeric.find(line,resultStart) else numeric.find(line)
@@ -248,7 +248,7 @@ object ReportParser {
    }
   }
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
-  ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,original,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
+  ParsedLabResult(k,name,LabResultValues.numeric(rawValue),unit,low,high,original,k in primaryKeys,rawValue.trim(),LabResultValues.comparator(rawValue),referenceRaw,reportFlag)
  }.map{row->protectSymbolicName(row,reportType)}
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&LabResultValues.valid(it.textValue)&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
  private fun protectSymbolicName(row:ParsedLabResult,type:String):ParsedLabResult {

@@ -42,6 +42,29 @@ class ReportModuleAcceptanceTest {
   val chunks=encoded.chunked(2000)
   chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @Test fun numericComparisonsAndScopedDatesSurviveStorage(){
+  val store=HealthStore(context)
+  listOf("<2.340",">2.340","≤2.340","≥2.340","<=2.340",">=2.340","+2.340","-2.340","2.340e-3").forEach{value->
+   val raw="合成医院\n肿瘤标志物\n检查日期：2001-01-02 打印日期：2001-01-03\nCA724 糖类抗原CA72-4 $value U/mL 0.00~9.00"
+   val d=pastedReportDraft(raw,store=store)
+   assertEquals("2001-01-02",d.date)
+   assertTrue(reportValidationProblems(d).toString(),d.valid())
+   val report=materializeReportDraft(d,store);store.saveReport(report)
+   val reopened=HealthStore(context).reports().single{it.id==report.id}
+   val result=reopened.results.single()
+   assertEquals(value,result.textValue);assertEquals(LabResultValues.numeric(value),result.value)
+   assertEquals(LabResultValues.comparator(value),result.comparator)
+   val edit=ReportDraft.from(reopened)
+   assertTrue(reportValidationProblems(edit).toString(),edit.valid())
+   store.saveReport(materializeReportDraft(edit,store))
+   val imported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
+   assertEquals(value,imported.rows.single().text)
+   assertEquals(result.value,imported.rows.single().parsed().value)
+   assertEquals(result.comparator,imported.rows.single().parsed().comparator)
+   assertEquals("0.00~9.00",imported.rows.single().rangeRaw())
+   assertEquals(raw,reopened.rawOcr)
+  }
+ }
  @Test fun genericWidthNamesSurviveStoreReconciliation(){
   val store=HealthStore(context)
   listOf("RDW" to "红细胞体积分布宽度","PDW" to "血小板体积分布宽度").forEach{(family,name)->

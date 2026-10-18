@@ -55,7 +55,8 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  val parsed=ReportParser.parse(bound,sourceType).let{rows->store?.reconcileParsedMetrics(rows,sourceType)?:rows}
  // A failed result layout cannot silently remove a code-bearing input row.
  val unparsed=bound.lines().filter{line->
-  Regex("^(?:[（(][^（）()]+[）)]|[A-Za-z][A-Za-z0-9/#%+._-]*)(?:\\s+|$)").containsMatchIn(line)&&
+   (Regex("^(?:[（(][^（）()]+[）)]|[A-Za-z][A-Za-z0-9/#%+._-]*)(?:\\s+|$)").containsMatchIn(line)||
+    StructuredReportRows.hasKnownNamePrefix(line,sourceType))&&
    parsed.none{it.rawLine.trim()==line.trim()}
  }.map{line->DraftRow(name="待核对",key="待核对:未解析行:"+line.substringBefore(' '),raw=line,uncertain=true)}
  if(parsed.isEmpty()&&unparsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
@@ -135,19 +136,29 @@ object ReportMetadata {
    candidate.takeIf{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
   }
   val hospital=hospitalCandidates.distinct().singleOrNull().orEmpty()
+  // A line can contain several independent labelled timestamps. Scope each
+  // date to its field instead of excluding an entire clinical line for "打印".
+  val dateLabel=Regex("(?:检查|检验|报告|采样|送检|审核|打印|出生|生日)(?:日期|时间)?\\s*[:：]?")
+  val dateFields=lines.flatMap{line->
+   val labels=dateLabel.findAll(line).toList()
+   if(labels.isEmpty())listOf(line) else buildList{
+    line.take(labels.first().range.first).takeIf{dateRegex.containsMatchIn(it)}?.let{add(it)}
+    labels.forEachIndexed{index,label->add(line.substring(label.range.first,labels.getOrNull(index+1)?.range?.first?:line.length))}
+   }
+  }
   val preferredDateLabels=listOf("检查日期","检查时间","检验日期","检验时间","报告日期","报告时间")
   val fallbackClinicalLabels=listOf("采样日期","采样时间")
   val excludedDateLabels=listOf("出生","生日","送检","审核","打印")
-  val preferredDates=lines.filter{line->preferredDateLabels.any{line.contains(it)}&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
-  val sampledDates=lines.filter{line->fallbackClinicalLabels.any{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
+  val preferredDates=dateFields.filter{line->preferredDateLabels.any{line.contains(it)}&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
+  val sampledDates=dateFields.filter{line->fallbackClinicalLabels.any{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
   // Patient identity fields and report timing are separate domains. Generic date/time labels
   // are accepted only when unambiguous and never allowed to override an explicit clinical date.
-  val genericDates=lines.filter{line->(line.contains("日期")||line.contains("时间"))&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
-  val fallbackDates=lines.filter{line->excludedDateLabels.none{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).toList()}
+  val genericDates=dateFields.filter{line->(line.contains("日期")||line.contains("时间"))&&excludedDateLabels.none{line.contains(it)}}.flatMap{dateRegex.findAll(it).toList()}
+  val fallbackDates=dateFields.filter{line->excludedDateLabels.none{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).toList()}
   val dates=when{preferredDates.isNotEmpty()->preferredDates;sampledDates.isNotEmpty()->sampledDates;genericDates.size==1->genericDates;fallbackDates.size==1->fallbackDates;else->emptyList()}
   fun normalized(m:MatchResult)="${m.groupValues[1]}-${m.groupValues[2].padStart(2,'0')}-${m.groupValues[3].padStart(2,'0')}"
   val distinct=dates.map(::normalized).distinct()
-  val administrativeDates=lines.filter{line->excludedDateLabels.any{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).map(::normalized).toList()}
+  val administrativeDates=dateFields.filter{line->excludedDateLabels.any{line.contains(it)}}.flatMap{line->dateRegex.findAll(line).map(::normalized).toList()}
   val candidate=distinct.singleOrNull().orEmpty()
   // An administrative timestamp never supplies the report date, but a same-month/day
   // year conflict is strong evidence that OCR changed 2026 into 2016. Require review.

@@ -24,7 +24,16 @@ internal object StructuredReportRows {
   }.plus(listOf("红细胞分布宽度" to "RDW","血小板分布宽度" to "PDW","红细胞体积分布宽度" to "RDW","血小板体积分布宽度" to "PDW","大血小板" to "P-LCR"))
  }
  private data class Head(val name:String,val key:String,val tail:String)
- private val resultNumber=Regex("^[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ /** A recognized name without a usable result is still a source metric row.
+  * Do not let the import filter silently discard it just because no Latin code
+  * was printed. Require a complete name boundary, never an arbitrary substring. */
+ fun hasKnownNamePrefix(source:String,type:String):Boolean {
+  val label=ReportParser.sourceMetricName(source).replace(Regex("^\\d+[.、]?\\s+"),"")
+  return (SpecimenNames.names(type).map{it.key to it.value}+labels).any{(name,_)->
+   UnifiedMetricStandard.namePrefixLength(label,name)?.let{end->end==label.length||label[end].isWhitespace()}==true
+  }
+ }
+ private val resultNumber=Regex("^"+LabResultValues.sourceNumberPattern)
  private val leadingInterval=Regex("^[-+]?\\d+(?:\\.\\d+)?\\s*(?:-{1,2}|–|—|~|～|至)\\s*[-+]?\\d+(?:\\.\\d+)?(?=\\s|$)")
  // Both structured columns and fallback layouts share the same complete-name
  // boundary. A failed unit/range layout cannot expose name digits as results.

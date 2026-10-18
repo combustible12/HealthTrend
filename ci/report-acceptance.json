@@ -1,5 +1,5 @@
 {
-  "baseCommit": "c6b0fc334e6da6f182fa2e9feafee474f411cf34",
+  "baseCommit": "af3561ef3685a5a26f0b817f9e14ec1e994dac5a",
   "requestedAt": "2026-10-18",
-  "scope": "CV/SD generic source names across space/tab input; full report save/reopen/export and existing UI regressions"
+  "scope": "Module-wide input invariance, shared numeric comparison syntax, per-field dates, named row completeness, save/reopen/export and UI regressions"
 }

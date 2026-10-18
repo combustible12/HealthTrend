@@ -4,8 +4,13 @@ package com.combustible12.healthtrend
 enum class LabValueKind { NUMBER, QUALITATIVE, SEMIQUANTITATIVE, DESCRIPTION }
 enum class ReferenceAgreement { MATCH, MISMATCH, UNKNOWN }
 object LabResultValues {
- private val number=Regex("[<>≤≥]?[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
- fun numeric(text:String):Double?=text.trim().replace(" ","").takeIf{number.matches(it)}?.trimStart('<','>','≤','≥')?.toDoubleOrNull()?.takeIf{it.isFinite()}
+ private const val comparisonPattern="(?:<=|>=|[<>≤≥])"
+ private const val magnitudePattern="[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?"
+ private val number=Regex("$comparisonPattern?$magnitudePattern")
+ internal val sourceNumberPattern="$comparisonPattern?\\s*$magnitudePattern"
+ private val comparison=Regex("^$comparisonPattern")
+ fun comparator(text:String):String=comparison.find(text.trim())?.value.orEmpty()
+ fun numeric(text:String):Double?=text.trim().replace(" ","").takeIf{number.matches(it)}?.replace(comparison,"")?.toDoubleOrNull()?.takeIf{it.isFinite()}
  fun valid(text:String):Boolean=text.isNotBlank()&&text.trim().lowercase() !in setOf("nan","infinity","+infinity","-infinity","∞","+∞","-∞","/","／",":","：","(",")","（","）","~","～","*","%","％","#","＃","=")&&(!number.matches(text.trim())||numeric(text)!=null)
  fun kind(text:String):LabValueKind {
   if(numeric(text)!=null)return LabValueKind.NUMBER
@@ -56,7 +61,7 @@ fun LabResult.withEditedResult(text:String):LabResult {
  require(LabResultValues.valid(text)){"检测结果不能为空或无效"}
  val clean=text.trim();val number=LabResultValues.numeric(clean)
  val normalized=UnitNormalizer.normalize(metricKey,number,unitAtTest)
- return copy(value=number,textValue=clean,comparator=if(number!=null)clean.takeWhile{it in "<>≤≥"} else "",normalizedValue=normalized.first,normalizedUnit=normalized.second,editedByUser=true)
+ return copy(value=number,textValue=clean,comparator=if(number!=null)LabResultValues.comparator(clean) else "",normalizedValue=normalized.first,normalizedUnit=normalized.second,editedByUser=true)
 }
 
 /** Presentation only: never use this text for persistence, export, or agreement. */

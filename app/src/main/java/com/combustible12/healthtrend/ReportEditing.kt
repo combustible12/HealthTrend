@@ -2,7 +2,7 @@ package com.combustible12.healthtrend
 
 /** Stable ids preserve data-point identity when a whole report is edited. */
 data class DraftRow(val id:String=newId(),val name:String="",val key:String="",val text:String="",val unit:String="",val low:String="",val high:String="",val raw:String="",val uncertain:Boolean=false,val trendMeaning:String="",val referenceRaw:String="",val reportFlag:String=""):java.io.Serializable {
- fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,LabResultValues.numeric(text),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),text.trim().takeWhile{it in "<>≤≥"},rangeRaw(),reportFlag)}
+ fun parsed():ParsedLabResult{val cleanUnit=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty();return ParsedLabResult(key,name,LabResultValues.numeric(text),cleanUnit,low.toDoubleOrNull(),high.toDoubleOrNull(),raw,key in ReportParser.primaryKeys,text.trim(),LabResultValues.comparator(text),rangeRaw(),reportFlag)}
  fun rangeRaw():String {
   if(LabResultValues.kind(text)!=LabValueKind.NUMBER){
    // Qualitative reference values must never be reconstructed as numeric bounds.
