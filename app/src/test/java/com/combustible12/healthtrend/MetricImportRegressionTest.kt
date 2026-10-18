@@ -5,6 +5,14 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun completeChineseNameMayTouchResultAndRangeMayContainSpaces(){
+  val joined=ReportParser.parse("白细胞计数3.75 3.5-9.5").single()
+  assertEquals("WBC",joined.metricKey);assertEquals("3.75",joined.textValue)
+  listOf("3.5-9.5","3.5--9.5","3.5–9.5","3.5—9.5","3.5~9.5","3.5～9.5","3.5 至 9.5").forEach{range->
+   val row=ReportParser.parse("WBC 7.25 $range 10^9/L").single()
+   assertEquals(range,3.5,row.referenceLow!!,0.0);assertEquals(range,9.5,row.referenceHigh!!,0.0)
+  }
+ }
  @Test fun missingOrAmbiguousResultCannotUseReferenceOrExtraNumber(){
   listOf("U/mL 0.00~15.00","0.00~15.00 U/mL","4 <2.50 U/mL 0.00~15.00").forEach{tail->
    val source="CA724 糖类抗原CA72-4 $tail"

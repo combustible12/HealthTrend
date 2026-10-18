@@ -24,6 +24,8 @@ internal object StructuredReportRows {
   }.plus(listOf("红细胞分布宽度" to "RDW","血小板分布宽度" to "PDW","红细胞体积分布宽度" to "RDW","血小板体积分布宽度" to "PDW","大血小板" to "P-LCR"))
  }
  private data class Head(val name:String,val key:String,val tail:String)
+ private val resultNumber=Regex("^[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ private val leadingInterval=Regex("^[-+]?\\d+(?:\\.\\d+)?\\s*(?:-{1,2}|–|—|~|～|至)\\s*[-+]?\\d+(?:\\.\\d+)?(?=\\s|$)")
  // Both structured columns and fallback layouts share the same complete-name
  // boundary. A failed unit/range layout cannot expose name digits as results.
  fun resultStart(source:String,type:String):Int = head(source,type)?.let{source.length-it.tail.length}?:0
@@ -33,7 +35,8 @@ internal object StructuredReportRows {
   val first=tokens.firstOrNull().orEmpty()
   val startsWithRange=PartialReferenceRanges.parts(first).let{it.first.isNotBlank()||it.second.isNotBlank()} && LabResultValues.numeric(first)==null
   return units.matches(first)||startsWithRange||
-   (LabResultValues.numeric(first)!=null&&tokens.getOrNull(1)?.let{LabResultValues.numeric(it)!=null}==true)
+   (LabResultValues.numeric(first)!=null&&tokens.getOrNull(1)?.let{LabResultValues.numeric(it)!=null}==true&&
+    !leadingInterval.containsMatchIn(tail.substringAfter(' ',"").trimStart()))
  }
  private fun head(source:String,type:String):Head? {
   if('\t' in source)return null
@@ -56,7 +59,8 @@ internal object StructuredReportRows {
    if(suffix!=null&&ReportParser.key(suffix.groupValues[1])==k)listOf((label+suffix.value) to k,label to k) else listOf(label to k)
   }
   val named=candidates.sortedByDescending{it.first.length}.firstOrNull{(name,_)->
-   rest.startsWith(name,true)&&rest.length>name.length&&rest[name.length].isWhitespace()
+   rest.startsWith(name,true)&&rest.length>name.length&&
+    (rest[name.length].isWhitespace()||resultNumber.containsMatchIn(rest.drop(name.length)))
   }
   val name:String;var key:String
   if(named!=null){name=rest.take(named.first.length);key=explicit?:named.second;rest=rest.drop(named.first.length).trimStart()}
