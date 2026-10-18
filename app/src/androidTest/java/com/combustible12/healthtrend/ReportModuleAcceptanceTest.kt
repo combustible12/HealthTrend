@@ -309,4 +309,25 @@ class ReportModuleAcceptanceTest {
    assertEquals(imported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())},reimported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())})
   }
  }
+ @Test fun identityConflictKeepsSourceFieldsAndManualCorrectionDoesNotRequireRetypingResult(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val imported=pastedReportDraft("合成医院\n甲状腺功能\n2001-01-02\nFT4 游离/T4 <2.340 pmol/L 0-9",store=store)
+  val row=imported.rows.single()
+  assertEquals("游离/T4",row.name);assertEquals("<2.340",row.text);assertFalse(imported.valid())
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{draft->saved=materializeReportDraft(draft,store);store.saveReport(saved!!)},{},{})}}
+  compose.onNodeWithText("游离/T4",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("<2.340",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("保存").assertIsNotEnabled()
+  compose.onNodeWithText("编辑").performScrollTo().performClick()
+  compose.onNode(hasSetTextAction() and hasText("游离/T4")).performScrollTo().performTextReplacement("游离-T4")
+  compose.onNode(hasSetTextAction() and hasText(row.key)).performScrollTo().performTextReplacement("FT4")
+  compose.onNodeWithText("完成核对").assertIsEnabled().performClick()
+  compose.onNodeWithText("保存").assertIsEnabled().performClick()
+  compose.runOnIdle{
+   assertNotNull(saved)
+   val reopened=HealthStore(context).reports().single().results.single()
+   assertEquals("FT4",reopened.metricKey);assertEquals("游离-T4",reopened.rawName)
+   assertEquals("<2.340",reopened.textValue);assertEquals("pmol/L",reopened.unitAtTest);assertEquals("0-9",reopened.referenceRaw)
+  }
+ }
 }

@@ -379,6 +379,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
 @Composable fun MetricEditor(row:DraftRow,edit:(DraftRow)->Unit,close:()->Unit,templateOnly:Boolean=false,unitOptions:List<String> = emptyList(),lockMetadata:Boolean=false,lockIdentity:Boolean=false){
  var unlock by rememberSaveable(row.id){mutableStateOf(false)}
  FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()&&(lockIdentity||(!requiresExplicitMetricIdentityConfirmation(row.key,row.name)&&metricIdentityNameProblem(row.key,row.name,row.unit)==null))){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
+  if(row.key.startsWith("待核对:")&&row.raw.isNotBlank())Text("原始行："+row.raw,color=Muted,fontSize=12.sp)
   LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock,lockIdentity)
   if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
  }}

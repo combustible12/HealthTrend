@@ -38,4 +38,52 @@ class SourceNamePersistenceTest {
   val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("FT4 *游离/T4 13.00 pmol/L 1-20"),"甲状腺功能").single()
   assertTrue(row.metricKey.startsWith("待核对:"))
  }
+ @Test fun allCatalogueNamesUseSameMarkerPolicyAcrossEntryLayouts(){
+  val failures=mutableListOf<String>();var count=0
+  UnifiedMetricStandard.keys().forEach{key->
+   val d=UnifiedMetricStandard.definition(key)!!
+   val names=(d.aliases+d.name+ReportParser.builtInAliasNames(key)).filter{ReportParser.key(it)==key}.distinct()
+   names.forEach{name->
+    val unit=d.unit.ifBlank{"-"}
+    val baseline=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("$key\t$name\t2.340\t$unit\t0-9")).single()
+    listOf("*","＊","★","☆","* ＊ ","\uFEFF* ").forEach{marker->
+     listOf("$key $marker$name 2.340 $unit 0-9","$marker$key $name 2.340 $unit 0-9","$key\t$marker$name\t2.340\t$unit\t0-9").forEach{raw->
+      count++
+      val rows=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(raw))
+      if(rows.size!=1||rows.single().let{it.metricKey!=baseline.metricKey||it.displayName!=baseline.displayName||it.textValue!=baseline.textValue||it.unit!=baseline.unit||it.referenceRaw!=baseline.referenceRaw})failures+="$raw -> $rows"
+     }
+    }
+   }
+  }
+  println("MODULE_MARKER_MATRIX cases=$count failures=${failures.size}")
+  assertTrue(failures.take(30).joinToString("\n"),failures.isEmpty())
+ }
+ @Test fun symbolicIdentityConflictsRetainMeasurementsAndStayBlocked(){
+  listOf("FT4" to "游离/T4","A/G" to "白蛋白/UNKNOWN","CA724" to "糖类抗原72+4").forEach{(key,name)->
+   val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("$key\t$name\t<2.340\tpmol/L\t0-9")).single()
+   assertTrue(row.metricKey.startsWith("待核对:"));assertEquals(name,row.displayName)
+   assertEquals("<2.340",row.textValue);assertEquals("<",row.comparator)
+   assertEquals("pmol/L",row.unit);assertEquals("0-9",row.referenceRaw)
+   assertFalse(ReportDraft(hospital="合成医院",type="甲状腺功能",date="2001-01-02",rows=listOf(DraftRow.from(row))).valid())
+   assertNotNull(metricIdentityNameProblem(key,name,"pmol/L"))
+  }
+ }
+ @Test fun failedCodeBearingRowIsRetainedRatherThanDropped(){
+  val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6\nFT4 游离-T4"
+  val d=pastedReportDraft(raw)
+  assertEquals(2,d.rows.size);assertFalse(d.valid())
+  assertTrue(d.rows.last().key.startsWith("待核对:"));assertTrue(d.rows.last().raw.contains("游离-T4"))
+ }
+ @Test fun failedRowsKeepTheirOriginalPositionAndCannotDisappear(){
+  val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6\nFT4\nTSH 促甲状腺激素 2.100 mIU/L 0.3-5"
+  val d=pastedReportDraft(raw)
+  assertEquals(3,d.rows.size);assertEquals("FT3",d.rows[0].key)
+  assertTrue(d.rows[1].key.startsWith("待核对:未解析行:"));assertEquals("TSH",d.rows[2].key)
+  assertFalse(d.valid())
+ }
+ @Test fun mixedReportSourcesCannotSilentlyChooseHospitalOrDate(){
+  val raw="合成甲医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6\n合成乙医院\n甲状腺功能\n2001-01-03\nFT4 游离-T4 13.00 pmol/L 9-20"
+  val d=pastedReportDraft(raw)
+  assertEquals("",d.hospital);assertEquals("",d.date);assertFalse(d.valid());assertEquals(2,d.rows.size)
+ }
 }

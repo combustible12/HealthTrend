@@ -40,7 +40,7 @@ internal object StructuredReportRows {
  }
  private fun head(source:String,type:String):Head? {
   if('\t' in source)return null
-  var rest=source.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"")
+  var rest=ReportParser.sourceMetricName(source).replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"")
   var explicit:String?=null
   val bound=Regex("^[（(]([^（）()]+)[）)]\\s+").find(rest)
   if(bound!=null){

@@ -38,7 +38,7 @@ object ReportParser {
 
  /** Leading report stars are administrative markers, never part of an analyte name.
   * Do not remove internal punctuation or letters. Keep rawLine for source evidence. */
- internal fun sourceMetricName(name:String):String=name.trim().trimStart('*','＊','★','☆').trimStart()
+ internal fun sourceMetricName(name:String):String=name.trim().dropWhile{it.isWhitespace()||it in "*＊★☆\uFEFF\u200B"}.trimStart()
  fun key(name:String):String {
   // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull{canonicalMetricKey(it) in metricIdentityKeys}
@@ -117,7 +117,8 @@ object ReportParser {
  // A plain CA 125 or CA -125 remains calcium plus a result, never CA125.
  private val spacedNumericCompoundPrefix=Regex("^([ \t]*[（(]?[ \t]*)([A-Za-z][A-Za-z0-9#＃%％]*[ \t]+[0-9]+(?:[ \t]*[-－–—‐‑−/／:：][ \t]*[A-Za-z0-9#＃%％]+)+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
  private val spacedSimpleNumericPrefix=Regex("^([ \t]*[（(]?[ \t]*)([A-Za-z]+[ \t]+[0-9][A-Za-z0-9]*)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
- private fun normalizeSourceCodes(text:String):String=text.lines().joinToString("\n"){line->
+ private fun normalizeSourceCodes(text:String):String=text.lines().joinToString("\n"){rawLine->
+  val line=sourceMetricName(rawLine)
   // CA 125 is ambiguous with a calcium result. Join only when the following
   // complete registered Chinese label independently confirms the combined code.
   spacedSimpleNumericPrefix.find(line)?.let{m->
@@ -158,7 +159,7 @@ object ReportParser {
   }
   if(fields.size !in 4..5)return null
   val code=fields[0].trim().trim('（','）','(',')');val name=sourceMetricName(fields[1]);val result=fields[2].trim()
-  if(!name.any{it.code in 0x3400..0x9fff}||!LabResultValues.valid(result))return null
+  if((!name.any{it.code in 0x3400..0x9fff}&&key(name) !in metricIdentityKeys)||!LabResultValues.valid(result))return null
   // Some clipboard rows omit the blank unit column entirely. A qualitative
   // fourth token is the reference, not a unit; preserve both with or without '-'.
   val omittedUnit=fields.getOrElse(4){""}.isBlank() && fields[3].trim()!="-" && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
@@ -175,7 +176,7 @@ object ReportParser {
    identity=if(compound)"待核对:未知复合代码:$code" else named?:"待核对:$name"
   }
   // Alias resolution chooses identity only; the printed label remains evidence.
-  val displayName=name
+  val displayName=if(name.none{it.code in 0x3400..0x9fff}&&key(name)==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
   return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))
  }
  fun parse(text:String,reportType:String=""):List<ParsedLabResult> = text.lines().flatMap { original -> segments(original).map { it to original } }.mapNotNull { (source,original) ->
@@ -246,17 +247,8 @@ object ReportParser {
  }.map{row->protectSymbolicName(row,reportType)}
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&LabResultValues.valid(it.textValue)&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
  private fun protectSymbolicName(row:ParsedLabResult,type:String):ParsedLabResult {
-  if(row.metricKey !in metricIdentityKeys||row.displayName.none{!it.isLetterOrDigit()&&!it.isWhitespace()})return row
-  // Preserve recognized conflicting evidence for the existing code/name validator.
-  if(UnifiedMetricStandard.resolveName(row.displayName)!=null)return row
-  val d=UnifiedMetricStandard.definition(row.metricKey)
-  val names=d?.let{it.aliases+it.name}.orEmpty()+builtInAliasNames(row.metricKey)+
-   SpecimenNames.names(type).filterValues{it==row.metricKey}.keys
-  val label=row.displayName.replace(Regex("[（(]([^（）()]+)[）)]$")){m->
-   if(key(m.groupValues[1])==row.metricKey)"" else m.value
-  }
-  if(names.any{known->listOf(row.displayName,label).any{UnifiedMetricStandard.normalizedName(known)==UnifiedMetricStandard.normalizedName(it)}})return row
-  // A known code/prefix cannot certify a previously unseen symbolic name.
-  return row.copy(metricKey="待核对:代码名称冲突:"+row.metricKey,displayName="待核对",value=null,textValue="",comparator="")
+  if(symbolicMetricNameProblem(row.metricKey,row.displayName,type)==null)return row
+  // Identity uncertainty must never erase independently parsed source measurements.
+  return row.copy(metricKey="待核对:代码名称冲突:"+row.metricKey)
  }
 }

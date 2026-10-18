@@ -51,8 +51,14 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // Bind that exact code as the parenthesized identity before the strict parser runs; this does not
  // guess by name and never consults or changes legacy templates.
  val sourceType=ReportMetadata.extract(raw,emptyList()).reportType
- val parsed=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(normalized),sourceType).let{rows->store?.reconcileParsedMetrics(rows,sourceType)?:rows}
- if(parsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
+ val bound=ReportParser.bindExplicitLeadingIdentities(normalized)
+ val parsed=ReportParser.parse(bound,sourceType).let{rows->store?.reconcileParsedMetrics(rows,sourceType)?:rows}
+ // A failed result layout cannot silently remove a code-bearing input row.
+ val unparsed=bound.lines().filter{line->
+  Regex("^(?:[（(][^（）()]+[）)]|[A-Za-z][A-Za-z0-9/#%+._-]*)(?:\\s+|$)").containsMatchIn(line)&&
+   parsed.none{it.rawLine.trim()==line.trim()}
+ }.map{line->DraftRow(name="待核对",key="待核对:未解析行:"+line.substringBefore(' '),raw=line,uncertain=true)}
+ if(parsed.isEmpty()&&unparsed.isEmpty())throw IllegalArgumentException("未识别到任何检验项目，请检查粘贴内容的项目代码、结果和换行")
  val meta=ReportMetadata.extract(raw,parsed)
  // Clipboard data already has an explicit metric code on every row. Exact canonical
  // code matching is sufficient here; do not run heuristics intended for noisy image text,
@@ -60,9 +66,12 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
  // The standard pool determines identity. Report source name, unit and printed
  // reference interval remain attached to this test, independent of hospital.
  val resolved=parsed
+ val sourceLines=bound.lines()
+ val draftRows=(resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))}+unparsed)
+  .sortedBy{row->sourceLines.indexOfFirst{it.trim()==row.raw.trim()}.let{if(it<0)Int.MAX_VALUE else it}}
  return ReportDraft(
   hospital=meta.hospital,type=meta.reportType,reportName=meta.reportName,date=meta.date,ocr=raw,
-  rows=resolved.map{p->DraftRow.from(p).copy(uncertain=metricNeedsReview(p,null))},uncertain=meta.uncertain+if(ReportCategoryPolicy.problems(meta.reportType,meta.reportName,resolved.map{it.metricKey}).isEmpty())emptySet() else setOf("type")
+  rows=draftRows,uncertain=meta.uncertain+if(ReportCategoryPolicy.problems(meta.reportType,meta.reportName,resolved.map{it.metricKey}).isEmpty())emptySet() else setOf("type")
  )
 }
 
@@ -125,7 +134,7 @@ object ReportMetadata {
    val candidate=stripped.substringAfterLast("：").substringAfterLast(":").trim()
    candidate.takeIf{it.length in 4..60&&(it.contains("医院")||it.contains("保健院")||it.contains("卫生院")||it.contains("医学中心"))}
   }
-  val hospital=hospitalCandidates.minByOrNull{it.length}.orEmpty()
+  val hospital=hospitalCandidates.distinct().singleOrNull().orEmpty()
   val preferredDateLabels=listOf("检查日期","检查时间","检验日期","检验时间","报告日期","报告时间")
   val fallbackClinicalLabels=listOf("采样日期","采样时间")
   val excludedDateLabels=listOf("出生","生日","送检","审核","打印")

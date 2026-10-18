@@ -133,4 +133,34 @@ class ReportHeadingRoundTripTest {
   store.deleteReport(changed.id)
   assertEquals(listOf(other),HealthStore(context).reports())
  }
+ @Test fun markedCatalogueNamesSurviveStorageAndDoNotRewriteHistory(){
+  val store=store();val context=RuntimeEnvironment.getApplication()
+  val legacy=materializeReportDraft(pastedReportDraft("合成医院\n血常规\n2001-01-01\nHGB 血红蛋白 100.00 g/L 90-120"),store)
+  store.saveReport(legacy)
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val before=prefs.getString("reports",null)
+  HealthStore(context).reports();assertEquals(before,prefs.getString("reports",null))
+  UnifiedMetricStandard.keys().forEach{key->
+   val d=UnifiedMetricStandard.definition(key)!!
+   val type=ReportCategoryPolicy.infer(listOf(key))?:"合成检验"
+   val raw="合成医院\n$type\n2001-01-02\n$key * ＊ ${d.name} 2.340 ${d.unit.ifBlank{"-"}} 0-9"
+   val draft=pastedReportDraft(raw,store=store)
+   assertEquals(key,draft.rows.single().key);assertEquals(d.name,draft.rows.single().name)
+   assertTrue("$key: ${reportValidationProblems(draft)}",draft.valid())
+   assertEquals(before,prefs.getString("reports",null))
+   val report=materializeReportDraft(draft,store);store.saveReport(report)
+   val reopened=HealthStore(context).reports().single{it.id==report.id}
+   assertEquals(d.name,reopened.results.single().rawName)
+   assertEquals("2.340",reopened.results.single().textValue)
+   val edit=ReportDraft.from(reopened).let{it.copy(rows=it.rows.map{row->row.copy(text="3.450")})}
+   store.saveReport(materializeReportDraft(edit,store))
+   val edited=HealthStore(context).reports().single{it.id==report.id}
+   val imported=pastedReportDraft(store.exportReportAsPastedText(edited),store=store)
+   assertEquals(d.name,imported.rows.single().name);assertEquals("3.450",imported.rows.single().text)
+   assertEquals(d.unit,imported.rows.single().unit);assertEquals("0-9",imported.rows.single().rangeRaw())
+   assertEquals(legacy,HealthStore(context).reports().single{it.id==legacy.id})
+   store.deleteReport(report.id)
+  }
+  assertEquals(listOf(legacy),HealthStore(context).reports())
+ }
 }

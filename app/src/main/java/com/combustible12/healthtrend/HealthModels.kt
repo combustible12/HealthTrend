@@ -29,7 +29,7 @@ object MetricDictionary {
 
 /** These states carry unresolved source evidence; only an explicit row confirmation may clear them. */
 internal fun requiresExplicitMetricIdentityConfirmation(key:String,name:String):Boolean =
- name.trim()=="待核对"||key.startsWith("待核对:代码名称冲突:")||key.startsWith("待核对:未知复合代码:")
+ name.trim()=="待核对"||key.startsWith("待核对:代码名称冲突:")||key.startsWith("待核对:未知复合代码:")||key.startsWith("待核对:未解析行:")
 
 /** New/changed rows cannot pair a known code with another known measurement name. */
 internal fun metricIdentityNameProblem(key:String,name:String,unit:String):String? {
@@ -37,7 +37,25 @@ internal fun metricIdentityNameProblem(key:String,name:String,unit:String):Strin
  if(canonical !in ReportParser.builtInMetricKeys())return null
  val clipped=sourceDistributionWidthIdentity(name,unit)?.takeIf{canonical.endsWith("-CV")||canonical.endsWith("-SD")}
  val named=clipped?:SpecimenNames.resolve(name,canonical)?:ReportParser.key(name)
- return if(reconciledMetricIdentity(canonical,named).startsWith("待核对:"))"项目代码与中文名称属于不同指标，请核对" else null
+ return if(reconciledMetricIdentity(canonical,named).startsWith("待核对:"))"项目代码与中文名称属于不同指标，请核对" else symbolicMetricNameProblem(canonical,name)
+}
+
+/** One symbol policy for pasted rows, manual review and both storage save paths. */
+internal fun symbolicMetricNameProblem(key:String,name:String,type:String=key):String? {
+ val canonical=canonicalMetricKey(key)
+ if(canonical !in ReportParser.builtInMetricKeys())return null
+ val source=ReportParser.sourceMetricName(name)
+ if(source.none{!it.isLetterOrDigit()&&!it.isWhitespace()})return null
+ // Known different names remain evidence for the code/name conflict validator.
+ if(UnifiedMetricStandard.resolveName(source)!=null)return null
+ val d=UnifiedMetricStandard.definition(canonical)
+ val names=d?.let{it.aliases+it.name}.orEmpty()+ReportParser.builtInAliasNames(canonical)+
+  SpecimenNames.names(type).filterValues{it==canonical}.keys
+ val label=source.replace(Regex("[（(]([^（）()]+)[）)]$")){m->
+  if(ReportParser.key(m.groupValues[1])==canonical)"" else m.value
+ }
+ return if(names.any{known->listOf(source,label).any{UnifiedMetricStandard.normalizedName(known)==UnifiedMetricStandard.normalizedName(it)}})null
+  else "项目名称含未确认的符号组合，请核对完整名称"
 }
 
 /** Protect distinct CV (relative dispersion) and SD (absolute width) identities.
