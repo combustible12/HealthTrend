@@ -74,3 +74,33 @@ internal fun qualitativeDisplayText(raw:String):String {
   else->raw
  }
 }
+
+/** Compare the possible result interval, never its chart coordinate. No stored fields change. */
+internal fun comparisonResultStatus(result:LabResult):ResultStatus {
+ val n=result.value?.takeIf{it.isFinite()}?:return ResultStatus.UNKNOWN
+ val low=result.referenceLowAtTest;val high=result.referenceHighAtTest
+ if('?' in result.referenceRaw || (low==null&&high==null) || (low!=null&&high!=null&&low>high) || result.reportFlag.length>1)return ResultStatus.UNKNOWN
+ // Confirmed concentration markers have a nonnegative physical domain. Do not infer
+ // this from a reference lower bound: other numeric metrics can legitimately be negative.
+ val nonnegative=canonicalMetricKey(result.metricKey) in setOf("CA125","CA153","CA199","CA724","SCC","AFP","CEA","HE4","NSE","CYFRA21-1")
+ val c=result.comparator
+ val status=when(c){
+  "<","<=","≤" -> when {
+   nonnegative && (n<0 || (n==0.0&&c=="<"))->ResultStatus.UNKNOWN
+   low!=null && (n<low || (n==low&&c=="<"))->ResultStatus.LOW
+   (low==null || (nonnegative&&low<=0.0)) && (high==null || n<=high)->ResultStatus.NORMAL
+   else->ResultStatus.UNKNOWN
+  }
+  ">",">=","≥" -> when {
+   high!=null && (n>high || (n==high&&c==">"))->ResultStatus.HIGH
+   high==null && (low==null || n>=low)->ResultStatus.NORMAL
+   else->ResultStatus.UNKNOWN
+  }
+  else->ResultStatus.UNKNOWN
+ }
+ return if((result.reportFlag=="Y"&&status==ResultStatus.NORMAL)||(result.reportFlag=="N"&&status in setOf(ResultStatus.LOW,ResultStatus.HIGH)))ResultStatus.UNKNOWN else status
+}
+
+/** Threshold coordinate only; source text and comparator remain untouched. */
+internal fun LabResult.trendPlotValue():Double?=normalizedValue?.takeIf{it.isFinite()}
+internal fun LabResult.uncertainComparisonPoint()=comparator.isNotEmpty()&&status()==ResultStatus.UNKNOWN

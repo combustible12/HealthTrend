@@ -24,4 +24,18 @@ class TextResultTrendTest {
   compose.runOnIdle{assertEquals("two",clicked)}
   compose.onAllNodesWithText("阴性",useUnmergedTree=true).assertCountEquals(1)
  }
+
+ @Test fun comparisonThresholdPointsKeepSourceLabelsAndClickableDates(){
+  val date=parseDate("2001-01-02")!!;var clicked=-1
+  compose.setContent{MaterialTheme{Spark(
+   points=listOf(date to 1.0,(date+86400000L) to 5.0),color=TrendBlue,
+   referenceBands=listOf(0.0 to 12.0,2.0 to 10.0),
+   segmentColors=listOf(TrendBlue,Muted),valueLabels=listOf("<1.00","<5"),
+   pointDescriptions=listOf("合成阈值一","合成阈值二"),onPointClick={clicked=it}
+  )}}
+  compose.onNodeWithText("<1.00",useUnmergedTree=true).assertExists()
+  compose.onNodeWithText("<5",useUnmergedTree=true).assertExists()
+  compose.onNodeWithContentDescription("合成阈值二").performClick()
+  compose.runOnIdle{assertEquals(1,clicked)}
+ }
 }

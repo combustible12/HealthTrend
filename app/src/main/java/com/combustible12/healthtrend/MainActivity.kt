@@ -479,7 +479,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
-   val valueColor=if(latest.value==null)qualitativeTrendColor(latest) else when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Ink}
+   val valueColor=if(latest.value==null)qualitativeTrendColor(latest) else when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Muted}
    TrendPaper{
     val metricAliases=aliasesFor(key)
     var meaningDetail by remember{mutableStateOf(false)}
@@ -495,7 +495,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
     var textPreview by remember{mutableStateOf(false)}
-    val compatiblePoints=points.filter{it.second.normalizedValue!=null&&it.second.comparator.isEmpty()}
+    val compatiblePoints=points.filter{it.second.trendPlotValue()!=null}
     data class RangeRow(val low:Double?,val high:Double?,val unit:String)
     fun rangeKey(x:LabResult):RangeRow{
      val b=x.trendReferenceRange()
@@ -510,7 +510,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
-    val pointHospitalColors=compatiblePoints.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
+    val pointHospitalColors=compatiblePoints.map{(report,result)->if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
@@ -540,7 +540,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
      val referenceBands=compatiblePoints.map{(_,x)->x.trendPlotReferenceRange()}
      Spark(
-      points=compatiblePoints.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
+      points=compatiblePoints.map{it.first.testedAtEpochMillis to it.second.trendPlotValue()!!},
       color=trendColor,
       referenceLow=null,
       referenceHigh=null,
@@ -562,11 +562,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
      TrendPreviewDialog(
-      points=series.map{it.first.testedAtEpochMillis to it.second.normalizedValue!!},
+      points=series.map{it.first.testedAtEpochMillis to it.second.trendPlotValue()!!},
       color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
       referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
       segmentKeys=series.map{it.first.hospitalKey},
-      segmentColors=series.map{(report,_)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
+      segmentColors=series.map{(report,result)->if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       onDismiss={previewSeries=null},
       referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct()

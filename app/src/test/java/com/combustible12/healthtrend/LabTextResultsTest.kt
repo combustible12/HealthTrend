@@ -28,4 +28,34 @@ class LabTextResultsTest {
  @Test fun numericResultCanPreserveTextualReference(){val p=ReportParser.parse("HIVAB 人免疫缺陷病毒抗体 0.50 S/CO 阴性").single();assertEquals(0.5,p.value!!,0.0);assertEquals("0.50",p.textValue);assertEquals("阴性",p.referenceRaw)}
  @Test fun identicalDescriptionCanMatchButNoInterpretationIsInvented(){assertEquals(ResultStatus.NORMAL,row("棕黄色","棕黄色").status());assertEquals(ResultStatus.UNKNOWN,row("软","成形").status())}
  @Test fun unrelatedReferenceVocabulariesDoNotForceJudgment(){assertEquals(ResultStatus.UNKNOWN,row("阴性","正常").status())}
+
+ private fun comparison(text:String,low:Double?=0.0,high:Double?=12.0,key:String="CA724"):LabResult =
+  LabResult("synthetic","synthetic","合成医院","肿瘤标志物",null,key,"合成指标",LabResultValues.numeric(text),"U/mL",low,high,1,textValue=text,comparator=LabResultValues.comparator(text),referenceRaw="")
+ @Test fun thresholdPlotsButOriginalPrecisionSurvives(){
+  val r=comparison("<1.00")
+  assertEquals(ResultStatus.NORMAL,r.status());assertEquals(1.0,r.trendPlotValue()!!,0.0)
+  assertEquals("<1.00",r.textValue);assertEquals("<",r.comparator);assertFalse(r.uncertainComparisonPoint())
+  assertEquals(0.0,r.trendPlotReferenceRange().first!!,0.0);assertEquals(12.0,r.trendPlotReferenceRange().second!!,0.0)
+ }
+ @Test fun overlappingIntervalIsUnknownEvenWhenCoordinateIsInside(){
+  val r=comparison("<5",2.0,10.0)
+  assertEquals(ResultStatus.UNKNOWN,r.status());assertTrue(r.uncertainComparisonPoint());assertEquals(5.0,r.trendPlotValue()!!,0.0);assertEquals("<5",r.textValue)
+ }
+ @Test fun strictAndInclusiveComparisonsRespectBoundaries(){
+  assertEquals(ResultStatus.LOW,comparison("<2",2.0,10.0).status())
+  assertEquals(ResultStatus.UNKNOWN,comparison("<=2",2.0,10.0).status())
+  assertEquals(ResultStatus.HIGH,comparison(">10",2.0,10.0).status())
+  assertEquals(ResultStatus.UNKNOWN,comparison(">=10",2.0,10.0).status())
+  assertEquals(ResultStatus.NORMAL,comparison("≤1").status())
+  assertEquals(ResultStatus.NORMAL,comparison("≥3",2.0,null).status())
+  assertEquals(ResultStatus.UNKNOWN,comparison("<1",0.0,12.0,"CUSTOM-SIGNED").status())
+  assertEquals(ResultStatus.UNKNOWN,comparison("<1",null,null).status())
+ }
+ @Test fun comparisonEditingAndSourceFlagsStayConservative(){
+  val r=comparison("<1.00");assertEquals(ResultStatus.UNKNOWN,r.copy(reportFlag="Y").status())
+  assertEquals(ResultStatus.NORMAL,r.copy(reportFlag="N").status())
+  val edited=r.withEditedResult("<5.00");assertEquals("<5.00",edited.textValue);assertEquals(r.metricKey,edited.metricKey)
+  assertEquals(ResultStatus.NORMAL,r.withEditedResult("5.00").status())
+  assertNull(row("阴性").trendPlotValue())
+ }
 }

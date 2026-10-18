@@ -1,5 +1,5 @@
 {
-  "baseCommit": "599598621dd8d5d811a66698f12c83d004dc0e66",
+  "baseCommit": "a3c465ec7e33e6370b7c00b344fd539a331524c2",
   "requestedAt": "2026-10-18",
-  "scope": "Revalidate all report flows after preserving generic PDW legacy fixture name; keep CV SD conflict protection"
+  "scope": "Comparison thresholds: preserve raw labels and ranges, interval-based status, gray uncertain points; retain standard names and aliases"
 }

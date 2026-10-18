@@ -136,7 +136,7 @@ data class LabResult(
  private fun readResolve():Any=copy(referenceRaw=referenceRaw.orEmpty(),reportFlag=reportFlag.orEmpty())
  fun status():ResultStatus {
   val n=value ?: return when(referenceAgreement()){ReferenceAgreement.MATCH->ResultStatus.NORMAL;ReferenceAgreement.MISMATCH->ResultStatus.HIGH;ReferenceAgreement.UNKNOWN->ResultStatus.UNKNOWN}
-  if(comparator.isNotEmpty()) return ResultStatus.UNKNOWN
+  if(comparator.isNotEmpty()) return comparisonResultStatus(this)
   if(reportFlag.length>1 || sourceFlagConflict(reportFlag,n,referenceLowAtTest,referenceHighAtTest))return ResultStatus.UNKNOWN
   if('?' in referenceRaw) {
    val interval=PartialReferenceRanges.interval(referenceRaw,n,reportFlag.singleOrNull()) ?: return ResultStatus.UNKNOWN
