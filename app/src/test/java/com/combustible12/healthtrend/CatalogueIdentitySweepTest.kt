@@ -5,6 +5,32 @@ import org.junit.Test
 
 /** Full catalogue identity sweep; all result/interval values are synthetic. */
 class CatalogueIdentitySweepTest {
+ @Test fun unregisteredSymbolicNamesCannotReuseKnownPrefixesOrCodes(){
+  listOf("ALB 白蛋白 / UNKNOWN","白蛋白 / UNKNOWN","CA724 糖类抗原72/4","CA724 糖类抗原72:4","CA724 糖类抗原(72/4)","CA724 糖类抗原72+4","GGT Y-谷氨酰转肽酶").forEach{name->
+   val source="$name <2.50 g/L 0-9"
+   val draft=pastedReportDraft("合成医院\n生化\n2001-01-02\n$source")
+   assertEquals(source,1,draft.rows.size)
+   assertFalse(source,draft.valid())
+  }
+  listOf("/","／",":","：","(",")","（","）").forEach{assertFalse(it,LabResultValues.valid(it))}
+ }
+ @Test fun punctuationInsideKnownNamesNeverBecomesResultOrTruncatesIdentity(){
+  val failures=mutableListOf<String>();var cases=0
+  UnifiedMetricStandard.keys().forEach{key->
+   val d=UnifiedMetricStandard.definition(key)!!
+   (d.aliases+d.name).filter{it.any{ch->ch in "-/()（）#%γ"||ch.isDigit()}}.forEach{name->
+    val forms=listOf(name,name.replace("-","－"),name.replace("-"," - "),name.replace("/","／"),name.replace("/"," / "),name.replace('（','(').replace('）',')'),name.replace('(','（').replace(')','）'),name.replace("-","‑"),name.replace("γ","Γ"),name.replace("%","％").replace("#","＃"),name.replace(Regex("(?<=[A-Za-z])(?=\\d)")," ")).distinct()
+    forms.forEach{label->listOf("$key $label <2.50 ${d.unit.ifBlank{"-"}} 0-9","$label <2.50 ${d.unit.ifBlank{"-"}} 0-9").forEach{source->
+     cases++
+     val rows=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source))
+     if(rows.size!=1||rows.single().metricKey!=key||rows.single().textValue!="<2.50"||rows.single().displayName=="待核对")failures+="$source -> ${rows.map{listOf(it.metricKey,it.displayName,it.textValue)}}"
+    }}
+   }
+  }
+  println("NAME_SYMBOL_SWEEP cases=$cases failures=${failures.size}")
+  failures.forEach{println("NAME_SYMBOL_FAIL $it")}
+  assertTrue(failures.joinToString("\n"),failures.isEmpty())
+ }
  @Test fun everyKnownNameKeepsResultWhenReferenceRepeatsItsUnit(){
   var cases=0
   UnifiedMetricStandard.keys().forEach{key->
@@ -71,7 +97,7 @@ class CatalogueIdentitySweepTest {
   val failures=mutableListOf<String>();var cases=0
   UnifiedMetricStandard.keys().forEach{key->
    val d=UnifiedMetricStandard.definition(key)!!
-   val forms=listOf(key.replace("-","－"),key.replace("-"," - "),key.replace("/"," / "),key.replace("/","："),key.replace("#","＃").replace("%","％"))+
+   val forms=listOf(key.replace("-","－"),key.replace("-","‑"),key.replace("-","−"),key.replace("-"," - "),key.replace("/"," / "),key.replace("/","："),key.replace("#","＃").replace("%","％"))+
     if(key.endsWith('#')||key.endsWith('%'))listOf(key.takeLast(1)+key.dropLast(1)) else emptyList()
    forms.distinct().forEach{code->
     cases++

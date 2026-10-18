@@ -116,6 +116,30 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("保存").assertIsNotEnabled()
   screenshot("ambiguous-result-save-disabled")
  }
+ @Test fun namePunctuationKeepsCompleteIdentityAcrossEditorAndDisk(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val source="合成医院\n生化\n2001-01-02\nCA72-4 糖类抗原CA72 - 4 <2.50 U/mL 0-9\nA/G 白蛋白 ／ 球蛋白 1.250 - 0-9\nGGT Γ－谷氨酰转肽酶 2.500 U/L 0-9\nFDP 纤维蛋白（原）降解产物 <2.50 - 0-9"
+  val imported=pastedReportDraft(source,store=store)
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  assertEquals(listOf("CA724","A/G","GGT","FDP"),imported.rows.map{it.key})
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
+  imported.rows.forEach{compose.onNodeWithText(it.name,useUnmergedTree=true).performScrollTo().assertIsDisplayed()}
+  compose.onNodeWithText("保存").assertIsEnabled().performClick()
+  compose.runOnIdle{
+   assertNotNull(saved)
+   val reopened=HealthStore(context).reports().single()
+   assertEquals(imported.rows.map{it.key},reopened.results.map{it.metricKey})
+   assertEquals(imported.rows.map{it.text},reopened.results.map{it.textValue})
+   assertEquals(imported.rows.map{it.text},pastedReportDraft(store.exportReportAsPastedText(reopened),store=store).rows.map{it.text})
+  }
+ }
+ @Test fun unknownSymbolicNameCannotEnableSave(){
+  val store=HealthStore(context)
+  val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nALB 白蛋白 / UNKNOWN <2.50 g/L 0-9",store=store)
+  assertFalse(imported.valid())
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Unregistered symbolic name must not save")},{},{})}}
+  compose.onNodeWithText("保存").assertIsNotEnabled()
+ }
  @Test fun unknownCompoundCannotBecomeKnownMetricOrEnableSave(){
   val store=HealthStore(context)
   val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST / UNKNOWN\t谷草转氨酶\t2.340\t-\t0-9",store=store)

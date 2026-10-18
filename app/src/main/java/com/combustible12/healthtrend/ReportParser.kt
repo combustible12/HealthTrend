@@ -15,7 +15,7 @@ object ReportParser {
  fun builtInMetricKeys():Set<String> = metricIdentityKeys
  // A digit inside any-language name or a hyphenated identifier is never a result.
  // Apply this even when an unfamiliar column layout falls back to numeric scanning.
- private val numeric=Regex("(?<![\\p{L}\\d.^×-])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ private val numeric=Regex("(?<![\\p{L}\\d.^×/／:：(（-])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val resultNumeric=Regex("[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
  private val canonicalUnits=mapOf(
@@ -72,7 +72,7 @@ object ReportParser {
   true
  }
  private fun normalizeCode(raw:String):String{
-  val c=raw.uppercase().replace(Regex("\\s+"),"").replace("％","%").replace('：',':').replace('／','/').replace('＃','#').replace('－','-').replace('–','-').replace('—','-').trim().let{code->
+  val c=raw.uppercase().replace(Regex("\\s+"),"").replace("％","%").replace('：',':').replace('／','/').replace('＃','#').replace('－','-').replace('–','-').replace('—','-').replace('‐','-').replace('‑','-').replace('−','-').trim().let{code->
    if(canonicalMetricKey(code.replace(':','/')) in metricIdentityKeys)code.replace(':','/') else code
   }
   val base=c.trimStart('#','%').trimEnd('#','%')
@@ -98,7 +98,7 @@ object ReportParser {
   val patterns=codes.sortedByDescending{it.length}.joinToString("|"){code->
    code.mapIndexed{index,ch->when(ch){
     '/'->"[ \t]*[/／:：][ \t]*"
-    '-'->if(code.getOrNull(index+1)?.isDigit()==true)"(?:[-－–—]|[ \t]+[-－–—][ \t]+)" else "[ \t]*[-－–—][ \t]*"
+    '-'->if(code.getOrNull(index+1)?.isDigit()==true)"(?:[-－–—‐‑−]|[ \t]+[-－–—‐‑−][ \t]+)" else "[ \t]*[-－–—‐‑−][ \t]*"
     '_'->"[ \t]*_[ \t]*"
     '#'->"[#＃]"
     '%'->"[%％]"
@@ -109,7 +109,7 @@ object ReportParser {
  }
  // Capture a complete code-shaped prefix before considering a shorter known key.
  // Unknown compounds must stay unknown; a known prefix is not evidence for identity.
- private val compoundSourcePrefix=Regex("^([ \t]*[（(]?[ \t]*)([#＃%％]?[A-Za-z][A-Za-z0-9#＃%％]*(?:(?:[ \t]*[/／:：_][ \t]*[A-Za-z0-9#＃%％]+)|(?:[ \t]*[-－–—][ \t]*[A-Za-z][A-Za-z0-9#＃%％]*)|(?:[ \t]+[-－–—][ \t]+[0-9]+))+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
+ private val compoundSourcePrefix=Regex("^([ \t]*[（(]?[ \t]*)([#＃%％]?[A-Za-z][A-Za-z0-9#＃%％]*(?:(?:[ \t]*[/／:：_][ \t]*[A-Za-z0-9#＃%％]+)|(?:[ \t]*[-－–—‐‑−][ \t]*[A-Za-z][A-Za-z0-9#＃%％]*)|(?:[ \t]+[-－–—‐‑−][ \t]+[0-9]+))+)(?=[ \t）)]|$)",RegexOption.IGNORE_CASE)
  private fun normalizeSourceCodes(text:String):String=text.lines().joinToString("\n"){line->
   val compound=compoundSourcePrefix.find(line)
   if(compound!=null){
@@ -224,6 +224,20 @@ object ReportParser {
   }
   if(listOf("病历","样本","标本","科室","诊断","医生","审核","送检","年龄").any{name.contains(it)}) return@mapNotNull null
   ParsedLabResult(k,name,rawValue.trimStart('<','>','≤','≥').toDoubleOrNull(),unit,low,high,original,k in primaryKeys,rawValue.trim(),rawValue.takeWhile{it in "<>≤≥"},referenceRaw,reportFlag)
- }
+ }.map{row->protectSymbolicName(row,reportType)}
  fun valid(items:List<ParsedLabResult>):Boolean=items.isNotEmpty() && items.all{it.displayName.isNotBlank()&&LabResultValues.valid(it.textValue)&&(it.value==null||it.value.isFinite())&&(it.referenceLow==null||it.referenceHigh==null||it.referenceLow<=it.referenceHigh)}
+ private fun protectSymbolicName(row:ParsedLabResult,type:String):ParsedLabResult {
+  if(row.metricKey !in metricIdentityKeys||row.displayName.none{!it.isLetterOrDigit()&&!it.isWhitespace()})return row
+  // Preserve recognized conflicting evidence for the existing code/name validator.
+  if(UnifiedMetricStandard.resolveName(row.displayName)!=null)return row
+  val d=UnifiedMetricStandard.definition(row.metricKey)
+  val names=d?.let{it.aliases+it.name}.orEmpty()+builtInAliasNames(row.metricKey)+
+   SpecimenNames.names(type).filterValues{it==row.metricKey}.keys
+  val label=row.displayName.replace(Regex("[（(]([^（）()]+)[）)]$")){m->
+   if(key(m.groupValues[1])==row.metricKey)"" else m.value
+  }
+  if(names.any{known->listOf(row.displayName,label).any{UnifiedMetricStandard.normalizedName(known)==UnifiedMetricStandard.normalizedName(it)}})return row
+  // A known code/prefix cannot certify a previously unseen symbolic name.
+  return row.copy(metricKey="待核对:代码名称冲突:"+row.metricKey,displayName="待核对",value=null,textValue="",comparator="")
+ }
 }

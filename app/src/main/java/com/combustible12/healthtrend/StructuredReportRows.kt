@@ -55,15 +55,16 @@ internal object StructuredReportRows {
   }
   val base=SpecimenNames.names(type).map{it.key to it.value}+labels
   val candidates=base.flatMap{(label,k)->
-   val suffix=if(rest.startsWith(label,true))Regex("^[（(]([^（）()]+)[）)](?=\\s)").find(rest.drop(label.length)) else null
-   if(suffix!=null&&ReportParser.key(suffix.groupValues[1])==k)listOf((label+suffix.value) to k,label to k) else listOf(label to k)
+   val length=UnifiedMetricStandard.namePrefixLength(rest,label)
+   val suffix=length?.let{Regex("^[（(]([^（）()]+)[）)](?=\\s)").find(rest.drop(it))}
+   if(length!=null&&suffix!=null&&ReportParser.key(suffix.groupValues[1])==k)listOf((length+suffix.value.length) to k,length to k)
+   else if(length!=null)listOf(length to k) else emptyList()
   }
-  val named=candidates.sortedByDescending{it.first.length}.firstOrNull{(name,_)->
-   rest.startsWith(name,true)&&rest.length>name.length&&
-    (rest[name.length].isWhitespace()||resultNumber.containsMatchIn(rest.drop(name.length)))
+  val named=candidates.sortedByDescending{it.first}.firstOrNull{(length,_)->
+   rest.length>length&&(rest[length].isWhitespace()||resultNumber.containsMatchIn(rest.drop(length)))
   }
   val name:String;var key:String
-  if(named!=null){name=rest.take(named.first.length);key=explicit?:named.second;rest=rest.drop(named.first.length).trimStart()}
+  if(named!=null){name=rest.take(named.first);key=explicit?:named.second;rest=rest.drop(named.first).trimStart()}
   else if(explicit!=null && rest.substringBefore(' ').let{LabResultValues.numeric(it)!=null||LabResultValues.kind(it) in setOf(LabValueKind.QUALITATIVE,LabValueKind.SEMIQUANTITATIVE)}){
    key=explicit;name=UnifiedMetricStandard.definition(key)?.name?:return null
   }else return null

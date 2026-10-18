@@ -114,10 +114,10 @@ object UnifiedMetricStandard {
   Triple("SCC","鳞状细胞癌相关抗原","ng/mL" to "鳞癌相关抗原测定|鳞癌相关抗原|鳞状细胞癌抗原"),
   Triple("AFP","甲胎蛋白","ng/mL" to "血清甲胎蛋白"),
   Triple("CEA","癌胚抗原","ng/mL" to "癌胚抗原测定"),
-  Triple("CA125","糖类抗原125","U/mL" to "糖类抗原12-5"),
-  Triple("CA153","糖类抗原153","U/mL" to "糖类抗原15-3"),
-  Triple("CA199","糖类抗原199","U/mL" to "糖类抗原19-9"),
-  Triple("CA724","糖类抗原724","U/mL" to "糖类抗原72-4|糖类抗原CA72-4"),
+  Triple("CA125","糖类抗原125","U/mL" to "糖类抗原12-5|糖类抗原CA125|糖类抗原CA12-5"),
+  Triple("CA153","糖类抗原153","U/mL" to "糖类抗原15-3|糖类抗原CA15-3"),
+  Triple("CA199","糖类抗原199","U/mL" to "糖类抗原19-9|糖类抗原CA19-9"),
+  Triple("CA724","糖类抗原724","U/mL" to "糖类抗原72-4|糖类抗原CA72-4|糖类抗原CA724"),
   Triple("HE4","人附睾蛋白4","pmol/L" to "附睾蛋白4"),
   Triple("NSE","神经元特异性烯醇化酶","ng/mL" to "神经元特异性烯醇酶"),
   Triple("CYFRA21-1","细胞角蛋白19片段","ng/mL" to "细胞角蛋白19片段抗原"),
@@ -159,19 +159,33 @@ object UnifiedMetricStandard {
   key to Definition(name,rest.first,rest.second.split('|').filter{it.isNotBlank()}.toSet())
  }
  fun definition(key:String):Definition?=definitions[canonicalMetricKey(key)]
+ /** Typography only. Keep every medical sign and digit; never erase separators. */
+ internal fun normalizedName(name:String):String=java.text.Normalizer.normalize(name,java.text.Normalizer.Form.NFKC)
+  .replace('–','-').replace('—','-').replace('−','-').replace('‐','-').filterNot(Char::isWhitespace).lowercase(java.util.Locale.ROOT)
+ /** Match only a complete registered label, returning its original source extent. */
+ internal fun namePrefixLength(source:String,label:String):Int? {
+  val expected=normalizedName(label);if(expected.isEmpty())return null
+  var found=""
+  source.forEachIndexed{index,ch->
+   found+=normalizedName(ch.toString())
+   if(!expected.startsWith(found))return null
+   if(found==expected)return index+1
+  }
+  return null
+ }
  /** Exact-name recognition shared by parser and saved report import.
   * Ambiguous aliases never silently choose a metric.
   */
  private val identities:Map<String,Set<String>> = buildMap {
   definitions.forEach{(key,definition)->
    (definition.aliases+definition.name).forEach{name->
-    val normalized=name.trim().replace('／','/').replace('：',':')
+    val normalized=normalizedName(name)
     if(normalized.isNotBlank())put(normalized,(get(normalized).orEmpty()+key))
    }
   }
  }
  fun resolveName(name:String):String? {
-  val normalized=name.trim().replace('／','/').replace('：',':')
+  val normalized=normalizedName(name)
   return identities[normalized]?.singleOrNull()
  }
  /** Classification is additive: a metric can be shared by several report types.

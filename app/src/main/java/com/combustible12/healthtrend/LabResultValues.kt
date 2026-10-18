@@ -6,7 +6,7 @@ enum class ReferenceAgreement { MATCH, MISMATCH, UNKNOWN }
 object LabResultValues {
  private val number=Regex("[<>≤≥]?[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  fun numeric(text:String):Double?=text.trim().replace(" ","").takeIf{number.matches(it)}?.trimStart('<','>','≤','≥')?.toDoubleOrNull()?.takeIf{it.isFinite()}
- fun valid(text:String):Boolean=text.isNotBlank()&&text.trim().lowercase() !in setOf("nan","infinity","+infinity","-infinity","∞","+∞","-∞")&&(!number.matches(text.trim())||numeric(text)!=null)
+ fun valid(text:String):Boolean=text.isNotBlank()&&text.trim().lowercase() !in setOf("nan","infinity","+infinity","-infinity","∞","+∞","-∞","/","／",":","：","(",")","（","）","~","～","*","%","％","#","＃","=")&&(!number.matches(text.trim())||numeric(text)!=null)
  fun kind(text:String):LabValueKind {
   if(numeric(text)!=null)return LabValueKind.NUMBER
   val t=compact(text)
