@@ -405,8 +405,8 @@ class ReportModuleAcceptanceTest {
    compose.onAllNodesWithText("<5",useUnmergedTree=true)[i].performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
    compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertEquals(Muted,it.layoutInput.style.color)}}
   }
-  compose.onNodeWithText("参考范围: 0.00-12.00 U/mL",useUnmergedTree=true).assertExists()
-  compose.onNodeWithText("参考范围: 2.00-10.00 U/mL",useUnmergedTree=true).assertExists()
+  compose.onNodeWithText("参考范围: 0–12 U/mL",useUnmergedTree=true).assertExists()
+  compose.onNodeWithText("参考范围: 2–10 U/mL",useUnmergedTree=true).assertExists()
   screenshot("comparison-threshold-trend")
   compose.runOnIdle{assertEquals(listOf("<1.00","<5"),HealthStore(context).reports().sortedBy{it.testedAtEpochMillis}.map{it.results.single().textValue})}
  }

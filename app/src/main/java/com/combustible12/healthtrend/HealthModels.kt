@@ -165,6 +165,20 @@ data class LabResult(
   return UnitNormalizer.normalize(metricKey,partial?.lowerLimit?:referenceLowAtTest,unitAtTest).first to
    UnitNormalizer.normalize(metricKey,partial?.upperLimit?:referenceHighAtTest,unitAtTest).first
  }
+ /** Display-only equivalence: do not rewrite original range text or result precision. */
+ fun trendReferenceDisplayText():String {
+  val raw=referenceRaw.trim()
+  val simpleRange=Regex("""^[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*[-–—~～−－]\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)$""")
+  val bounds=trendReferenceRange()
+  fun number(n:Double)=java.math.BigDecimal.valueOf(if(n==0.0)0.0 else n).stripTrailingZeros().toPlainString()
+  if((raw.isEmpty()||simpleRange.matches(raw))&&bounds.first!=null&&bounds.second!=null)
+   return "${number(bounds.first!!)}–${number(bounds.second!!)}"
+  return raw.ifBlank { when {
+   bounds.first!=null -> "≥${number(bounds.first!!)}"
+   bounds.second!=null -> "≤${number(bounds.second!!)}"
+   else -> "未录入"
+  } }
+ }
  fun trendRangeEstimateText():String {
   if('?' !in referenceRaw||reportFlag.length>1)return ""
   val partial=PartialReferenceRanges.interval(referenceRaw,value,reportFlag.singleOrNull())?:return ""

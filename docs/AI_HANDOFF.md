@@ -1,3 +1,9 @@
+## 当前：趋势参考范围等价合并（2026-10-18）
+
+用户确认：横线/波浪线及小数末尾零不构成范围差异；完整数值区间统一使用横线并去除无意义末尾零。同上下限同单位合并，保持首次出现顺序；不同上下限/单位、比较符、文字或不完整范围不强行合并。医院数量不限制范围数量。只调整趋势显示，不改历史报告原文、结果精度、医院分段或阴影带。
+
+根因：MainActivity以原始参考范围文字distinct，未使用数值等价关系。现完整区间先通过LabResult.trendReferenceDisplayText格式化再去重；删除未使用的RangeRow。新增PartialRangeIntegrationTest回归，更新ReportModuleAcceptanceTest比较符趋势范围文案断言。提取生产格式化方法进行Kotlin编译并执行针对性断言已通过（六种分隔符/精度写法合并、不同区间保留、比较符/文字/不完整范围保留）。现有ci/run_report_jvm.py因基线漏列StructuredReportRows等依赖编译失败，不能算完整JVM通过；Android设备验收未运行，尚未发布。
+
 ## 最终交付：1.0.130 / CA72-4名称更正（2026-10-18）
 
 已正式发布1.0.130（2026101814），发布提交43029b6680801b7e89ccf8e01639dec23c399ed3，发布run39141081300成功。最终297项JVM单测0失败/0错误/0跳过；验收run39140530176的36项Android16设备测试全部通过。CA724标准显示名为“糖类抗原72-4”，旧“糖类抗原724”保留别名；旧磁盘记录原名、结果、单位、范围及内部身份保持不变，显示与回导通过。签名证书SHA256为5acccb7b281fbe2878ff8e62b57e4a1149c82bcf40e3c0b36d8e709c9da95628，与1.0.129一致。正式APK附件HealthTrend.apk已上传，大小56934128字节。下载：https://github.com/combustible12/HealthTrend/releases/download/v2026101814/HealthTrend.apk 。不改TreatmentVault；以下待验收/待发布描述为历史过程。

@@ -1,5 +1,5 @@
 {
-  "baseCommit": "3461d3d67ae1a90eb6c5552310f243f718987f21",
-  "requestedAt": "2026-10-18",
-  "scope": "Seed true legacy disk JSON for CA72-4 name preservation test; repeat full acceptance"
+ "baseCommit": "7eb9d09754c62d3b1a1483ecdb65559c89a20928",
+ "requestedAt": "2026-10-18",
+ "scope": "Equivalent numeric trend range labels; full regression acceptance"
 }

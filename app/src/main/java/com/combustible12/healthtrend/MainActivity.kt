@@ -496,16 +496,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
     var textPreview by remember{mutableStateOf(false)}
     val compatiblePoints=points.filter{it.second.trendPlotValue()!=null}
-    data class RangeRow(val low:Double?,val high:Double?,val unit:String)
-    fun rangeKey(x:LabResult):RangeRow{
-     val b=x.trendReferenceRange()
-     val unit=displayLabUnit(x.normalizedUnit.ifBlank{x.unitAtTest})
-     fun clean(v:Double?)=v?.let{if(kotlin.math.abs(it)<1e-9)0.0 else kotlin.math.round(it*1_000_000.0)/1_000_000.0}
-     return RangeRow(clean(b.first),clean(b.second),unit)
-    }
     val rangeDisplayRows=points.map{(_,x)->
-     val rr=rangeKey(x)
-     "参考范围: ${qualitativeDisplayText(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(rr.low,rr.high))} ${rr.unit}".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
+     val unit=displayLabUnit(x.normalizedUnit.ifBlank{x.unitAtTest})
+     "参考范围: ${qualitativeDisplayText(x.trendReferenceDisplayText())} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}

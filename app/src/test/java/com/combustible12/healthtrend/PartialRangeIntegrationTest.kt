@@ -7,6 +7,13 @@ import org.junit.Test
 class PartialRangeIntegrationTest {
  private fun parsed(range:String="0.188-0.2??",flag:String="↑",value:String="0.250") =
   ReportParser.parse("PCT 血小板压积 $value $flag % $range").single()
+ @Test fun trendRangeFormattingMergesEquivalentBoundsWithoutChangingReports(){
+  val variants=listOf("1.8-6.3","1.80~6.30","1.80–6.30","1.8-6.3")
+  val results=variants.map{result(parsed(range=it,flag="",value="4.00"))}
+  assertEquals(listOf("1.8–6.3"),results.map{it.trendReferenceDisplayText()}.distinct())
+  assertEquals(variants,results.map{it.referenceRaw})
+  assertEquals("2–7",result(parsed(range="2.0-7.0",flag="",value="4.00")).trendReferenceDisplayText())
+ }
  @Test fun pasteNeverTruncatesUnknownDigitsOrUnit(){
   val p=parsed();assertEquals("0.188-0.2??",p.referenceRaw)
   assertEquals("%",p.unit);assertEquals(0.188,p.referenceLow!!,0.0);assertNull(p.referenceHigh)
