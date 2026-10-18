@@ -306,7 +306,15 @@ class ReportModuleAcceptanceTest {
   assertEquals(listOf("AST","ALT","AST/ALT","ALT/AST"),imported.rows.map{it.key})
   compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
   listOf("谷草转氨酶","谷丙转氨酶","谷草/谷丙","谷丙/谷草").forEach{label->
-   compose.onNodeWithText(label,useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+   val target=compose.onNodeWithText(label,useUnmergedTree=true)
+   target.performScrollTo()
+   // Explicitly center the text inside the scroll viewport: ScrollTo can bring
+   // a merged card into view while leaving its first text clipped at the top.
+   val scroll=compose.onNode(hasScrollAction() and hasAnyDescendant(hasText(label)),useUnmergedTree=true)
+   val node=target.fetchSemanticsNode();val viewport=scroll.fetchSemanticsNode().boundsInRoot
+   val dy=node.positionInRoot.y+node.size.height/2f-viewport.center.y
+   scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,dy)}
+   target.assertIsDisplayed()
   }
   compose.onNodeWithText("保存",useUnmergedTree=true).assertIsEnabled().performClick()
   compose.runOnIdle{
@@ -353,6 +361,26 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("保存").performClick()
   compose.onNode(hasText("+++") and hasAnyAncestor(isDialog())).assertIsDisplayed()
   compose.runOnIdle{assertEquals("+++",HealthStore(context).reports().single().results.first().textValue)}
+ }
+ @Test fun actualComparisonTrendRetainsRangesLabelsAndGrayUnknownValues(){
+  val store=HealthStore(context)
+  val reports=listOf(Triple("2001-01-02","<1.00","0.00-12.00"),Triple("2001-01-03","<5","2.00-10.00")).map{(day,value,range)->
+   materializeReportDraft(pastedReportDraft("合成医院\n肿瘤标志物\n$day\nCA724 糖类抗原CA72-4 $value U/mL $range"),store).also{store.saveReport(it)}
+  }
+  compose.setContent{MaterialTheme{Trends(Modifier,store,reports,0,{_,_->},{},{_,_,_->},{},{})}}
+  compose.onAllNodes(hasSetTextAction())[0].performTextInput("CA724")
+  compose.onNodeWithContentDescription(trendPointContentDescription("CA724",reports.last().testedAtEpochMillis),useUnmergedTree=true).performScrollTo().assertExists()
+  compose.onAllNodesWithText("<5",useUnmergedTree=true).assertCountEquals(2)
+  compose.onNodeWithText("<1.00",useUnmergedTree=true).assertExists()
+  compose.onAllNodesWithText("<5",useUnmergedTree=true).fetchSemanticsNodes().indices.forEach{i->
+   val layouts=mutableListOf<TextLayoutResult>()
+   compose.onAllNodesWithText("<5",useUnmergedTree=true)[i].performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+   compose.runOnIdle{assertTrue(layouts.isNotEmpty());layouts.forEach{assertEquals(Muted,it.layoutInput.style.color)}}
+  }
+  compose.onNodeWithText("参考范围: 0.00-12.00 U/mL",useUnmergedTree=true).assertExists()
+  compose.onNodeWithText("参考范围: 2.00-10.00 U/mL",useUnmergedTree=true).assertExists()
+  screenshot("comparison-threshold-trend")
+  compose.runOnIdle{assertEquals(listOf("<1.00","<5"),HealthStore(context).reports().sortedBy{it.testedAtEpochMillis}.map{it.results.single().textValue})}
  }
  @Test fun actualNumericTrendPointPreservesPrecisionAndOpensItsOwnReference(){
   val store=HealthStore(context)
