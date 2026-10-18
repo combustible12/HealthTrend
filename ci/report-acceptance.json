@@ -1,5 +1,5 @@
 {
-  "baseCommit": "6acd285446e671db41a01e00a1a8b993320c6bc1",
+  "baseCommit": "3461d3d67ae1a90eb6c5552310f243f718987f21",
   "requestedAt": "2026-10-18",
-  "scope": "Correct CA724 standard display name to 糖类抗原72-4; retain legacy alias, storage, thresholds and full regressions"
+  "scope": "Seed true legacy disk JSON for CA72-4 name preservation test; repeat full acceptance"
 }

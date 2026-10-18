@@ -46,7 +46,13 @@ class ReportModuleAcceptanceTest {
   val store=HealthStore(context)
   val draft=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\nCA724 糖类抗原724 <1.00 U/mL 0.00-12.10",store=store)
   val original=materializeReportDraft(draft,store).let{it.copy(results=it.results.map{r->r.copy(rawName="糖类抗原724")})}
+  // Seed an already-saved legacy record, bypassing the new-import save path
+  // which intentionally uses the current standard name.
   store.saveReport(original)
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val legacy=org.json.JSONArray(prefs.getString("reports","[]"))
+  legacy.getJSONObject(0).getJSONArray("results").getJSONObject(0).put("raw","糖类抗原724")
+  assertTrue(prefs.edit().putString("reports",legacy.toString()).commit())
   val reopened=HealthStore(context).reports().single()
   assertEquals(original,reopened)
   assertEquals("糖类抗原724",reopened.results.single().rawName)
