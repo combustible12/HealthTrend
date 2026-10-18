@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "8c08205dc83f27cef8627da7a72a748ca3a4d213",
+  "sourceBaseCommit": "9b0188c299eb0d4dfb32a0e3f0c4dec7dc34d7e8",
   "validationMode": "compile-and-test-before-publish",
-  "versionCode": 2026101806,
-  "versionName": "1.0.122"
+  "versionCode": 2026101807,
+  "versionName": "1.0.123"
 }
