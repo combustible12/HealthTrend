@@ -53,6 +53,7 @@ internal object StructuredReportRows {
     if(explicit!=null)rest=rest.substringAfter(' ').trimStart()
    }
   }
+  rest=ReportParser.sourceMetricName(rest)
   val base=SpecimenNames.names(type).map{it.key to it.value}+labels
   val candidates=base.flatMap{(label,k)->
    val length=UnifiedMetricStandard.namePrefixLength(rest,label)

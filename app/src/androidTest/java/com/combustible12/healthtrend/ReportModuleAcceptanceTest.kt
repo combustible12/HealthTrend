@@ -284,4 +284,29 @@ class ReportModuleAcceptanceTest {
   assertTrue(DataSearch.report("HBSAB 阴性",current));store.restoreArchivedReport(event.id)
   assertEquals(edited,HealthStore(context).reports().single());store.deleteReport(edited.id);assertTrue(HealthStore(context).reports().isEmpty())
  }
+ @Test fun thyroidReportStarsKeepCompleteNamesResultsAndEnableSave(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 *游离-T3 4.20 pmol/L 3.00~6.00 pmol/L\nFT4 *游离-T4 13.00 pmol/L 9.00~20.00 pmol/L\nTSH *促甲状腺素(III代) 2.100 mIU/L 0.300~5.000 mIU/L"
+  val imported=pastedReportDraft(raw,store=store)
+  assertEquals(listOf("FT3","FT4","TSH"),imported.rows.map{it.key})
+  assertEquals(listOf("游离-T3","游离-T4","促甲状腺素(III代)"),imported.rows.map{it.name})
+  assertEquals(listOf("4.20","13.00","2.100"),imported.rows.map{it.text})
+  assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{draft->
+   saved=materializeReportDraft(draft,store);store.saveReport(saved!!)
+  },{},{})}}
+  imported.rows.forEach{row->compose.onNodeWithText(row.name,useUnmergedTree=true).performScrollTo().assertIsDisplayed()}
+  screenshot("thyroid-star-names")
+  compose.onNodeWithText("保存",useUnmergedTree=true).assertIsEnabled().performClick()
+  compose.runOnIdle{
+   assertNotNull(saved)
+   val reopened=HealthStore(context).reports().single()
+   assertEquals(imported.rows.map{it.name},reopened.results.map{it.rawName})
+   assertEquals(imported.rows.map{it.text},reopened.results.map{it.textValue})
+   assertEquals(raw,reopened.rawOcr)
+   val reimported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
+   assertTrue(reportValidationProblems(reimported).toString(),reimported.valid())
+   assertEquals(imported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())},reimported.rows.map{listOf(it.key,it.name,it.text,it.unit,it.rangeRaw())})
+  }
+ }
 }

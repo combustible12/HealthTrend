@@ -25,4 +25,17 @@ class SourceNamePersistenceTest {
   val draft=pastedReportDraft(raw)
   assertEquals("2001-01-02",draft.date);assertEquals("游离-T3",draft.rows.single().name)
  }
+ @Test fun leadingReportStarsAreNotNameConflictsOrResultDigits(){
+  val cases=listOf(Triple("FT3","游离-T3","4.20"),Triple("FT4","游离-T4","13.00"),Triple("TSH","促甲状腺素(III代)","2.100"))
+  cases.forEach{(key,name,value)->listOf("*","＊","★","☆").forEach{star->
+   listOf("$key $star$name $value pmol/L 1.0~20.0 pmol/L","$key\t$star$name\t$value\tpmol/L\t1.0~20.0").forEach{raw->
+    val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(raw),"甲状腺功能").single()
+    assertEquals(raw,key,row.metricKey);assertEquals(raw,name,row.displayName);assertEquals(raw,value,row.textValue)
+   }
+  }}
+ }
+ @Test fun removingLeadingStarsDoesNotAcceptUnknownInternalSymbols(){
+  val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities("FT4 *游离/T4 13.00 pmol/L 1-20"),"甲状腺功能").single()
+  assertTrue(row.metricKey.startsWith("待核对:"))
+ }
 }

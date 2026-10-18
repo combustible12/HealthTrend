@@ -36,12 +36,15 @@ object ReportParser {
   return ocr.trim()
  }
 
+ /** Leading report stars are administrative markers, never part of an analyte name.
+  * Do not remove internal punctuation or letters. Keep rawLine for source evidence. */
+ internal fun sourceMetricName(name:String):String=name.trim().trimStart('*','＊','★','☆').trimStart()
  fun key(name:String):String {
   // Explicit code always wins; OCR-only labels use deterministic exact-name/code matching.
   val identity=Regex("[（(]\\s*([^（）()]+?)\\s*[）)]").findAll(name).map{normalizeCode(it.groupValues[1])}.lastOrNull{canonicalMetricKey(it) in metricIdentityKeys}
   if(identity in metricIdentityKeys)return canonicalMetricKey(identity!!)
   if(identity!=null && canonicalMetricKey(identity) in metricIdentityKeys)return canonicalMetricKey(identity)
-  val label=name.trim().replace('：',':').replace('／','/')
+  val label=sourceMetricName(name).replace('：',':').replace('／','/')
   val leading=label.substringBefore(' ').substringBefore('\t').trim().trimEnd(':')
   val code=normalizeCode(leading)
   if(canonicalMetricKey(code) in metricIdentityKeys)return canonicalMetricKey(code)
@@ -154,7 +157,7 @@ object ReportParser {
    listOf(m.groupValues[1].ifBlank{m.groupValues[2]},m.groupValues[3],m.groupValues[4],m.groupValues[5],m.groupValues[6])
   }
   if(fields.size !in 4..5)return null
-  val code=fields[0].trim().trim('（','）','(',')');val name=fields[1].trim();val result=fields[2].trim()
+  val code=fields[0].trim().trim('（','）','(',')');val name=sourceMetricName(fields[1]);val result=fields[2].trim()
   if(!name.any{it.code in 0x3400..0x9fff}||!LabResultValues.valid(result))return null
   // Some clipboard rows omit the blank unit column entirely. A qualitative
   // fourth token is the reference, not a unit; preserve both with or without '-'.
@@ -207,7 +210,7 @@ object ReportParser {
   val chineseName=withoutIdentity.replace(Regex("(?i)^[#%]?[A-Z][A-Z0-9/#%+.-]*(?:/[A-Z0-9#%+.-]+)?\\s+(?=[\\p{IsHan}])"),"").trim()
   // A code alone is not a display name. Keep embedded Latin letters in genuine Chinese names.
   val codeOnly=withoutIdentity.isBlank()||canonicalMetricKey(normalizeCode(withoutIdentity))==safeIdentity
-  val name=chineseName.takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: (if(codeOnly)UnifiedMetricStandard.definition(safeIdentity)?.name else null) ?: "待核对"
+  val name=sourceMetricName(chineseName).takeIf{it.any{ch->ch.code in 0x3400..0x9FFF}} ?: (if(codeOnly)UnifiedMetricStandard.definition(safeIdentity)?.name else null) ?: "待核对"
   val rawValue=if(isText)textual!!.groupValues[2] else match!!.value.replace(" ","")
   val suffix=if(isText)textual!!.groupValues[3].trim() else line.substring(match!!.range.last+1).trim().trimStart('↑','↓','*')
   val limits=Regex("([-+]?[\\d?]+(?:\\.[\\d?]+)?)\\s*(?:-{1,2}|–|—|~|～|至)\\s*([-+]?[\\d?]+(?:\\.[\\d?]+)?)").find(suffix)
