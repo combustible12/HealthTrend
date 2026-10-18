@@ -17,6 +17,27 @@ class ReportHeadingRoundTripTest {
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
   return HealthStore(context)
  }
+ @Test fun lymphocyteAliasesShareOneNameThroughSaveReopenAndExport(){
+  val store=store()
+  listOf("淋巴细胞%","淋巴细胞百分比").forEach{name->
+   val source="合成医院\n血常规\n2001-01-02\nLYMPH% $name 23.400 % 10.00~40.00"
+   val draft=pastedReportDraft(source,store=store)
+   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+   assertEquals("淋巴细胞百分比",draft.rows.single().name)
+   val report=materializeReportDraft(draft,store);store.saveReport(report)
+   val reopened=HealthStore(RuntimeEnvironment.getApplication()).reports().single{it.id==report.id}
+   assertEquals("淋巴细胞百分比",reopened.results.single().rawName)
+   assertEquals(source,reopened.rawOcr)
+   assertTrue(reopened.results.single().rawLine.contains(name))
+   val output=store.exportReportAsPastedText(reopened)
+   assertTrue(output,output.contains("LYMPH% 淋巴细胞百分比 23.400 % 10.00~40.00"))
+   val reimport=pastedReportDraft(output,store=store)
+   assertEquals("LYMPH%",reimport.rows.single().key)
+   assertEquals("淋巴细胞百分比",reimport.rows.single().name)
+   assertEquals("23.400",reimport.rows.single().text)
+   assertEquals("10.00~40.00",reimport.rows.single().referenceRaw)
+  }
+ }
  @Test fun legacySpecificHeaderIsPreservedUnderItsCategory(){
   val draft=pastedReportDraft("合成医院\n乙肝二对半(定性)\n$day\nHBSAG 乙肝表面抗原 阴性(-)  阴性(-)")
   assertEquals("传染病筛查",draft.type)
@@ -94,23 +115,23 @@ class ReportHeadingRoundTripTest {
   cases.forEach{(category,key,name)->
    val raw="合成医院\n$category\n2001-01-02\n$key\t$name\t2.340\t-\t1.0-3.0"
    val draft=pastedReportDraft(raw,store=store)
-   assertEquals(raw,name,draft.rows.single().name)
+   assertEquals(raw,UnifiedMetricStandard.definition(key)!!.name,draft.rows.single().name)
    assertEquals(raw,key,draft.rows.single().key)
    assertTrue(reportValidationProblems(draft).toString(),draft.valid())
    val report=materializeReportDraft(draft,store);store.saveReport(report)
    val context=RuntimeEnvironment.getApplication()
    val reopened=HealthStore(context).reports().single{it.id==report.id}
-   assertEquals(name,reopened.results.single().rawName)
+   assertEquals(UnifiedMetricStandard.definition(key)!!.name,reopened.results.single().rawName)
    val edited=ReportDraft.from(reopened)
-   assertEquals(name,edited.rows.single().name)
+   assertEquals(UnifiedMetricStandard.definition(key)!!.name,edited.rows.single().name)
    store.saveReport(materializeReportDraft(edited,store))
    store.savePreferredMetricName(key,"合成显示名称")
    val exported=store.exportReportAsPastedText(reopened)
-   assertTrue(exported,exported.contains(name))
+   assertTrue(exported,exported.contains(UnifiedMetricStandard.definition(key)!!.name))
    assertFalse(exported,exported.contains("合成显示名称"))
    store.deletePreferredMetricName(key)
    val imported=pastedReportDraft(exported,store=store)
-   assertEquals(name,imported.rows.single().name)
+   assertEquals(UnifiedMetricStandard.definition(key)!!.name,imported.rows.single().name)
    assertEquals(key,imported.rows.single().key)
    assertEquals("2.340",imported.rows.single().text)
    store.deleteReport(report.id)

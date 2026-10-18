@@ -113,7 +113,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    if(requiresExplicitMetricIdentityConfirmation(row.key,row.name))return@map row
    if(row.key.isBlank()||row.key=="未识别"||row.key.startsWith("待核对:")){
     val identity=store.resolveMetricKey(row.name,row.unit)
-    if(identity!="未识别")row.copy(key=identity,uncertain=false) else row
+    if(identity!="未识别")row.copy(key=identity,name=standardReportMetricName(identity,row.name,row.unit),uncertain=false) else row
    }else row
   }
   if(reconciled!=d.rows)d=d.copy(rows=reconciled)
@@ -183,7 +183,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
   DataSearchField(rowSearch,{rowSearch=it},"搜索项目、结果、单位或参考范围")
   if(d.rows.none{DataSearch.draftRow(rowSearch,it)})Text("没有匹配的项目",color=Muted)
   d.rows.forEachIndexed{i,r->
-   if(DataSearch.draftRow(rowSearch,r))Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text("新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
+   if(DataSearch.draftRow(rowSearch,r))Column {if(r.key.startsWith("待核对:")||r.name=="待核对")Text(widthIdentityReviewProblem(r)?:"新项目／待核对：请确认中文名称、项目代码和结果",color=Accent,fontSize=12.sp)
     if(d.existing!=null&&r.key.startsWith("CUSTOM-")){
      val link=remember(r.key,linkRevision){store.reportIdentityLinks().lastOrNull{it.source==r.key&&it.revokedAt==null}}
      if(link==null)TextButton({linkSource=r.key;linkTarget="";linkTargetQuery="";linkError=""}){Text("关联统一指标")}
@@ -350,7 +350,8 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
     (confirmed.key.isBlank()||confirmed.key=="未识别"||confirmed.key.startsWith("待核对:")))
     store.resolveMetricKey(confirmed.name) else "未识别"
    val next=if(resolved!="未识别")confirmed.copy(key=resolved,uncertain=false) else confirmed
-   d=d.copy(rows=d.rows.map{if(it.id==next.id)next else it})
+   val named=next.copy(name=standardReportMetricName(next.key,next.name,next.unit))
+   d=d.copy(rows=d.rows.map{if(it.id==named.id)named else it})
   },{editing=null},unitOptions=units,lockMetadata=fixed,lockIdentity=originalResult!=null)
  }
  if(viewingDraftImage!=null&&d.images.isNotEmpty())SourceViewer(
@@ -371,7 +372,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  )
 }
 @Composable fun LabRowSummary(r:DraftRow,edit:()->Unit,remove:(()->Unit)?,templateOnly:Boolean=false){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
- Row{Text(r.name.ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
+ Row{Text(standardReportMetricName(r.key,r.name,r.unit).ifBlank{"待核对指标"},modifier=Modifier.weight(1f));remove?.let{action->IconButton(action){Icon(Icons.Outlined.Delete,"删除指标")}}}
  if(templateOnly){Text(displayLabUnit(r.unit),fontSize=22.sp);if(r.trendMeaning.isNotBlank())Text(r.trendMeaning,color=Accent,fontSize=12.sp)} else ResultValueUnit(r.text,r.unit);Text("参考 ${r.rangeRaw().ifBlank{"未录入"}}",color=Muted)
  if(r.referenceNeedsReview())Text("参考范围需人工核对",color=Accent,fontSize=12.sp)
  TextButton(edit,contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp),modifier=Modifier.heightIn(min=28.dp)){Text("编辑")}
@@ -380,6 +381,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
  var unlock by rememberSaveable(row.id){mutableStateOf(false)}
  FullPage("核对指标",close,bottom={Button({if(row.valid()){edit(row.copy(uncertain=false));close()}},Modifier.fillMaxWidth(),enabled=row.valid()&&(lockIdentity||(!requiresExplicitMetricIdentityConfirmation(row.key,row.name)&&metricIdentityNameProblem(row.key,row.name,row.unit)==null))){Text("完成核对")}}){m->ScrollablePageColumn(m,PaddingValues(16.dp)){
   if(row.key.startsWith("待核对:")&&row.raw.isNotBlank())Text("原始行："+row.raw,color=Muted,fontSize=12.sp)
+  widthIdentityReviewProblem(row)?.let{Text(it,color=Accent,fontSize=12.sp)}
   LabRowEditor(row,edit,templateOnly,unitOptions,lockMetadata&&!unlock,lockIdentity)
   if(lockMetadata&&!unlock)TextButton({unlock=true}){Text("本次报告项目或范围有变化")}
  }}
@@ -405,7 +407,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
   if(LabResultValues.kind(r.text)!=LabValueKind.NUMBER){Field(r.referenceRaw,{edit(r.copy(referenceRaw=it,low="",high=""))},"参考结果（如阴性、未检出，可留空）")}else Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
  }
 }}
-@Composable fun ReportDetail(r:LabReport,store:HealthStore,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit,onImagesChanged:()->Unit){
+@Composable fun ReportDetail(r:LabReport,store:HealthStore,close:()->Unit,edit:()->Unit,images:(List<String>)->Unit,delete:()->Unit,update:(LabResult,Double,String)->Unit,onImagesChanged:()->Unit,readOnly:Boolean=false){
  val exportContext=LocalContext.current
  var reportSearch by rememberSaveable(r.id){mutableStateOf("")}
  val searchAliases=store.metricAliases()
@@ -415,13 +417,13 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  var imageError by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)}
  val scope=rememberCoroutineScope()
  val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()){busy=true;scope.launch{try{withContext(Dispatchers.IO){store.addReportImages(r.id,uris)};onImagesChanged()}catch(x:Exception){imageError="原图保存失败：${x.message}"}finally{busy=false}}}},{imageError=it})
- FullPage(ReportNaming.title(r).category,close,subtitle=ReportNaming.title(r).name,bottom={Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else photoInput.gallery()},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
+ FullPage(ReportNaming.title(r).category,close,subtitle=ReportNaming.title(r).name,bottom={if(!readOnly)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton(edit){Text("编辑报告")};TextButton({confirmDelete=true}){Text("删除报告",color=Bad)}}}){m->LazyColumn(m.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){Column{Text(r.hospitalKey);Text(dateText(r.testedAtEpochMillis),color=Muted)};if(!readOnly||r.sourceImages.isNotEmpty())TextButton({if(r.sourceImages.isNotEmpty())images(r.sourceImages.map{it.uri}) else photoInput.gallery()},enabled=!busy){Text(if(r.sourceImages.isNotEmpty())"查看图片" else "导入图片")}}}
   item{TextButton({
    val clipboard=exportContext.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
    try{clipboard.setPrimaryClip(android.content.ClipData.newPlainText("检验报告",store.exportReportAsPastedText(r)))}catch(e:Exception){imageError=e.message?:"导出前请核对检查分类"}
   }){Text("复制标准格式报告")}}
-  item{PhotoInputButtons(photoInput,!busy,"相册添加原图")}
+  if(!readOnly)item{PhotoInputButtons(photoInput,!busy,"相册添加原图")}
   item{DataSearchField(reportSearch,{reportSearch=it},"搜索报告文字、项目、结果或参考范围")}
   if(visibleResults.isEmpty())item{Text("没有匹配的项目",color=Muted)}
   if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
@@ -435,9 +437,12 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
    val converted=commonUnit.isNotBlank()&&normalized.second==commonUnit &&
     x.value!=null && normalized.first!=x.value
    val compatible=commonUnit.isNotBlank()&&normalized.second==commonUnit
-   val printedName=x.rawName.takeIf{it.isNotBlank()}?:standard
+   val printedName=standardReportMetricName(x.metricKey,x.rawName,x.unitAtTest).ifBlank{standard}
    Row{Text(printedName,modifier=Modifier.weight(1f));Text(x.resultStatusLabel(),color=statusColor(x.status()))}
-   if(converted){
+   if(readOnly){
+    ResultValueUnit(x.textValue,x.unitAtTest)
+    Text("参考范围："+x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)},color=Muted)
+   }else if(converted){
     ResultValueUnit(normalized.first?.let{String.format(java.util.Locale.US,"%.3f",it).trimEnd('0').trimEnd('.')}?:x.textValue,normalized.second)
     Text("参考范围："+rangeText(bounds.first,bounds.second),color=Muted)
     Text("原始："+x.textValue+" "+x.unitAtTest+"，参考范围 "+x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)}+" "+x.unitAtTest,color=Muted,fontSize=12.sp)
@@ -446,7 +451,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
     Text("参考范围："+qualitativeDisplayText(x.referenceRaw.takeIf{it.isNotBlank()}?:rangeText(if(compatible)bounds.first else x.referenceLowAtTest,if(compatible)bounds.second else x.referenceHighAtTest)),color=Muted)
    }
    if(x.editedByUser)Text("已手动修正",color=Accent,fontSize=12.sp)
-   TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑结果")}
+   if(!readOnly)TextButton({point=x;value=x.textValue.ifBlank{x.value.toString()}}){Text("编辑结果")}
   }}
  }}
  if(point!=null)AlertDialog(onDismissRequest={point=null},title={Text("编辑 ${labDisplayTitle(point!!.rawName,point!!.metricKey)}")},text={Column{Field(value,{value=it},"结果")}},confirmButton={TextButton({store.updateResultText(r.id,point!!.id,value);onImagesChanged();point=null},enabled=LabResultValues.valid(value)){Text("保存")}},dismissButton={TextButton({point=null}){Text("取消")}})

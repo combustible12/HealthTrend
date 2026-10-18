@@ -5,6 +5,46 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun completeIdentityLabelsPreserveNamesWithLettersNumbersAndSymbols(){
+  listOf(
+   Triple("FT3","游离-T3","pmol/L"),Triple("FT4","游离-T4","pmol/L"),
+   Triple("CA724","糖类抗原CA72-4","U/mL"),Triple("CA199","糖类抗原19-9","U/mL"),
+   Triple("NEUT%","中性粒细胞%","%"),Triple("CTNI","肌钙蛋白I","ng/L"),
+   Triple("GGT","γ-谷氨酰转移酶","U/L"),Triple("TSH","促甲状腺素(III代)","mIU/L"),
+   Triple("AST/ALT","谷草谷丙比",""),Triple("FDP","纤维蛋白(原)降解产物","")
+  ).forEach{(key,name,unit)->
+   val row=DraftRow(key=key,name=name,text="7.230",unit=unit)
+   assertEquals(name, row.name)
+   assertEquals("7.230",row.text)
+   assertEquals(UnifiedMetricStandard.definition(key)!!.name,standardReportMetricName(key,name,unit))
+  }
+  assertEquals("肌钙蛋白T",standardReportMetricName("CTNI","肌钙蛋白T","ng/L"))
+  assertEquals("谷草谷丙比",standardReportMetricName("ALT/AST","谷草谷丙比",""))
+  assertEquals("糖类抗原72/4",standardReportMetricName("CA724","糖类抗原72/4","U/mL"))
+  assertEquals("游离-T3",standardReportMetricName("待核对:代码名称冲突:FT3","游离-T3","pmol/L"))
+ }
+ @Test fun widthDisplayAndConflictExplainIdentityWithoutRewritingSource(){
+  listOf("RDW" to "红细胞体积分布宽度","PDW" to "血小板体积分布宽度").forEach{(family,name)->
+   listOf("%" to "CV","fL" to "SD").forEach{(unit,suffix)->
+    val row=DraftRow(name=name,key="$family-$suffix",text="7.230",unit=unit,referenceRaw="1.00~9.00")
+    assertEquals(UnifiedMetricStandard.definition(row.key)!!.name,standardReportMetricName(row.key,row.name,row.unit))
+    assertNull(widthIdentityReviewProblem(row))
+    assertEquals(name,row.name)
+    val wrong="$family-"+if(suffix=="CV")"SD" else "CV"
+    listOf(wrong,"待核对:代码名称冲突:$wrong").forEach{key->
+     val conflict=row.copy(key=key)
+     val message=widthIdentityReviewProblem(conflict)!!
+     assertTrue(message,message.contains(wrong)&&message.contains(row.key)&&message.contains(unit))
+     assertEquals(name,standardReportMetricName(conflict.key,conflict.name,conflict.unit))
+     val draft=ReportDraft(hospital="合成医院",type="血常规",date="2001-01-02",rows=listOf(conflict))
+     assertFalse(draft.valid())
+     assertTrue(reportValidationProblems(draft).toString(),reportValidationProblems(draft).any{it.contains(message)})
+     assertEquals(key,conflict.key);assertEquals(name,conflict.name)
+     assertEquals("7.230",conflict.text);assertEquals("1.00~9.00",conflict.referenceRaw)
+    }
+   }
+  }
+ }
  @Test fun widthIdentityIsConsistentAcrossClipboardDelimiters(){
   listOf("RDW" to "红细胞体积分布宽度","PDW" to "血小板体积分布宽度").forEach{(family,name)->
    listOf("%" to "CV","fL" to "SD").forEach{(unit,suffix)->
@@ -13,7 +53,7 @@ class MetricImportRegressionTest {
      val d=pastedReportDraft(raw)
      val row=d.rows.single()
      assertEquals(raw,"$family-$suffix",row.key)
-     assertEquals(name,row.name);assertEquals("7.230",row.text);assertEquals(unit,row.unit)
+     assertEquals(UnifiedMetricStandard.definition("$family-$suffix")!!.name,row.name);assertEquals("7.230",row.text);assertEquals(unit,row.unit)
      assertTrue(reportValidationProblems(d).toString(),d.valid())
     }}
    }

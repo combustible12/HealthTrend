@@ -1,5 +1,5 @@
 {
-  "baseCommit": "4b95b85886326da467678799e49650de3a132fb4",
+  "baseCommit": "2099bc1",
   "requestedAt": "2026-10-18",
-  "scope": "Full report-module audit with unitless one-sided references preserved and ambiguous multi-result rows blocked"
+  "scope": "One dictionary name across alias import review save reopen display and export; immutable archive entry and restore; all JVM regressions and Android device acceptance"
 }

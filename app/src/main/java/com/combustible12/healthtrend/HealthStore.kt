@@ -301,7 +301,11 @@ class HealthStore(private val context:Context) {
   // Verify persisted content before recording secondary reference-range observations.
   // If verification fails, restore the exact previous reports JSON.
   val originalReports=read("reports").toString()
-  val ordered=r
+  val ordered=r.copy(results=r.results.map{result->
+   val original=persisted?.results?.singleOrNull{it.id==result.id}
+   if(original!=null&&result.metricKey==original.metricKey&&result.rawName==original.rawName)result
+   else result.copy(rawName=standardReportMetricName(result.metricKey,result.rawName,result.unitAtTest))
+  })
   try {
    write("reports",JSONArray().apply{
     (reports().filterNot{it.id==r.id}+ordered).forEach{put(reportToJson(it))}
@@ -840,14 +844,14 @@ class HealthStore(private val context:Context) {
   return LabReport(id,h.trim(),t.trim(),date,null,
    uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},
    items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit)
-    LabResult(newId(),id,h.trim(),t.trim(),null,p.metricKey,p.displayName,p.value,unit,
+    LabResult(newId(),id,h.trim(),t.trim(),null,p.metricKey,standardReportMetricName(p.metricKey,p.displayName,unit),p.value,unit,
      p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second,p.referenceRaw,p.reportFlag)
    },raw,system.trim())
  }
  fun buildReport(h:String,t:String,date:Long,uris:List<String>,items:List<ParsedLabResult>,template:HospitalLabTemplate,raw:String="",system:String=""):LabReport {
   require(ReportParser.valid(items));val id=newId()
   // The editor has applied the selected version. Snapshot exactly what the user confirmed.
-  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,p.displayName,p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second,p.referenceRaw,p.reportFlag)},raw,system.trim())
+  return LabReport(id,h.trim(),t.trim(),date,template.version,uris.mapIndexed{i,u->ReportImage(u,i,System.currentTimeMillis())},items.map{p->val unit=displayLabUnit(p.unit);val n=UnitNormalizer.normalize(p.metricKey,p.value,unit);LabResult(newId(),id,h.trim(),t.trim(),template.version,p.metricKey,standardReportMetricName(p.metricKey,p.displayName,unit),p.value,unit,p.referenceLow,p.referenceHigh,date,false,p.textValue,p.comparator,p.rawLine,n.first,n.second,p.referenceRaw,p.reportFlag)},raw,system.trim())
  }
  @Synchronized fun entries()=rows(read("entries"),::entryFromJson).sortedByDescending{it.occurredAtEpochMillis}
  @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
@@ -896,11 +900,11 @@ class HealthStore(private val context:Context) {
   append(dateText(report.testedAtEpochMillis).take(10))
   report.results.forEach{row->
    if(row.value==null){
-    append('\n').append(listOf(canonicalMetricKey(row.metricKey),row.rawName.takeIf{it.isNotBlank()}?:UnifiedMetricStandard.definition(row.metricKey)?.name?:canonicalMetricKey(row.metricKey),row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
+    append('\n').append(listOf(canonicalMetricKey(row.metricKey),standardReportMetricName(row.metricKey,row.rawName,row.unitAtTest).ifBlank{canonicalMetricKey(row.metricKey)},row.textValue,row.unitAtTest.ifBlank{"-"},row.referenceRaw).joinToString("\t"))
     return@forEach
    }
    append('\n').append(canonicalMetricKey(row.metricKey)).append(' ')
-   append(row.rawName.takeIf{it.isNotBlank()}?:UnifiedMetricStandard.definition(row.metricKey)?.name?:canonicalMetricKey(row.metricKey))
+   append(standardReportMetricName(row.metricKey,row.rawName,row.unitAtTest).ifBlank{canonicalMetricKey(row.metricKey)})
    append(' ').append(row.textValue).append(' ')
    append(row.unitAtTest.ifBlank{"-"})
    if(row.reportFlag.isNotBlank())append(' ').append(row.reportFlag)

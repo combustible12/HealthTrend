@@ -95,7 +95,7 @@ class SourceNamePersistenceTest {
      count++
      val line=listOf(key,name,value,unit,reference).joinToString(separator)
      val rows=pastedReportDraft("合成医院\n生化\n2001-01-02\n$line").rows
-     if(rows.size!=1||rows.single().let{it.key!=key||it.name!=name||it.text!=value||it.unit!=unit.takeUnless{it=="-"}.orEmpty()||it.referenceRaw!=reference})failures+="$line -> $rows"
+     if(rows.size!=1||rows.single().let{it.key!=key||it.name!=definition.name||it.text!=value||it.unit!=unit.takeUnless{it=="-"}.orEmpty()||it.referenceRaw!=reference})failures+="$line -> $rows"
     }
    }}
   }
@@ -123,7 +123,7 @@ class SourceNamePersistenceTest {
  @Test fun explicitPastedDateIsPreservedWithoutGuessingFromAnalytes(){
   val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 游离-T3 4.20 pmol/L 3-6"
   val draft=pastedReportDraft(raw)
-  assertEquals("2001-01-02",draft.date);assertEquals("游离-T3",draft.rows.single().name)
+  assertEquals("2001-01-02",draft.date);assertEquals("游离三碘甲状腺原氨酸",draft.rows.single().name)
  }
  @Test fun leadingReportStarsAreNotNameConflictsOrResultDigits(){
   val cases=listOf(Triple("FT3","游离-T3","4.20"),Triple("FT4","游离-T4","13.00"),Triple("TSH","促甲状腺素(III代)","2.100"))

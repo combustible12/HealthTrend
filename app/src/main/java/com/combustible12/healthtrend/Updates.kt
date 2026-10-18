@@ -12,6 +12,8 @@ import android.util.Base64
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.platform.testTag
@@ -110,6 +112,7 @@ private fun URI(s:String)=java.net.URI(s)
 @Composable fun Mine(m:Modifier,store:HealthStore,error:(String)->Unit,changed:()->Unit={},records:()->Unit={}){
  val ctx=LocalContext.current;var patient by remember{mutableStateOf(store.patientProfile())};var editPatient by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  var archiveRevision by remember{mutableIntStateOf(0)}
+ var archiveOpen by rememberSaveable{mutableStateOf(false)}
  var restoreEvent by remember{mutableStateOf<HealthStore.ReportReplacement?>(null)}
  if(restoreEvent!=null)AlertDialog(onDismissRequest={restoreEvent=null},title={Text("恢复封存的旧报告？")},
   text={Text("恢复后，当前重新导入的报告将退出活动列表，封存的原旧报告重新进入报告列表和趋势。")},
@@ -165,6 +168,7 @@ private fun URI(s:String)=java.net.URI(s)
    },enabled=!backupBusy){Text("确认安全恢复")}},
    dismissButton={TextButton({restoreConfirm=false}){Text("取消")}})
  }
+ if(archiveOpen){ArchivedReports(store,archiveRevision,{archiveOpen=false},{restoreEvent=it});return}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
    val fieldColors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent)
@@ -195,18 +199,35 @@ private fun URI(s:String)=java.net.URI(s)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }
   }
-  val archived=remember(archiveRevision){store.archivedReportReplacements().filter{it.restoredAt==null}}
-  if(archived.isNotEmpty())Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-    Text("封存的旧报告",fontWeight=FontWeight.SemiBold)
-    Text("已退出报告列表和趋势，可撤销替换恢复。",color=Muted,fontSize=12.sp)
-    archived.forEach{event->Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
-     Column(Modifier.weight(1f)){Text("${event.oldReport.hospitalKey} · ${event.oldReport.reportType}");Text(dateText(event.oldReport.testedAtEpochMillis),color=Muted,fontSize=12.sp)}
-     TextButton({restoreEvent=event}){Text("恢复旧报告")}
-    }}
-   }
+  Card(onClick={archiveOpen=true},modifier=Modifier.fillMaxWidth().testTag("archived-reports-entry"),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("封存的旧报告",fontWeight=FontWeight.SemiBold);Text("查看报告 ›",color=Muted)}
   }
   AppUpdateButton(error)
+ }
+
+}
+
+/** Browse immutable replacement snapshots, never resolve them through the active report ID. */
+@Composable internal fun ArchivedReports(store:HealthStore,revision:Int,close:()->Unit,restore:(HealthStore.ReportReplacement)->Unit){
+ val archived=remember(revision){store.archivedReportReplacements().filter{it.restoredAt==null}}
+ var selectedId by rememberSaveable{mutableStateOf<String?>(null)}
+ var viewer by remember{mutableStateOf<List<String>?>(null)}
+ val selected=archived.firstOrNull{it.id==selectedId}
+ if(selected!=null){
+  CompositionLocalProvider(LocalPageVisible provides (viewer==null)){
+   ReportDetail(selected.oldReport,store,{selectedId=null},{},{viewer=it},{},{_,_,_->},{},readOnly=true)
+  }
+  viewer?.let{uris->SourceViewer(uris,{viewer=null})}
+ }else{
+  FullPage("封存的旧报告",close){m->LazyColumn(m.padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+   if(archived.isEmpty())item{Text("暂无封存的旧报告",color=Muted)}
+   items(archived,key={it.id}){event->
+    Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+     ReportCard(event.oldReport,{selectedId=event.id})
+     TextButton({restore(event)},modifier=Modifier.align(Alignment.End)){Text("恢复旧报告")}
+    }
+   }
+  }}
  }
 }
 

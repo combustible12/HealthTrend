@@ -42,6 +42,64 @@ class ReportModuleAcceptanceTest {
   val chunks=encoded.chunked(2000)
   chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @Test fun aliasesUseOneDictionaryNameInReviewAndStoredReports(){
+  val store=HealthStore(context)
+  val drafts=listOf("淋巴细胞%","淋巴细胞百分比").map{name->
+   val raw="合成医院\n血常规\n2001-01-02\nLYMPH% $name 23.400 % 10.00~40.00"
+   val draft=pastedReportDraft(raw,store=store)
+   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+   assertEquals("淋巴细胞百分比",draft.rows.single().name)
+   val report=materializeReportDraft(draft,store);store.saveReport(report)
+   val reopened=HealthStore(context).reports().single{it.id==report.id}
+   assertEquals(raw,reopened.rawOcr)
+   assertEquals("淋巴细胞百分比",reopened.results.single().rawName)
+   val imported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
+   assertEquals("LYMPH%",imported.rows.single().key)
+   assertEquals("淋巴细胞百分比",imported.rows.single().name)
+   assertEquals("23.400",imported.rows.single().text)
+   draft
+  }
+  compose.setContent{MaterialTheme{LabRowSummary(drafts.first().rows.single(),{},null)}}
+  compose.onNodeWithText("淋巴细胞百分比").assertIsDisplayed()
+  compose.onNodeWithText("淋巴细胞%",substring=false).assertDoesNotExist()
+  screenshot("dictionary-standard-name")
+ }
+ @Test fun archivedReportsEntryOpensSnapshotWithoutChangingActiveReport(){
+  val store=HealthStore(context)
+  val old=materializeReportDraft(draft(),store)
+  store.saveReport(old)
+  val newer=materializeReportDraft(pastedReportDraft("合成医院\n传染病筛查\n乙肝二对半(定性)\n2001-01-02\nHBSAG 乙肝表面抗原 阳性(+)  阴性(-)\nHBSAB 乙肝表面抗体 阴性(-)  阴性(-)"),store)
+  store.replaceReportWithConfirmed(old.id,newer)
+  val activeBefore=store.reports()
+  val archiveBefore=store.archivedReportReplacements()
+  compose.setContent{MaterialTheme{Mine(Modifier,store,{throw AssertionError(it)})}}
+  compose.onNodeWithTag("archived-reports-entry").performScrollTo().performClick()
+  compose.onNodeWithText("恢复旧报告").assertExists()
+  compose.onNodeWithText("乙肝二对半(定性)").performClick()
+  compose.onNodeWithText("编辑报告").assertDoesNotExist()
+  compose.onNodeWithText("编辑结果").assertDoesNotExist()
+  compose.onNodeWithText("删除报告").assertDoesNotExist()
+  compose.onNodeWithText("相册添加原图").assertDoesNotExist()
+  compose.onNodeWithText("乙肝表面抗原").assertExists()
+  compose.onNodeWithText("复制标准格式报告").performScrollTo().performClick()
+  compose.runOnIdle{
+   val clipboard=context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+   assertEquals(store.exportReportAsPastedText(old),clipboard.primaryClip!!.getItemAt(0).text.toString())
+  }
+  screenshot("archived-report-detail")
+  compose.runOnIdle{
+   assertEquals(activeBefore,HealthStore(context).reports())
+   assertEquals(archiveBefore,HealthStore(context).archivedReportReplacements())
+  }
+  compose.onNodeWithContentDescription("关闭").performClick()
+  compose.onNodeWithText("恢复旧报告").performClick()
+  compose.onNodeWithText("取消").performClick()
+  compose.runOnIdle{assertEquals(activeBefore,store.reports())}
+  compose.onNodeWithText("恢复旧报告").performClick()
+  compose.onNodeWithText("确认恢复").performClick()
+  compose.onNodeWithText("暂无封存的旧报告").assertExists()
+  compose.runOnIdle{assertEquals(old,HealthStore(context).reports().single())}
+ }
  @Test fun numericComparisonsAndScopedDatesSurviveStorage(){
   val store=HealthStore(context)
   listOf("<2.340",">2.340","≤2.340","≥2.340","<=2.340",">=2.340","+2.340","-2.340","2.340e-3").forEach{value->
@@ -76,7 +134,7 @@ class ReportModuleAcceptanceTest {
      assertTrue(reportValidationProblems(d).toString(),d.valid())
      val report=materializeReportDraft(d,store);store.saveReport(report)
      val reopened=store.reports().single{it.id==report.id}
-     assertEquals(name,reopened.results.single().rawName)
+     assertEquals(UnifiedMetricStandard.definition("$family-$suffix")!!.name,reopened.results.single().rawName)
      assertEquals("7.230",reopened.results.single().textValue)
      val imported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
      assertTrue(reportValidationProblems(imported).toString(),imported.valid())
@@ -331,7 +389,7 @@ class ReportModuleAcceptanceTest {
   val raw="合成医院\n甲状腺功能\n2001-01-02\nFT3 *游离-T3 4.20 pmol/L 3.00~6.00 pmol/L\nFT4 *游离-T4 13.00 pmol/L 9.00~20.00 pmol/L\nTSH *促甲状腺素(III代) 2.100 mIU/L 0.300~5.000 mIU/L"
   val imported=pastedReportDraft(raw,store=store)
   assertEquals(listOf("FT3","FT4","TSH"),imported.rows.map{it.key})
-  assertEquals(listOf("游离-T3","游离-T4","促甲状腺素(III代)"),imported.rows.map{it.name})
+  assertEquals(listOf("游离三碘甲状腺原氨酸","游离甲状腺素","促甲状腺激素"),imported.rows.map{it.name})
   assertEquals(listOf("4.20","13.00","2.100"),imported.rows.map{it.text})
   assertTrue(reportValidationProblems(imported).toString(),imported.valid())
   compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{draft->
@@ -368,7 +426,7 @@ class ReportModuleAcceptanceTest {
   compose.runOnIdle{
    assertNotNull(saved)
    val reopened=HealthStore(context).reports().single().results.single()
-   assertEquals("FT4",reopened.metricKey);assertEquals("游离-T4",reopened.rawName)
+   assertEquals("FT4",reopened.metricKey);assertEquals("游离甲状腺素",reopened.rawName)
    assertEquals("<2.340",reopened.textValue);assertEquals("pmol/L",reopened.unitAtTest);assertEquals("0-9",reopened.referenceRaw)
   }
  }
