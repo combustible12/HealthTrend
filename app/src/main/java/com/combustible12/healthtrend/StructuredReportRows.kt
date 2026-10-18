@@ -23,7 +23,19 @@ internal object StructuredReportRows {
    (d.aliases+d.name+ReportParser.builtInAliasNames(key)).map{it to key}
   }.plus(listOf("红细胞分布宽度" to "RDW","血小板分布宽度" to "PDW","红细胞体积分布宽度" to "RDW","血小板体积分布宽度" to "PDW","大血小板" to "P-LCR"))
  }
- fun prepare(source:String,type:String):String? {
+ private data class Head(val name:String,val key:String,val tail:String)
+ // Both structured columns and fallback layouts share the same complete-name
+ // boundary. A failed unit/range layout cannot expose name digits as results.
+ fun resultStart(source:String,type:String):Int = head(source,type)?.let{source.length-it.tail.length}?:0
+ fun ambiguousResult(source:String,type:String):Boolean {
+  val tail=head(source,type)?.tail?:return false
+  val tokens=tail.split(Regex("\\s+"))
+  val first=tokens.firstOrNull().orEmpty()
+  val startsWithRange=PartialReferenceRanges.parts(first).let{it.first.isNotBlank()||it.second.isNotBlank()} && LabResultValues.numeric(first)==null
+  return units.matches(first)||startsWithRange||
+   (LabResultValues.numeric(first)!=null&&tokens.getOrNull(1)?.let{LabResultValues.numeric(it)!=null}==true)
+ }
+ private fun head(source:String,type:String):Head? {
   if('\t' in source)return null
   var rest=source.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"")
   var explicit:String?=null
@@ -51,6 +63,11 @@ internal object StructuredReportRows {
   else if(explicit!=null && rest.substringBefore(' ').let{LabResultValues.numeric(it)!=null||LabResultValues.kind(it) in setOf(LabValueKind.QUALITATIVE,LabValueKind.SEMIQUANTITATIVE)}){
    key=explicit;name=UnifiedMetricStandard.definition(key)?.name?:return null
   }else return null
+  return Head(name,key,rest)
+ }
+ fun prepare(source:String,type:String):String? {
+  val head=head(source,type)?:return null
+  val name=head.name;var key=head.key;val rest=head.tail
   var value=rest.substringBefore(' ').trimEnd('↑','↓')
   if(!LabResultValues.valid(value))return null
   var tail=rest.substringAfter(' ',"").trim()
@@ -64,7 +81,14 @@ internal object StructuredReportRows {
   else if(LabResultValues.numeric(value)!=null && tail.isNotBlank() &&
    PartialReferenceRanges.parts(tail).let{it.first.isBlank()&&it.second.isBlank()} &&
    LabResultValues.kind(tail)!=LabValueKind.QUALITATIVE)return null
-  // Range-before-unit rows remain handled by the existing layout parser.
+  // A repeated unit after a numeric reference must not send a recognized name
+  // back to the digit-scanning parser (CA72-4 contains a non-result digit).
+  // Strip only the exact result unit and only after a valid numeric reference.
+  if(unit.isNotBlank() && tail.endsWith(" $unit")){
+   val reference=tail.removeSuffix(" $unit").trim()
+   if(PartialReferenceRanges.parts(reference).let{it.first.isNotBlank()||it.second.isNotBlank()})tail=reference
+  }
+  // Other range-before-unit layouts remain handled by the existing layout parser.
   if(LabResultValues.numeric(value)!=null&&tail.split(' ').any{units.matches(it)})return null
   if(name=="大血小板"&&unit!="%")return null
   if(key in setOf("RDW","PDW"))key=sourceDistributionWidthIdentity(name,unit)?:key

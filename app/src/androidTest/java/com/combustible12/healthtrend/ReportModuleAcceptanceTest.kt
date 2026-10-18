@@ -92,6 +92,30 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("保存",useUnmergedTree=true).assertIsEnabled().performClick()
   compose.runOnIdle{assertNotNull(saved);assertEquals(imported.rows.map{it.key},HealthStore(context).reports().single().results.map{it.metricKey})}
  }
+ @Test fun numberedNameCannotReplaceComparatorResultInEditorAndStorage(){
+  val store=HealthStore(context);var saved:LabReport?=null
+  val imported=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\nCA724 糖类抗原CA72-4 <2.50 U/mL 0.00~15.00 U/mL",store=store)
+  assertEquals("CA724",imported.rows.single().key)
+  assertEquals("<2.50",imported.rows.single().text)
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{d->val r=materializeReportDraft(d,store);store.saveReport(r);saved=r},{},{})}}
+  compose.onNodeWithText("<2.50",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  screenshot("numbered-name-comparator-result")
+  compose.onNodeWithText("保存").assertIsEnabled().performClick()
+  compose.runOnIdle{
+   assertNotNull(saved)
+   val reopened=HealthStore(context).reports().single()
+   assertEquals("<2.50",reopened.results.single().textValue)
+   assertEquals("<2.50",pastedReportDraft(store.exportReportAsPastedText(reopened),store=store).rows.single().text)
+  }
+ }
+ @Test fun ambiguousResultColumnsKeepSaveDisabled(){
+  val store=HealthStore(context)
+  val imported=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\nCA724 糖类抗原CA72-4 4 <2.50 U/mL 0.00~15.00",store=store)
+  assertFalse(imported.valid());assertEquals("",imported.rows.single().text)
+  compose.setContent{MaterialTheme{ReportEditor(imported,store,{},{error("Ambiguous result must not save")},{},{})}}
+  compose.onNodeWithText("保存").assertIsNotEnabled()
+  screenshot("ambiguous-result-save-disabled")
+ }
  @Test fun unknownCompoundCannotBecomeKnownMetricOrEnableSave(){
   val store=HealthStore(context)
   val imported=pastedReportDraft("合成医院\n生化\n2001-01-02\nAST / UNKNOWN\t谷草转氨酶\t2.340\t-\t0-9",store=store)

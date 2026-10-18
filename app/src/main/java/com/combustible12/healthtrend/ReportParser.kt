@@ -13,7 +13,9 @@ object ReportParser {
   (aliases+chemistryNames).filterValues{canonicalMetricKey(it)==canonicalMetricKey(metricKey)}
    .keys.sorted()
  fun builtInMetricKeys():Set<String> = metricIdentityKeys
- private val numeric=Regex("(?<![A-Za-z\\d.^×])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
+ // A digit inside any-language name or a hyphenated identifier is never a result.
+ // Apply this even when an unfamiliar column layout falls back to numeric scanning.
+ private val numeric=Regex("(?<![\\p{L}\\d.^×-])[<>≤≥]?\\s*[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?")
  private val range=Regex("([<>≤≥]?)\\s*([-+]?\\d+(?:\\.\\d+)?)\\s*(?:[-–—~～至]\\s*([-+]?\\d+(?:\\.\\d+)?))?")
  private val canonicalUnits=mapOf(
   "WBC" to "×10^9/L","NEUT#" to "×10^9/L","LYMPH#" to "×10^9/L","MONO#" to "×10^9/L","EOS#" to "×10^9/L","BASO#" to "×10^9/L","PLT" to "×10^9/L",
@@ -161,14 +163,16 @@ object ReportParser {
   val decoded=source.replace("&lt;","<",true).replace("&gt;",">",true)
   val cleaned=decoded.replace(Regex("(?<=\\d)\\s+[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
    .replace(Regex("(?<=\\s)[YN](?=\\s|$)",RegexOption.IGNORE_CASE),"")
+  if(StructuredReportRows.ambiguousResult(cleaned,reportType))return@mapNotNull ParsedLabResult(
+   "待核对:结果列:"+cleaned.substringBefore('\t'),"待核对",null,"",null,null,original,false)
   StructuredReportRows.prepare(cleaned,reportType)?.let{structured->
    clipboardTextResult(structured)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
   }
   clipboardTextResult(cleaned)?.let{return@mapNotNull it.copy(rawLine=original,reportFlag=sourceReportFlag(source))}
   val line=cleaned.trim().trimStart('*').replace(Regex("^\\d+[.、]?\\s+(?=[A-Za-z\\p{IsHan}])"),"").replace('：',':').replace('％','%').replace(Regex("(?<=\\d)\\s*\\.\\s*(?=\\d)"),".").replace(Regex("^((?:AST/ALT|ALT/AST)|WBC|[#%]?(?:NEUT|LYMPH|MONO|EOS|BASO)|(?:NEUT|LYMPH|MONO|EOS|BASO)[#%]|NRBC[#%]|P-LCR|P-LCC|RDW-CV|RDW-SD|HGB|PLT|ALT|AST(?!/?ALT)|TBIL|ALB|CREA|UREA|UA|LDH|RBC|MCV|MCHC|MCH)(?=[<>≤≥]?[-+]?\\d)",RegexOption.IGNORE_CASE),"$1 ")
   if(line.isEmpty() || listOf("姓名","年龄","性别","条码","采样时间","报告时间","检验日期","参考范围","参考区间","病历号","住院号","门诊号","样本号","标本号","标本","科室","诊断","医生","审核","送检","打印","床号","备注").any{line.contains(it)}) return@mapNotNull null
-  val match=numeric.find(line)
-  val textual=Regex("^(.*?)\\s+(弱阳性|阴性(?:[（(][-][）)])?|阳性(?:[（(][+][）)])?|未检出|未见|检出|可疑|正常|异常|[1-4][+]|[+-]{1,4}|±)(.*)$").find(line)
+  val match=numeric.find(line,StructuredReportRows.resultStart(line,reportType))
+  val textual=Regex("^(.*?)\\s+(弱阳性|阴性(?:[（(][-][）)])?|阳性(?:[（(][+][）)])?|未检出|未见|检出|可疑|正常|异常|[1-4][+]|[+-]{1,4}|±)(?=\\s|$)(.*)$").find(line)
   if(match==null && textual==null) return@mapNotNull null
   val isText=textual!=null && (match==null || textual.groupValues[1].length<match.range.first)
   val prefix=if(isText)textual!!.groupValues[1] else line.substring(0,match!!.range.first)

@@ -5,6 +5,23 @@ import org.junit.Test
 
 /** Full catalogue identity sweep; all result/interval values are synthetic. */
 class CatalogueIdentitySweepTest {
+ @Test fun everyKnownNameKeepsResultWhenReferenceRepeatsItsUnit(){
+  var cases=0
+  UnifiedMetricStandard.keys().forEach{key->
+   val d=UnifiedMetricStandard.definition(key)!!
+   if(d.unit.isBlank())return@forEach
+   (d.aliases+d.name).forEach{name->
+    val source="$key $name <2.50 ${d.unit} 0.00~15.00 ${d.unit}"
+    val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source)).single()
+    assertEquals(source,key,row.metricKey)
+    assertEquals(source,"<2.50",row.textValue)
+    assertEquals(source,d.unit,row.unit)
+    assertEquals(source,"0.00~15.00",row.referenceRaw)
+    cases++
+   }
+  }
+  println("REPEATED_REFERENCE_UNIT_SWEEP cases=$cases failures=0")
+ }
  @Test fun unknownCompoundSuffixesAndGarbageCannotBindToKnownPrefixes(){
   listOf("AST / UNKNOWN","CK - UNKNOWN","CA / 999","CA - 999","NEUT# / UNKNOWN","AST ZZZ").forEach{code->
    val source="$code 2.340 - 0-9"

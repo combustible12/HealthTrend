@@ -5,6 +5,40 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun missingOrAmbiguousResultCannotUseReferenceOrExtraNumber(){
+  listOf("U/mL 0.00~15.00","0.00~15.00 U/mL","4 <2.50 U/mL 0.00~15.00").forEach{tail->
+   val source="CA724 糖类抗原CA72-4 $tail"
+   val draft=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\n$source")
+   assertEquals(source,1,draft.rows.size)
+   assertFalse(source,draft.valid())
+   assertEquals(source,"",draft.rows.single().text)
+  }
+ }
+ @Test fun fallbackLayoutsNeverUseDigitsInsideNamesAsResults(){
+  val names=mapOf("CA724" to "糖类抗原CA72-4","CYFRA21-1" to "细胞角蛋白19片段","B12" to "维生素B12","VITD25" to "25羟维生素D")
+  names.forEach{(code,name)->listOf("<2.50",">2.50","≤2.50","≥2.50","-2.50","0.000").forEach{value->
+   // Range-before-unit deliberately exercises the numeric fallback path.
+   val source="$code $name $value 0.00~15.00 U/mL"
+   val row=ReportParser.parse(ReportParser.bindExplicitLeadingIdentities(source)).single()
+   assertEquals(source,value,row.textValue)
+   assertEquals(source,code,row.metricKey)
+   assertEquals(source,"0.00~15.00",row.referenceRaw)
+  }}
+ }
+ @Test fun numberedNamesWithRepeatedReferenceUnitsKeepActualComparatorResult(){
+  val cases=listOf("CA724 糖类抗原CA72-4 <2.50 U/mL 0.00~15.00 U/mL","CYFRA21-1 细胞角蛋白19片段 <2.50 ng/mL 0.00~15.00 ng/mL")
+  cases.forEach{source->
+   listOf(source,ReportParser.bindExplicitLeadingIdentities(source)).forEach{input->
+    val row=ReportParser.parse(input).single()
+    assertEquals(source,"<2.50",row.textValue)
+    assertEquals(source,source.substringBefore(' '),row.metricKey)
+    assertEquals(source,"0.00~15.00",row.referenceRaw)
+   }
+   val draft=pastedReportDraft("合成医院\n肿瘤标志物\n2001-01-02\n$source")
+   assertEquals("<2.50",draft.rows.single().text)
+   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
+  }
+ }
  @Test fun compoundCodesKeepDirectionAndChineseNamesBeforeSegmentation() {
   val names=mapOf("AST/ALT" to "谷草/谷丙","ALT/AST" to "谷丙/谷草","A/G" to "白蛋白/球蛋白","CKMB/CK" to "肌酸激酶同工酶/肌酸激酶","UREA/CREA" to "尿素/肌酐")
   names.forEach{(key,name)->
