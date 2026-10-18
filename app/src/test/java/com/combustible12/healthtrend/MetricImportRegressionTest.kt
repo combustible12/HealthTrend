@@ -5,6 +5,20 @@ import org.junit.Test
 
 /** Synthetic-only regression cases: no patient data is stored in the repository. */
 class MetricImportRegressionTest {
+ @Test fun widthIdentityIsConsistentAcrossClipboardDelimiters(){
+  listOf("RDW" to "红细胞体积分布宽度","PDW" to "血小板体积分布宽度").forEach{(family,name)->
+   listOf("%" to "CV","fL" to "SD").forEach{(unit,suffix)->
+    listOf(family,"$family-$suffix").forEach{code->listOf(" ","\t").forEach{separator->
+     val raw="合成医院\n血常规\n2001-01-02\n"+listOf(code,name,"7.230",unit,"1.00-9.00").joinToString(separator)
+     val d=pastedReportDraft(raw)
+     val row=d.rows.single()
+     assertEquals(raw,"$family-$suffix",row.key)
+     assertEquals(name,row.name);assertEquals("7.230",row.text);assertEquals(unit,row.unit)
+     assertTrue(reportValidationProblems(d).toString(),d.valid())
+    }}
+   }
+  }
+ }
  @Test fun completeChineseNameMayTouchResultAndRangeMayContainSpaces(){
   val joined=ReportParser.parse("白细胞计数3.75 3.5-9.5").single()
   assertEquals("WBC",joined.metricKey);assertEquals("3.75",joined.textValue)

@@ -175,6 +175,11 @@ object ReportParser {
    val compound=code.any{it in "/:_-"}&&!code.startsWith("CUSTOM-",true)
    identity=if(compound)"待核对:未知复合代码:$code" else named?:"待核对:$name"
   }
+  // Tab-separated rows bypass StructuredReportRows. Apply the same new-row
+  // family/unit recognition here, without changing an explicit CV/SD identity.
+  if(identity in setOf("RDW","PDW")){
+   sourceDistributionWidthIdentity(name,sourceUnit)?.takeIf{it.substringBefore('-')==identity}?.let{identity=it}
+  }
   // Alias resolution chooses identity only; the printed label remains evidence.
   val displayName=if(name.none{it.code in 0x3400..0x9fff}&&key(name)==identity)UnifiedMetricStandard.definition(identity)?.name?:name else name
   return ParsedLabResult(identity,displayName,LabResultValues.numeric(result),sourceUnit,bounds.first.toDoubleOrNull(),bounds.second.toDoubleOrNull(),source,identity in primaryKeys,result.trimEnd('↑','↓'),comparator=result.takeWhile{it in "<>≤≥"},referenceRaw=reference.filter{it!='↑'&&it!='↓'}.trim(),reportFlag=source.filter{it=='↑'||it=='↓'}.toList().distinct().joinToString(""))

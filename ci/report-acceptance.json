@@ -1,5 +1,5 @@
 {
-  "scope": "Report module audit: shared name/identity policy, 7308 input matrix, 148 storage round trips, missing-row completeness, multi-source metadata, conflict evidence and manual correction",
-  "date": "2026-10-18",
-  "revision": 22
+  "baseCommit": "c6b0fc334e6da6f182fa2e9feafee474f411cf34",
+  "requestedAt": "2026-10-18",
+  "scope": "CV/SD generic source names across space/tab input; full report save/reopen/export and existing UI regressions"
 }

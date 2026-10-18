@@ -42,6 +42,25 @@ class ReportModuleAcceptanceTest {
   val chunks=encoded.chunked(2000)
   chunks.forEachIndexed{i,part->android.util.Log.i("REPORT_QA","$name:$i/${chunks.size}:$part")}
  }
+ @Test fun genericWidthNamesSurviveStoreReconciliation(){
+  val store=HealthStore(context)
+  listOf("RDW" to "红细胞体积分布宽度","PDW" to "血小板体积分布宽度").forEach{(family,name)->
+   listOf("%" to "CV","fL" to "SD").forEach{(unit,suffix)->
+    listOf(" ","\t").forEach{sep->
+     val raw="合成医院\n血常规\n2001-01-02\n"+listOf(family,name,"7.230",unit,"1.00-9.00").joinToString(sep)
+     val d=pastedReportDraft(raw,store=store)
+     assertEquals(raw,"$family-$suffix",d.rows.single().key)
+     assertTrue(reportValidationProblems(d).toString(),d.valid())
+     val report=materializeReportDraft(d,store);store.saveReport(report)
+     val reopened=store.reports().single{it.id==report.id}
+     assertEquals(name,reopened.results.single().rawName)
+     assertEquals("7.230",reopened.results.single().textValue)
+     val imported=pastedReportDraft(store.exportReportAsPastedText(reopened),store=store)
+     assertTrue(reportValidationProblems(imported).toString(),imported.valid())
+    }
+   }
+  }
+ }
  @Test fun reportListDeleteRequiresConfirmationAndRetainsOtherReports(){
   val store=HealthStore(context)
   val target=materializeReportDraft(draft(),store)
