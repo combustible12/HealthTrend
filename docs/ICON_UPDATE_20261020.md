@@ -1,0 +1,1 @@
+HT 1.0.132: replace legacy launcher bitmap with an adaptive icon, blue background and 13dp foreground inset to hide the white outer margin. Existing illustration and business logic are retained. Release workflow compiles and runs JVM regressions before signing and publishing. Device visual acceptance has not been performed.
