@@ -1,7 +1,7 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/launcher_background"/>
     <foreground>
-        <!-- Full source image fits inside the 60dp safe area inside the 72dp viewport; no enlargement or crop. -->
-        <inset android:inset="24dp" android:drawable="@drawable/launcher_full_art"/>
+        <!-- Full source image fits inside the 52dp artwork area inside the 72dp viewport; no enlargement or crop. -->
+        <inset android:inset="28dp" android:drawable="@drawable/launcher_full_art"/>
     </foreground>
 </adaptive-icon>
