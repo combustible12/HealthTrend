@@ -1,10 +1,7 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/launcher_background" />
+    <background android:drawable="@color/launcher_background"/>
     <foreground>
-        <!-- 108dp adaptive layer: 13dp inset crops the baked white outer margin
-             outside the launcher's 72dp viewport while preserving the illustration. -->
-        <inset android:inset="13dp">
-            <bitmap android:src="@drawable/ic_launcher" android:gravity="fill" android:filter="true" />
-        </inset>
+        <!-- Full source image fits inside the 72dp viewport; no enlargement or crop. -->
+        <inset android:inset="18dp" android:drawable="@drawable/launcher_full_art"/>
     </foreground>
 </adaptive-icon>

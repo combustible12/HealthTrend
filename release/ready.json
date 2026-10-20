@@ -1,7 +1,6 @@
 {
-  "sourceBaseCommit": "4aea954",
+  "sourceBaseCommit": "f6c65544a8962ba862ab8505acac6dec63f57fe8",
   "validationMode": "compile-and-test-before-publish",
-  "versionCode": 2026102001,
-  "versionName": "1.0.132",
-  "androidAcceptanceRun": 39143113743
+  "versionCode": 2026102002,
+  "versionName": "1.0.133"
 }

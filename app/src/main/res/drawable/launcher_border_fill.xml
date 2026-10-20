@@ -1,0 +1,4 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="1300" android:viewportHeight="1210">
+    <!-- Cover only the source image's exterior white margin. The illustration is untouched. -->
+    <path android:fillColor="#23A5F8" android:fillType="evenOdd" android:pathData="M0,0H1300V1210H0Z M310,44H990C1145,44 1238,140 1238,290V925C1238,1080 1140,1172 990,1172H310C155,1172 62,1080 62,925V290C62,135 155,44 310,44Z"/>
+</vector>
