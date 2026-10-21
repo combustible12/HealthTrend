@@ -45,6 +45,9 @@ import java.time.ZoneId
 import kotlin.math.roundToInt
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.key
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.AnimatedVisibility
@@ -226,7 +229,16 @@ private fun coursePhaseColors(phase:String)=when(phase){
  "化疗日"->Color(0xFFFFEEE5) to Color(0xFFF2763D)
  "恢复期"->Color(0xFFE5F8EE) to Color(0xFF20A66A)
  "观察"->Color(0xFFE4F2FF) to Color(0xFF3285C8)
- else->Color(0xFFF0F0F0) to Color(0xFF707070)
+ "放疗","放疗日"->Color(0xFFF0E7FF) to Color(0xFF8554C0)
+ else->{
+  val palette=listOf(
+   Color(0xFFFFE8F0) to Color(0xFFBE4E7A),
+   Color(0xFFE0F5F2) to Color(0xFF25867B),
+   Color(0xFFFFF2D6) to Color(0xFFA77920),
+   Color(0xFFEBE9FF) to Color(0xFF7160B7)
+  )
+  palette[Math.floorMod(phase.hashCode(),palette.size)]
+ }
 }
 
 @Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)13.sp else 15.sp,lineHeight=if(muted)17.sp else 19.sp)}}
@@ -405,16 +417,40 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
 
 @Composable private fun CoursePhaseManager(phases:List<String>,close:()->Unit,update:(List<String>)->Unit){
  var name by rememberSaveable{mutableStateOf("")}
+ var draft by remember{mutableStateOf(phases)}
+ val rowHeight=with(LocalDensity.current){56.dp.toPx()}
  val candidate=name.trim()
  AlertDialog(onDismissRequest=close,title={Text("管理分类")},text={
   Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
-   Text("删除分类不会删除已有病程记录。",fontSize=12.sp,color=Muted)
-   phases.forEach{phase->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Text(phase,Modifier.weight(1f))
-    IconButton({update(phases-phase)}){Icon(Icons.Outlined.Delete,"删除分类：$phase",tint=Bad)}
-   }}
-   OutlinedTextField(name,{name=it},label={Text("新分类名称")},singleLine=true,modifier=Modifier.fillMaxWidth())
-   TextButton({update(phases+candidate);name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&candidate !in phases){Text("添加分类")}
+   Text("拖动左侧手柄排序，完成后保存。删除分类不会删除已有病程记录。",fontSize=12.sp,color=Muted)
+   Column{
+    draft.forEach{phase->key(phase){
+     val colors=coursePhaseColors(phase)
+     Row(Modifier.fillMaxWidth().height(56.dp),verticalAlignment=Alignment.CenterVertically){
+      Icon(Icons.Outlined.DragHandle,"拖动排序：$phase",tint=Muted,modifier=Modifier.size(48.dp).pointerInput(phase){
+       var distance=0f
+       detectVerticalDragGestures(onDragStart={distance=0f},onDragEnd={distance=0f},onDragCancel={distance=0f}){change,amount->
+        change.consume()
+        distance+=amount
+        while(kotlin.math.abs(distance)>=rowHeight){
+         val from=draft.indexOf(phase)
+         val direction=if(distance>0)1 else -1
+         val to=from+direction
+         if(from<0||to !in draft.indices){distance=0f;break}
+         draft=draft.toMutableList().also{it.add(to,it.removeAt(from))}
+         distance-=direction*rowHeight
+        }
+       }
+      })
+      Box(Modifier.size(10.dp).background(colors.second,CircleShape))
+      Spacer(Modifier.width(10.dp))
+      Text(phase,Modifier.weight(1f))
+      IconButton({draft=draft-phase}){Icon(Icons.Outlined.Delete,"删除分类：$phase",tint=Bad)}
+     }
+    }}
+   }
+   OutlinedTextField(name,{name=it},label={Text("新分类名称")},singleLine=true,modifier=Modifier.fillMaxWidth(),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent,errorBorderColor=Color.Transparent))
+   TextButton({draft=draft+candidate;name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&candidate !in draft){Text("添加分类")}
   }
- },confirmButton={TextButton(close){Text("完成")}})
+ },confirmButton={TextButton({update(draft);close()}){Text("完成")}})
 }

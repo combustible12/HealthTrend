@@ -33,14 +33,29 @@ class CourseNavigationTest {
   compose.onNodeWithText("管理").performClick()
   compose.onNodeWithText("新分类名称").performTextInput("放疗日")
   compose.onNodeWithText("添加分类").performClick()
-  compose.runOnIdle{assertTrue(HealthStore(context).coursePhases().contains("放疗日"))}
   compose.onNodeWithContentDescription("删除分类：化疗日").performClick()
-  compose.runOnIdle{assertFalse(HealthStore(context).coursePhases().contains("化疗日"))}
   compose.onNodeWithText("完成").performClick()
+  compose.runOnIdle{assertTrue(HealthStore(context).coursePhases().contains("放疗日"));assertFalse(HealthStore(context).coursePhases().contains("化疗日"))}
   compose.onNodeWithText("全部").assertIsDisplayed()
   compose.onNodeWithContentDescription("新增病程记录").performClick()
   compose.onNodeWithText("放疗日").performScrollTo().performClick()
   compose.onNodeWithText("化疗日").assertDoesNotExist()
+ }
+ @Test fun categoriesSupportRepeatedDragBeforeSaving(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("管理").performClick()
+  repeat(2){
+   compose.onNodeWithContentDescription("拖动排序：化疗日").performTouchInput{
+    swipe(center,center+androidx.compose.ui.geometry.Offset(0f,60f*compose.density.density),500)
+   }
+   compose.waitForIdle()
+  }
+  compose.onNodeWithText("完成").performClick()
+  compose.runOnIdle{assertEquals(listOf("恢复期","观察","化疗日","其他"),HealthStore(context).coursePhases())}
+  compose.onNodeWithText("管理").performClick()
+  val moved=compose.onNodeWithContentDescription("拖动排序：化疗日").fetchSemanticsNode().boundsInRoot
+  val above=compose.onNodeWithContentDescription("拖动排序：观察").fetchSemanticsNode().boundsInRoot
+  assertTrue(moved.top>above.top)
  }
  @Test fun photoButtonsStayOnOneLineWithLargeTextAndBothActionsWork(){
   var gallery=0;var camera=0
