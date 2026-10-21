@@ -72,3 +72,5 @@ class CourseNavigationTest {
   assertEquals(left.height,right.height,1f)
  }
 }
+
+// Midpoint equality must not trigger alternating swaps in one pointer event.

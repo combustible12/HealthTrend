@@ -1,1 +1,1 @@
-{"reason":"Fix drag midpoint threshold after device test exposed no-op short drags","attempt":2}
+{"reason":"Strict midpoint crossing avoids equal-threshold swap loops","attempt":3}
