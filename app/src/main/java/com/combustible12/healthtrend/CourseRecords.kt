@@ -432,7 +432,7 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
        detectVerticalDragGestures(onDragStart={distance=0f},onDragEnd={distance=0f},onDragCancel={distance=0f}){change,amount->
         change.consume()
         distance+=amount
-        while(kotlin.math.abs(distance)>=rowHeight){
+        while(kotlin.math.abs(distance)>=rowHeight/2f){
          val from=draft.indexOf(phase)
          val direction=if(distance>0)1 else -1
          val to=from+direction

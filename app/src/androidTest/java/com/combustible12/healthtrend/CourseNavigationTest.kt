@@ -44,6 +44,7 @@ class CourseNavigationTest {
  @Test fun categoriesSupportRepeatedDragBeforeSaving(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("管理").performClick()
+  // Short drags cross the adjacent midpoint after touch slop, twice before saving.
   repeat(2){
    compose.onNodeWithContentDescription("拖动排序：化疗日").performTouchInput{
     swipe(center,center+androidx.compose.ui.geometry.Offset(0f,60f*compose.density.density),500)
