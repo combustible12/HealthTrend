@@ -98,7 +98,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun App(){
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)};val draftStore=remember{ReportDraftStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
- var tab by rememberSaveable{mutableIntStateOf(0)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
+ var tab by rememberSaveable{mutableIntStateOf(2)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
  var recordsOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
  var replacementReport by remember{mutableStateOf<LabReport?>(null)};var replacementDraftId by remember{mutableStateOf<String?>(null)};var replacementCandidates by remember{mutableStateOf<List<LabReport>>(emptyList())};var selectedReplacementId by remember{mutableStateOf<String?>(null)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
@@ -178,7 +178,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
  Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
- Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("首页" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
+ Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("导入" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   var mainPageDrag by remember{mutableFloatStateOf(0f)}
   Box(Modifier.fillMaxSize().pointerInput(tab){
@@ -199,7 +199,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
    },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++})
-    2->CourseRecordsPage(m,courseRecords,{courseRecord=it},{
+    2->CourseRecordsPage(m,courseRecords,store,{courseRecord=it},{
      val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone)
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
@@ -346,15 +346,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun TrendPaper(content:@Composable ColumnScope.()->Unit){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(start=18.dp,end=18.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(4.dp),content=content)}}
 @Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){
  var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
- Screen(m,"HealthTrend","把检查、症状和病历放在一条清楚的时间线上"){
- Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("今天要记录什么？",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
- Text("健康记录",fontSize=20.sp,fontWeight=FontWeight.Bold)
- Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Quick("检查指标","趋势与异常",Icons.Outlined.MonitorHeart,Modifier.weight(1f)){quick(null)};Quick("症状记录","程度与频率",Icons.Outlined.EditNote,Modifier.weight(1f)){quick(EntryKind.SYMPTOM)}}
- Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){Quick("病历资料","报告与影像",Icons.Outlined.Description,Modifier.weight(1f)){quick(EntryKind.MEDICAL)};Quick("用药记录","时间与备注",Icons.Outlined.Medication,Modifier.weight(1f)){quick(EntryKind.MEDICATION)}}
- Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Text("最近",fontSize=20.sp,fontWeight=FontWeight.Bold);TextButton(timeline){Text("病程时间轴")}}
- if(reports.isEmpty()&&entries.isEmpty())Paper{Text("还没有记录")}
- reports.take(2).forEach{r->ReportCard(r,open={open(r)})}
- entries.take(2).forEach{e->Paper{Text(e.kind.title+" · "+e.title,fontWeight=FontWeight.Bold);Text(dateText(e.occurredAtEpochMillis),color=Muted);Text(e.note.ifBlank{listOf(e.dose,e.frequency).filter{it.isNotBlank()}.joinToString(" · ")})}}
+ Screen(m,"导入数据",""){
+ Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
+
  }
  if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){BasicTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp).background(Color.White,RoundedCornerShape(14.dp)).padding(14.dp),textStyle=LocalTextStyle.current.copy(color=Ink,fontSize=16.sp))}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }

@@ -1,5 +1,1 @@
-{
- "baseCommit": "7eb9d09754c62d3b1a1483ecdb65559c89a20928",
- "requestedAt": "2026-10-18",
- "scope": "Equivalent numeric trend range labels; full regression acceptance"
-}
+{"baseCommit":"187bb317fa6fe4cf60d3047cc06a48a099ca8a5f","requestedAt":"2026-10-21","scope":"Course navigation/category persistence, import simplification and photo buttons; full JVM regression and Android16 UI"}

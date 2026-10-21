@@ -1,0 +1,58 @@
+package com.combustible12.healthtrend
+
+import android.content.Context
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.*
+import org.junit.Assert.*
+
+class CourseNavigationTest {
+ @get:Rule val compose=createComposeRule()
+ private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
+ @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("病程记录").assertIsDisplayed()
+  val title=compose.onNodeWithText("病程记录").fetchSemanticsNode().boundsInRoot
+  val add=compose.onNodeWithContentDescription("新增病程记录").fetchSemanticsNode().boundsInRoot
+  assertTrue(add.left>=title.right)
+  assertTrue(add.top<title.bottom&&add.bottom>title.top)
+  compose.onNodeWithText("导入").performClick()
+  compose.onNodeWithText("粘贴报告数据").assertIsDisplayed()
+  compose.onNodeWithText("手动录入").assertIsDisplayed()
+  compose.onNodeWithText("健康记录").assertDoesNotExist()
+  compose.onNodeWithText("最近").assertDoesNotExist()
+ }
+ @Test fun categoriesCanBeAddedDeletedAndUsedInEditor(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("管理").performClick()
+  compose.onNodeWithText("新分类名称").performTextInput("放疗日")
+  compose.onNodeWithText("添加分类").performClick()
+  compose.runOnIdle{assertTrue(HealthStore(context).coursePhases().contains("放疗日"))}
+  compose.onNodeWithContentDescription("删除分类：化疗日").performClick()
+  compose.runOnIdle{assertFalse(HealthStore(context).coursePhases().contains("化疗日"))}
+  compose.onNodeWithText("完成").performClick()
+  compose.onNodeWithText("全部").assertIsDisplayed()
+  compose.onNodeWithContentDescription("新增病程记录").performClick()
+  compose.onNodeWithText("放疗日").performScrollTo().performClick()
+  compose.onNodeWithText("化疗日").assertDoesNotExist()
+ }
+ @Test fun photoButtonsStayOnOneLineWithLargeTextAndBothActionsWork(){
+  var gallery=0;var camera=0
+  compose.setContent{CompositionLocalProvider(LocalDensity provides Density(2.75f,1.3f)){
+   MaterialTheme{PhotoInputButtons(PhotoInput({gallery++},{camera++}),galleryLabel="相册导入")}
+  }}
+  compose.onNodeWithText("相册导入").assertIsDisplayed().performClick()
+  compose.onNodeWithText("直接拍照").assertIsDisplayed().performClick()
+  compose.runOnIdle{assertEquals(1,gallery);assertEquals(1,camera)}
+  val left=compose.onNodeWithText("相册导入").fetchSemanticsNode().boundsInRoot
+  val right=compose.onNodeWithText("直接拍照").fetchSemanticsNode().boundsInRoot
+  assertEquals(left.top,right.top,1f)
+  assertEquals(left.height,right.height,1f)
+ }
+}

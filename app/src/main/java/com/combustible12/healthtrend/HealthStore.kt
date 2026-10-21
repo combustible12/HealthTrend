@@ -20,6 +20,14 @@ internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):St
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+ fun coursePhases():List<String> {
+  if(!prefs.contains("course_phases"))return listOf("化疗日","恢复期","观察","其他")
+  val saved=read("course_phases")
+  return (0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
+ }
+ fun saveCoursePhases(phases:List<String>){
+  write("course_phases",JSONArray(phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()))
+ }
  // Startup must never seed obsolete hospital templates on a fresh install.
  // Existing legacy templates remain stored unchanged for compatibility/backup.
  // Historical repairs are explicit opt-in operations, never automatic.

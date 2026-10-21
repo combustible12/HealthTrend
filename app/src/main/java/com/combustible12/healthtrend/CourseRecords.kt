@@ -51,7 +51,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
-private val coursePhases=listOf("化疗日","恢复期","观察","其他")
+
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
 private val pressureLabels=listOf("低血压","理想血压","偏高预警","高血压")
 /** A high reading in either component determines the higher risk category. */
@@ -128,11 +128,15 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
 @Composable fun CourseRecordsPage(
  modifier:Modifier,
  records:List<CourseRecord>,
+ store:HealthStore,
  open:(CourseRecord)->Unit,
  add:()->Unit,
  remove:(CourseRecord)->Unit,
  view:(List<String>,Int)->Unit
 ){
+ var phases by remember{mutableStateOf(store.coursePhases())}
+ var managingPhases by rememberSaveable{mutableStateOf(false)}
+ var phaseError by remember{mutableStateOf<String?>(null)}
  var filter by rememberSaveable{mutableStateOf("全部")}
  var search by rememberSaveable{mutableStateOf("")}
  val query=search.trim()
@@ -145,7 +149,10 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
  Box(modifier.fillMaxSize()){
   Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
    Spacer(Modifier.height(12.dp))
-   Text("病程记录",modifier=Modifier.fillMaxWidth().pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Text("病程记录",modifier=Modifier.weight(1f).pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
+    IconButton(add){Icon(Icons.Outlined.Add,"新增病程记录",tint=Accent)}
+   }
    Spacer(Modifier.height(12.dp))
    Row(Modifier.fillMaxWidth().padding(top=6.dp).height(36.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
     Icon(Icons.Outlined.Search,null,tint=Muted,modifier=Modifier.size(20.dp))
@@ -156,12 +163,15 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
     }
     if(search.isNotEmpty())IconButton({search=""},modifier=Modifier.size(28.dp)){Icon(Icons.Outlined.Clear,"清空搜索",modifier=Modifier.size(18.dp))}
    }
-   Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
-    (listOf("全部")+coursePhases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
+    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+    }
+    TextButton({managingPhases=true}){Text("管理")}
    }
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
-    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=152.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+    LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
     }
@@ -170,8 +180,11 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
     LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).offset(x=16.dp).padding(top=8.dp,bottom=8.dp).width(10.dp).fillMaxHeight())
    }
   }
-  FloatingActionButton(add,Modifier.align(Alignment.BottomEnd).padding(20.dp),containerColor=Accent,contentColor=Color.White){Icon(Icons.Outlined.Add,"新增病程记录")}
  }
+ if(managingPhases)CoursePhaseManager(phases,{managingPhases=false}){updated->
+  runCatching{store.saveCoursePhases(updated)}.onSuccess{phases=store.coursePhases();if(filter!="全部"&&filter !in phases)filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
+ }
+ phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
  deleting?.let{target->DeleteConfirmation({deleting=null}){remove(target);deleting=null}}
 }
 
@@ -248,6 +261,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit){
  val context=LocalContext.current
+ val coursePhases=remember{store.coursePhases()}
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
@@ -282,7 +296,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
-   Row(Modifier.horizontalScroll(rememberScrollState())){coursePhases.forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
    PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
@@ -386,4 +400,21 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
    detectDragGestures(onDragStart={dragging=true;seek(it.y)},onDragEnd={dragging=false},onDragCancel={dragging=false}){change,_->seek(change.position.y)}
   }){val x=size.width/2f;drawLine(Color(0x337B7B82),androidx.compose.ui.geometry.Offset(x,0f),androidx.compose.ui.geometry.Offset(x,size.height),4.dp.toPx());val progress=state.firstVisibleItemIndex.toFloat()/(total-1).coerceAtLeast(1);drawCircle(Accent,7.dp.toPx(),androidx.compose.ui.geometry.Offset(x,(progress*size.height).coerceIn(7.dp.toPx(),size.height-7.dp.toPx())))}
  }
+}
+
+
+@Composable private fun CoursePhaseManager(phases:List<String>,close:()->Unit,update:(List<String>)->Unit){
+ var name by rememberSaveable{mutableStateOf("")}
+ val candidate=name.trim()
+ AlertDialog(onDismissRequest=close,title={Text("管理分类")},text={
+  Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("删除分类不会删除已有病程记录。",fontSize=12.sp,color=Muted)
+   phases.forEach{phase->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Text(phase,Modifier.weight(1f))
+    IconButton({update(phases-phase)}){Icon(Icons.Outlined.Delete,"删除分类：$phase",tint=Bad)}
+   }}
+   OutlinedTextField(name,{name=it},label={Text("新分类名称")},singleLine=true,modifier=Modifier.fillMaxWidth())
+   TextButton({update(phases+candidate);name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&candidate !in phases){Text("添加分类")}
+  }
+ },confirmButton={TextButton(close){Text("完成")}})
 }

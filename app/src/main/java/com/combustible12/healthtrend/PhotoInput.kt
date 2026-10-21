@@ -68,7 +68,7 @@ internal class PhotoInput(val gallery:()->Unit,val camera:()->Unit)
 
 @Composable internal fun PhotoInputButtons(input:PhotoInput,enabled:Boolean=true,galleryLabel:String="相册选择"){
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-  OutlinedButton(input.gallery,Modifier.weight(1f),enabled=enabled){Text(galleryLabel)}
-  OutlinedButton(input.camera,Modifier.weight(1f),enabled=enabled){Text("直接拍照")}
+  FilledTonalButton(input.gallery,Modifier.weight(1f).heightIn(min=48.dp),enabled=enabled,contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp)){Text(galleryLabel,maxLines=1,softWrap=false)}
+  FilledTonalButton(input.camera,Modifier.weight(1f).heightIn(min=48.dp),enabled=enabled,contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp)){Text("直接拍照",maxLines=1,softWrap=false)}
  }
 }

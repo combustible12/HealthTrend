@@ -333,7 +333,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);revision++;if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}},{error=it})
  val documents=runCatching{store.all()}.getOrElse{error=it.message.orEmpty();emptyList()};val hits=if(query.isBlank())emptyList()else runCatching{store.search(query)}.getOrDefault(emptyList())
  Screen(m,"图片资料",spacing=7.dp){
-  PhotoInputButtons(photoInput,!busy,"相册导入多张图片")
+  PhotoInputButtons(photoInput,!busy,"相册导入")
   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(32.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(16.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("搜索图片中的文字",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
   if(query.isNotBlank()){
