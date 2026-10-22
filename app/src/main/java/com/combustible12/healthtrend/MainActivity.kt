@@ -504,7 +504,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(key,list)->
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
-   val points=list.filter{(searching||trendCategoryMatches(category,it.first,it.second))&&(searching||it.first.testedAtEpochMillis>=cutoff)}.sortedBy{it.first.testedAtEpochMillis}
+   val points=list.filter{it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
@@ -534,7 +534,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
-    val pointHospitalColors=compatiblePoints.map{(report,result)->if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
+    val pointHospitalColors=compatiblePoints.map{(report,result)->if(hasHistoricalAbnormal)Bad else if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
@@ -772,7 +772,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
  val valueStyle=TextStyle(fontSize=13.sp,fontWeight=FontWeight.SemiBold)
  val groupGap=16.dp
  val edgePadding=12.dp
- val pointByDate=points.indices.associateBy{points[it].first}
+ // Preserve all measurements on the same timestamp; the slot label uses the latest one.\n val pointByDate=points.indices.groupBy{points[it].first}.mapValues{it.value.last()}
  val groupWidthsPx=timeline.map{date->
   val pointIndex=pointByDate[date] ?: -1
   val value=if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else ""
