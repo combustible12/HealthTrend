@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "2816244f2db04646f9a31c5deb8f71ffb50c2399",
+  "sourceCommit": "a1c083be4c75e551685b52fea1c8c55b2c610fe4",
   "requestedAt": "2026-10-22",
-  "scope": "Full Android 16 regression: laboratory unit equivalence, report import, identity and reference ranges, historical data upgrade, date conflicts, course reminders, stable signing and APK build"
+  "scope": "Full Android 16 regression: RDW/PDW four-identity recognition, idempotent historical migration, report persistence/export, trend grouping, unrelated metric regression, stable signing and APK build"
 }
