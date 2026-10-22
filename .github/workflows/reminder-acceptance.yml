@@ -1,0 +1,43 @@
+name: Course reminder Android acceptance
+on:
+  push:
+    branches: [main]
+    paths: [ci/reminder-acceptance.json]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile and run JVM regression tests
+        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Verify reminder on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install app/build/outputs/apk/debug/app-debug.apk
+            adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell am instrument -w -e class com.combustible12.healthtrend.CourseNavigationTest#dueReminderIsOversizedAndCompletingItPersists com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner | tee reminder-result.txt
+            grep -q 'OK (1 test)' reminder-result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-reminder-acceptance
+          path: |
+            reminder-result.txt
+            app/build/reports/tests/
+            app/build/outputs/androidTest-results/

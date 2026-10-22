@@ -322,7 +322,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 
 @Composable private fun CourseReminderDialog(record:CourseRecord,onLater:()->Unit,onComplete:()->Unit){
  Dialog(onDismissRequest=onLater){
-  Card(Modifier.fillMaxWidth().heightIn(min=420.dp),shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
+  Card(Modifier.fillMaxWidth().heightIn(min=420.dp).semantics{contentDescription="病程到期提醒大卡片"},shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
    Column(Modifier.fillMaxSize().padding(horizontal=28.dp,vertical=32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween){
     Column(horizontalAlignment=Alignment.CenterHorizontally){
      Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Icon(Icons.Outlined.NotificationsActive,"到期提醒",Modifier.padding(18.dp).size(42.dp),tint=Accent)}

@@ -34,9 +34,9 @@ class CourseNavigationTest {
   HealthStore(context).saveCourseRecord(CourseRecord(date=at,title="2化12-放2",checkText="抽血化验",reminderText="抽血化验",reminderDate=today.toString()))
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("今日提醒").assertIsDisplayed()
-  compose.onNodeWithText("抽血化验").assertIsDisplayed()
-  val cardText=compose.onNodeWithText("抽血化验").fetchSemanticsNode().boundsInRoot
-  assertTrue(cardText.height>30f)
+  compose.onNodeWithContentDescription("到期提醒").assertIsDisplayed()
+  val card=compose.onNodeWithContentDescription("病程到期提醒大卡片").fetchSemanticsNode().boundsInRoot
+  assertTrue(card.height>400f)
   compose.onNodeWithText("已完成").performClick()
   compose.onNodeWithText("今日提醒").assertDoesNotExist()
   compose.runOnIdle{assertNotNull(HealthStore(context).courseRecords().first{it.title=="2化12-放2"}.reminderCompletedAt)}
