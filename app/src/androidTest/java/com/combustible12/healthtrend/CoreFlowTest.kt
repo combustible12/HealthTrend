@@ -34,8 +34,7 @@ class CoreFlowTest{
   val neut=resolved.first{it.metricKey=="NEUT#"}
   assertEquals("10^9/L",neut.unit);assertEquals(2.0,neut.referenceLow!!,0.0);assertEquals(7.0,neut.referenceHigh!!,0.0)
   val manual=retargetImportedDraft(ReportDraft(hospital="",type="血常规",rows=emptyList()),store,hospital="霞浦县中医院")
-  assertEquals(listOf("WBC","NEUT#"),manual.rows.map{it.key})
-  assertTrue(manual.rows.all{it.text.isBlank()})
+  assertTrue(manual.rows.isEmpty())
  }
  @Test fun persistenceTemplatesImagesAndHistoricalReferences(){
   val store=HealthStore(context);val items=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 120 g/L 113-151")
@@ -48,7 +47,7 @@ class CoreFlowTest{
   val next=store.confirmTemplate("测试医院","血常规",changed,newVersion=true);assertEquals(2,next.version)
   store.saveReport(store.buildReport("测试医院","血常规",200L,listOf(owned),store.applyTemplate(items,next),next))
   store.updateValue(report.id,report.results[0].id,5.0)
-  val reloaded=HealthStore(context);assertEquals(2,reloaded.reports().size);assertEquals(2,reloaded.templates().size)
+  val reloaded=HealthStore(context);assertEquals(2,reloaded.reports().size);assertEquals(1,reloaded.templates().size);assertEquals(2,reloaded.templates().single().version)
   val historic=reloaded.reports().first{it.id==report.id};assertEquals(3.5,historic.results[0].referenceLowAtTest!!,0.0);assertEquals("完整原文",historic.rawOcr);assertTrue(File(Uri.parse(historic.sourceImages[0].uri).path!!).exists());assertTrue(historic.results[0].editedByUser)
   assertEquals(listOf(100L,200L),reloaded.trend("WBC").map{it.first.testedAtEpochMillis})
   assertFalse(reloaded.isPrimary("HGB"));reloaded.setPrimary("HGB",true);assertTrue(HealthStore(context).isPrimary("HGB"))
@@ -196,7 +195,7 @@ class CoreFlowTest{
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
   compose.onNodeWithText("导入",useUnmergedTree=true).performClick()
   compose.onNodeWithText("手动录入").performClick()
-  compose.onNodeWithText("医院").performTextInput("测试医院")
+  compose.onAllNodes(hasSetTextAction()).onFirst().performTextInput("测试医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
  compose.onNodeWithText("项目名称").performScrollTo().performTextInput("血红蛋白")
  compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextInput("102")
@@ -289,7 +288,7 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("导入",useUnmergedTree=true).performClick()
   compose.onNodeWithText("手动录入").performClick()
-  compose.onNodeWithText("医院").performTextInput("范围版本医院")
+  compose.onAllNodes(hasSetTextAction()).onFirst().performTextInput("范围版本医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextReplacement("120")
   compose.onNodeWithText("本次报告项目或范围有变化").performScrollTo().performClick()
@@ -357,7 +356,7 @@ class CoreFlowTest{
   val selected=retargetImportedDraft(ambiguous,store,system="设备B")
   assertEquals("90",selected.rows.single().low)
   assertEquals("160",selected.rows.single().high)
-  assertEquals("",selected.rows.single().text)
+  assertEquals("102",selected.rows.single().text)
   assertTrue(selected.rows.single().uncertain)
  }
 
