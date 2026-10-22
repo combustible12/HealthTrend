@@ -156,7 +156,7 @@ class HealthStore(private val context:Context) {
    val resolution=resolveDistributionWidthIdentity(key,UnifiedMetricStandard.definition(key)?.name?:key,unit)
    if(resolution.family!=null&&resolution.problem==null)JSONObject(row.toString())
     .put("metric",resolution.targetKey).put("unit",resolution.displayUnit) else JSONObject(row.toString())
-  }.distinctBy{row->listOf(row.optString("metric"),row.optString("unit"),row.opt("low").toString(),row.opt("high").toString())}
+  }.distinctBy{row->listOf(row.optString("metric"),row.optString("unit"),row.opt("low")?.toString().orEmpty(),row.opt("high")?.toString().orEmpty())}
   val migratedRangeJson=JSONArray().apply{migratedRanges.forEach{put(it)}}
 
   val migratedReportJson=JSONArray().apply{migration.reports.forEach{put(reportToJson(it))}}

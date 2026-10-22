@@ -244,7 +244,7 @@ class MetricImportRegressionTest {
   val bad=ReportDraft(hospital="模拟医院",type="血常规",date="2026-10-16",
    rows=listOf(DraftRow(name="血小板分布宽度CV",key="PDW-CV",text="14.2",unit="fL")))
   assertFalse(bad.valid())
-  assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("SD")})
+  assertTrue(reportValidationProblems(bad).any{it.contains("CV")&&it.contains("fL")})
  }
  @Test fun genericPdwRequiresMigrationOrReviewBeforeEdits() {
   val result=LabResult("row","report","合成医院","血常规",4,"PDW","血小板分布宽度",12.0,"fL",8.0,18.0,1760000000000L,textValue="12.00")

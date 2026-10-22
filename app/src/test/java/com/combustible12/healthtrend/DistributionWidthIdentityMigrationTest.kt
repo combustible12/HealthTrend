@@ -86,7 +86,7 @@ class DistributionWidthIdentityMigrationTest {
 @Config(sdk=[28],manifest=Config.NONE)
 class DistributionWidthStoreMigrationTest {
  private fun legacyReportJson():JSONObject=JSONObject().put("id","legacy-report").put("hospital","历史医院")
-  .put("type","血常规").put("reportName",JSONObject.NULL).put("date",123456789L).put("tv",JSONObject.NULL)
+  .put("type","血常规").put("reportName",JSONObject.NULL).put("date",1_700_000_000_000L).put("tv",JSONObject.NULL)
   .put("ocr","原始文本").put("system","").put("images",JSONArray()).put("results",JSONArray().put(JSONObject()
    .put("id","legacy-result").put("key","PDW").put("raw","血小板分布宽度")
    .put("value",16.0).put("text","16.0").put("cmp","").put("line","PDW 血小板分布宽度 16.0 % 15-17")
@@ -103,7 +103,7 @@ class DistributionWidthStoreMigrationTest {
   val migrated=store.reports().single();val row=migrated.results.single()
   assertEquals("PDW-CV",row.metricKey);assertEquals("%",row.unitAtTest)
   assertEquals("16.0",row.textValue);assertEquals(16.0,row.value!!,0.0)
-  assertEquals(123456789L,migrated.testedAtEpochMillis);assertEquals("历史医院",migrated.hospitalKey)
+  assertEquals(1_700_000_000_000L,migrated.testedAtEpochMillis);assertEquals("历史医院",migrated.hospitalKey)
   assertEquals("15-17",row.referenceRaw);assertEquals("PDW 血小板分布宽度 16.0 % 15-17",row.rawLine)
   val afterFirst=prefs.getString("reports",null)
   assertEquals(migrated,HealthStore(context).reports().single())
