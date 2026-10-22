@@ -1,7 +1,7 @@
 {
-  "sourceBaseCommit": "a3c75af46222d1931679f359990326c99c294532",
-  "validationMode": "full-jvm-and-android16-acceptance",
-  "validationRun": 39548435029,
-  "versionCode": 2026102102,
-  "versionName": "1.0.138"
+  "sourceBaseCommit": "73d92e3af6833d01424c22cb78faa066c8730bd4",
+  "validationMode": "user-authorized-release-without-full-android-acceptance",
+  "validationRun": 39708085714,
+  "versionCode": 2026102201,
+  "versionName": "1.0.139"
 }
