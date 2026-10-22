@@ -200,7 +200,12 @@ data class LabResult(
 enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
 /** Exact stored identity and compatible measurement scope; no name/code rewriting. */
 data class TrendSeriesIdentity(val hospital:String,val type:String,val metricKey:String,val unit:String)
-fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,canonicalMetricKey(result.metricKey),result.normalizedUnit)
+/** Compare the current canonical unit identity, never a stale serialized spelling. */
+fun trendUnitIdentity(result:LabResult):String =
+ UnitNormalizer.normalize(result.metricKey,result.value,result.unitAtTest).second
+fun trendUnitsCompatible(a:LabResult,b:LabResult):Boolean =
+ trendUnitIdentity(a)==trendUnitIdentity(b)
+fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,canonicalMetricKey(result.metricKey),trendUnitIdentity(result))
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
 data class HealthEntry(
  val id:String=newId(),val kind:EntryKind,val title:String,val occurredAtEpochMillis:Long,
@@ -240,25 +245,55 @@ data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpoc
 
 /** Conservative normalization: only conversions with an unambiguous laboratory-unit relationship are applied. */
 object UnitNormalizer {
+ /**
+  * Canonical identity for typographic variants of the same laboratory unit.
+  * The source unit remains in [LabResult.unitAtTest]; this value is only used
+  * for comparison, conversion, trend plotting and display.
+  */
+ private fun equivalentUnit(metricKey:String,unit:String):String{
+  val source=java.text.Normalizer.normalize(unit.trim(),java.text.Normalizer.Form.NFKC)
+   .replace("µ","μ").replace(Regex("\\s+"),"")
+   .replace("10⁹","10^9").replace("10¹²","10^12")
+  if(source.isBlank())return ""
+  val token=source.replace("μ","u").lowercase(java.util.Locale.ROOT).replaceFirst(Regex("^[×x](?=10\\^)"),"")
+  val preferred=UnifiedMetricStandard.definition(canonicalMetricKey(metricKey))?.unit.orEmpty()
+  fun identity(value:String)=java.text.Normalizer.normalize(value,java.text.Normalizer.Form.NFKC)
+   .replace("μ","u").replace("µ","u").replace(Regex("\\s+"),"")
+   .replace("10⁹","10^9").replace("10¹²","10^12")
+   .lowercase(java.util.Locale.ROOT).replaceFirst(Regex("^[×x](?=10\\^)"),"")
+  if(preferred.isNotBlank()&&token==identity(preferred))return preferred
+  return when(token){
+   "10^9/l","10e9/l"->"10^9/L"
+   "10^12/l","10e12/l"->"10^12/L"
+   "g/l"->"g/L";"g/dl"->"g/dL";"mg/l"->"mg/L";"mg/dl"->"mg/dL"
+   "ng/l"->"ng/L";"ng/ml"->"ng/mL";"pg/ml"->"pg/mL"
+   "umol/l"->"μmol/L";"mmol/l"->"mmol/L";"nmol/l"->"nmol/L";"pmol/l"->"pmol/L"
+   "u/l"->"U/L";"u/ml"->"U/mL";"miu/l"->"mIU/L";"iu/l"->"IU/L"
+   "fl"->"fL";"mm/h"->"mm/h";"%"->"%";"s"->"s";"pg"->"pg"
+   else->source
+  }
+ }
  fun normalize(metricKey:String,value:Double?,unit:String):Pair<Double?,String>{
   if(value==null)return null to normalize(metricKey,1.0,unit).second
-  val u=unit.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
+  val key=canonicalMetricKey(metricKey)
+  val canonical=equivalentUnit(key,unit)
+  val u=canonical.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
-   metricKey in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l","10e9/l") -> value to "10^9/L"
-   metricKey in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR") && u=="%" -> value to "%"
-   metricKey=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l","10e12/l") -> value to "10^12/L"
-   metricKey in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
-   metricKey=="HGB" && u=="g/dl" -> value*10.0 to "g/L"
-   metricKey=="ALB" && u=="g/dl" -> value*10.0 to "g/L"
-   metricKey in setOf("TBIL","CREA","UA") && u in setOf("umol/l","μmol/l") -> value to "μmol/L"
-   metricKey=="CREA" && u=="mg/dl" -> value*88.4 to "μmol/L"
-   metricKey=="TBIL" && u=="mg/dl" -> value*17.104 to "μmol/L"
-   metricKey=="UA" && u=="mg/dl" -> value*59.48 to "μmol/L"
-   metricKey=="GLU" && u=="mmol/l" -> value to "mmol/L"
-   metricKey=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
-   metricKey=="UREA" && u=="mmol/l" -> value to "mmol/L"
+   key in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l","10e9/l") -> value to "10^9/L"
+   key in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR") && u=="%" -> value to "%"
+   key=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l","10e12/l") -> value to "10^12/L"
+   key in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
+   key=="HGB" && u=="g/dl" -> value*10.0 to "g/L"
+   key=="ALB" && u=="g/dl" -> value*10.0 to "g/L"
+   key in setOf("TBIL","CREA","UA") && u=="umol/l" -> value to "μmol/L"
+   key=="CREA" && u=="mg/dl" -> value*88.4 to "μmol/L"
+   key=="TBIL" && u=="mg/dl" -> value*17.104 to "μmol/L"
+   key=="UA" && u=="mg/dl" -> value*59.48 to "μmol/L"
+   key=="GLU" && u=="mmol/l" -> value to "mmol/L"
+   key=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
+   key=="UREA" && u=="mmol/l" -> value to "mmol/L"
    // UREA mg/dL may be confused with BUN mg/dL: keep the source unit until identity is confirmed.
-   else -> value to unit
+   else -> value to canonical
   }
  }
 }

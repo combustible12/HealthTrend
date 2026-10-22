@@ -95,6 +95,6 @@ class HistoryReplacementTest {
   assertEquals(trendSeriesKey(x),trendSeriesKey(x.copy(metricKey=" "+x.metricKey)))
   assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(hospitalKey="另一医院")))
   assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(reportType="另一检查")))
-  assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(normalizedUnit="另一单位")))
+  assertNotEquals(trendSeriesKey(x),trendSeriesKey(x.copy(unitAtTest="另一单位",normalizedUnit="另一单位")))
  }
 }

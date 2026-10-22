@@ -635,6 +635,38 @@ I嗜酸性粒细胞计数 0.04 0.02-0.5 %
   assertEquals("g/L",displayLabUnit("g/L"))
  }
 
+ @Test fun equivalentLaboratoryUnitTypographyUsesOneCanonicalIdentity(){
+  val cases=mapOf(
+   "SCC" to listOf("ng/ml","ng/mL","NG/ML"),
+   "CA125" to listOf("U/ml","U/mL","u/ML"),
+   "B12" to listOf("pg/ml","pg/mL"),
+   "FT4" to listOf("pmol/l","pmol/L"),
+   "TSH" to listOf("mIU/l","miu/L"),
+   "MCV" to listOf("fl","fL"),
+   "TP" to listOf("g/l","g/L")
+  )
+  cases.forEach{(key,units)->
+   val expected=UnifiedMetricStandard.definition(key)!!.unit
+   units.forEach{unit->assertEquals("$key $unit",expected,UnitNormalizer.normalize(key,1.0,unit).second)}
+  }
+ }
+
+ @Test fun equivalentUnitTypographyProducesOneTrendRangeRow(){
+  fun result(unit:String)=LabResult("$unit-id","report-$unit","医院","肿瘤标志物",null,"SCC","鳞状细胞癌相关抗原",1.0,unit,0.0,1.5,1L,
+   textValue="1.0",normalizedValue=UnitNormalizer.normalize("SCC",1.0,unit).first,normalizedUnit=UnitNormalizer.normalize("SCC",1.0,unit).second)
+  val rows=listOf(result("ng/ml"),result("ng/mL")).map{x->
+   "${x.trendReferenceDisplayText()} ${displayLabUnit(x.normalizedUnit)}"
+  }.distinct()
+  assertEquals(listOf("0–1.5 ng/mL"),rows)
+ }
+
+ @Test fun trendCompatibilityAcceptsTypographyButRejectsDifferentUnits(){
+  fun result(unit:String)=LabResult("$unit-id","report-$unit","医院","肿瘤标志物",null,"SCC","鳞状细胞癌相关抗原",1.0,unit,0.0,1.5,1L,
+   textValue="1.0",normalizedValue=UnitNormalizer.normalize("SCC",1.0,unit).first,normalizedUnit=UnitNormalizer.normalize("SCC",1.0,unit).second)
+  assertTrue(trendUnitsCompatible(result("ng/ml"),result("ng/mL")))
+  assertFalse(trendUnitsCompatible(result("ng/mL"),result("mg/L")))
+ }
+
  @Test fun mixedChemistryReportIsDetectedAsBiochemistry(){
   val raw="霞浦县中医院检验报告单\nTP 总蛋白 75.50 65-85 g/L\nALB 白蛋白 42.90 40-55 g/L\nALT 谷丙转氨酶 23 7-40 U/L\nAST 谷草转氨酶 20 13-35 U/L\nUREA 尿素 5.2 1.43-7.14 mmol/L\nCREA 肌酐 46 35-80 umol/L\nUA 尿酸 328 90-357 umol/L"
   val parsed=ReportParser.parse(raw)

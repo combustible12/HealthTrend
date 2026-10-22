@@ -521,9 +521,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
     var textPreview by remember{mutableStateOf(false)}
-    val compatiblePoints=points.filter{it.second.trendPlotValue()!=null}
+    // Equivalent spellings have already collapsed to one identity. A genuinely
+    // incompatible unit must never be connected to the latest unit's series.
+    val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitsCompatible(it.second,latest)}
     val rangeDisplayRows=points.map{(_,x)->
-     val unit=displayLabUnit(x.normalizedUnit.ifBlank{x.unitAtTest})
+     val unit=displayLabUnit(trendUnitIdentity(x))
      "参考范围: ${qualitativeDisplayText(x.trendReferenceDisplayText())} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()

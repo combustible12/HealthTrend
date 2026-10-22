@@ -245,7 +245,10 @@ class HealthStore(private val context:Context) {
    o.getString("metric"),o.getString("unit"),o.doubleOrNull("low"),o.doubleOrNull("high"))}
  @Synchronized fun standardRanges(metricKey:String):List<StandardRange> {
   val key=canonicalMetricKey(metricKey)
-  return standardRangesStored().filter{it.metricKey==key}.distinct()
+  // Normalize on read as well as on write so older spelling variants collapse
+  // without mutating or migrating the user's stored source data.
+  return standardRangesStored().filter{it.metricKey==key}
+   .map{normalizedStandardRange(it.metricKey,it.unit,it.low,it.high)}.distinct()
  }
  /** Add or reuse a range in the persistent standard pool, independent of hospital. */
  @Synchronized fun addStandardRange(metricKey:String,unit:String,low:Double?,high:Double?):StandardRange {
@@ -806,7 +809,7 @@ class HealthStore(private val context:Context) {
  fun rememberedUnits(key:String):List<String>{
   val canonical=key.takeIf{it.isNotBlank()}
   val reportUnits=reports().flatMap{it.results}.filter{canonical==null||it.metricKey==canonical}.map{it.unitAtTest}
-  return reportUnits.map{it.trim()}.filter{it.isNotBlank()}.distinct()
+  return reportUnits.map{UnitNormalizer.normalize(key,1.0,it).second}.filter{it.isNotBlank()}.distinct()
  }
  fun rememberedHospitals():List<String> =
   (reports().map{it.hospitalKey}+entries().map{it.hospital})
