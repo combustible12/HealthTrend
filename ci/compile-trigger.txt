@@ -35,3 +35,4 @@
 2026-10-18 assert real disabled buttons and explicit identity correction path
 
 2026-10-22 RDW/PDW four-identity history migration compile and full unit regression
+2026-10-22 rerun after logged date and conflict assertion fixes
