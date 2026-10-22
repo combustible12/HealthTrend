@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "441bd2eb18e257e531d130d85018cbd7c2a2f96f",
-  "requestedAt": "2026-10-04",
-  "scope": "Android 16 final acceptance for visible trend labels, point details, template-driven import and preserved data"
+  "sourceCommit": "68ed78ca372ed0e4542d749f8316eabaa5e8c2ba",
+  "requestedAt": "2026-10-22",
+  "scope": "Android 16 acceptance for manually dated course reminders, foreground triggering, snooze, completion and legacy persistence"
 }
