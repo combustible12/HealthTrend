@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "8338fb4974f53b2da9781af56120eda1322c73aa",
+  "sourceCommit": "2c30878dc25b2798dd8019f40b3332c26b3b2f94",
   "requestedAt": "2026-10-22",
-  "scope": "Full Android 16 regression rerun after isolating UpgradeTest legacy fixture: RDW/PDW identity, idempotent history migration, persistence/export, trend grouping, unrelated metric regression, signing and APK build"
+  "scope": "Full Android 16 release regression: RDW/PDW four identities, idempotent history migration, persistence/export, trend grouping, current UI contract, unrelated metrics, signing and APK build"
 }
