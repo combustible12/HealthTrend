@@ -31,8 +31,8 @@ jobs:
           script: |
             adb install app/build/outputs/apk/debug/app-debug.apk
             adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w -e class com.combustible12.healthtrend.CourseNavigationTest#dueReminderIsOversizedAndCompletingItPersists com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner | tee reminder-result.txt
-            grep -q 'OK (1 test)' reminder-result.txt
+            adb shell am instrument -w -e class com.combustible12.healthtrend.CourseNavigationTest com.combustible12.healthtrend.test/androidx.test.runner.AndroidJUnitRunner | tee reminder-result.txt
+            grep -q 'OK (5 tests)' reminder-result.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
