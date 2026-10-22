@@ -121,8 +121,74 @@ class HealthStore(private val context:Context) {
  fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"),o.optString("bloodType"))}.getOrDefault(PatientProfile()) }
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim()).put("bloodType",p.bloodType.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports():List<LabReport>{
+  migrateDistributionWidthHistoryIfNeeded()
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
   return reports
+ }
+
+ /**
+  * Upgrade legacy RDW/PDW identities in place. The transformation is content-idempotent,
+  * and all affected preference datasets are committed together after a rollback snapshot.
+  */
+ private fun migrateDistributionWidthHistoryIfNeeded(){
+  val reportJson=read("reports")
+  val originalReports=rows(reportJson,::reportFromJson)
+  val migration=migrateDistributionWidthHistory(originalReports)
+  val reviewJson=JSONArray().apply{migration.reviews.forEach{review->put(JSONObject()
+   .put("reportId",review.reportId).put("resultId",review.resultId).put("key",review.metricKey)
+   .put("name",review.name).put("unit",review.unit).put("problem",review.problem))}}
+
+  val templateJson=read("templates")
+  val migratedTemplates=rows(templateJson,::templateFromJson).map{template->
+   val resolutions=template.fields.map{field->field to resolveDistributionWidthIdentity(field.metricKey,field.displayName,field.unit)}
+   val counts=resolutions.mapNotNull{it.second.targetKey}.groupingBy{it}.eachCount()
+   template.copy(fields=resolutions.map{(field,resolution)->
+    if(resolution.family!=null&&resolution.problem==null&&resolution.targetKey?.let{(counts[it]?:0)==1}==true)
+     field.copy(metricKey=resolution.targetKey!!,unit=resolution.displayUnit)
+    else field
+   })
+  }
+  val migratedTemplateJson=JSONArray().apply{migratedTemplates.forEach{put(templateToJson(it))}}
+
+  val rangeJson=read("metric_standard_ranges")
+  val migratedRanges=(0 until rangeJson.length()).map{rangeJson.getJSONObject(it)}.map{row->
+   val key=row.optString("metric");val unit=row.optString("unit")
+   val resolution=resolveDistributionWidthIdentity(key,UnifiedMetricStandard.definition(key)?.name?:key,unit)
+   if(resolution.family!=null&&resolution.problem==null)JSONObject(row.toString())
+    .put("metric",resolution.targetKey).put("unit",resolution.displayUnit) else JSONObject(row.toString())
+  }.distinctBy{row->listOf(row.optString("metric"),row.optString("unit"),row.opt("low").toString(),row.opt("high").toString())}
+  val migratedRangeJson=JSONArray().apply{migratedRanges.forEach{put(it)}}
+
+  val migratedReportJson=JSONArray().apply{migration.reports.forEach{put(reportToJson(it))}}
+  val archiveJson=read("report_replacement_archive");var archiveChanged=false
+  val migratedArchiveJson=JSONArray().apply{(0 until archiveJson.length()).forEach{index->
+   val source=archiveJson.getJSONObject(index)
+   val oldMigration=migrateDistributionWidthHistory(listOf(reportFromJson(source.getJSONObject("old"))))
+   val newMigration=migrateDistributionWidthHistory(listOf(reportFromJson(source.getJSONObject("new"))))
+   if(oldMigration.changedResults>0||newMigration.changedResults>0)archiveChanged=true
+   put(JSONObject(source.toString()).put("old",reportToJson(oldMigration.reports.single()))
+    .put("new",reportToJson(newMigration.reports.single())))
+  }}
+  val templatesChanged=migratedTemplates!=rows(templateJson,::templateFromJson)
+  val rangesChanged=migratedRangeJson.toString()!=rangeJson.toString()
+  val reviewChanged=reviewJson.toString()!=read("distribution_width_review").toString()
+  val changed=migration.changedResults>0||templatesChanged||rangesChanged||archiveChanged||reviewChanged
+  if(!changed)return
+  val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
+  check(safety.edit().putString("reports:previous",reportJson.toString())
+   .putString("templates:previous",templateJson.toString()).putString("metric_standard_ranges:previous",rangeJson.toString())
+   .putString("report_replacement_archive:previous",archiveJson.toString())
+   .putLong("distribution_width_migration:savedAt",System.currentTimeMillis()).commit()){
+   "无法保存RDW/PDW迁移前安全快照，已取消迁移"
+  }
+  check(prefs.edit().putString("reports",if(migration.changedResults>0)migratedReportJson.toString() else reportJson.toString())
+   .putString("templates",if(templatesChanged)migratedTemplateJson.toString() else templateJson.toString())
+   .putString("metric_standard_ranges",if(rangesChanged)migratedRangeJson.toString() else rangeJson.toString())
+   .putString("report_replacement_archive",if(archiveChanged)migratedArchiveJson.toString() else archiveJson.toString())
+   .putString("distribution_width_review",reviewJson.toString())
+   .putInt("distribution_width_schema",1).putInt("schema",2).commit()){
+   "RDW/PDW历史数据迁移保存失败"
+  }
  }
  data class ReportReplacement(
   val id:String,val oldReport:LabReport,val newReport:LabReport,
@@ -723,7 +789,7 @@ class HealthStore(private val context:Context) {
   */
  private fun recognitionMetricCatalogue():Map<String,Set<String>>{
   val names=linkedMapOf<String,MutableSet<String>>()
-  ReportParser.builtInMetricKeys().forEach{key->
+  ReportParser.builtInMetricKeys().filterNot{it in setOf("RDW","PDW")}.forEach{key->
    names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.addAll(ReportParser.builtInAliasNames(key))
   }
   UnifiedMetricStandard.keys().forEach{key->
@@ -743,7 +809,7 @@ class HealthStore(private val context:Context) {
   * observed historical report names. Legacy hospital templates are not a source. */
  fun metricCatalogue():Map<String,Set<String>>{
   val names=linkedMapOf<String,MutableSet<String>>()
-  ReportParser.builtInMetricKeys().forEach{key->
+  ReportParser.builtInMetricKeys().filterNot{it in setOf("RDW","PDW")}.forEach{key->
    names.getOrPut(canonicalMetricKey(key)){linkedSetOf()}.addAll(ReportParser.builtInAliasNames(key))
   }
   UnifiedMetricStandard.keys().forEach{key->
@@ -1030,7 +1096,10 @@ internal fun xiapuBiochemistryTemplate()=HospitalLabTemplate("霞浦县中医院
  LabFieldTemplate("UA","UA 尿酸","umol/L",90.0,357.0)
 ))
 internal fun sanitizeLabUnit(unit:String)=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty()
-internal fun displayLabUnit(unit:String)=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
+internal fun displayLabUnit(unit:String):String {
+ val clean=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
+ return normalizedDistributionWidthUnit(clean)?:clean
+}
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
 private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)
 private fun JSONArray?.stringList():List<String> = if(this==null) emptyList() else (0 until length()).map{getString(it)}

@@ -64,40 +64,17 @@ internal fun symbolicMetricNameProblem(key:String,name:String,type:String=key):S
  * Null means this identity has no specialized CV/SD guard.
  */
 fun distributionWidthIdentityProblem(metricKey:String,name:String,unit:String):String? {
+ val resolution=resolveDistributionWidthIdentity(metricKey,name,unit)
+ if(resolution.family==null)return null
  val key=canonicalMetricKey(metricKey)
- val family=when(key){
-  "PDW","PDW-CV","PDW-SD"->"PDW"
-  "RDW","RDW-CV","RDW-SD"->"RDW"
-  else->return null
- }
- val rawUnit=unit.trim().lowercase()
- val isPercent=rawUnit in setOf("%","％")
- val isVolume=rawUnit=="fl"
- val label=name.uppercase().replace("－","-").replace(" ","")
- val explicitCv=label.contains("CV")||label.contains("变异系数")
- val explicitSd=label.contains("SD")||label.contains("标准差")
- if(explicitCv&&explicitSd)return "指标名称同时包含CV和SD，请核对"
- if(key=="$family-CV"&&(explicitSd||isVolume))return "CV指标与SD名称或fL单位冲突，请核对身份"
- if(key=="$family-SD"&&(explicitCv||isPercent))return "SD指标与CV名称或%单位冲突，请核对身份"
- // Generic PDW/RDW remains a distinct frozen identity. Preserve its reported
- // unit without using % or fL to guess CV/SD. Only an explicit CV/SD name conflicts.
- if(key==family&&(explicitCv||explicitSd))
-  return "项目名称已明确CV/SD，但指标身份未区分，请核对"
- return null
+ if(resolution.problem!=null)return resolution.problem
+ return if(key !in confirmedDistributionWidthKeys || key!=resolution.targetKey)
+  "分布宽度身份应归入 ${resolution.targetKey}，请核对" else null
 }
 
-/** Used only for recognition of new rows; never migrates a saved metric identity. */
+/** Used for recognition of new rows; saved history is handled by the idempotent migration. */
 internal fun sourceDistributionWidthIdentity(name:String,unit:String):String? {
- val family=when(name.trim()){
-  "红细胞分布宽度","红细胞体积分布宽度"->"RDW"
-  "血小板分布宽度","血小板体积分布宽度"->"PDW"
-  else->return null
- }
- return when(unit.trim().lowercase()){
-  "%","％"->"$family-CV"
-  "fl"->"$family-SD"
-  else->null
- }
+ return resolveDistributionWidthIdentity("",name,unit).takeIf{it.problem==null}?.targetKey
 }
 
 /** Hide appended/prefixed metric abbreviations, preserving English inside actual names. */
@@ -280,7 +257,8 @@ object UnitNormalizer {
   val u=canonical.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
    key in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l","10e9/l") -> value to "10^9/L"
-   key in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW","PCT","PDW","P-LCR") && u=="%" -> value to "%"
+   key in setOf("NEUT%","LYMPH%","MONO%","EOS%","BASO%","NRBC%","HCT","RDW-CV","PDW-CV","PCT","P-LCR") && u=="%" -> value to "%"
+   key in setOf("RDW-SD","PDW-SD") && u=="fl" -> value to "fL"
    key=="RBC" && u in setOf("10^12/l","×10^12/l","x10^12/l","10e12/l") -> value to "10^12/L"
    key in setOf("HGB","ALB") && u=="g/l" -> value to "g/L"
    key=="HGB" && u=="g/dl" -> value*10.0 to "g/L"

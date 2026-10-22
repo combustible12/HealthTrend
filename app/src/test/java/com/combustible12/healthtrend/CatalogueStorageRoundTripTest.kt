@@ -105,7 +105,6 @@ class CatalogueStorageRoundTripTest {
    "RDW 红细胞体积分布宽度 12.80 N % &lt;15")
   val store=HealthStore(context)
   val legacy=store.buildReportFromPool("合成医院","血常规",1000000000000L,emptyList(),ReportParser.parse("PDW 血小板分布宽度 13.00 % 10-17"))
-   .let{r->r.copy(results=r.results.map{it.copy(metricKey="PDW",rawName="血小板分布宽度")})}
   store.saveReport(legacy)
   val actualPaste=pastedReportDraft("合成医院\n合成检验\n2026-10-01\n"+lines.joinToString("\n"),store=store)
   assertFalse(actualPaste.rows.map{it.key}.toString(),actualPaste.rows.any{it.key.startsWith("待核对:")})

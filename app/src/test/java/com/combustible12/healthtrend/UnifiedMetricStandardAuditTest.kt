@@ -93,7 +93,7 @@ class UnifiedMetricStandardAuditTest {
  }
  @Test fun clinicalOppositesNeverMerge(){
   val groups=listOf(
-   listOf("RDW-CV","RDW-SD"),listOf("PDW-CV","PDW-SD","PDW"),
+   listOf("RDW-CV","RDW-SD"),listOf("PDW-CV","PDW-SD"),
    listOf("NEUT#","NEUT%"),listOf("LYMPH#","LYMPH%"),
    listOf("MONO#","MONO%"),listOf("EOS#","EOS%"),
    listOf("BASO#","BASO%"),listOf("NRBC#","NRBC%"),

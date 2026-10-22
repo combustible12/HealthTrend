@@ -164,7 +164,7 @@ object ReportParser {
   // fourth token is the reference, not a unit; preserve both with or without '-'.
   val omittedUnit=fields.getOrElse(4){""}.isBlank() && fields[3].trim()!="-" && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
   val reference=if(omittedUnit)fields[3] else fields.getOrElse(4){""}
-  val sourceUnit=if(omittedUnit)"" else fields[3].trim().takeUnless{it=="-"}.orEmpty()
+  val sourceUnit=if(omittedUnit)"" else displayLabUnit(fields[3].trim().takeUnless{it=="-"}.orEmpty())
   val numeric=LabResultValues.numeric(result)
   if(numeric!=null && '\t' !in source && LabResultValues.kind(reference)!=LabValueKind.QUALITATIVE)return null
   val bounds=if(numeric!=null)PartialReferenceRanges.parts(reference) else "" to ""
@@ -231,7 +231,7 @@ object ReportParser {
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
   val ocrUnit=Regex("(?i)(?:[×x]?10\\s*(?:\\^|[eE])?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
   var k=if(name=="待核对")"待核对:"+parsedName else safeIdentity
-  val unit=if(isText)"" else resolvedUnit(k,ocrUnit)
+  val unit=if(isText)"" else displayLabUnit(resolvedUnit(k,ocrUnit))
   // A clipped distribution-width label identifies the family, while % / fL
   // identifies CV / SD. Never override an explicit CV/SD code or name.
   // Unknown units stay unresolved, and historical saved reports are untouched.

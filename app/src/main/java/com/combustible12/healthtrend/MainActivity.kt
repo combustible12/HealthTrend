@@ -434,8 +434,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "LYMPH#"->"淋巴细胞计数";"LYMPH%"->"淋巴细胞百分比";"MONO#"->"单核细胞计数";"MONO%"->"单核细胞百分比"
   "EOS#"->"嗜酸性粒细胞计数";"EOS%"->"嗜酸性粒细胞百分比";"BASO#"->"嗜碱性粒细胞计数";"BASO%"->"嗜碱性粒细胞百分比"
   "RBC"->"红细胞";"HGB"->"血红蛋白";"HCT"->"红细胞压积";"MCV"->"红细胞平均体积";"MCH"->"平均红细胞血红蛋白量"
-  "MCHC"->"平均血红蛋白浓度";"RDW"->"红细胞分布宽度";"RDW-SD"->"红细胞分布宽度SD";"PLT"->"血小板"
-  "PCT"->"血小板压积";"MPV"->"平均血小板体积";"PDW"->"血小板分布宽度";"P-LCR"->"大型血小板比率"
+  "MCHC"->"平均血红蛋白浓度";"RDW-CV"->"红细胞分布宽度CV";"RDW-SD"->"红细胞分布宽度SD";"PLT"->"血小板"
+  "PCT"->"血小板压积";"MPV"->"平均血小板体积";"PDW-CV"->"血小板分布宽度CV";"PDW-SD"->"血小板分布宽度SD";"P-LCR"->"大型血小板比率"
   "NRBC%"->"有核红细胞比率";"NRBC#"->"有核红细胞计数";"P-LCC"->"大血小板数目"
   "TP"->"总蛋白";"ALB"->"白蛋白";"GLOB"->"球蛋白";"A/G"->"白球比";"TBIL"->"总胆红素";"DBIL"->"直接胆红素";"IBIL"->"间接胆红素"
   "ALT"->"谷丙转氨酶";"AST"->"谷草转氨酶";"AST/ALT"->"谷草/谷丙";"GGT"->"谷氨酰转肽酶";"ALP"->"碱性磷酸酶";"CHE"->"胆碱酯酶"
@@ -443,7 +443,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   else->null
  }
  val activeReports=remember(reports,textRevision){if(textRevision==0)reports else store.reports()}
- val all=activeReports.flatMap{r->r.results.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
+ val all=activeReports.flatMap{r->r.results.filter{result->
+  val key=canonicalMetricKey(result.metricKey)
+  key !in setOf("RDW","PDW")&&distributionWidthIdentityProblem(key,result.rawName,result.unitAtTest)==null
+ }.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
@@ -512,7 +515,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val trendMeaning=metricPurpose(key) ?: qualitativeMetricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      val fixedTitle=preferredNames[key]?:labDisplayTitle(latest.rawName.ifBlank{fixedTrendTitle(key).orEmpty()},key)
+      val fixedTitle=preferredNames[key]?:fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key)
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
@@ -671,7 +674,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
  val key=canonicalMetricKey(result.metricKey)
  val liver=setOf("ALT","AST","AST/ALT","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA","CHE")
  val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
- val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NEUT%","LYMPH%","MONO%","EOS%","BASO%","RDW","RDW-CV","RDW-SD","PCT","MPV","PDW","P-LCR","P-LCC","NRBC#","NRBC%")
+ val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NEUT%","LYMPH%","MONO%","EOS%","BASO%","RDW-CV","RDW-SD","PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC","NRBC#","NRBC%")
  return when(category){
   "肝功能"->key in liver
   "肾功能"->key in kidney || key=="UREA/CREA"
@@ -694,9 +697,9 @@ fun metricPurpose(metricKey:String):String?=when(metricKey){
  "HCT"->"↓贫血 / ↑脱水等"
  "MCV"->"↑缺B12/叶酸等 / ↓缺铁等"
  "MCH","MCHC"->"↓缺铁等"
- "RDW","RDW-SD"->"↑贫血原因参考"
+ "RDW-CV","RDW-SD"->"↑贫血原因参考"
  "PLT"->"↑血栓 / ↓出血"
- "PCT","MPV","PDW","P-LCR","P-LCC"->"血小板辅助指标"
+ "PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC"->"血小板辅助指标"
  "NRBC%","NRBC#"->"↑造血异常等"
  "ALT"->"↑肝细胞损伤"
  "AST"->"↑肝脏/肌肉损伤"
@@ -724,9 +727,9 @@ fun metricPurposeDetail(metricKey:String):String?=when(metricKey){
  "EOS#","EOS%"->"嗜酸性粒细胞高于参考范围时，可见于过敏、寄生虫感染等情况。仅凭趋势变化不能确定原因。"
  "BASO#","BASO%"->"嗜碱性粒细胞高于参考范围时，可见于过敏、炎症等情况，也可能受其他因素影响。需结合参考范围和其他检查判断。"
  "RBC","HGB","HCT"->"红细胞、血红蛋白或红细胞压积偏低时常用于评估贫血；部分指标偏高可见于脱水等情况。趋势变化需结合参考范围及相关指标一起判断。"
- "MCV","MCH","MCHC","RDW","RDW-SD"->"这些红细胞相关指标主要用于辅助判断贫血类型和原因，例如缺铁、维生素B12或叶酸不足等。单项变化通常不能独立诊断。"
+ "MCV","MCH","MCHC","RDW-CV","RDW-SD"->"这些红细胞相关指标主要用于辅助判断贫血类型和原因，例如缺铁、维生素B12或叶酸不足等。单项变化通常不能独立诊断。"
  "PLT"->"血小板异常可与出血、血栓风险、感染炎症等多种情况相关。高低方向和临床意义不同，需要结合数值、参考范围及其他检查判断。"
- "PCT","MPV","PDW","P-LCR","P-LCC"->"这些是血小板相关辅助指标，用于观察血小板数量、体积和分布特征。通常需要与PLT及其他检查一起解读。"
+ "PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC"->"这些是血小板相关辅助指标，用于观察血小板数量、体积和分布特征。通常需要与PLT及其他检查一起解读。"
  "NRBC%","NRBC#"->"外周血出现或升高有时与造血应激或造血系统异常等情况相关。具体意义需结合血常规其他指标和临床情况判断。"
  "ALT"->"ALT高于参考范围时可见于肝细胞损伤等情况，但升高程度与病因并非一一对应。应结合AST、胆红素等指标及临床情况判断。"
  "AST"->"AST高于参考范围时可见于肝脏或肌肉损伤等情况，并非肝脏特异指标。应结合ALT及其他检查判断。"
