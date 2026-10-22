@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "2c30878dc25b2798dd8019f40b3332c26b3b2f94",
+  "sourceCommit": "5ba6f1dae9381fb87252ebc98a60df47c04b629d",
   "requestedAt": "2026-10-22",
-  "scope": "Full Android 16 release regression: RDW/PDW four identities, idempotent history migration, persistence/export, trend grouping, current UI contract, unrelated metrics, signing and APK build"
+  "scope": "Final Android 16 release regression: RDW/PDW four identities, idempotent history migration, persistence/export, trend grouping, current UI contract, unrelated metrics, signing and APK build"
 }
