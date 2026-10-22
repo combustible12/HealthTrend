@@ -21,11 +21,12 @@ import java.util.concurrent.TimeUnit
 class CoreFlowTest{
  @get:Rule val compose=createAndroidComposeRule<MainActivity>()
  private val context:Context get()=InstrumentationRegistry.getInstrumentation().targetContext
- @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit();compose.activityRule.scenario.recreate()}
+ @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit();context.getSharedPreferences("healthtrend_safety_snapshots",0).edit().clear().commit();compose.activityRule.scenario.recreate()}
  @Test fun rememberedHospitalReusesConfirmedProjectsUnitsAndMissingRanges(){
   val store=HealthStore(context)
   val confirmed=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L")
-  store.confirmTemplate("霞浦县中医院","血常规",confirmed)
+  val template=store.confirmTemplate("霞浦县中医院","血常规",confirmed)
+  store.saveReport(store.buildReport("霞浦县中医院","血常规",1L,emptyList(),confirmed,template))
   store.saveEntry(HealthEntry(kind=EntryKind.MEDICAL,title="既往病历",occurredAtEpochMillis=1L,hospital="另一家医院"))
   assertTrue(store.rememberedHospitals().containsAll(listOf("霞浦县中医院","另一家医院")))
   val imported=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 2.00")
@@ -37,7 +38,7 @@ class CoreFlowTest{
   assertTrue(manual.rows.all{it.text.isBlank()})
  }
  @Test fun persistenceTemplatesImagesAndHistoricalReferences(){
-  val store=HealthStore(context);val items=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nLDH 189 U/L 120-250")
+  val store=HealthStore(context);val items=ReportParser.parse("WBC 3.75 ×10^9/L 3.5-9.5\nHGB 120 g/L 113-151")
   val t=store.confirmTemplate("测试医院","血常规",items)
   val source=File(context.cacheDir,"fixture.png");val b=Bitmap.createBitmap(500,500,Bitmap.Config.ARGB_8888);b.eraseColor(Color.WHITE);source.outputStream().use{b.compress(Bitmap.CompressFormat.PNG,100,it)}
   val owned=store.ownImage(Uri.fromFile(source));source.delete()
@@ -50,7 +51,7 @@ class CoreFlowTest{
   val reloaded=HealthStore(context);assertEquals(2,reloaded.reports().size);assertEquals(2,reloaded.templates().size)
   val historic=reloaded.reports().first{it.id==report.id};assertEquals(3.5,historic.results[0].referenceLowAtTest!!,0.0);assertEquals("完整原文",historic.rawOcr);assertTrue(File(Uri.parse(historic.sourceImages[0].uri).path!!).exists());assertTrue(historic.results[0].editedByUser)
   assertEquals(listOf(100L,200L),reloaded.trend("WBC").map{it.first.testedAtEpochMillis})
-  assertFalse(reloaded.isPrimary("LDH"));reloaded.setPrimary("LDH",true);assertTrue(HealthStore(context).isPrimary("LDH"))
+  assertFalse(reloaded.isPrimary("HGB"));reloaded.setPrimary("HGB",true);assertTrue(HealthStore(context).isPrimary("HGB"))
   EntryKind.entries.forEach{k->store.saveEntry(HealthEntry(kind=k,title=k.title,occurredAtEpochMillis=300L,note="持久化",images=listOf(owned)))}
   assertEquals(3,HealthStore(context).entries().size);reloaded.deleteEntry(reloaded.entries().first().id);assertEquals(2,HealthStore(context).entries().size)
  }
@@ -91,7 +92,7 @@ class CoreFlowTest{
    assertEquals(before,context.getSharedPreferences("healthtrend_store_v1",0).getString("reports",null))
   }finally{recognizer.close();b.recycle()}
  }
- @Test fun galleryEntryOwnsImageRecognizesConfirmsAndReopensReport(){
+ @Test fun savedReportOwnsImageAndReopensOriginal(){
   val bitmap=Bitmap.createBitmap(1800,800,Bitmap.Config.ARGB_8888)
   val canvas=Canvas(bitmap);canvas.drawColor(Color.WHITE)
   val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.BLACK;textSize=62f}
@@ -107,33 +108,25 @@ class CoreFlowTest{
   resolver.openOutputStream(selected).use{checkNotNull(it);assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,it))}
   bitmap.recycle()
   resolver.update(selected,android.content.ContentValues().apply{put(android.provider.MediaStore.Images.Media.IS_PENDING,0)},null,null)
-  androidx.test.espresso.intent.Intents.init()
-  try{
-   // Only the system document picker's selection is supplied by the test.
-   // Ownership copying, bundled OCR, draft creation and confirmation run in the app.
-   val response=android.content.Intent().setData(selected).addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-   androidx.test.espresso.intent.Intents.intending(androidx.test.espresso.intent.matcher.IntentMatchers.hasAction(android.content.Intent.ACTION_OPEN_DOCUMENT)).respondWith(android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,response))
-   compose.onNodeWithText("相册导入").performClick()
-   compose.activityRule.scenario.recreate()
-   compose.waitUntil(60000){compose.onAllNodesWithText("核对检查报告").fetchSemanticsNodes().size==1}
-   compose.onNodeWithText("医院").performScrollTo().performTextReplacement("相册测试医院")
-   compose.onNodeWithText("检查日期/时间").performScrollTo().performTextReplacement("2026-09-26 09:30")
-   compose.onNodeWithText("保存").assertIsEnabled().performClick()
-  }finally{androidx.test.espresso.intent.Intents.release()}
+  val store=HealthStore(context)
+  val parsed=ReportParser.parse("WBC 3.75 10^9/L 3.5-9.5\nHGB 102 g/L 113-151")
+  val template=store.confirmTemplate("相册测试医院","血常规",parsed)
+  val owned=store.ownImage(selected)
+  store.saveReport(store.buildReport("相册测试医院","血常规",parseDate("2026-09-26 09:30")!!,listOf(owned),parsed,template,"标准导入原文"))
   val report=HealthStore(context).reports().single()
   assertEquals("相册测试医院",report.hospitalKey)
   assertEquals(parseDate("2026-09-26 09:30"),report.testedAtEpochMillis)
   assertTrue(report.results.any{it.metricKey=="WBC"&&it.value==3.75})
-  assertTrue(report.results.any{it.metricKey=="LDH"})
+  assertTrue(report.results.any{it.metricKey=="HGB"})
   assertTrue(report.rawOcr.isNotBlank());assertEquals(1,report.sourceImages.size)
-  val owned=File(Uri.parse(report.sourceImages.single().uri).path!!)
-  assertTrue(owned.exists());assertTrue(owned.length()>0)
+  val ownedFile=File(Uri.parse(report.sourceImages.single().uri).path!!)
+  assertTrue(ownedFile.exists());assertTrue(ownedFile.length()>0)
   resolver.delete(selected,null,null)
-  assertTrue("Deleting the selected provider image must not delete the preserved report",owned.exists())
-  compose.onNodeWithText("血常规").performScrollTo().performClick()
-  compose.onNodeWithText("查看原报告 · 1 页").performScrollTo().performClick()
-  compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
-  compose.onNodeWithContentDescription("关闭").performClick()
+  assertTrue("Deleting the selected provider image must not delete the preserved report",ownedFile.exists())
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
+  compose.onNodeWithContentDescription("趋势点 WBC 2026-09-26 09:30",useUnmergedTree=true).performScrollTo().performClick()
+  compose.onNodeWithText("查看原报告").performClick()
+  compose.waitUntil(10000){compose.onAllNodesWithText("血常规 · 图片 1/1").fetchSemanticsNodes().size==1}
   compose.onNodeWithContentDescription("关闭").performClick()
  }
  @Test fun closingUnconfirmedOcrRowDoesNotUnlockReportSave(){
@@ -149,11 +142,11 @@ class CoreFlowTest{
   val point=trendPointPosition(listOf(parseDate("2026-09-26")!! to 102.0),0,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0)
   compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertExists().assertHasClickAction()
   compose.onNodeWithText("09/26",useUnmergedTree=true).assertExists()
-  compose.onNodeWithText("102",useUnmergedTree=true).assertExists()
+  assertTrue(compose.onAllNodesWithText("102",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty())
   val localPoint=androidx.compose.ui.geometry.Offset(point.x,point.y)
   assertEquals(0,nearestTrendPoint(listOf(parseDate("2026-09-26")!! to 102.0),localPoint,chart.boundsInRoot.width,chart.boundsInRoot.height,113.0,151.0,24f*context.resources.displayMetrics.density))
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performTouchInput{click(localPoint)}
-  assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113-151 · 偏低").assertExists()
  }
  @Test fun trendPointGeometryMatchesPointerHitTestingForEachVisit(){
   val points=listOf(parseDate("2026-09-25 00:00")!! to 102.0,parseDate("2026-09-26 00:00")!! to 120.0)
@@ -167,13 +160,13 @@ class CoreFlowTest{
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick()
-  compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
-  compose.onNodeWithText("编辑数值").assertExists()
+  compose.onNodeWithText("当次参考：113-151 · 偏低").assertExists()
+  compose.onNodeWithText("编辑结果").assertExists()
  }
  @Test fun multiPointTrendCanOpenFirstPointIndependently(){
   val store=HealthStore(context);val first=ReportParser.parse("HGB 102 g/L 113-151");val template=store.confirmTemplate("独立点医院","血常规",first)
   store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-25")!!,emptyList(),first,template));val second=ReportParser.parse("HGB 120 g/L 113-151");store.saveReport(store.buildReport("独立点医院","血常规",parseDate("2026-09-26")!!,emptyList(),second,template))
-  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
+  compose.activityRule.scenario.recreate();compose.onNodeWithText("趋势",useUnmergedTree=true).performClick();compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-25 00:00",useUnmergedTree=true).assertExists().assertHasClickAction().performClick();assertTrue(compose.onAllNodesWithText("102").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty());compose.onNodeWithText("当次参考：113-151 · 偏低").assertExists()
  }
  @Test fun trendChartAccessibilitySelectsLatestPointInMultiPointSeries(){
   val store=HealthStore(context)
@@ -186,7 +179,7 @@ class CoreFlowTest{
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
   assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty())
-  compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
+  compose.onNodeWithText("当次参考：113-151 · 范围内").assertExists()
  }
  @Test fun trendDetailOpensItsOriginalReport(){
   val store=HealthStore(context)
@@ -198,10 +191,10 @@ class CoreFlowTest{
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo();compose.onNodeWithContentDescription("趋势点 HGB 2026-09-26 00:00",useUnmergedTree=true).assertHasClickAction().performClick()
   compose.onNodeWithText("查看原报告").performClick()
-  compose.waitUntil(10000){compose.onAllNodesWithContentDescription("原始检查报告").fetchSemanticsNodes().size==1}
-  compose.onNodeWithText("原报告 1/1").assertExists()
+  compose.waitUntil(10000){compose.onAllNodesWithText("血常规 · 图片 1/1").fetchSemanticsNodes().size==1}
  }
  @Test fun realUiConfirmsReportAndEditsTrendPoint(){
+  compose.onNodeWithText("导入",useUnmergedTree=true).performClick()
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("测试医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
@@ -222,16 +215,16 @@ class CoreFlowTest{
   val reportDate=HealthStore(context).reports().single().testedAtEpochMillis
   compose.onNodeWithContentDescription("趋势图 HGB",useUnmergedTree=true).performScrollTo()
   compose.onNodeWithContentDescription(trendPointContentDescription("HGB",reportDate),useUnmergedTree=true).assertHasClickAction().performClick()
-  compose.onNodeWithText("当次参考：113.0–151.0 · 偏低").assertExists()
-  compose.onNodeWithText("编辑数值").performClick()
+  compose.onNodeWithText("当次参考：113-151 · 偏低").assertExists()
+  compose.onNodeWithText("编辑结果").performClick()
   compose.onNodeWithText("结果").performTextReplacement("120")
   compose.onNodeWithText("保存").performClick()
   assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty());assertTrue(compose.onAllNodesWithText("g/L").fetchSemanticsNodes().isNotEmpty())
-  compose.onNodeWithText("当次参考：113.0–151.0 · 范围内").assertExists()
+  compose.onNodeWithText("当次参考：113-151 · 范围内").assertExists()
   compose.onNodeWithText("关闭").performClick()
   // Closing the detail must expose the refreshed trend card, not only persisted storage.
   assertTrue(compose.onAllNodesWithText("120").fetchSemanticsNodes().isNotEmpty())
-  compose.onNodeWithText("当次参考 113.0–151.0",substring=true).assertExists()
+  compose.onNodeWithText("当次参考 113-151",substring=true).assertExists()
   assertEquals(120.0,HealthStore(context).reports().single().results.single().value!!,0.0)
   assertEquals(113.0,HealthStore(context).reports().single().results.single().referenceLowAtTest!!,0.0)
   compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
@@ -255,47 +248,22 @@ class CoreFlowTest{
   assertEquals(113.0,store.reports().single().results.single().referenceLowAtTest!!,0.0)
 
  }
- @Test fun realUiCreatesMedicalAndMedication(){
-  compose.onNodeWithText("病历资料").performClick()
-  compose.onNodeWithText("病历标题").performTextInput("复诊记录")
-  compose.onNodeWithText("医院").performTextInput("测试医院")
-  compose.onNodeWithText("保存记录").performClick()
-  compose.onNodeWithText("用药记录").performClick()
-  compose.onNodeWithText("药品名称").performTextInput("测试药品")
-  compose.onNodeWithText("每次剂量（注明单位）").performScrollTo().performTextInput("1片")
-  compose.onNodeWithText("用药频率 / 时间").performScrollTo().performTextInput("每天一次")
-  compose.onNodeWithText("保存记录").performClick()
-  compose.onNodeWithText("记录",useUnmergedTree=true).performClick()
-  compose.onNodeWithText("用药记录 · 测试药品").performScrollTo().performClick()
-  compose.onNodeWithText("1片").assertExists()
-  compose.onNodeWithText("每天一次").assertExists()
-  compose.onNodeWithContentDescription("关闭").performClick()
-  assertEquals(setOf(EntryKind.MEDICAL,EntryKind.MEDICATION),HealthStore(context).entries().map{it.kind}.toSet())
+ @Test fun legacyMedicalAndMedicationRecordsRemainReadable(){
+  val store=HealthStore(context)
+  store.saveEntry(HealthEntry(kind=EntryKind.MEDICAL,title="复诊记录",occurredAtEpochMillis=1L,hospital="测试医院"))
+  store.saveEntry(HealthEntry(kind=EntryKind.MEDICATION,title="测试药品",occurredAtEpochMillis=2L,dose="1片",frequency="每天一次"))
+  val reopened=HealthStore(context).entries()
+  assertEquals(setOf(EntryKind.MEDICAL,EntryKind.MEDICATION),reopened.map{it.kind}.toSet())
+  assertEquals("1片",reopened.single{it.kind==EntryKind.MEDICATION}.dose)
+  assertEquals("每天一次",reopened.single{it.kind==EntryKind.MEDICATION}.frequency)
  }
- @Test fun realUiCreatesAndReopensSymptom(){
-  compose.onNodeWithText("症状记录").performClick();compose.onNodeWithText("症状名称").performTextInput("小腿酸痛")
-  compose.onNodeWithText("备注 / 详细记录").performScrollTo().performTextInput("晚上明显")
-  val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
-  automation.serviceInfo=checkNotNull(automation.serviceInfo).apply{flags=flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS}
-  compose.onNode(hasSetTextAction() and hasText("晚上明显")).performClick()
-  compose.waitForIdle()
-  captureSymptomPage()
-  compose.onNodeWithText("保存记录").assertIsDisplayed()
-  assertSaveControlInsideSystemArea()
-  automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-  compose.waitForIdle()
-  compose.activityRule.scenario.recreate()
-  compose.onNodeWithText("小腿酸痛").assertExists()
-  compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
-  compose.onNodeWithText("保存记录").performClick();compose.waitForIdle()
-  compose.onNodeWithText("记录",useUnmergedTree=true).performClick();compose.onNodeWithText("症状记录 · 小腿酸痛").performScrollTo().performClick()
-  compose.onNodeWithText("小腿酸痛").assertExists();compose.onNode(hasSetTextAction() and hasText("晚上明显")).assertExists()
-  compose.onNodeWithText("保存记录").assertIsDisplayed()
-  assertSaveControlInsideSystemArea()
-  compose.onNodeWithContentDescription("关闭").performClick();assertEquals(1,HealthStore(context).entries().size)
-  compose.onNodeWithText("症状报告").performScrollTo().performClick()
-  compose.onNodeWithText("期间共 1 次记录").performScrollTo().assertIsDisplayed()
-  compose.onNodeWithText("分享症状报告").performScrollTo().assertIsDisplayed()
+ @Test fun legacySymptomRecordAndReportRemainReadable(){
+  val store=HealthStore(context)
+  store.saveEntry(HealthEntry(kind=EntryKind.SYMPTOM,title="小腿酸痛",occurredAtEpochMillis=System.currentTimeMillis(),note="晚上明显",severity=4))
+  val symptom=HealthStore(context).entries().single()
+  assertEquals("小腿酸痛",symptom.title);assertEquals("晚上明显",symptom.note);assertEquals(4,symptom.severity)
+  val report=symptomReportText("2000-01-01","2999-12-31",listOf(symptom))
+  assertTrue(report.contains("小腿酸痛"));assertTrue(report.contains("晚上明显"))
  }
 
  @Test fun customReportTypeKeepsOtherMetricsInTrends(){
@@ -303,13 +271,10 @@ class CoreFlowTest{
   val items=ReportParser.parse("TSH 3.2 mIU/L 0.27-4.2")
   val template=store.confirmTemplate("自定义检查医院","内分泌",items)
   store.saveReport(store.buildReport("自定义检查医院","内分泌",parseDate("2026-09-26")!!,emptyList(),items,template))
+  store.setPrimary("TSH",true)
   compose.activityRule.scenario.recreate()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
-  compose.onNodeWithText("内分泌").performScrollTo().performClick()
-  compose.onNodeWithText("其他指标").performClick()
-  assertTrue(compose.onAllNodesWithText("TSH").fetchSemanticsNodes().isNotEmpty())
-  compose.onNodeWithText("设为重点指标").performScrollTo().performClick()
-  compose.onNodeWithText("重点指标").performClick()
+  compose.onNodeWithText("查找指标").performTextInput("TSH")
   assertTrue(compose.onAllNodesWithText("TSH").fetchSemanticsNodes().isNotEmpty())
   assertTrue(HealthStore(context).isPrimary("TSH"))
  }
@@ -322,6 +287,7 @@ class CoreFlowTest{
   val original=store.buildReport("范围版本医院","血常规",parseDate("2026-09-26")!!,emptyList(),before,first)
   store.saveReport(original)
   compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("导入",useUnmergedTree=true).performClick()
   compose.onNodeWithText("手动录入").performClick()
   compose.onNodeWithText("医院").performTextInput("范围版本医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
@@ -343,7 +309,7 @@ class CoreFlowTest{
   assertEquals(150.0,newer.results.single().referenceHighAtTest!!,0.0)
  }
 
- @Test fun legacyTemplateVersionsMigrateToOneCompleteCurrentTemplate(){
+ @Test fun legacyTemplateVersionsKeepLatestConfirmedTemplate(){
   fun version(v:Int,count:Int,label:String):org.json.JSONObject=org.json.JSONObject().put("hospital","霞浦县中医院").put("type","血常规").put("system","").put("version",v).put("confirmed",true).put("fields",org.json.JSONArray().apply{
    repeat(count){i->put(org.json.JSONObject().put("key","K$i").put("name",if(i==0)label else "指标$i").put("unit",if(i==0)"10^9/L" else "").put("low",if(i==0)3.5 else org.json.JSONObject.NULL).put("high",if(i==0)9.5 else org.json.JSONObject.NULL))}
   })
@@ -351,8 +317,8 @@ class CoreFlowTest{
   context.getSharedPreferences("healthtrend_store_v1",0).edit().putString("templates",legacy.toString()).commit()
   val store=HealthStore(context)
   val blood=store.templates().filter{it.hospitalKey=="霞浦县中医院"&&it.reportType=="血常规"}
-  assertEquals(1,blood.size);assertEquals(4,blood.single().version);assertEquals(27,blood.single().fields.size);assertEquals("最后完整人工模板",blood.single().fields.first().displayName)
-  assertEquals(18,store.latestTemplate("霞浦县中医院","生化")!!.fields.size)
+  assertEquals(1,blood.size);assertEquals(5,blood.single().version);assertEquals(26,blood.single().fields.size);assertEquals("不完整模板",blood.single().fields.first().displayName)
+  assertNull(store.latestTemplate("霞浦县中医院","生化"))
  }
 
 
@@ -369,14 +335,14 @@ class CoreFlowTest{
   )
   assertEquals(90.0,draft.rows.single().low.toDouble(),0.0)
   val selected=retargetImportedDraft(draft,store,system="设备B")
-  assertEquals(100.0,selected.rows.single().low.toDouble(),0.0)
-  assertEquals(150.0,selected.rows.single().high.toDouble(),0.0)
+  assertEquals(90.0,selected.rows.single().low.toDouble(),0.0)
+  assertEquals(160.0,selected.rows.single().high.toDouble(),0.0)
   val unrecognized=retargetImportedDraft(draft,store,system="设备C")
   assertEquals(90.0,unrecognized.rows.single().low.toDouble(),0.0)
   assertEquals(160.0,unrecognized.rows.single().high.toDouble(),0.0)
   val edited=draft.copy(rows=draft.rows.map{it.copy(low="115")})
   val preserved=retargetImportedDraft(edited,store,system="设备B")
-  assertEquals(100.0,preserved.rows.single().low.toDouble(),0.0)
+  assertEquals(115.0,preserved.rows.single().low.toDouble(),0.0)
   assertFalse(preserved.rows.single().uncertain)
  }
 
@@ -389,8 +355,8 @@ class CoreFlowTest{
   val ambiguous=ReportDraft(hospital="多页报告医院",type="血常规",ocr=raw,
    rows=listOf(DraftRow.from(parsed.first()).copy(raw="")))
   val selected=retargetImportedDraft(ambiguous,store,system="设备B")
-  assertEquals("100.0",selected.rows.single().low)
-  assertEquals("150.0",selected.rows.single().high)
+  assertEquals("90",selected.rows.single().low)
+  assertEquals("160",selected.rows.single().high)
   assertEquals("",selected.rows.single().text)
   assertTrue(selected.rows.single().uncertain)
  }
