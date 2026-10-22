@@ -590,7 +590,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
       referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
       segmentKeys=series.map{it.first.hospitalKey},
-      segmentColors=series.map{(report,result)->if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
+      segmentColors=series.map{(report,result)->if(hasHistoricalAbnormal)Bad else if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:TrendBlue},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       onDismiss={previewSeries=null},
       referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct()
@@ -765,16 +765,26 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
 }
 
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
- val timeline=timelineDates.distinct().sorted().ifEmpty{points.map{it.first}}
+ // Keep a separate slot for every measurement, even when dates are identical.
+ val counts=points.groupingBy{it.first}.eachCount()
+ val timeline=(timelineDates.distinct()+points.map{it.first}).distinct().flatMap{date->List(counts[date]?.coerceAtLeast(1)?:1){date}}.sorted()
+ val pointSlots=buildList{
+  val seen=mutableMapOf<Long,Int>()
+  points.forEach{(date,_)->
+   val occurrence=seen[date]?:0
+   add(timeline.indices.filter{timeline[it]==date}.getOrElse(occurrence){timeline.indexOf(date)})
+   seen[date]=occurrence+1
+  }
+ }
+ val pointBySlot=pointSlots.withIndex().associate{it.value to it.index}
  val density=LocalDensity.current
  val textMeasurer=rememberTextMeasurer()
  val dateStyle=TextStyle(fontSize=10.sp,fontWeight=FontWeight.Normal)
  val valueStyle=TextStyle(fontSize=13.sp,fontWeight=FontWeight.SemiBold)
  val groupGap=16.dp
  val edgePadding=12.dp
- // Preserve all measurements on the same timestamp; the slot label uses the latest one.\n val pointByDate=points.indices.groupBy{points[it].first}.mapValues{it.value.last()}
- val groupWidthsPx=timeline.map{date->
-  val pointIndex=pointByDate[date] ?: -1
+ val groupWidthsPx=timeline.mapIndexed{slot,date->
+  val pointIndex=pointBySlot[slot] ?: -1
   val value=if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else ""
   val datePx=textMeasurer.measure(text=trendShortDate(date),style=dateStyle,maxLines=1).size.width
   val valuePx=if(value.isBlank())0 else textMeasurer.measure(text=value,style=valueStyle,maxLines=1).size.width
@@ -803,7 +813,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
   val rawValues=points.map{it.second}+bandValues+listOfNotNull(referenceLow,referenceHigh)
   val rawLow=rawValues.minOrNull()?:0.0;val rawHigh=rawValues.maxOrNull()?:1.0;val rawSpan=(rawHigh-rawLow).coerceAtLeast(1.0)
   val low=rawLow-rawSpan*.10;val high=rawHigh+rawSpan*.10;val span=high-low
-  val slot=timeline.indexOf(points[index].first).takeIf{it>=0}?:index
+  val slot=pointSlots.getOrElse(index){index}
   val x=with(density){centered.getOrElse(slot){contentWidth/2}.toPx()}
   val y=(height*.88-(points[index].second-low)/span*height*.76).toFloat()
   return Offset(x,y)
@@ -822,7 +832,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
     val dash=androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f,10f),0f)
     if(referenceBands.size==points.size&&points.isNotEmpty()){
      points.indices.forEach{i->
-      val slot=timeline.indexOf(points[i].first).takeIf{it>=0}?:i
+      val slot=pointSlots.getOrElse(i){i}
       val center=with(density){centered.getOrElse(slot){contentWidth/2}.toPx()}
       val left=if(slot==0)0f else (center+with(density){centered[slot-1].toPx()})/2f
       val right=if(slot==timeline.lastIndex)size.width else (center+with(density){centered[slot+1].toPx()})/2f
@@ -842,7 +852,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
     val plotted=points.indices.map{i->pointPosition(i,size.width,size.height)}
     val segments=mutableListOf<MutableList<Int>>()
     points.indices.forEach{i->
-     val timelineBreak=i>0&&timeline.indexOf(points[i].first)!=timeline.indexOf(points[i-1].first)+1
+     val timelineBreak=i>0&&pointSlots[i]!=pointSlots[i-1]+1
      val hospitalBreak=i>0&&segmentKeys.size==points.size&&segmentKeys[i]!=segmentKeys[i-1]
      if(segments.isEmpty()||timelineBreak||hospitalBreak)segments.add(mutableListOf())
      segments.last().add(i)
@@ -851,7 +861,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
    }
    points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
-    val pointIndex=pointByDate[date]?:-1
+    val pointIndex=pointBySlot[slot]?:-1
     val groupWidth=groupWidths[slot]
     val center=centered[slot]
     Column(Modifier.offset(x=center-groupWidth/2,y=plotHeight+4.dp).width(groupWidth),horizontalAlignment=Alignment.CenterHorizontally){
