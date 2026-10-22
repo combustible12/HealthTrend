@@ -519,7 +519,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
-     TrendLatestSummary(qualitativeDisplayText(latest.textValue),latest.resultStatusLabel(),valueColor)
+     TrendLatestSummary(if(key=="PCT") "${qualitativeDisplayText(latest.textValue).removeSuffix("%").trim()}%" else qualitativeDisplayText(latest.textValue),latest.resultStatusLabel(),valueColor)
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
@@ -528,7 +528,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     // incompatible unit must never be connected to the latest unit's series.
     val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitsCompatible(it.second,latest)}
     val rangeDisplayRows=points.map{(_,x)->
-     val unit=displayLabUnit(trendUnitIdentity(x))
+     val unit=if(key=="PCT") "%" else displayLabUnit(trendUnitIdentity(x))
      "参考范围: ${qualitativeDisplayText(x.trendReferenceDisplayText())} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
@@ -574,7 +574,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onPointClick={index->selected=compatiblePoints[index]},
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
-      valueLabels=compatiblePoints.map{it.second.textValue},
+      valueLabels=compatiblePoints.map{if(key=="PCT") "${it.second.textValue.removeSuffix("%").trim()}%" else it.second.textValue},
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(reports,compatiblePoints.map{it.first},cutoff),
       onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}
