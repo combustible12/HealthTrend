@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "68ed78ca372ed0e4542d749f8316eabaa5e8c2ba",
+  "sourceCommit": "2816244f2db04646f9a31c5deb8f71ffb50c2399",
   "requestedAt": "2026-10-22",
-  "scope": "Android 16 acceptance for manually dated course reminders, foreground triggering, snooze, completion and legacy persistence"
+  "scope": "Full Android 16 regression: laboratory unit equivalence, report import, identity and reference ranges, historical data upgrade, date conflicts, course reminders, stable signing and APK build"
 }
