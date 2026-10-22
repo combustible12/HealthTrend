@@ -28,6 +28,19 @@ class CourseNavigationTest {
   compose.onNodeWithText("健康记录").assertDoesNotExist()
   compose.onNodeWithText("最近").assertDoesNotExist()
  }
+ @Test fun dueReminderIsOversizedAndCompletingItPersists(){
+  val today=java.time.LocalDate.now()
+  val at=today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+  HealthStore(context).saveCourseRecord(CourseRecord(date=at,title="2化12-放2",checkText="抽血化验",reminderText="抽血化验",reminderDate=today.toString()))
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("今日提醒").assertIsDisplayed()
+  compose.onNodeWithText("抽血化验").assertIsDisplayed()
+  val cardText=compose.onNodeWithText("抽血化验").fetchSemanticsNode().boundsInRoot
+  assertTrue(cardText.height>30f)
+  compose.onNodeWithText("已完成").performClick()
+  compose.onNodeWithText("今日提醒").assertDoesNotExist()
+  compose.runOnIdle{assertNotNull(HealthStore(context).courseRecords().first{it.title=="2化12-放2"}.reminderCompletedAt)}
+ }
  @Test fun categoriesCanBeAddedDeletedAndUsedInEditor(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("管理").performClick()

@@ -49,6 +49,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -105,6 +108,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var entry by rememberSaveable(stateSaver=diskStateSaver<HealthEntry?>(ctx,"root-entry")){mutableStateOf<HealthEntry?>(null)};var viewer by rememberSaveable{mutableStateOf<List<String>?>(null)};var viewerStart by rememberSaveable{mutableIntStateOf(0)}
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
+ var foregroundSequence by remember{mutableIntStateOf(0)}
+ var snoozedReminderIds by remember{mutableStateOf<Set<String>>(emptySet())}
+ val lifecycleOwner=LocalLifecycleOwner.current
+ DisposableEffect(lifecycleOwner){
+  val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_START){snoozedReminderIds=emptySet();foregroundSequence++}}
+  lifecycleOwner.lifecycle.addObserver(observer)
+  onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
+ }
  var rememberedDocumentPages by rememberSaveable{mutableStateOf<List<String>>(emptyList())}
  fun rememberedPage(id:String):Int=rememberedDocumentPages.firstOrNull{it.startsWith("$id:")}?.substringAfterLast(":")?.toIntOrNull()?:0
  fun rememberPage(id:String,index:Int){rememberedDocumentPages=(rememberedDocumentPages.filterNot{it.startsWith("$id:")}+"$id:$index").takeLast(300)}
@@ -265,6 +276,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved->change{store.saveCourseRecord(saved);courseRecord=null}},{change{store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index})}
+ val dueReminder=remember(courseRecords,foregroundSequence,snoozedReminderIds){courseRecords.filter{it.id !in snoozedReminderIds&&it.isReminderDue(LocalDate.now())}.minByOrNull{it.reminderText}}
+ if(dueReminder!=null)CourseReminderDialog(dueReminder,{snoozedReminderIds=snoozedReminderIds+dueReminder.id},{change{store.saveCourseRecord(dueReminder.copy(reminderCompletedAt=System.currentTimeMillis()))}})
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null;viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null},viewerStart,
   onReplace=if(viewerReportId!=null||viewerCourseRecordId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
@@ -304,6 +317,25 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   removalMessage=if(viewerReportId!=null)"仅删除这份报告中的图片关联，不影响检查数据和趋势。" else "仅从这条病程记录移除当前图片，不影响其他内容。"
  )
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
+ }
+}
+
+@Composable private fun CourseReminderDialog(record:CourseRecord,onLater:()->Unit,onComplete:()->Unit){
+ Dialog(onDismissRequest=onLater){
+  Card(Modifier.fillMaxWidth().heightIn(min=420.dp),shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
+   Column(Modifier.fillMaxSize().padding(horizontal=28.dp,vertical=32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween){
+    Column(horizontalAlignment=Alignment.CenterHorizontally){
+     Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Icon(Icons.Outlined.NotificationsActive,"到期提醒",Modifier.padding(18.dp).size(42.dp),tint=Accent)}
+     Spacer(Modifier.height(26.dp));Text("今日提醒",fontSize=18.sp,color=Accent,fontWeight=FontWeight.Bold)
+     Spacer(Modifier.height(12.dp));Text(reminderDisplayDate(record.reminderDate).substringBefore(" ·"),fontSize=28.sp,fontWeight=FontWeight.Bold)
+     Spacer(Modifier.height(18.dp));Text(record.reminderText,fontSize=34.sp,lineHeight=42.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
+    }
+    Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(10.dp)){
+     Button(onComplete,Modifier.fillMaxWidth().height(54.dp)){Text("已完成",fontSize=17.sp,color=Color.White)}
+     TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后再提醒",color=Muted)}
+    }
+   }
+  }
  }
 }
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",spacing:androidx.compose.ui.unit.Dp=14.dp,content:@Composable ColumnScope.()->Unit){
