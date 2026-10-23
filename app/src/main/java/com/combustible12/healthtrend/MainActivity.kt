@@ -774,6 +774,30 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
   .map{it.testedAtEpochMillis}+pointReports.map{it.testedAtEpochMillis}).distinct().sorted()
 }
 
+/** Smooth monotone joins preserve both hospitals' colors across a source boundary. */
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJoin(
+ start:Offset,end:Offset,from:Color,to:Color,strokeWidth:Float
+){
+ val cx=(start.x+end.x)/2f
+ if(from==to){
+  val curve=Path().apply{moveTo(start.x,start.y);cubicTo(cx,start.y,cx,end.y,end.x,end.y)}
+  drawPath(curve,from,style=Stroke(strokeWidth))
+ }else{
+  // Exact de Casteljau split at t=.5; both colors cover one continuous cubic.
+  val center=Offset((start.x+end.x)/2f,(start.y+end.y)/2f)
+  val first=Path().apply{
+   moveTo(start.x,start.y)
+   cubicTo((start.x+cx)/2f,start.y,(start.x+3f*cx)/4f,(3f*start.y+end.y)/4f,center.x,center.y)
+  }
+  val second=Path().apply{
+   moveTo(center.x,center.y)
+   cubicTo((3f*cx+end.x)/4f,(start.y+3f*end.y)/4f,(cx+end.x)/2f,end.y,end.x,end.y)
+  }
+  drawPath(first,from,style=Stroke(strokeWidth))
+  drawPath(second,to,style=Stroke(strokeWidth))
+ }
+}
+
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val layout=trendTimeline(points,timelineDates)
  val timeline=layout.dates
@@ -842,7 +866,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
     }
     val plotted=points.indices.map(::pointPosition)
     val segments=geometry.segments
-    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);indices.drop(1).forEach{index->val p=plotted[index];val previous=plotted[indices[indices.indexOf(index)-1]];val middle=(previous.x+p.x)/2f;path.cubicTo(middle,previous.y,middle,p.y,p.x,p.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
+    segments.forEach{indices->indices.zipWithNext().forEach{(previous,index)->drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx())}}
    }
    points.indices.forEach{i->val at=pointPosition(i);Box(Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x-12.dp.toPx()).roundToInt(),(at.y-12.dp.toPx()).roundToInt())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
@@ -887,9 +911,9 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
       }
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
-       val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
-       indices.drop(1).forEach{index->val p=plotted[index];val previous=plotted[indices[indices.indexOf(index)-1]];val middle=(previous.x+p.x)/2f;path.cubicTo(middle,previous.y,middle,p.y,p.x,p.y)}
-       drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))
+       indices.zipWithNext().forEach{(previous,index)->
+        drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx())
+       }
       }
       // Overall preview: connected measurements are represented by the smooth curve only.
       // Only isolated one-point segments get a visible dot.
