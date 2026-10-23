@@ -891,7 +891,12 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
        indices.drop(1).forEach{index->val p=plotted[index];val previous=plotted[indices[indices.indexOf(index)-1]];val middle=(previous.x+p.x)/2f;path.cubicTo(middle,previous.y,middle,p.y,p.x,p.y)}
        drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))
       }
-      plotted.forEachIndexed{i,p->drawCircle(segmentColors.getOrNull(i)?:color,4.dp.toPx(),p)}
+      // Overall preview: connected measurements are represented by the smooth curve only.
+      // Only isolated one-point segments get a visible dot.
+      geometry.segments.filter{it.size==1}.forEach{indices->
+       val i=indices.single();val p=plotted[i]
+       drawCircle(segmentColors.getOrNull(i)?:color,4.dp.toPx(),p)
+      }
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
       Text(trendShortDate(points.first().first),fontSize=10.sp,color=Muted)
