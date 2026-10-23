@@ -667,6 +667,25 @@ I嗜酸性粒细胞计数 0.04 0.02-0.5 %
   assertFalse(trendUnitsCompatible(result("ng/mL"),result("mg/L")))
  }
 
+ @Test fun plateletcritBlankAndPercentUnitsShareOneTrend(){
+  fun result(unit:String)=LabResult("$unit-id","report-$unit","医院","血常规",null,"PCT","血小板压积",0.153,unit,0.108,null,1L,
+   textValue="0.153",referenceRaw="0.108--",normalizedValue=0.153,normalizedUnit=unit)
+  assertEquals("%",trendUnitIdentity(result("")))
+  assertEquals("%",trendUnitIdentity(result("%")))
+  assertTrue(trendUnitsCompatible(result(""),result("%")))
+  assertFalse(trendUnitsCompatible(result("fL"),result("%")))
+ }
+
+ @Test fun plateletcritDoesNotInventOneSidedReferenceLabel(){
+  val legacy=LabResult("legacy","report","医院","血常规",null,"PCT","血小板压积",0.153,"%",0.108,null,1L,
+   textValue="0.153",referenceRaw="",normalizedValue=0.153,normalizedUnit="%")
+  val preserved=legacy.copy(referenceRaw="0.108--")
+  assertEquals("",legacy.trendReferenceDisplayText())
+  assertEquals("0.108--",preserved.trendReferenceDisplayText())
+  assertEquals(0.108,preserved.trendPlotReferenceRange().first!!,0.0)
+  assertNull(preserved.trendPlotReferenceRange().second)
+ }
+
  @Test fun mixedChemistryReportIsDetectedAsBiochemistry(){
   val raw="霞浦县中医院检验报告单\nTP 总蛋白 75.50 65-85 g/L\nALB 白蛋白 42.90 40-55 g/L\nALT 谷丙转氨酶 23 7-40 U/L\nAST 谷草转氨酶 20 13-35 U/L\nUREA 尿素 5.2 1.43-7.14 mmol/L\nCREA 肌酐 46 35-80 umol/L\nUA 尿酸 328 90-357 umol/L"
   val parsed=ReportParser.parse(raw)
