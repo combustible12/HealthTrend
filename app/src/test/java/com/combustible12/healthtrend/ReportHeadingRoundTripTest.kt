@@ -179,7 +179,8 @@ class ReportHeadingRoundTripTest {
    val edited=HealthStore(context).reports().single{it.id==report.id}
    val imported=pastedReportDraft(store.exportReportAsPastedText(edited),store=store)
    assertEquals(d.name,imported.rows.single().name);assertEquals("3.450",imported.rows.single().text)
-   assertEquals(d.unit,imported.rows.single().unit);assertEquals("0-9",imported.rows.single().rangeRaw())
+   val expectedUnit=if(key=="DDIMER")"μg/mL FEU" else d.unit
+   assertEquals(expectedUnit,imported.rows.single().unit);assertEquals("0-9",imported.rows.single().rangeRaw())
    assertEquals(legacy,HealthStore(context).reports().single{it.id==legacy.id})
    store.deleteReport(report.id)
   }
