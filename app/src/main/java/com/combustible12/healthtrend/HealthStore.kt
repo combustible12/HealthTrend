@@ -1098,7 +1098,14 @@ internal fun xiapuBiochemistryTemplate()=HospitalLabTemplate("霞浦县中医院
 internal fun sanitizeLabUnit(unit:String)=unit.trim().takeUnless{it.toDoubleOrNull()!=null}.orEmpty()
 internal fun displayLabUnit(unit:String):String {
  val clean=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
- return normalizedDistributionWidthUnit(clean)?:clean
+ val token=java.text.Normalizer.normalize(clean,java.text.Normalizer.Form.NFKC)
+  .replace("µ","μ").replace(Regex("\\s+"),"").replace("μ","u").lowercase(java.util.Locale.ROOT)
+ return normalizedDistributionWidthUnit(clean)?:when(token){
+  "s","sec","sec.","secs","second","seconds","秒"->"s"
+  "ug/l","mcg/l"->"μg/L"
+  "ug/ml","mcg/ml"->"μg/mL"
+  else->clean
+ }
 }
 private fun JSONObject.doubleOrNull(k:String)=if(isNull(k)||!has(k))null else getDouble(k)
 private fun JSONObject.intOrNull(k:String)=if(isNull(k)||!has(k))null else getInt(k)
