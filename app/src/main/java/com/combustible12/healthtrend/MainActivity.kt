@@ -527,9 +527,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     // Equivalent spellings have already collapsed to one identity. A genuinely
     // incompatible unit must never be connected to the latest unit's series.
     val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitsCompatible(it.second,latest)}
-    val rangeDisplayRows=points.map{(_,x)->
+    val rangeDisplayRows=points.mapNotNull{(_,x)->
+     val range=x.trendReferenceDisplayText().takeIf{it.isNotBlank()}?:return@mapNotNull null
      val unit=if(key=="PCT") "%" else displayLabUnit(trendUnitIdentity(x))
-     "参考范围: ${qualitativeDisplayText(x.trendReferenceDisplayText())} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
+     "参考范围: ${qualitativeDisplayText(range)} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
