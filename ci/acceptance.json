@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "b44ed926db2fc8b4d42bd2cf322da7926acb306c",
+  "sourceCommit": "b2eca10e227f5c9d6a47d037b2b0c1e433dabdbf",
   "requestedAt": "2026-10-23",
-  "scope": "Final trend fixes, data export specification, tests and Android acceptance",
-  "revision": 8
+  "scope": "Monotone shared-tangent trends, hospital color transitions and chart regressions",
+  "revision": 9
 }
