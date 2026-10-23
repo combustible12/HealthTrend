@@ -774,28 +774,52 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
   .map{it.testedAtEpochMillis}+pointReports.map{it.testedAtEpochMillis}).distinct().sorted()
 }
 
-/** Smooth monotone joins preserve both hospitals' colors across a source boundary. */
-internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJoin(
- start:Offset,end:Offset,from:Color,to:Color,strokeWidth:Float
-){
- val cx=(start.x+end.x)/2f
- if(from==to){
-  val curve=Path().apply{moveTo(start.x,start.y);cubicTo(cx,start.y,cx,end.y,end.x,end.y)}
-  drawPath(curve,from,style=Stroke(strokeWidth))
- }else{
-  // Exact de Casteljau split at t=.5; both colors cover one continuous cubic.
-  val center=Offset((start.x+end.x)/2f,(start.y+end.y)/2f)
-  val first=Path().apply{
-   moveTo(start.x,start.y)
-   cubicTo((start.x+cx)/2f,start.y,(start.x+3f*cx)/4f,(3f*start.y+end.y)/4f,center.x,center.y)
+/** PCHIP-like monotone Hermite tangents: shared slopes prevent kinks and overshoot. */
+internal fun monotoneTrendSlopes(points:List<Offset>):List<Float>{
+ if(points.size<2)return List(points.size){0f}
+ val dx=points.zipWithNext{a,b->(b.x-a.x).coerceAtLeast(0.0001f)}
+ val sec=points.zipWithNext().mapIndexed{i,(a,b)->(b.y-a.y)/dx[i]}
+ if(sec.size==1)return listOf(sec[0],sec[0])
+ val slopes=MutableList(points.size){0f}
+ fun edge(h0:Float,h1:Float,d0:Float,d1:Float):Float{
+  val m=((2f*h0+h1)*d0-h0*d1)/(h0+h1)
+  return when{
+   m*d0<=0f->0f
+   d0*d1<0f&&kotlin.math.abs(m)>3f*kotlin.math.abs(d0)->3f*d0
+   else->m
   }
-  val second=Path().apply{
-   moveTo(center.x,center.y)
-   cubicTo((3f*cx+end.x)/4f,(start.y+3f*end.y)/4f,(cx+end.x)/2f,end.y,end.x,end.y)
-  }
-  drawPath(first,from,style=Stroke(strokeWidth))
-  drawPath(second,to,style=Stroke(strokeWidth))
  }
+ slopes[0]=edge(dx[0],dx[1],sec[0],sec[1])
+ slopes[slopes.lastIndex]=edge(dx.last(),dx[dx.lastIndex-1],sec.last(),sec[sec.lastIndex-1])
+ for(i in 1 until points.lastIndex){
+  val before=sec[i-1];val after=sec[i]
+  if(before*after<=0f){slopes[i]=0f;continue}
+  val w1=2f*dx[i]+dx[i-1];val w2=dx[i]+2f*dx[i-1]
+  slopes[i]=(w1+w2)/(w1/before+w2/after)
+ }
+ return slopes
+}
+
+/** Draw a monotone cubic interval, splitting color exactly at the midpoint when hospitals differ. */
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJoin(
+ start:Offset,end:Offset,from:Color,to:Color,strokeWidth:Float,
+ startSlope:Float,endSlope:Float
+){
+ val dx=end.x-start.x
+ if(dx<=0f){drawLine(from,start,end,strokeWidth);return}
+ val c1=Offset(start.x+dx/3f,start.y+dx*startSlope/3f)
+ val c2=Offset(end.x-dx/3f,end.y-dx*endSlope/3f)
+ if(from==to){
+  val path=Path().apply{moveTo(start.x,start.y);cubicTo(c1.x,c1.y,c2.x,c2.y,end.x,end.y)}
+  drawPath(path,from,style=Stroke(strokeWidth));return
+ }
+ fun mid(a:Offset,b:Offset)=Offset((a.x+b.x)/2f,(a.y+b.y)/2f)
+ val a=mid(start,c1);val b=mid(c1,c2);val c=mid(c2,end)
+ val d=mid(a,b);val e=mid(b,c);val center=mid(d,e)
+ val first=Path().apply{moveTo(start.x,start.y);cubicTo(a.x,a.y,d.x,d.y,center.x,center.y)}
+ val second=Path().apply{moveTo(center.x,center.y);cubicTo(e.x,e.y,c.x,c.y,end.x,end.y)}
+ drawPath(first,from,style=Stroke(strokeWidth))
+ drawPath(second,to,style=Stroke(strokeWidth))
 }
 
 @Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
@@ -866,7 +890,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
     }
     val plotted=points.indices.map(::pointPosition)
     val segments=geometry.segments
-    segments.forEach{indices->indices.zipWithNext().forEach{(previous,index)->drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx())}}
+    segments.forEach{indices->val slopes=monotoneTrendSlopes(indices.map{plotted[it]});indices.zipWithNext().forEachIndexed{j,(previous,index)->drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx(),slopes[j],slopes[j+1])}}
    }
    points.indices.forEach{i->val at=pointPosition(i);Box(Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x-12.dp.toPx()).roundToInt(),(at.y-12.dp.toPx()).roundToInt())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
@@ -911,8 +935,9 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
       }
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
-       indices.zipWithNext().forEach{(previous,index)->
-        drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx())
+       val slopes=monotoneTrendSlopes(indices.map{plotted[it]})
+       indices.zipWithNext().forEachIndexed{j,(previous,index)->
+        drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx(),slopes[j],slopes[j+1])
        }
       }
       // Overall preview: connected measurements are represented by the smooth curve only.
