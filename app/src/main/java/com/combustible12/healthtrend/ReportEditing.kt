@@ -89,6 +89,8 @@ fun reportValidationProblems(d:ReportDraft):List<String> {
    !unchangedLegacyIdentity(row,d.existing)&&widthIdentityReviewProblem(row)!=null->problems+="${label}：${widthIdentityReviewProblem(row)}"
    key.isBlank()||key=="未识别"||key.startsWith("待核对:")->
     problems+="${label}：需要确认项目身份"
+   canonicalMetricKey(key)=="DDIMER"&&dDimerBasisFromText(row.unit)==DimerBasis.UNSPECIFIED->
+    problems+="${label}：请在单位中确认 FEU 或 DDU；未标注不能生成趋势"
    !unchangedLegacyIdentity(row,d.existing)&&metricIdentityNameProblem(key,row.name,row.unit)!=null->problems+="${label}：${metricIdentityNameProblem(key,row.name,row.unit)}"
    row.text.isBlank()->problems+="${label}：检测结果不能为空"
    !LabResultValues.valid(row.text)&&
