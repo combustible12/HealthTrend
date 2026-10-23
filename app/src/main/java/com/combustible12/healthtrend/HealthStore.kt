@@ -241,6 +241,7 @@ class HealthStore(private val context:Context) {
   require(r.results.all{it.value==null||it.value.isFinite()}){"报告包含无效数值"}
   require(r.results.all{it.metricKey.isNotBlank()&&it.metricKey!="未识别"&&!it.metricKey.startsWith("待核对:")&&it.reportId==r.id}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
+  require(r.results.none{canonicalMetricKey(it.metricKey)=="DDIMER"&&dDimerBasis(it)==DimerBasis.UNSPECIFIED}){"D-二聚体必须确认 FEU 或 DDU 后才能替换报告"}
   require(r.results.none{distributionWidthIdentityProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目CV/SD身份与单位不一致，请核对后保存"}
   require(r.results.none{it.rawName.trim()=="待核对"||metricIdentityNameProblem(it.metricKey,it.rawName,it.unitAtTest)!=null}){"报告项目代码与中文名称尚未核对"}
   require(old.id==r.id){"替换报告必须沿用原报告 ID"}
@@ -394,6 +395,11 @@ class HealthStore(private val context:Context) {
    !it.metricKey.startsWith("待核对:")&&it.reportId==r.id&&
    it.hospitalKey==r.hospitalKey&&it.reportType==r.reportType}){"报告项目身份无效或尚未核对"}
   require(r.results.map{canonicalMetricKey(it.metricKey)}.distinct().size==r.results.size){"报告存在重复项目 ID"}
+  require(r.results.none{result->
+   val old=persisted?.results?.singleOrNull{it.id==result.id}
+   val unchanged=old!=null&&old.metricKey==result.metricKey&&old.unitAtTest==result.unitAtTest&&old.rawLine==result.rawLine
+   !unchanged&&canonicalMetricKey(result.metricKey)=="DDIMER"&&dDimerBasis(result)==DimerBasis.UNSPECIFIED
+  }){"D-二聚体必须确认 FEU 或 DDU 后才能保存"}
   require(r.results.none{result->
    val old=persisted?.results?.singleOrNull{it.id==result.id}
    val preserved=old!=null&&old.metricKey==result.metricKey&&old.rawName==result.rawName&&old.unitAtTest==result.unitAtTest
