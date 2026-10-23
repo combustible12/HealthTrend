@@ -233,7 +233,10 @@ object ReportParser {
    normalizedUnit(it).contains("/") || dDimerBasisFromText(it)!=DimerBasis.UNSPECIFIED || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)}
   }.orEmpty()
   var k=if(name=="待核对")"待核对:"+parsedName else safeIdentity
-  val unit=if(isText)"" else displayLabUnit(resolvedUnit(k,ocrUnit))
+  val dimerBasis=dDimerBasisFromText(unitText)
+  val completeOcrUnit=if(canonicalMetricKey(k)=="DDIMER"&&dimerBasis!=DimerBasis.UNSPECIFIED&&
+   dDimerBasisFromText(ocrUnit)==DimerBasis.UNSPECIFIED) "$ocrUnit ${dimerBasis.label}".trim() else ocrUnit
+  val unit=if(isText)"" else displayLabUnit(resolvedUnit(k,completeOcrUnit))
   // A clipped distribution-width label identifies the family, while % / fL
   // identifies CV / SD. Never override an explicit CV/SD code or name.
   // Unknown units stay unresolved, and historical saved reports are untouched.
