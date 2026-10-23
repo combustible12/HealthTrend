@@ -13,7 +13,7 @@ class TrendGeometryTest {
  @Test fun sevenWhiteCellCoordinatesAreLinearAndNeverOvershoot(){
   // Hospitals are deliberately synthetic; actual device ownership is never inferred from dates.
   val g=geometry(listOf("A","A","A","B","A","A","A"))
-  assertEquals(listOf(listOf(0,1,2),listOf(3),listOf(4,5,6)),g.segments)
+  assertEquals(listOf((0..6).toList()),g.segments)
   assertEquals(7,g.points.size)
   values.indices.forEach{i->assertEquals(g.scale.y(values[i],200f),g.points[i].y,0.0001f)}
   assertTrue(g.points[5].y<g.points[4].y);assertTrue(g.points[6].y>g.points[4].y)
@@ -21,7 +21,11 @@ class TrendGeometryTest {
  }
  @Test fun hospitalOwnershipRatherThanDateDeterminesSegments(){
   assertEquals(listOf(listOf(0,1,2,3,4,5,6)),geometry(List(7){"A"}).segments)
-  assertEquals(7,geometry(List(7){if(it%2==0)"A" else "B"}).segments.size)
+  assertEquals(listOf((0..6).toList()),geometry(List(7){if(it%2==0)"A" else "B"}).segments)
+ }
+ @Test fun hospitalsDoNotSplitComparableMeasurementsButGapsStillBreak(){
+  assertEquals(listOf(listOf(0,1,2)),trendSegments(listOf(0,1,2),listOf("A","B","A")))
+  assertEquals(listOf(listOf(0,1),listOf(2)),trendSegments(listOf(0,1,3),listOf("A","B","A")))
  }
  @Test fun missingMeasurementBreaksBothViewsWithSameScale(){
   val main=geometry(List(7){"A"},dates+(dates[4]+1))
@@ -34,7 +38,7 @@ class TrendGeometryTest {
   val p=listOf(1L to 3.0,1L to 4.0,2L to 5.0)
   val t=trendTimeline(p,listOf(1L,2L,3L))
   assertEquals(listOf(0,1,2),t.pointSlots);assertEquals(listOf(1L,1L,2L,3L),t.dates)
-  assertEquals(listOf(listOf(0),listOf(1,2)),trendSegments(t.pointSlots,listOf("A","B","B")))
+  assertEquals(listOf(listOf(0,1,2)),trendSegments(t.pointSlots,listOf("A","B","B")))
  }
  @Test fun paletteSlotsSurviveReorderingNewHospitalsAndNormalization(){
   val keys=hospitalPaletteKeys(emptyList(),listOf("A"," B ","", "A"))
