@@ -540,7 +540,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val hospitalRows=points.map{it.first.hospitalKey.ifBlank{"医院未录入"}}.distinct()
     val hasHistoricalAbnormal=compatiblePoints.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
-    val pointHospitalColors=compatiblePoints.map{(report,result)->if(hasHistoricalAbnormal)Bad else if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:TrendBlue}
+    val pointHospitalColors=compatiblePoints.map{(report,result)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
@@ -596,7 +596,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       color=if(series.any{(_,r)->r.status()==ResultStatus.HIGH||r.status()==ResultStatus.LOW}) Bad else TrendBlue,
       referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
       segmentKeys=series.map{it.first.hospitalKey},
-      segmentColors=series.map{(report,result)->if(hasHistoricalAbnormal)Bad else if(result.uncertainComparisonPoint())Muted else hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:TrendBlue},
+      segmentColors=series.map{(report,result)->hospitalColors[report.hospitalKey.ifBlank{"医院未录入"}]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       onDismiss={previewSeries=null},
       referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct()
@@ -863,7 +863,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
      if(segments.isEmpty()||timelineBreak||hospitalBreak)segments.add(mutableListOf())
      segments.last().add(i)
     }
-    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);for(k in 0 until indices.lastIndex){val i=indices[k];val next=indices[k+1];val p0=plotted[indices.getOrElse(k-1){k}];val p1=plotted[i];val p2=plotted[next];val p3=plotted[indices.getOrElse(k+2){k+1}];path.cubicTo(p1.x+(p2.x-p0.x)/6f,p1.y+(p2.y-p0.y)/6f,p2.x-(p3.x-p1.x)/6f,p2.y-(p3.y-p1.y)/6f,p2.x,p2.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
+    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);indices.drop(1).forEach{index->val p=plotted[index];path.lineTo(p.x,p.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
    }
    points.indices.forEach{i->val at=pointPosition(i,chartWidth.toFloat(),plotHeightPx.toFloat());Box(Modifier.offset{androidx.compose.ui.unit.IntOffset(at.x.toInt()-12.dp.roundToPx(),at.y.toInt()-12.dp.roundToPx())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
