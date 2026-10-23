@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "4888b7c2ee05f448c103634e211b07017dadc399",
+  "sourceBaseCommit": "4e5d982dd9d581a2eab419b3f542412f05c2be4d",
   "validationMode": "user-authorized-release",
-  "versionCode": 2026102303,
-  "versionName": "1.0.142"
+  "versionCode": 2026102304,
+  "versionName": "1.0.143"
 }
