@@ -27,8 +27,16 @@ class DimerBasisTest {
   assertEquals(1,feu.map{trendCardIdentity("DDIMER",it)}.distinct().size)
   assertEquals(1,ddu.map{trendCardIdentity("DDIMER",it)}.distinct().size)
   assertNotEquals(trendCardIdentity("DDIMER",feu.first()),trendCardIdentity("DDIMER",ddu.first()))
-  assertNotEquals(trendCardIdentity("DDIMER",feu.first()),trendCardIdentity("DDIMER",result("ug/mL")))
+  assertNull(trendCardIdentity("DDIMER",result("ug/mL")))
   assertFalse(trendUnitsCompatible(feu.first(),ddu.first()))
+ }
+
+ @Test fun unlabelledDimerRequiresReviewAndNeverCreatesAThirdCard(){
+  val parsed=ReportParser.parse("DDIMER D-二聚体 0.31 ug/mL 0-0.55").single()
+  assertTrue(metricNeedsReview(parsed,null))
+  val draft=ReportDraft(hospital="其他医院",type="凝血功能",date="2026/10/23",rows=listOf(DraftRow.from(parsed)))
+  assertTrue(reportValidationProblems(draft).any{it.contains("FEU 或 DDU")})
+  assertNull(trendCardIdentity("DDIMER",result("ug/mL",0.31)))
  }
 
  @Test fun scaleConversionChangesValueAndReferenceRangeButNeverCrossesBasis(){
