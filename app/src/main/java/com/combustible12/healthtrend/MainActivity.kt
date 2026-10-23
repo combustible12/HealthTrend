@@ -513,7 +513,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     var textPreview by remember{mutableStateOf(false)}
     // Equivalent spellings have already collapsed to one identity. A genuinely
     // incompatible unit must never be connected to the latest unit's series.
-    val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitsCompatible(it.second,latest)}
+    val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitIdentity(it.second)==card.unit}
     val rangeDisplayRows=points.mapNotNull{(_,x)->
      val range=x.trendReferenceDisplayText().takeIf{it.isNotBlank()}?:return@mapNotNull null
      val unit=if(key=="PCT") "%" else displayLabUnit(trendUnitIdentity(x))
@@ -528,7 +528,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
       hospitalRows.forEach{hospital->
        Row(verticalAlignment=Alignment.CenterVertically){
-        Canvas(Modifier.size(8.dp)){drawCircle(hospitalColors.getValue(hospital))}
+        Canvas(Modifier.size(8.dp).semantics{contentDescription="医院图例 $hospital"}){drawCircle(hospitalColors.getValue(hospital))}
         Spacer(Modifier.width(6.dp))
         Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)
        }
