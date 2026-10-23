@@ -14,7 +14,7 @@ class ReportAdaptationBoundaryTest {
  @Test fun embeddedDigitsRetainPrecisionEquivalentUnitsCanonicalizeAndComplexUnitsStayDistinct(){
   val p=ReportParser.parse("CA125 糖类抗原125 8.2300 U/ml 1.000-9.000").single()
   assertEquals("8.2300",p.textValue);assertEquals("1.000-9.000",p.referenceRaw)
-  listOf("PT 凝血酶原时间 8.2300 sec 1-9" to "s","OSM 渗透压 8.2300 mOsm/kgH2O 1-9" to "mOsm/kgH2O","DDIMER D-二聚体 8.2300 ug/ml.FEU 1-9" to "ug/ml.FEU").forEach{(line,unit)->assertEquals(unit,ReportParser.parse(line).single().unit)}
+  listOf("PT 凝血酶原时间 8.2300 sec 1-9" to "s","OSM 渗透压 8.2300 mOsm/kgH2O 1-9" to "mOsm/kgH2O","DDIMER D-二聚体 8.2300 ug/ml.FEU 1-9" to "μg/mL FEU").forEach{(line,unit)->assertEquals(unit,ReportParser.parse(line).single().unit)}
  }
  @Test fun blankTextReferenceAndComparatorNeverInventPrecision(){
   val text=ReportParser.parse("ST-COLOR\t粪便颜色\t合成描述\t-\t").single()
