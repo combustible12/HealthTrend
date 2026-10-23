@@ -101,6 +101,16 @@ internal fun comparisonResultStatus(result:LabResult):ResultStatus {
  return if((result.reportFlag=="Y"&&status==ResultStatus.NORMAL)||(result.reportFlag=="N"&&status in setOf(ResultStatus.LOW,ResultStatus.HIGH)))ResultStatus.UNKNOWN else status
 }
 
-/** Threshold coordinate only; source text and comparator remain untouched. */
-internal fun LabResult.trendPlotValue():Double?=normalizedValue?.takeIf{it.isFinite()}
+/**
+ * Threshold coordinate only; source text and comparator remain untouched.
+ * Legacy rows can contain a real numeric result without a persisted normalized
+ * value. Recompute that display-only coordinate instead of silently dropping
+ * the point from the trend.
+ */
+internal fun LabResult.trendPlotValue():Double? {
+ val stored=normalizedValue?.takeIf{it.isFinite()}
+ if(stored!=null)return stored
+ val numeric=value?.takeIf{it.isFinite()}?:LabResultValues.numeric(textValue)?:return null
+ return UnitNormalizer.normalize(metricKey,numeric,unitAtTest).first?.takeIf{it.isFinite()}
+}
 internal fun LabResult.uncertainComparisonPoint()=comparator.isNotEmpty()&&status()==ResultStatus.UNKNOWN
