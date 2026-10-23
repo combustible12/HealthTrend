@@ -25,6 +25,12 @@ class LabTextResultsTest {
  @Test fun sourceAbbreviationsResolveOnlyWithExactChineseAntibodyIdentity(){assertEquals("TPAB",ReportParser.parse("TP 梅毒螺旋体特异性抗体 阴性 - 阴性").single().metricKey);assertEquals("HIVAB",ReportParser.parse("HIV 人免疫缺陷病毒抗体 阴性 - 阴性").single().metricKey);assertEquals("TP",ReportParser.key("TP"))}
  @Test fun editTextNeverStoresFakeNumericOrChangesIdentity(){val old=row("阴性");val next=old.withEditedResult("阳性（+）");assertNull(next.value);assertNull(next.normalizedValue);assertEquals(old.metricKey,next.metricKey);assertEquals(old.referenceRaw,next.referenceRaw);assertEquals("阳性（+）",next.textValue);assertTrue(next.editedByUser)}
  @Test fun numericalEditKeepsSourcePrecision(){val next=row("阴性").withEditedResult("0.250");assertEquals("0.250",next.textValue);assertEquals(0.250,next.normalizedValue!!,0.0)}
+ @Test fun legacyNumericResultWithoutNormalizedValueStillPlots(){
+  val legacy=LabResult("legacy","report","医院","血常规",null,"PCT","血小板压积",0.153,"%",0.108,null,1L,
+   textValue="0.153",normalizedValue=null,normalizedUnit="")
+  assertEquals(0.153,legacy.trendPlotValue()!!,0.0)
+  assertEquals(0.153,legacy.copy(value=null).trendPlotValue()!!,0.0)
+ }
  @Test fun numericResultCanPreserveTextualReference(){val p=ReportParser.parse("HIVAB 人免疫缺陷病毒抗体 0.50 S/CO 阴性").single();assertEquals(0.5,p.value!!,0.0);assertEquals("0.50",p.textValue);assertEquals("阴性",p.referenceRaw)}
  @Test fun identicalDescriptionCanMatchButNoInterpretationIsInvented(){assertEquals(ResultStatus.NORMAL,row("棕黄色","棕黄色").status());assertEquals(ResultStatus.UNKNOWN,row("软","成形").status())}
  @Test fun unrelatedReferenceVocabulariesDoNotForceJudgment(){assertEquals(ResultStatus.UNKNOWN,row("阴性","正常").status())}
