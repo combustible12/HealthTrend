@@ -30,6 +30,7 @@ class TwelveImageAcceptanceAuditTest {
   val value=when(kind){"阴阳性"->"阴性";"弱阳性"->"弱阳性";"半定量"->"2+";"未检出"->"未检出";"描述"->"合成描述";"带比较符数值"->"<0.700";else->"7.2300"}
   val reference=when(kind){"阴阳性","弱阳性","半定量"->"阴性";"未检出"->"未检出";"描述"->"";else->"1.000-9.000"}
   val unit=row.getString("unit")
+  val expectedUnit=displayLabUnit(unit)
   val line=if(standard)listOf(key,definition.name,value,unit.ifBlank{"-"},reference).joinToString("\t")
    else "${row.getString("name")} $value ${unit.ifBlank{"-"}} $reference"
   return try{
@@ -39,7 +40,7 @@ class TwelveImageAcceptanceAuditTest {
    if(item.key!=key)return "身份未匹配:${item.key}"
    if(item.uncertain||!draft.valid())return "需要核对:${reportValidationProblems(draft).joinToString("；")}"
    if(item.text!=value)return "结果文本变化"
-   if(item.unit!=unit)return "单位变化:${item.unit}"
+   if(item.unit!=expectedUnit)return "单位变化:${item.unit}"
    if(item.parsed().referenceRaw!=reference)return "参考文本变化:${item.parsed().referenceRaw}"
    val report=materializeReportDraft(draft,store);store.saveReport(report)
    val reopened=HealthStore(context)
@@ -50,7 +51,7 @@ class TwelveImageAcceptanceAuditTest {
    val after=HealthStore(context).reports().single()
    if(after.results!=saved.results)return "编辑改变结果"
    val exported=pastedReportDraft(reopened.exportReportAsPastedText(after),store=reopened).rows.single()
-   if(exported.key!=key||exported.text!=value||exported.unit!=unit||exported.parsed().referenceRaw!=reference)return "导出再导入变化"
+   if(exported.key!=key||exported.text!=value||exported.unit!=expectedUnit||exported.parsed().referenceRaw!=reference)return "导出再导入变化"
    val series=reopened.trend(key)
    if(kind=="带比较符数值"){
     if(series.isNotEmpty())return "比较符结果被当作精确趋势点"
