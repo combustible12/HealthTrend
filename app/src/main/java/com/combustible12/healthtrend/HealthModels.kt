@@ -253,9 +253,10 @@ object UnitNormalizer {
    "10^12/l","10e12/l"->"10^12/L"
    "g/l"->"g/L";"g/dl"->"g/dL";"mg/l"->"mg/L";"mg/dl"->"mg/dL"
    "ng/l"->"ng/L";"ng/ml"->"ng/mL";"pg/ml"->"pg/mL"
+   "ug/l","mcg/l"->"μg/L";"ug/ml","mcg/ml"->"μg/mL"
    "umol/l"->"μmol/L";"mmol/l"->"mmol/L";"nmol/l"->"nmol/L";"pmol/l"->"pmol/L"
    "u/l"->"U/L";"u/ml"->"U/mL";"miu/l"->"mIU/L";"iu/l"->"IU/L"
-   "fl"->"fL";"mm/h"->"mm/h";"%"->"%";"s"->"s";"pg"->"pg"
+   "fl"->"fL";"mm/h"->"mm/h";"%"->"%";"s","sec","sec.","secs","second","seconds","秒"->"s";"pg"->"pg"
    else->source
   }
  }
@@ -279,6 +280,7 @@ object UnitNormalizer {
    key=="GLU" && u=="mmol/l" -> value to "mmol/L"
    key=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
    key=="UREA" && u=="mmol/l" -> value to "mmol/L"
+   key in setOf("DDIMER","FDP") && u in setOf("mg/l","ug/ml") -> value to "μg/mL"
    // UREA mg/dL may be confused with BUN mg/dL: keep the source unit until identity is confirmed.
    else -> value to canonical
   }
