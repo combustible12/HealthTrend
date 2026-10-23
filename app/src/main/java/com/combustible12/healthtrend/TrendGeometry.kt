@@ -52,3 +52,5 @@ internal fun trendGeometry(points:List<Pair<Long,Double>>,dates:List<Long>,hospi
  val scale=trendScale(points.map{it.second},bands)
  return TrendGeometry(timeline,scale,points.indices.map{i->TrendCoordinate(centers[timeline.pointSlots[i]],scale.y(points[i].second,height))},trendSegments(timeline.pointSlots,hospitals))
 }
+
+internal fun trendHasHistoricalAbnormal(results:List<LabResult>)=results.any{it.status() in setOf(ResultStatus.HIGH,ResultStatus.LOW)}

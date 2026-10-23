@@ -5,7 +5,7 @@ import org.junit.Test
 
 class TrendGeometryTest {
  private val values=listOf(7.11,7.01,8.42,12.32,3.03,4.14,1.79)
- private val dates=listOf(29L,32L,36L,42L,46L,49L,53L)
+ private val dates=listOf("2026-09-29","2026-10-02","2026-10-06","2026-10-12","2026-10-16","2026-10-19","2026-10-23").map{java.time.LocalDate.parse(it).toEpochDay()}
  private fun geometry(hospitals:List<String>,timeline:List<Long> = dates,height:Float=200f):TrendGeometry {
   val p=dates.zip(values);val slots=trendTimeline(p,timeline)
   return trendGeometry(p,timeline,hospitals,List(7){3.5 to 9.5},slots.dates.indices.map{it*40f},height)
@@ -24,8 +24,8 @@ class TrendGeometryTest {
   assertEquals(7,geometry(List(7){if(it%2==0)"A" else "B"}).segments.size)
  }
  @Test fun missingMeasurementBreaksBothViewsWithSameScale(){
-  val main=geometry(List(7){"A"},dates+47L)
-  val preview=geometry(List(7){"A"},dates+47L,400f)
+  val main=geometry(List(7){"A"},dates+(dates[4]+1))
+  val preview=geometry(List(7){"A"},dates+(dates[4]+1),400f)
   assertEquals(listOf(listOf(0,1,2,3,4),listOf(5,6)),main.segments)
   assertEquals(main.segments,preview.segments)
   main.points.indices.forEach{i->assertEquals(main.points[i].y*2,preview.points[i].y,0.001f)}
@@ -58,6 +58,12 @@ class TrendGeometryTest {
   }
  }
  private fun row(key:String="HGB",v:Double=12.0,unit:String="g/dL")=LabResult("x","r","A","血常规",null,key,key,v,unit,10.0,15.0,1L)
+ @Test fun historyRatherThanLatestResultSelectsRedOrBluePalette(){
+  val normal=row(v=12.0);val high=row(v=16.0);val unknown=row(v=12.0).copy(referenceLowAtTest=null,referenceHighAtTest=null)
+  assertTrue(trendHasHistoricalAbnormal(listOf(high,normal)))
+  assertFalse(trendHasHistoricalAbnormal(listOf(unknown,normal)))
+  assertNotEquals(hospitalPaletteArgb(0,true),hospitalPaletteArgb(0,false))
+ }
  @Test fun legacyCachedNumbersCannotBypassUnitConversion(){
   val r=row().copy(normalizedValue=12.0,normalizedUnit="g/L")
   assertEquals(120.0,r.trendPlotValue()!!,0.0)

@@ -425,11 +425,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   else->null
  }
  val activeReports=remember(reports,textRevision){if(textRevision==0)reports else store.reports()}
- val all=activeReports.flatMap{r->r.results.filter{result->
+ val all=activeReports.distinctBy{it.id}.flatMap{r->r.results.distinctBy{it.id}.filter{result->
   val key=canonicalMetricKey(result.metricKey)
   key !in setOf("RDW","PDW")&&distributionWidthIdentityProblem(key,result.rawName,result.unitAtTest)==null
  }.map{x->r to x}}.mapNotNull{pair->
-  trendCardIdentity(store.trendIdentity(pair.second.metricKey),pair.second)?.let{it to pair}
+  trendCardIdentity(store.trendIdentity(pair.second.metricKey),pair.second)?.let{it.copy(unit=trendUnitIdentity(pair.second)) to pair}
  }.groupBy({it.first},{it.second})
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // Persisted palette slots survive sorting, filtering, missing metrics and new hospitals.
@@ -520,15 +520,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      "参考范围: ${qualitativeDisplayText(range)} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{trendHospitalKey(it.first.hospitalKey)}.distinct()
-    val hasHistoricalAbnormal=list.any{(_,result)->result.status()==ResultStatus.HIGH||result.status()==ResultStatus.LOW}
+    val hasHistoricalAbnormal=trendHasHistoricalAbnormal(list.map{it.second})
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
-    val pointHospitalColors=compatiblePoints.map{(report,result)->hospitalColors[trendHospitalKey(report.hospitalKey)]?:if(hasHistoricalAbnormal)Bad else TrendBlue}
+    val pointHospitalColors=compatiblePoints.map{(report,result)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))}
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
       hospitalRows.forEach{hospital->
        Row(verticalAlignment=Alignment.CenterVertically){
-        Canvas(Modifier.size(8.dp)){drawCircle(hospitalColors[hospital]?:Muted)}
+        Canvas(Modifier.size(8.dp)){drawCircle(hospitalColors.getValue(hospital))}
         Spacer(Modifier.width(6.dp))
         Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)
        }
@@ -578,7 +578,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       color=if(hasHistoricalAbnormal) Bad else TrendBlue,
       referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
       segmentKeys=series.map{trendHospitalKey(it.first.hospitalKey)},
-      segmentColors=series.map{(report,result)->hospitalColors[trendHospitalKey(report.hospitalKey)]?:if(hasHistoricalAbnormal)Bad else TrendBlue},
+      segmentColors=series.map{(report,result)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))},
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       onDismiss={previewSeries=null},
       referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct(),
@@ -795,8 +795,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
  fun pointPosition(index:Int)=geometry.points[index].let{Offset(it.x,it.y)}
  Box(Modifier.fillMaxWidth().horizontalScroll(scroll)){
   BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
-   val chartWidth=constraints.maxWidth
-   val plotHeightPx=with(density){plotHeight.roundToPx()}
+   // Canvas and clickable overlay share the already computed geometry.
    Canvas(Modifier.width(contentWidth).height(plotHeight).semantics{contentDescription="趋势图 $metricKey"}){
     if(points.isEmpty())return@Canvas
     fun y(v:Double)=geometry.scale.y(v,size.height)

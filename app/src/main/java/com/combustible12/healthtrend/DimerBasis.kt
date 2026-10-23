@@ -58,7 +58,7 @@ internal fun dDimerBasis(result:LabResult):DimerBasis {
  return if(unitBasis!=DimerBasis.UNSPECIFIED)unitBasis else dDimerBasisFromText(result.rawLine)
 }
 
-internal data class TrendCardIdentity(val metricKey:String,val dimerBasis:DimerBasis?=null)
+internal data class TrendCardIdentity(val metricKey:String,val dimerBasis:DimerBasis?=null,val unit:String="")
 
 /** Unlabelled D-dimer is a review state, never a third trend identity. */
 internal fun trendCardIdentity(metricKey:String,result:LabResult):TrendCardIdentity? {
