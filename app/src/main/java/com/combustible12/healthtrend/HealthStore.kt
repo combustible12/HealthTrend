@@ -122,8 +122,36 @@ class HealthStore(private val context:Context) {
  @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim()).put("bloodType",p.bloodType.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
  @Synchronized fun reports():List<LabReport>{
   migrateDistributionWidthHistoryIfNeeded()
+  migrateDimerBasisHistoryIfNeeded()
   val reports=rows(read("reports"),::reportFromJson).sortedByDescending{it.testedAtEpochMillis}
   return reports
+ }
+
+ private fun migrateDimerBasisHistoryIfNeeded(){
+  val reportJson=read("reports")
+  val migration=migrateDimerBasisHistory(rows(reportJson,::reportFromJson))
+  val archiveJson=read("report_replacement_archive");var archiveChanges=0
+  val migratedArchive=JSONArray().apply{(0 until archiveJson.length()).forEach{index->
+   val source=archiveJson.getJSONObject(index)
+   val oldMigration=migrateDimerBasisHistory(listOf(reportFromJson(source.getJSONObject("old"))))
+   val newMigration=migrateDimerBasisHistory(listOf(reportFromJson(source.getJSONObject("new"))))
+   archiveChanges+=oldMigration.changedResults+newMigration.changedResults
+   put(JSONObject(source.toString()).put("old",reportToJson(oldMigration.reports.single()))
+    .put("new",reportToJson(newMigration.reports.single())))
+  }}
+  if(migration.changedResults==0&&archiveChanges==0)return
+  val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
+  check(safety.edit().putString("reports:dimer_basis_previous",reportJson.toString())
+   .putString("report_replacement_archive:dimer_basis_previous",archiveJson.toString())
+   .putLong("dimer_basis_migration:savedAt",System.currentTimeMillis()).commit()){
+   "无法保存D-二聚体口径迁移前安全快照，已取消迁移"
+  }
+  check(prefs.edit()
+   .putString("reports",if(migration.changedResults>0)JSONArray().apply{migration.reports.forEach{put(reportToJson(it))}}.toString() else reportJson.toString())
+   .putString("report_replacement_archive",if(archiveChanges>0)migratedArchive.toString() else archiveJson.toString())
+   .putInt("dimer_basis_schema",1).putInt("schema",2).commit()){
+   "D-二聚体口径迁移保存失败"
+  }
  }
 
  /**
@@ -347,7 +375,8 @@ class HealthStore(private val context:Context) {
  @Synchronized fun saveReport(input:LabReport){
   // Do not rewrite a confirmed report's metric identities on ordinary save.
   // Legacy identity repairs are intentionally not part of the save path.
-  val normalized=input
+  // Apply only explicit D-dimer basis evidence and the two user-confirmed historical records.
+  val normalized=migrateDimerBasisHistory(listOf(input)).reports.single()
   // Report editors can hold an older snapshot than an attachment import.
   // Keep persisted images when that snapshot is saved; never silently discard them.
   val persisted=reports().firstOrNull{it.id==normalized.id}
@@ -1100,7 +1129,7 @@ internal fun displayLabUnit(unit:String):String {
  val clean=sanitizeLabUnit(unit).replace(Regex("^[×xX]\\s*(?=10\\^)"),"")
  val token=java.text.Normalizer.normalize(clean,java.text.Normalizer.Form.NFKC)
   .replace("µ","μ").replace(Regex("\\s+"),"").replace("μ","u").lowercase(java.util.Locale.ROOT)
- return normalizedDistributionWidthUnit(clean)?:when(token){
+ return normalizedDistributionWidthUnit(clean)?:canonicalDimerDisplayUnit(clean)?:when(token){
   "s","sec","sec.","secs","second","seconds","秒"->"s"
   "ug/l","mcg/l"->"μg/L"
   "ug/ml","mcg/ml"->"μg/mL"
