@@ -82,6 +82,7 @@ internal fun pastedReportDraft(raw:String,template:HospitalLabTemplate?=null,sto
 @Suppress("UNUSED_PARAMETER")
 fun metricNeedsReview(p:ParsedLabResult,template:HospitalLabTemplate?):Boolean{
  if(p.metricKey.isBlank()||p.metricKey=="未识别"||p.metricKey.startsWith("待核对:")||p.displayName=="待核对"||p.textValue.isBlank())return true
+ if(canonicalMetricKey(p.metricKey)=="DDIMER"&&dDimerBasisFromText(p.unit)==DimerBasis.UNSPECIFIED)return true
  if(Regex("成人|新生儿|晨尿").containsMatchIn(p.referenceRaw))return true
  if(p.reportFlag.length>1 || sourceFlagConflict(p.reportFlag,p.value,p.referenceLow,p.referenceHigh))return true
  if('?' in p.referenceRaw && PartialReferenceRanges.interval(p.referenceRaw,p.value,p.reportFlag.singleOrNull())==null)return true
