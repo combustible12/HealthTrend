@@ -241,6 +241,7 @@ object UnitNormalizer {
    .replace("µ","μ").replace(Regex("\\s+"),"")
    .replace("10⁹","10^9").replace("10¹²","10^12")
   if(source.isBlank())return ""
+  if(canonicalMetricKey(metricKey)=="DDIMER")canonicalDimerDisplayUnit(source)?.let{return it}
   val token=source.replace("μ","u").lowercase(java.util.Locale.ROOT).replaceFirst(Regex("^[×x](?=10\\^)"),"")
   val preferred=UnifiedMetricStandard.definition(canonicalMetricKey(metricKey))?.unit.orEmpty()
   fun identity(value:String)=java.text.Normalizer.normalize(value,java.text.Normalizer.Form.NFKC)
@@ -264,6 +265,7 @@ object UnitNormalizer {
   if(value==null)return null to normalize(metricKey,1.0,unit).second
   val key=canonicalMetricKey(metricKey)
   val canonical=equivalentUnit(key,unit)
+  if(key=="DDIMER")normalizeDimerValue(value,canonical)?.let{return it}
   val u=canonical.replace("μ","u").replace("µ","u").replace(" ","").lowercase()
   return when {
    key in setOf("WBC","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NRBC#","PLT","P-LCC") && u in setOf("10^9/l","×10^9/l","x10^9/l","10e9/l") -> value to "10^9/L"
@@ -280,7 +282,7 @@ object UnitNormalizer {
    key=="GLU" && u=="mmol/l" -> value to "mmol/L"
    key=="GLU" && u=="mg/dl" -> value/18.0182 to "mmol/L"
    key=="UREA" && u=="mmol/l" -> value to "mmol/L"
-   key in setOf("DDIMER","FDP") && u in setOf("mg/l","ug/ml") -> value to "μg/mL"
+   key=="FDP" && u in setOf("mg/l","ug/ml") -> value to "μg/mL"
    // UREA mg/dL may be confused with BUN mg/dL: keep the source unit until identity is confirmed.
    else -> value to canonical
   }
