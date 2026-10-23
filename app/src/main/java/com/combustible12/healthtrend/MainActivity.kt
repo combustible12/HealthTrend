@@ -386,6 +386,18 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   softWrap=true,modifier=Modifier.fillMaxWidth().clickable(onClick=onClick))
 }
 
+/** Compact card controls: change group, or pin this exact trend identity first. */
+@Composable internal fun TrendCardActions(primary:Boolean,onMove:()->Unit,onPin:()->Unit){
+ Row(horizontalArrangement=Arrangement.spacedBy(2.dp)){
+  IconButton(onClick=onMove,modifier=Modifier.size(36.dp)){
+   Icon(Icons.Outlined.ArrowBack,if(primary)"移到其他指标" else "移到重点指标",Modifier.size(20.dp),tint=Accent)
+  }
+  IconButton(onClick=onPin,modifier=Modifier.size(36.dp)){
+   Icon(Icons.Outlined.ArrowUpward,"置于最上方",Modifier.size(20.dp),tint=Accent)
+  }
+ }
+}
+
 /** Aliases are requested details, never a permanent label above a trend title. */
 @Composable fun TrendMetricTitle(title:String,aliases:List<String>){
  var showAliases by remember(title){mutableStateOf(false)}
@@ -480,11 +492,11 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val aliasIndex=remember(revision){savedAliases.entries.groupBy({canonicalMetricKey(it.value)},{it.key})}
   val builtInIndex=remember{ReportParser.builtInMetricKeys().associateWith{ReportParser.builtInAliasNames(it)}}
   fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()).distinct()
-  val filtered=all.filter{(card,list)->
+  val filtered=orderTrendCards(all.filter{(card,list)->
    val key=card.metricKey
    val matchesText=list.any{(r,x)->DataSearch.row(query,r,x,savedAliases,preferredNames[key])} || DataSearch.matches(query,aliasesFor(key))
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
-  }
+  }.toList(),store.trendCardOrder(mode=="重点指标")){it.first.storageKey()}
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(card,list)->
@@ -568,7 +580,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}
      )
     }
-    TextButton({priority(key,mode!="重点指标")},modifier=Modifier.heightIn(min=28.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Text(if(mode=="重点指标") "移到其他指标" else "设为重点指标",fontSize=12.sp)}
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
+     TrendCardActions(
+      primary=mode=="重点指标",
+      onMove={priority(key,mode!="重点指标")},
+      onPin={store.pinTrendCard(card.storageKey(),mode=="重点指标");resultChanged()}
+     )
+    }
     if(meaningDetail)AlertDialog(onDismissRequest={meaningDetail=false},title={Text(fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key))},text={Text(metricPurposeDetail(key)?:trendMeaning.orEmpty())},confirmButton={TextButton({meaningDetail=false}){Text("知道了")}})
     previewSeries?.let{series->
      val sx=series.last().second
@@ -816,8 +834,8 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
      }
     }else when{
      referenceLow!=null&&referenceHigh!=null->{val top=y(referenceHigh);val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(bottom-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
-     referenceHigh!=null->{val top=y(referenceHigh);drawRect(Good.copy(alpha=.08f),Offset(0f,top),Size(size.width,(size.height-top).coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)}
-     referenceLow!=null->{val bottom=y(referenceLow);drawRect(Good.copy(alpha=.08f),Offset.Zero,Size(size.width,bottom.coerceAtLeast(1f)));drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
+     referenceHigh!=null->{val top=y(referenceHigh);drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)}
+     referenceLow!=null->{val bottom=y(referenceLow);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
     val plotted=points.indices.map(::pointPosition)
     val segments=geometry.segments
@@ -848,11 +866,12 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
       val centers=layout.dates.indices.map{i->if(layout.dates.size==1)size.width/2 else 8f+(size.width-16f)*i/(layout.dates.size-1)}
       val geometry=trendGeometry(points,timelineDates,segmentKeys,referenceBands,centers,size.height)
       fun y(v:Double)=geometry.scale.y(v,size.height)
-      val xs=geometry.points.map{it.x}
       if(referenceBands.size==points.size){
        points.indices.forEach{i->
-        val left=if(i==0)0f else (xs[i-1]+xs[i])/2f
-        val right=if(i==points.lastIndex)size.width else (xs[i]+xs[i+1])/2f
+        val slot=geometry.timeline.pointSlots[i]
+        val center=centers[slot]
+        val left=if(slot==0)0f else (centers[slot-1]+center)/2f
+        val right=if(slot==geometry.timeline.dates.lastIndex)size.width else (center+centers[slot+1])/2f
         val (rl,rh)=referenceBands[i]
         referenceBandPixels(rl,rh,size.height,::y)?.let{(top,bottom)->
          drawRect(Good.copy(alpha=.08f),Offset(left,top),Size((right-left).coerceAtLeast(1f),bottom-top))

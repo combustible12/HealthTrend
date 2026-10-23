@@ -57,6 +57,22 @@ class TrendGeometryTest {
    assertEquals((12.32-1.79)/(g.scale.high-g.scale.low)*200*.76,(g.points[0].y-g.points[1].y).toDouble(),0.0001)
   }
  }
+ @Test fun smallDecimalSeriesUsesItsActualSpan(){
+  val scale=trendScale(listOf(0.108,0.115),listOf(0.1 to 0.2))
+  assertEquals(0.09,scale.low,1e-12);assertEquals(0.21,scale.high,1e-12)
+  assertTrue(scale.y(0.115,200f)<scale.y(0.108,200f))
+ }
+ @Test fun pinOrderIsStableAndIdentitySpecific(){
+  val cards=listOf(
+   TrendCardIdentity("DDIMER",DimerBasis.FEU,"μg/mL FEU"),
+   TrendCardIdentity("NEUT#",unit="10^9/L"),
+   TrendCardIdentity("DDIMER",DimerBasis.DDU,"μg/mL DDU")
+  )
+  val ordered=orderTrendCards(cards,listOf(cards[1].storageKey())){it.storageKey()}
+  assertEquals(listOf("NEUT#","DDIMER","DDIMER"),ordered.map{it.metricKey})
+  assertEquals(DimerBasis.FEU,ordered[1].dimerBasis)
+  assertNotEquals(cards[0].storageKey(),cards[2].storageKey())
+ }
  private fun row(key:String="HGB",v:Double=12.0,unit:String="g/dL")=LabResult("x","r","A","血常规",null,key,key,v,unit,10.0,15.0,1L)
  @Test fun historyRatherThanLatestResultSelectsRedOrBluePalette(){
   val normal=row(v=12.0);val high=row(v=16.0);val unknown=row(v=12.0).copy(referenceLowAtTest=null,referenceHighAtTest=null)

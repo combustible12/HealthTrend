@@ -28,6 +28,15 @@ class HealthStore(private val context:Context) {
   if(keys!=previous)write("trend_hospital_palette",JSONArray(keys))
   return keys
  }
+ internal fun trendCardOrder(primary:Boolean):List<String>{
+  val saved=read(if(primary)"trend_card_order_primary" else "trend_card_order_other")
+  return (0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()}.distinct()
+ }
+ @Synchronized internal fun pinTrendCard(cardKey:String,primary:Boolean){
+  require(cardKey.isNotBlank())
+  val key=if(primary)"trend_card_order_primary" else "trend_card_order_other"
+  write(key,JSONArray(listOf(cardKey)+trendCardOrder(primary).filterNot{it==cardKey}))
+ }
  fun coursePhases():List<String> {
   if(!prefs.contains("course_phases"))return listOf("化疗日","恢复期","观察","其他")
   val saved=read("course_phases")

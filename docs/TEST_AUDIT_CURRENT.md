@@ -798,3 +798,11 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 色阶首次注册沿用既有报告首次出现顺序，之后固定槽位；不重设计现有六阶颜色。转换后的数值标签与坐标同尺度，原始精度文本不变；单侧原文范围若保留原文，显示原单位，避免原文配错标准化单位。增加换算后标签行为断言。
 
 - 第二轮 JVM 329 项运行中 328 通过，1 项新持久化用例失败：测试用单字母医院名触发正常导入校验。已将合成输入修正为“合成医院”，保留生产校验和全部断言。
+
+### 2026-10-23 趋势卡片与参考范围新增回归
+- `TrendGeometryTest.smallDecimalSeriesUsesItsActualSpan`：验证 PCT 类小数数据不被固定 1.0 跨度压扁。
+- `TrendGeometryTest.pinOrderIsStableAndIdentitySpecific`：验证置顶顺序稳定，单位和 FEU/DDU 身份隔离。
+- `TrendPalettePersistenceTest`：验证置顶顺序重开仍在，且写视觉偏好不会改报告 JSON。
+- `TrendReferenceBandTest`：验证单边范围没有虚构填色，完整范围保持双边有限区域。
+- `TrendRenderingTest.cardActionsAreBorderlessIconsAndDispatchExactActions`：在真实 Compose 语义树点击左箭头与上箭头，验证各自只触发一次正确动作。
+- 本地环境无 Gradle 可执行文件；这里只记录覆盖内容，不把源码检查算作通过。真实数量与结果由本次 GitHub Actions 日志回填。

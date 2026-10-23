@@ -32,4 +32,11 @@ class TrendRenderingTest {
   for(x in 0 until pixels.width)for(y in 0 until pixels.height){val p=pixels[x,y];if(kotlin.math.abs(p.red-colors[0].red)<.02f&&kotlin.math.abs(p.green-colors[0].green)<.02f)matching++}
   assertTrue("Preview must render hospital-colored points and line",matching>20)
  }
+ @Test fun cardActionsAreBorderlessIconsAndDispatchExactActions(){
+  var moved=0;var pinned=0
+  compose.setContent{MaterialTheme{TrendCardActions(primary=true,onMove={moved++},onPin={pinned++})}}
+  compose.onNodeWithContentDescription("移到其他指标").assertIsDisplayed().performClick()
+  compose.onNodeWithContentDescription("置于最上方").assertIsDisplayed().performClick()
+  compose.runOnIdle{assertEquals(1,moved);assertEquals(1,pinned)}
+ }
 }

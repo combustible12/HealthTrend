@@ -41,7 +41,10 @@ internal data class TrendScale(val low:Double,val high:Double){
 }
 internal fun trendScale(values:List<Double>,bands:List<Pair<Double?,Double?>>):TrendScale {
  val all=(values+bands.flatMap{listOfNotNull(it.first,it.second)}).filter{it.isFinite()}
- val lo=all.minOrNull()?:0.0;val hi=all.maxOrNull()?:1.0;val span=(hi-lo).coerceAtLeast(1.0)
+ val lo=all.minOrNull()?:0.0;val hi=all.maxOrNull()?:1.0
+ // Small-valued metrics (for example plateletcrit) must retain their real
+ // variation. Only a truly constant series needs a synthetic non-zero span.
+ val span=(hi-lo).takeIf{it>0.0}?:kotlin.math.max(kotlin.math.abs(lo)*.1,1e-6)
  return TrendScale(lo-span*.10,hi+span*.10)
 }
 internal data class TrendCoordinate(val x:Float,val y:Float)
@@ -55,3 +58,9 @@ internal fun trendGeometry(points:List<Pair<Long,Double>>,dates:List<Long>,hospi
 }
 
 internal fun trendHasHistoricalAbnormal(results:List<LabResult>)=results.any{it.status() in setOf(ResultStatus.HIGH,ResultStatus.LOW)}
+
+/** Apply saved pins first and retain source order for cards not yet ranked. */
+internal fun <T> orderTrendCards(cards:List<T>,savedKeys:List<String>,key:(T)->String):List<T> {
+ val ranks=savedKeys.distinct().withIndex().associate{it.value to it.index}
+ return cards.withIndex().sortedWith(compareBy<IndexedValue<T>>{ranks[key(it.value)]?:Int.MAX_VALUE}.thenBy{it.index}).map{it.value}
+}

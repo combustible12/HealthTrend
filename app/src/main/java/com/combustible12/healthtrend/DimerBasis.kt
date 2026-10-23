@@ -60,6 +60,10 @@ internal fun dDimerBasis(result:LabResult):DimerBasis {
 
 internal data class TrendCardIdentity(val metricKey:String,val dimerBasis:DimerBasis?=null,val unit:String="")
 
+/** Stable display preference identity. Unit and D-dimer basis remain isolated. */
+internal fun TrendCardIdentity.storageKey():String =
+ listOf(metricKey,dimerBasis?.name.orEmpty(),unit).joinToString("\u001f")
+
 /** Unlabelled D-dimer is a review state, never a third trend identity. */
 internal fun trendCardIdentity(metricKey:String,result:LabResult):TrendCardIdentity? {
  val key=canonicalMetricKey(metricKey)

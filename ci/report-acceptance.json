@@ -1,7 +1,7 @@
 {
-  "reason": "Strict midpoint crossing avoids equal-threshold swap loops",
-  "attempt": 3,
+  "reason": "Verify trend card icon actions and shared chart projection on Android 16",
+  "attempt": 4,
   "requestedAt": "2026-10-23",
-  "scope": "Full trend audit and all existing report/upgrade/UI acceptance with real pixel assertions",
-  "revision": 4
+  "scope": "Trend audit, persistent card ordering and report UI regression with real pixel assertions",
+  "revision": 5
 }

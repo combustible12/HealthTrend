@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "5ba6f1dae9381fb87252ebc98a60df47c04b629d",
+  "sourceCommit": "824528fb6dc3b3d8e1b9a394bdcd02bda6254581",
   "requestedAt": "2026-10-23",
-  "scope": "Full trend audit and all existing report/upgrade/UI acceptance with real pixel assertions",
-  "revision": 4
+  "scope": "Trend audit, persistent card ordering, all report/upgrade/UI acceptance and real pixel assertions",
+  "revision": 5
 }
