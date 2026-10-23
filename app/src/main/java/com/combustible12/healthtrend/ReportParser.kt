@@ -163,8 +163,19 @@ object ReportParser {
   // Some clipboard rows omit the blank unit column entirely. A qualitative
   // fourth token is the reference, not a unit; preserve both with or without '-'.
   val omittedUnit=fields.getOrElse(4){""}.isBlank() && fields[3].trim()!="-" && LabResultValues.kind(fields[3])==LabValueKind.QUALITATIVE
-  val reference=if(omittedUnit)fields[3] else fields.getOrElse(4){""}
-  val sourceUnit=if(omittedUnit)"" else displayLabUnit(fields[3].trim().takeUnless{it=="-"}.orEmpty())
+  var reference=if(omittedUnit)fields[3] else fields.getOrElse(4){""}
+  var printedUnit=fields[3].trim().takeUnless{it=="-"}.orEmpty()
+  // Space-delimited exports may split "μg/mL FEU" into the unit column and
+  // the beginning of the reference column. Rejoin only for an explicit
+  // D-dimer identity; FEU/DDU remains evidence, never a generic unit suffix.
+  val dimerRow=canonicalMetricKey(key(code))=="DDIMER"||canonicalMetricKey(key(name))=="DDIMER"
+  if(!omittedUnit&&dimerRow){
+   Regex("^(FEU|DDU)(?:/[^\\s]+)?(?=\\s|$)",RegexOption.IGNORE_CASE).find(reference.trim())?.let{basisPart->
+    printedUnit="$printedUnit ${basisPart.value}".trim()
+    reference=reference.trim().removePrefix(basisPart.value).trim()
+   }
+  }
+  val sourceUnit=if(omittedUnit)"" else displayLabUnit(printedUnit)
   val numeric=LabResultValues.numeric(result)
   if(numeric!=null && '\t' !in source && LabResultValues.kind(reference)!=LabValueKind.QUALITATIVE)return null
   val bounds=if(numeric!=null)PartialReferenceRanges.parts(reference) else "" to ""
