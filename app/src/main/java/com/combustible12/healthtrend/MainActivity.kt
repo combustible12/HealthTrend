@@ -446,7 +446,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val all=activeReports.flatMap{r->r.results.filter{result->
   val key=canonicalMetricKey(result.metricKey)
   key !in setOf("RDW","PDW")&&distributionWidthIdentityProblem(key,result.rawName,result.unitAtTest)==null
- }.map{x->r to x}}.groupBy{(_,result)->store.trendIdentity(result.metricKey)}
+ }.map{x->r to x}}.groupBy{(_,result)->trendCardIdentity(store.trendIdentity(result.metricKey),result)}
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
@@ -496,13 +496,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val aliasIndex=remember(revision){savedAliases.entries.groupBy({canonicalMetricKey(it.value)},{it.key})}
   val builtInIndex=remember{ReportParser.builtInMetricKeys().associateWith{ReportParser.builtInAliasNames(it)}}
   fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()).distinct()
-  val filtered=all.filter{(key,list)->
+  val filtered=all.filter{(card,list)->
+   val key=card.metricKey
    val matchesText=list.any{(r,x)->DataSearch.row(query,r,x,savedAliases,preferredNames[key])} || DataSearch.matches(query,aliasesFor(key))
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
-  if(category!="体重"||searching)filtered.forEach{(key,list)->
+  if(category!="体重"||searching)filtered.forEach{(card,list)->
+   val key=card.metricKey
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
    val points=list.filter{it.first.testedAtEpochMillis>=cutoff}.sortedBy{it.first.testedAtEpochMillis}
    if(points.isEmpty())return@forEach
@@ -515,7 +517,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val trendMeaning=metricPurpose(key) ?: qualitativeMetricPurpose(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
-      val fixedTitle=preferredNames[key]?:fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key)
+      val baseTitle=preferredNames[key]?:fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key)
+      val fixedTitle=dDimerTrendTitle(baseTitle,card.dimerBasis)
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
@@ -559,7 +562,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({trendFocus.clearFocus();textPreview=true}){Text("整体",fontSize=12.sp,color=Accent)}}
      TextResultTrend(textPoints,onPointClick={selected=it})
     }
-    if(textPreview)AlertDialog(onDismissRequest={textPreview=false},title={Text(labDisplayTitle(latest.rawName,key))},text={TextResultTrend(textPoints,onPointClick={selected=it;textPreview=false})},confirmButton={TextButton({textPreview=false}){Text("关闭")}})
+    if(textPreview)AlertDialog(onDismissRequest={textPreview=false},title={Text(dDimerTrendTitle(labDisplayTitle(latest.rawName,key),card.dimerBasis))},text={TextResultTrend(textPoints,onPointClick={selected=it;textPreview=false})},confirmButton={TextButton({textPreview=false}){Text("关闭")}})
     if(compatiblePoints.isNotEmpty()){
      Spacer(Modifier.height(if(rangeDisplayRows.isNotEmpty()||hospitalRows.isNotEmpty()) 4.dp else 0.dp))
      val trendColor=if(hasHistoricalAbnormal) Bad else TrendBlue
