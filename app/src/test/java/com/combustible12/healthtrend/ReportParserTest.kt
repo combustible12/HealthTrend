@@ -643,12 +643,34 @@ I嗜酸性粒细胞计数 0.04 0.02-0.5 %
    "FT4" to listOf("pmol/l","pmol/L"),
    "TSH" to listOf("mIU/l","miu/L"),
    "MCV" to listOf("fl","fL"),
-   "TP" to listOf("g/l","g/L")
+   "TP" to listOf("g/l","g/L"),
+   "PT" to listOf("s","Sec","SEC","sec.","seconds","秒"),
+   "DDIMER" to listOf("ug/mL","µg/mL","μg/mL","UG/ML","mcg/mL"),
+   "FDP" to listOf("ug/mL","µg/mL","μg/mL","mcg/mL")
   )
   cases.forEach{(key,units)->
-   val expected=UnifiedMetricStandard.definition(key)!!.unit
+   val expected=when(key){"DDIMER","FDP"->"μg/mL";else->UnifiedMetricStandard.definition(key)!!.unit}
    units.forEach{unit->assertEquals("$key $unit",expected,UnitNormalizer.normalize(key,1.0,unit).second)}
   }
+ }
+
+ @Test fun equivalentCoagulationUnitsUseOneDisplayedSpellingAndTrendSeries(){
+  assertEquals("s",displayLabUnit("Sec"))
+  assertEquals("s",displayLabUnit("seconds"))
+  assertEquals("μg/mL",displayLabUnit("ug/mL"))
+  assertEquals("μg/mL",displayLabUnit("µg/mL"))
+  assertEquals("μg/mL",displayLabUnit("mcg/mL"))
+  fun result(key:String,unit:String)=LabResult("$key-$unit","report-$unit","医院","凝血功能",null,key,key,1.0,unit,0.0,5.0,1L,
+   textValue="1.0",normalizedValue=UnitNormalizer.normalize(key,1.0,unit).first,normalizedUnit=UnitNormalizer.normalize(key,1.0,unit).second)
+  assertTrue(trendUnitsCompatible(result("PT","Sec"),result("PT","s")))
+  assertTrue(trendUnitsCompatible(result("TT","Sec"),result("TT","s")))
+  assertTrue(trendUnitsCompatible(result("DDIMER","ug/mL"),result("DDIMER","μg/mL")))
+  assertTrue(trendUnitsCompatible(result("FDP","ug/mL"),result("FDP","µg/mL")))
+  assertTrue(trendUnitsCompatible(result("DDIMER","mg/L"),result("DDIMER","μg/mL")))
+  val dDimerRows=listOf(result("DDIMER","ug/mL"),result("DDIMER","μg/mL"),result("DDIMER","mg/L")).map{x->
+   "${x.trendReferenceDisplayText()} ${displayLabUnit(trendUnitIdentity(x))}"
+  }.distinct()
+  assertEquals(listOf("0–5 μg/mL"),dDimerRows)
  }
 
  @Test fun equivalentUnitTypographyProducesOneTrendRangeRow(){
