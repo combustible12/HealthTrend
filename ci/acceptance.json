@@ -1,5 +1,5 @@
 {
   "sourceCommit": "5ba6f1dae9381fb87252ebc98a60df47c04b629d",
-  "requestedAt": "2026-10-22",
-  "scope": "Final Android 16 release regression: RDW/PDW four identities, idempotent history migration, persistence/export, trend grouping, current UI contract, unrelated metrics, signing and APK build"
+  "requestedAt": "2026-10-23",
+  "scope": "Full trend audit: shared geometry, hospital palette persistence, unit projection, complete JVM and Android UI/upgrade regression"
 }

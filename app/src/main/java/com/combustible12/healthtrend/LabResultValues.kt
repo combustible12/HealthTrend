@@ -108,8 +108,6 @@ internal fun comparisonResultStatus(result:LabResult):ResultStatus {
  * the point from the trend.
  */
 internal fun LabResult.trendPlotValue():Double? {
- val stored=normalizedValue?.takeIf{it.isFinite()}
- if(stored!=null)return stored
  val numeric=value?.takeIf{it.isFinite()}?:LabResultValues.numeric(textValue)?:return null
  return UnitNormalizer.normalize(metricKey,numeric,unitAtTest).first?.takeIf{it.isFinite()}
 }

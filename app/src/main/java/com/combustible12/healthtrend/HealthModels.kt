@@ -190,7 +190,7 @@ fun trendUnitIdentity(result:LabResult):String =
   if(canonicalMetricKey(result.metricKey)=="PCT"&&(unit.isBlank()||unit=="%"))"%" else unit
  }
 fun trendUnitsCompatible(a:LabResult,b:LabResult):Boolean =
- trendUnitIdentity(a)==trendUnitIdentity(b)
+ canonicalMetricKey(a.metricKey)==canonicalMetricKey(b.metricKey)&&trendUnitIdentity(a)==trendUnitIdentity(b)
 fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,canonicalMetricKey(result.metricKey),trendUnitIdentity(result))
 enum class EntryKind(val title:String) { SYMPTOM("症状记录"),MEDICAL("病历资料"),MEDICATION("用药记录") }
 data class HealthEntry(

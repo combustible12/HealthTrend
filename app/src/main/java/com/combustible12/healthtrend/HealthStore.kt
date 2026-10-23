@@ -20,6 +20,14 @@ internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):St
 /** Keep v1 preference names and fields so existing installations migrate in place. */
 class HealthStore(private val context:Context) {
  private val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+ /** Visual preferences only; never writes report data. */
+ @Synchronized internal fun trendHospitalPaletteKeys(hospitals:List<String>):List<String>{
+  val old=read("trend_hospital_palette")
+  val previous=(0 until old.length()).map{old.getString(it)}
+  val keys=hospitalPaletteKeys(previous,hospitals)
+  if(keys!=previous)write("trend_hospital_palette",JSONArray(keys))
+  return keys
+ }
  fun coursePhases():List<String> {
   if(!prefs.contains("course_phases"))return listOf("化疗日","恢复期","观察","其他")
   val saved=read("course_phases")
