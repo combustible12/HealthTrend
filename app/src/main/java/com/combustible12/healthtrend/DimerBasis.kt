@@ -6,7 +6,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 
-internal enum class DimerBasis(val label:String) { FEU("FEU"),DDU("DDU"),UNSPECIFIED("口径未标注") }
+internal enum class DimerBasis(val label:String) { FEU("FEU"),DDU("DDU"),UNSPECIFIED("未标注") }
 
 private fun normalizedDimerText(text:String)=Normalizer.normalize(text.trim(),Normalizer.Form.NFKC)
  .replace("µ","μ").replace(Regex("\\s+")," ")
@@ -58,9 +58,12 @@ internal fun dDimerBasis(result:LabResult):DimerBasis {
 
 internal data class TrendCardIdentity(val metricKey:String,val dimerBasis:DimerBasis?=null)
 
-internal fun trendCardIdentity(metricKey:String,result:LabResult):TrendCardIdentity {
+/** Unlabelled D-dimer is a review state, never a third trend identity. */
+internal fun trendCardIdentity(metricKey:String,result:LabResult):TrendCardIdentity? {
  val key=canonicalMetricKey(metricKey)
- return TrendCardIdentity(key,if(key=="DDIMER")dDimerBasis(result) else null)
+ if(key!="DDIMER")return TrendCardIdentity(key)
+ val basis=dDimerBasis(result)
+ return if(basis==DimerBasis.UNSPECIFIED)null else TrendCardIdentity(key,basis)
 }
 
 internal fun dDimerTrendTitle(base:String,basis:DimerBasis?):String =
