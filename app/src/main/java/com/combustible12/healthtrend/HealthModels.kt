@@ -148,6 +148,11 @@ data class LabResult(
   val simpleRange=Regex("""^[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*[-–—~～−－]\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)$""")
   val bounds=trendReferenceRange()
   fun number(n:Double)=java.math.BigDecimal.valueOf(if(n==0.0)0.0 else n).stripTrailingZeros().toPlainString()
+  // Do not turn a legacy PCT bound with no preserved source range into a new
+  // "≥0.108"/"≤0.25" label. A real one-sided source such as "0.108--"
+  // remains verbatim, while its known edge can still be drawn by the chart.
+  if(canonicalMetricKey(metricKey)=="PCT"&&raw.isBlank()&&
+   ((bounds.first==null)!=(bounds.second==null)))return ""
   if((raw.isEmpty()||simpleRange.matches(raw))&&bounds.first!=null&&bounds.second!=null)
    return "${number(bounds.first!!)}–${number(bounds.second!!)}"
   return raw.ifBlank { when {
@@ -179,7 +184,11 @@ enum class ResultStatus { LOW,NORMAL,HIGH,UNKNOWN }
 data class TrendSeriesIdentity(val hospital:String,val type:String,val metricKey:String,val unit:String)
 /** Compare the current canonical unit identity, never a stale serialized spelling. */
 fun trendUnitIdentity(result:LabResult):String =
- UnitNormalizer.normalize(result.metricKey,result.value,result.unitAtTest).second
+ UnitNormalizer.normalize(result.metricKey,result.value,result.unitAtTest).second.let{unit->
+  // Plateletcrit is displayed and compared as percent. Historical rows that
+  // omitted the printed unit belong to the same PCT series.
+  if(canonicalMetricKey(result.metricKey)=="PCT"&&(unit.isBlank()||unit=="%"))"%" else unit
+ }
 fun trendUnitsCompatible(a:LabResult,b:LabResult):Boolean =
  trendUnitIdentity(a)==trendUnitIdentity(b)
 fun trendSeriesKey(result:LabResult)=TrendSeriesIdentity(result.hospitalKey,result.reportType,canonicalMetricKey(result.metricKey),trendUnitIdentity(result))
