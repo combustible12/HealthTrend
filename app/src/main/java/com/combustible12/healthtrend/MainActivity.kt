@@ -575,6 +575,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=compatiblePoints.map{it.second.trendDisplayText()},
+      // Hospital color remains the point/line/legend identity. An indeterminate
+      // comparison is still gray as text and is not presented as normal.
+      valueColors=compatiblePoints.mapIndexed{i,(_,result)->if(result.status()==ResultStatus.UNKNOWN)Muted else pointHospitalColors[i]},
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(activeReports,compatiblePoints.map{it.first},cutoff),
       onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}
@@ -771,7 +774,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
   .map{it.testedAtEpochMillis}+pointReports.map{it.testedAtEpochMillis}).distinct().sorted()
 }
 
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
  val layout=trendTimeline(points,timelineDates)
  val timeline=layout.dates
  val pointSlots=layout.pointSlots
@@ -848,7 +851,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
     val center=centered[slot]
     Column(Modifier.offset(x=center-groupWidth/2,y=plotHeight+4.dp).width(groupWidth),horizontalAlignment=Alignment.CenterHorizontally){
      Text(trendShortDate(date),style=dateStyle.copy(lineHeight=11.sp,color=Muted,textAlign=TextAlign.Center),maxLines=1)
-     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",style=valueStyle.copy(lineHeight=14.sp,color=if(pointIndex>=0)segmentColors.getOrNull(pointIndex)?:color else color,textAlign=TextAlign.Center),maxLines=1)
+     Text(if(pointIndex>=0)valueLabels.getOrNull(pointIndex).orEmpty().ifBlank{formatTrendValue(points[pointIndex].second)} else "",style=valueStyle.copy(lineHeight=14.sp,color=if(pointIndex>=0)valueColors.getOrNull(pointIndex)?:segmentColors.getOrNull(pointIndex)?:color else color,textAlign=TextAlign.Center),maxLines=1)
     }
    }
   }

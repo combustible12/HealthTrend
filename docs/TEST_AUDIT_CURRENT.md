@@ -806,3 +806,4 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - `TrendReferenceBandTest`：验证单边范围没有虚构填色，完整范围保持双边有限区域。
 - `TrendRenderingTest.cardActionsAreBorderlessIconsAndDispatchExactActions`：在真实 Compose 语义树点击左箭头与上箭头，验证各自只触发一次正确动作。
 - 本地环境无 Gradle 可执行文件；这里只记录覆盖内容，不把源码检查算作通过。真实数量与结果由本次 GitHub Actions 日志回填。
+- 报告专项 run 39920190801：JVM/构建通过；Android 16 共 44 项，43 项通过、1 项失败。失败为 `actualComparisonTrendRetainsRangesLabelsAndGrayUnknownValues`，期望未知文字灰色但得到医院蓝色。生产绘制增加独立 `valueColors`，保留医院色散点/线段/图例，同时恢复未知文字灰色；测试保留并触发复验。

@@ -3,6 +3,8 @@ package com.combustible12.healthtrend
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -30,11 +32,14 @@ class TextResultTrendTest {
   compose.setContent{MaterialTheme{Spark(
    points=listOf(date to 1.0,(date+86400000L) to 5.0),color=TrendBlue,
    referenceBands=listOf(0.0 to 12.0,2.0 to 10.0),
-   segmentColors=listOf(TrendBlue,Muted),valueLabels=listOf("<1.00","<5"),
+   segmentColors=listOf(TrendBlue,TrendBlue),valueLabels=listOf("<1.00","<5"),valueColors=listOf(TrendBlue,Muted),
    pointDescriptions=listOf("合成阈值一","合成阈值二"),onPointClick={clicked=it}
   )}}
   compose.onNodeWithText("<1.00",useUnmergedTree=true).assertExists()
   compose.onNodeWithText("<5",useUnmergedTree=true).assertExists()
+  val layouts=mutableListOf<TextLayoutResult>()
+  compose.onNodeWithText("<5",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+  compose.runOnIdle{assertEquals(Muted,layouts.single().layoutInput.style.color)}
   compose.onNodeWithContentDescription("合成阈值二").performClick()
   compose.runOnIdle{assertEquals(1,clicked)}
  }

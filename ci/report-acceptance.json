@@ -1,7 +1,7 @@
 {
   "reason": "Verify trend card icon actions and shared chart projection on Android 16",
-  "attempt": 4,
+  "attempt": 5,
   "requestedAt": "2026-10-23",
   "scope": "Trend audit, persistent card ordering and report UI regression with real pixel assertions",
-  "revision": 5
+  "revision": 6
 }
