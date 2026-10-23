@@ -13,8 +13,10 @@ private fun normalizedDimerText(text:String)=Normalizer.normalize(text.trim(),No
 
 internal fun dDimerBasisFromText(text:String):DimerBasis {
  val normalized=normalizedDimerText(text)
- val hasFeu=Regex("(?i)(?:^|[^A-Z])FEU(?:$|[^A-Z])").containsMatchIn(normalized)
- val hasDdu=Regex("(?i)(?:^|[^A-Z])DDU(?:$|[^A-Z])").containsMatchIn(normalized)
+ // Laboratory units commonly attach the basis directly (ug/ml.FEU, μg/mLFEU,
+ // or μg FEU/mL), so alphabetic unit characters cannot serve as boundaries.
+ val hasFeu=Regex("(?i)FEU").containsMatchIn(normalized)
+ val hasDdu=Regex("(?i)DDU").containsMatchIn(normalized)
  return when {hasFeu&&!hasDdu->DimerBasis.FEU;hasDdu&&!hasFeu->DimerBasis.DDU;else->DimerBasis.UNSPECIFIED}
 }
 
