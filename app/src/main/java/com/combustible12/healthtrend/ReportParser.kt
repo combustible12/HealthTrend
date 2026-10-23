@@ -229,7 +229,9 @@ object ReportParser {
   val unitText=if(limitMatch!=null)suffix.removeRange(limitMatch.range).trim() else suffix
   // Keep the result token isolated from any neighboring OCR column. A second bare number
   // after the result is never another result; it belongs to range/flags/garbage and must not be displayed.
-  val ocrUnit=Regex("(?i)(?:[×x]?10\\s*(?:\\^|[eE])?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:/[a-zA-Zμµ]+)?|%)").findAll(unitText).map{it.value.replace(" ","")}.firstOrNull{ normalizedUnit(it).contains("/") || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)} }.orEmpty()
+  val ocrUnit=Regex("(?i)(?:[×x]?10\\s*(?:\\^|[eE])?\\s*[-+]?\\d+\\s*/\\s*[lL]|[a-zA-Zμµ]+(?:\\s*(?:FEU|DDU))?(?:/[a-zA-Zμµ0-9]+)?(?:\\s*[.]?\\s*(?:FEU|DDU))?|%)").findAll(unitText).map{it.value.trim()}.firstOrNull{
+   normalizedUnit(it).contains("/") || dDimerBasisFromText(it)!=DimerBasis.UNSPECIFIED || it=="%" || canonicalUnits.values.any{expected->normalizedUnit(expected).equals(normalizedUnit(it),true)}
+  }.orEmpty()
   var k=if(name=="待核对")"待核对:"+parsedName else safeIdentity
   val unit=if(isText)"" else displayLabUnit(resolvedUnit(k,ocrUnit))
   // A clipped distribution-width label identifies the family, while % / fL
