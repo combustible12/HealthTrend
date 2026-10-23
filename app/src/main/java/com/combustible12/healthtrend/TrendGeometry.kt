@@ -3,7 +3,8 @@ package com.combustible12.healthtrend
 /** Display-only hospital normalization matches report entry's trim policy. */
 internal fun trendHospitalKey(raw:String)=raw.trim().ifBlank{"医院未录入"}
 internal fun hospitalPaletteKeys(previous:List<String>,current:List<String>):List<String> =
- (previous.map(::trendHospitalKey).distinct()+current.map(::trendHospitalKey).distinct().sorted()).distinct()
+ if(previous.isEmpty())current.map(::trendHospitalKey).distinct()
+ else (previous.map(::trendHospitalKey).distinct()+current.map(::trendHospitalKey).distinct().sorted()).distinct()
 
 /** Slots never move when reports are reordered/deleted or another hospital is added. */
 internal fun hospitalPaletteArgb(slot:Int,abnormal:Boolean):Long {

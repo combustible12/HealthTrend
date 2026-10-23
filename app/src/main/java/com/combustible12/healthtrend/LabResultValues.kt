@@ -112,3 +112,13 @@ internal fun LabResult.trendPlotValue():Double? {
  return UnitNormalizer.normalize(metricKey,numeric,unitAtTest).first?.takeIf{it.isFinite()}
 }
 internal fun LabResult.uncertainComparisonPoint()=comparator.isNotEmpty()&&status()==ResultStatus.UNKNOWN
+
+/** Match labels to the canonical plot magnitude without rewriting source precision. */
+internal fun LabResult.trendDisplayText():String {
+ val plot=trendPlotValue()
+ val source=value?:LabResultValues.numeric(textValue)
+ val text=if(plot!=null&&source!=null&&plot!=source)
+  comparator+java.math.BigDecimal.valueOf(plot).stripTrailingZeros().toPlainString()
+ else qualitativeDisplayText(textValue)
+ return if(canonicalMetricKey(metricKey)=="PCT")text.removeSuffix("%").trim()+"%" else text
+}

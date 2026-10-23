@@ -37,7 +37,7 @@ class TrendGeometryTest {
   assertEquals(listOf(listOf(0),listOf(1,2)),trendSegments(t.pointSlots,listOf("A","B","B")))
  }
  @Test fun paletteSlotsSurviveReorderingNewHospitalsAndNormalization(){
-  val keys=hospitalPaletteKeys(emptyList(),listOf(" B ","A","", "A"))
+  val keys=hospitalPaletteKeys(emptyList(),listOf("A"," B ","", "A"))
   assertEquals(listOf("A","B","医院未录入"),keys)
   val after=hospitalPaletteKeys(keys,listOf("0","B","A"))
   assertEquals(keys,after.take(3))
@@ -67,6 +67,8 @@ class TrendGeometryTest {
  @Test fun legacyCachedNumbersCannotBypassUnitConversion(){
   val r=row().copy(normalizedValue=12.0,normalizedUnit="g/L")
   assertEquals(120.0,r.trendPlotValue()!!,0.0)
+  assertEquals("120",r.trendDisplayText());assertEquals("12.0",r.textValue)
+  assertEquals("<120",r.copy(comparator="<",textValue="<12.0").trendDisplayText())
   assertEquals(100.0,r.trendReferenceRange().first!!,0.0)
   assertTrue(trendUnitsCompatible(r,row(v=120.0,unit="g/L")))
   assertFalse(trendUnitsCompatible(row("RDW-CV",12.0,"%"),row("PDW-CV",12.0,"%")))

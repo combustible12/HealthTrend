@@ -433,7 +433,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }.groupBy({it.first},{it.second})
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // Persisted palette slots survive sorting, filtering, missing metrics and new hospitals.
- val globalHospitalRows=store.trendHospitalPaletteKeys(activeReports.map{it.hospitalKey})
+ val globalHospitalRows=store.trendHospitalPaletteKeys(activeReports.sortedWith(compareBy<LabReport>{it.testedAtEpochMillis}.thenBy{it.id}).map{it.hospitalKey})
  val globalNormalHospitalColors=hospitalColorMap(globalHospitalRows,false)
  val globalAbnormalHospitalColors=hospitalColorMap(globalHospitalRows,true)
  val weights=remember(weightVersion,revision){store.weightRecords()}
@@ -506,7 +506,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       TrendMetricTitle(fixedTitle,metricAliases)
       trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
      }
-     TrendLatestSummary(if(key=="PCT") "${qualitativeDisplayText(latest.textValue).removeSuffix("%").trim()}%" else qualitativeDisplayText(latest.textValue),latest.resultStatusLabel(),valueColor)
+     TrendLatestSummary(latest.trendDisplayText(),latest.resultStatusLabel(),valueColor)
     }
     var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
@@ -516,7 +516,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val compatiblePoints=points.filter{it.second.trendPlotValue()!=null&&trendUnitIdentity(it.second)==card.unit}
     val rangeDisplayRows=points.mapNotNull{(_,x)->
      val range=x.trendReferenceDisplayText().takeIf{it.isNotBlank()}?:return@mapNotNull null
-     val unit=if(key=="PCT") "%" else displayLabUnit(trendUnitIdentity(x))
+     val unit=if(key=="PCT") "%" else displayLabUnit(if(range==x.referenceRaw.trim())x.unitAtTest else trendUnitIdentity(x))
      "参考范围: ${qualitativeDisplayText(range)} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{trendHospitalKey(it.first.hospitalKey)}.distinct()
@@ -562,7 +562,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onPointClick={index->selected=compatiblePoints[index]},
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
-      valueLabels=compatiblePoints.map{if(key=="PCT") "${it.second.textValue.removeSuffix("%").trim()}%" else it.second.textValue},
+      valueLabels=compatiblePoints.map{it.second.trendDisplayText()},
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(activeReports,compatiblePoints.map{it.first},cutoff),
       onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}

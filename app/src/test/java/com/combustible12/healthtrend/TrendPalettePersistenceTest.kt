@@ -15,7 +15,7 @@ class TrendPalettePersistenceTest {
   val prefs=context.getSharedPreferences("healthtrend_store_v1",0)
   prefs.edit().clear().putString("reports","[]").commit()
   val store=HealthStore(context)
-  val draft=pastedReportDraft("A\n血常规\n2026-10-23\nWBC 白细胞计数 1.79 10^9/L 3.5-9.5",store=store)
+  val draft=pastedReportDraft("合成医院\n血常规\n2026-10-23\nWBC 白细胞计数 1.79 10^9/L 3.5-9.5",store=store)
   assertTrue(reportValidationProblems(draft).toString(),draft.valid())
   store.saveReport(materializeReportDraft(draft,store))
   val original=store.reports().single()
