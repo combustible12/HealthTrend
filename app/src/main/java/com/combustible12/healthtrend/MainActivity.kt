@@ -446,7 +446,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  val all=activeReports.flatMap{r->r.results.filter{result->
   val key=canonicalMetricKey(result.metricKey)
   key !in setOf("RDW","PDW")&&distributionWidthIdentityProblem(key,result.rawName,result.unitAtTest)==null
- }.map{x->r to x}}.groupBy{(_,result)->trendCardIdentity(store.trendIdentity(result.metricKey),result)}
+ }.map{x->r to x}}.mapNotNull{pair->
+  trendCardIdentity(store.trendIdentity(pair.second.metricKey),pair.second)?.let{it to pair}
+ }.groupBy({it.first},{it.second})
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
  // First chronological appearance fixes the hospital's palette slot; missing a metric never shifts another hospital's color.
  val globalHospitalRows=reports.sortedBy{it.testedAtEpochMillis}.map{it.hospitalKey.ifBlank{"医院未录入"}}.distinct()
