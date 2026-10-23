@@ -48,7 +48,8 @@ class CatalogueStorageRoundTripTest {
    try{
     val d=UnifiedMetricStandard.definition(key)!!
     val category=ReportCategoryPolicy.infer(listOf(key))?:"合成检验"
-    val source="合成医院\n$category\n2001-01-02\n$key ${d.name} 2.340 ${d.unit.ifBlank{"-"}} 0-9"
+    val sourceUnit=if(key=="DDIMER")"ug/mL FEU" else d.unit.ifBlank{"-"}
+    val source="合成医院\n$category\n2001-01-02\n$key ${d.name} 2.340 $sourceUnit 0-9"
     val imported=pastedReportDraft(source,store=store)
     assertEquals(key,imported.rows.single().key)
     assertTrue(reportValidationProblems(imported).toString(),imported.valid())
@@ -60,7 +61,8 @@ class CatalogueStorageRoundTripTest {
     val latest=HealthStore(context).reports().single{it.id==report.id}
     val roundtrip=pastedReportDraft(reopened.exportReportAsPastedText(latest),store=reopened)
     assertTrue(reportValidationProblems(roundtrip).toString(),roundtrip.valid())
-    assertEquals(listOf(key,"3.450",d.unit,"0-9"),roundtrip.rows.single().let{listOf(it.key,it.text,it.unit,it.rangeRaw())})
+    val expectedUnit=if(key=="DDIMER")"μg/mL FEU" else d.unit
+    assertEquals(listOf(key,"3.450",expectedUnit,"0-9"),roundtrip.rows.single().let{listOf(it.key,it.text,it.unit,it.rangeRaw())})
     assertEquals("2.340",report.results.single().textValue)
    }catch(e:AssertionError){failures+="$key: ${e.message}"}catch(e:Exception){failures+="$key: ${e.message}"}
   }
