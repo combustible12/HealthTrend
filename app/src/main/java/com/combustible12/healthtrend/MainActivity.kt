@@ -842,7 +842,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
     }
     val plotted=points.indices.map(::pointPosition)
     val segments=geometry.segments
-    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);indices.drop(1).forEach{index->val p=plotted[index];path.lineTo(p.x,p.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
+    segments.forEach{indices->if(indices.size>=2){val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y);indices.drop(1).forEach{index->val p=plotted[index];val previous=plotted[indices[indices.indexOf(index)-1]];val middle=(previous.x+p.x)/2f;path.cubicTo(middle,previous.y,middle,p.y,p.x,p.y)};drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))}}
    }
    points.indices.forEach{i->val at=pointPosition(i);Box(Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x-12.dp.toPx()).roundToInt(),(at.y-12.dp.toPx()).roundToInt())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}
    timeline.forEachIndexed{slot,date->
@@ -888,7 +888,7 @@ internal fun trendTimelineDates(allReports:List<LabReport>,pointReports:List<Lab
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
        val path=Path();val first=plotted[indices.first()];path.moveTo(first.x,first.y)
-       indices.drop(1).forEach{index->val p=plotted[index];path.lineTo(p.x,p.y)}
+       indices.drop(1).forEach{index->val p=plotted[index];val previous=plotted[indices[indices.indexOf(index)-1]];val middle=(previous.x+p.x)/2f;path.cubicTo(middle,previous.y,middle,p.y,p.x,p.y)}
        drawPath(path,segmentColors.getOrNull(indices.first())?:color,style=Stroke(2.dp.toPx()))
       }
       plotted.forEachIndexed{i,p->drawCircle(segmentColors.getOrNull(i)?:color,4.dp.toPx(),p)}
