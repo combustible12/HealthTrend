@@ -164,7 +164,8 @@ class ReportHeadingRoundTripTest {
   UnifiedMetricStandard.keys().forEach{key->
    val d=UnifiedMetricStandard.definition(key)!!
    val type=ReportCategoryPolicy.infer(listOf(key))?:"合成检验"
-   val raw="合成医院\n$type\n2001-01-02\n$key * ＊ ${d.name} 2.340 ${d.unit.ifBlank{"-"}} 0-9"
+   val sourceUnit=if(key=="DDIMER")"ug/mL FEU" else d.unit.ifBlank{"-"}
+   val raw="合成医院\n$type\n2001-01-02\n$key * ＊ ${d.name} 2.340 $sourceUnit 0-9"
    val draft=pastedReportDraft(raw,store=store)
    assertEquals(key,draft.rows.single().key);assertEquals(d.name,draft.rows.single().name)
    assertTrue("$key: ${reportValidationProblems(draft)}",draft.valid())
