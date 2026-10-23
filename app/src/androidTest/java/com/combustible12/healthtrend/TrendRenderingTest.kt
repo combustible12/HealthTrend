@@ -18,10 +18,13 @@ class TrendRenderingTest {
   compose.setContent{MaterialTheme{Spark(points,Color.Black,segmentKeys=listOf("A","B","A"),segmentColors=colors,pointDescriptions=listOf("point0","point1","point2"),onPointClick={clicked=it})}}
   points.indices.forEach{i->
    val node=compose.onNodeWithContentDescription("point$i")
-   node.assertExists().performClick();compose.runOnIdle{assertEquals(i,clicked)}
+   // Capture before click: the Material indication briefly darkens the dot
+   // while pressed and must not be mistaken for its resting hospital color.
+   node.assertExists()
    val pixels=node.captureToImage().toPixelMap()
    assertEquals(colors[i].red,pixels[pixels.width/2,pixels.height/2].red,0.02f)
    assertEquals(colors[i].green,pixels[pixels.width/2,pixels.height/2].green,0.02f)
+   node.performClick();compose.runOnIdle{assertEquals(i,clicked)}
   }
  }
  @Test fun previewContainsEveryDotIncludingConnectedSegmentEndpoints(){

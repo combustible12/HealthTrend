@@ -39,3 +39,4 @@
 2026-10-22 compile current-contract Android regression updates before full rerun
 2026-10-23 trend card icon actions, persistent ordering, single-sided bands and decimal scale
 2026-10-23 retain gray label for indeterminate comparisons without changing hospital-colored points
+2026-10-23 capture resting hospital dot color before click indication
