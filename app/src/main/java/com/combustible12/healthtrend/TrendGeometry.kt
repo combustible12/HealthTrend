@@ -30,8 +30,8 @@ internal fun trendSegments(pointSlots:List<Int>,hospitalKeys:List<String>):List<
  val segments=mutableListOf<MutableList<Int>>()
  pointSlots.indices.forEach{i->
   val gap=i>0&&pointSlots[i]!=pointSlots[i-1]+1
-  val hospital=i>0&&hospitalKeys.isNotEmpty()&&trendHospitalKey(hospitalKeys[i])!=trendHospitalKey(hospitalKeys[i-1])
-  if(segments.isEmpty()||gap||hospital)segments.add(mutableListOf())
+  // Hospital changes keep their source palette, but do not interrupt a compatible metric series.
+  if(segments.isEmpty()||gap)segments.add(mutableListOf())
   segments.last().add(i)
  }
  return segments
