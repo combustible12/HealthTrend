@@ -1,5 +1,5 @@
 {
   "requestedAt": "2026-10-24",
-  "scope": "Blood pressure editor compact gaps, add/remove and unchanged saved readings",
-  "revision": 2
+  "scope": "Retry course pressure layout acceptance with KVM enabled after emulator failed before running tests",
+  "revision": 3
 }

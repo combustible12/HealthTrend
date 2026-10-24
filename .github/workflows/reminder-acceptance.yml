@@ -21,6 +21,11 @@ jobs:
           gradle-version: '8.9'
       - name: Compile and run JVM regression tests
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Verify reminder on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         with:
