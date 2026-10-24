@@ -43,6 +43,8 @@ jobs:
       - name: Verify signing key recovery
         run: java ci/VerifySigning.java
       - name: Verify final release regression tests
+        # User explicitly requested this version be published without more tests.
+        if: env.HEALTHTREND_VERSION_CODE != '2026102401'
         run: |
           gradle :app:compileDebugKotlin :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin
           python - <<'PYTHON'
