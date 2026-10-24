@@ -94,38 +94,47 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
   if(pulse!=null)Text("脉搏 $pulse 次/分",fontSize=12.sp,color=Ink)
  }
 }
-@Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String=""){
- Box(modifier.height(34.dp).clip(RoundedCornerShape(7.dp)).border(1.dp,Color(0xFFAAAAAA),RoundedCornerShape(7.dp)).background(Color.White).padding(horizontal=12.dp),contentAlignment=Alignment.CenterStart){
-  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=16.sp,color=Ink),decorationBox={inner->
-   Box(contentAlignment=Alignment.CenterStart){
-    if(value.isEmpty()&&hint.isNotBlank())Text(hint,fontSize=13.sp,color=Muted)
+@Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String="",fill:Color=Color.White){
+ Box(modifier.height(38.dp).clip(RoundedCornerShape(9.dp)).background(fill).padding(horizontal=5.dp),contentAlignment=Alignment.Center){
+  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=17.sp,color=Ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center),decorationBox={inner->
+   Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
+    if(value.isEmpty()&&hint.isNotBlank())Text(hint,fontSize=12.sp,color=Muted)
     inner()
    }
   })
  }
 }
+private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
+ value==null->Color(0xFFF2F2F2)
+ value<(if(systolic)90 else 60)->Color(0xFFDCEBFA)
+ value<(if(systolic)120 else 80)->Color(0xFFBDEED8)
+ value<(if(systolic)140 else 90)->Color(0xFFFFE2B5)
+ else->Color(0xFFF0525C)
+}
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
- Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.Bottom){
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-    Text("时间",fontSize=12.sp,color=Muted)
-    CompactPressureField(reading.time,{onChange(reading.copy(time=it.take(5)))},Modifier.fillMaxWidth(),"HH:mm")
+ Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.Bottom){
+   @Composable fun Entry(label:String,value:String,fill:Color,change:(String)->Unit,hint:String=""){
+    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+     Text(label,fontSize=11.sp,color=Muted,maxLines=1,softWrap=false)
+     CompactPressureField(value,change,Modifier.fillMaxWidth(),hint,fill)
+    }
    }
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-    Text("高压 mmHg",fontSize=12.sp,color=Muted)
-    CompactPressureField(reading.systolic?.toString().orEmpty(),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
-   }
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-    Text("低压 mmHg",fontSize=12.sp,color=Muted)
-    CompactPressureField(reading.diastolic?.toString().orEmpty(),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
-   }
-   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-    Text("脉搏 次/分",fontSize=12.sp,color=Muted)
-    CompactPressureField(reading.pulse?.toString().orEmpty(),{v->onChange(reading.copy(pulse=v.filter(Char::isDigit).take(3).toIntOrNull()))},Modifier.fillMaxWidth())
-   }
-   if(onRemove!=null)IconButton(onRemove,modifier=Modifier.size(34.dp)){Icon(Icons.Outlined.Delete,"删除这组血压",tint=Bad)}
+   Entry("时间",reading.time,Color.White,{onChange(reading.copy(time=it.take(5)))},"HH:mm")
+   Entry("脉搏 次/分",reading.pulse?.toString().orEmpty(),when{reading.pulse==null->Color(0xFFE5F8ED);reading.pulse in 60..100->Color(0xFFCFF3E0);else->Color(0xFFFFDCE2)},{v->onChange(reading.copy(pulse=v.filter(Char::isDigit).take(3).toIntOrNull()))})
+   Entry("高压 mmHg",reading.systolic?.toString().orEmpty(),pressureValueColor(reading.systolic,true),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))})
+   Entry("低压 mmHg",reading.diastolic?.toString().orEmpty(),pressureValueColor(reading.diastolic,false),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))})
+   if(onRemove!=null)IconButton(onRemove,modifier=Modifier.size(26.dp)){Icon(Icons.Outlined.Close,"删除这组血压",tint=Muted)}
   }
-  PressureReadingView(reading.time,reading.systolic,reading.diastolic,true,reading.pulse)
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
+   val ranges=listOf("60–100","<90\\n<60","90–119\\n60–79","120–139\\n80–89","≥140\\n≥90")
+   ranges.forEachIndexed{index,label->
+    Box(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(8.dp)).background(if(index==0)Color(0xFFF4F4F4) else Color(0xFFEAEAEA)),contentAlignment=Alignment.Center){
+     Text(label.replace("\\n","\n"),fontSize=11.sp,lineHeight=14.sp,color=Color(0xFF666666),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    }
+   }
+  }
+  Text("脉搏 ${reading.pulse?.toString() ?: "—"} 次/分   血压 ${reading.systolic?.toString() ?: "—"}/${reading.diastolic?.toString() ?: "—"} mmHg",fontSize=13.sp,color=Ink)
  }
 }
 @Composable fun CourseRecordsPage(
@@ -316,7 +325,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    record.additionalPressures.forEachIndexed{index,reading->
     PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
    }
-   TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))}){Icon(Icons.Outlined.Add,null);Text("添加一组血压-脉搏")}
+   TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
