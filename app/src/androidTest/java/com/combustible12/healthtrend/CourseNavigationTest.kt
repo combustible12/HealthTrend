@@ -15,6 +15,39 @@ class CourseNavigationTest {
  @get:Rule val compose=createComposeRule()
  private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun pressureSummaryAddButtonAndSymptomsHaveCompactGaps(){
+  val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
+  var saved:CourseRecord?=null
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
+  summary.performScrollTo().assertIsDisplayed()
+  val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
+  val symptoms=compose.onNodeWithText("症状")
+  symptoms.performScrollTo()
+  val scale=compose.density.density
+  val summaryBounds=summary.fetchSemanticsNode().boundsInRoot
+  val addBounds=add.fetchSemanticsNode().boundsInRoot
+  val symptomsBounds=symptoms.fetchSemanticsNode().boundsInRoot
+  assertEquals(7f*scale,addBounds.top-summaryBounds.bottom,scale)
+  assertEquals(32f*scale,addBounds.height,scale)
+  // Heading text is vertically centered beside its 24dp icon.
+  assertTrue(symptomsBounds.top-addBounds.bottom in 6f*scale..11f*scale)
+  compose.onNodeWithText("60–100").assertExists()
+  compose.onNodeWithText("<90\n<60").assertExists()
+  compose.onNodeWithText("高压/低压（mmHg），按较高风险档位着色").assertDoesNotExist()
+  compose.onNodeWithText("保存记录").performClick()
+  compose.runOnIdle{assertEquals(initial,saved)}
+ }
+ @Test fun additionalPressureCanBeAddedAndRemovedWithoutChangingFirstReading(){
+  val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
+  var saved:CourseRecord?=null
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
+  compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
+  compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
+  compose.onNodeWithText("保存记录").performClick()
+  compose.runOnIdle{assertEquals(initial,saved)}
+ }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("病程记录").assertIsDisplayed()

@@ -321,12 +321,18 @@ private fun coursePhaseColors(phase:String)=when(phase){
    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
-   PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
-   record.additionalPressures.forEachIndexed{index,reading->
-    PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
+   Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+    Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
+     PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
+     record.additionalPressures.forEachIndexed{index,reading->
+      PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
+     }
+    }
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+     TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
+    }
+    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    }
-   TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
-   CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
    if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
