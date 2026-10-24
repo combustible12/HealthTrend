@@ -56,7 +56,6 @@ import androidx.compose.animation.fadeOut
 
 
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
-private val pressureLabels=listOf("低血压","理想血压","偏高预警","高血压")
 /** A high reading in either component determines the higher risk category. */
 internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic>=140||diastolic>=90->3
@@ -64,39 +63,34 @@ internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic<90||diastolic<60->0
  else->1
 }
-private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79","120–139" to "80–89","≥140" to "≥90")
-@Composable private fun CoursePressureStrip(systolic:Int,diastolic:Int,showRanges:Boolean){
- val selected=bloodPressureBand(systolic,diastolic)
- Column(verticalArrangement=Arrangement.spacedBy(4.dp)){
+private fun pulseValueColor(value:Int?):Color=when{
+ value==null->Color(0xFFE5F8ED)
+ value in 60..100->Color(0xFFCFF3E0)
+ else->Color(0xFFFFDCE2)
+}
+@Composable private fun PressureReadingView(time:String,systolic:Int?,diastolic:Int?,pulse:Int?=null){
+ Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-   pressureLabels.forEachIndexed{index,_->
-    val active=index==selected
-    Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp))
-     .background(if(active)pressureColors[index] else Color(0xFFE6E6E6)),contentAlignment=Alignment.Center){
-     if(active)Text("$systolic/$diastolic",fontSize=12.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=1)
-     else Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,modifier=Modifier.fillMaxHeight()){
-      Text(pressureRangeTexts[index].first,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=10.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
-      Text(pressureRangeTexts[index].second,fontSize=if(showRanges)10.sp else 9.sp,lineHeight=10.sp,color=Color(0xFF999999),maxLines=1,softWrap=false)
-     }
-    }
+   listOf("时间","脉搏","高压","低压").forEach{label->
+    Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)
    }
   }
-  if(showRanges){
-   Text("高压/低压（mmHg），按较高风险档位着色",fontSize=10.sp,color=Muted)
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+   @Composable fun Value(text:String,fill:Color,ink:Color){
+    Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(fill),contentAlignment=Alignment.Center){
+     Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=ink,maxLines=1,softWrap=false)
+    }
+   }
+   Value(time.ifBlank{"—"},Color(0xFFE6E6E6),Ink)
+   Value(pulse?.toString() ?: "—",pulseValueColor(pulse),Ink)
+   Value(systolic?.toString() ?: "—",pressureValueColor(systolic,true),if(systolic==null)Ink else Color.White)
+   Value(diastolic?.toString() ?: "—",pressureValueColor(diastolic,false),if(diastolic==null)Ink else Color.White)
   }
  }
 }
-
-@Composable private fun PressureReadingView(time:String,systolic:Int?,diastolic:Int?,detailed:Boolean,pulse:Int?=null){
- Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
-  if(time.isNotBlank())Text(time,fontSize=11.sp,color=Muted)
-  systolic?.let{sys->diastolic?.let{dia->CoursePressureStrip(sys,dia,detailed)}}
-  if(pulse!=null)Text("脉搏 $pulse 次/分",fontSize=12.sp,color=Ink)
- }
-}
-@Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String="",fill:Color=Color.White){
- Box(modifier.height(38.dp).clip(RoundedCornerShape(9.dp)).background(fill).padding(horizontal=5.dp),contentAlignment=Alignment.Center){
-  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=17.sp,color=Ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center),decorationBox={inner->
+@Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String="",fill:Color=Color.White,ink:Color=Ink){
+ Box(modifier.height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(fill).padding(horizontal=5.dp),contentAlignment=Alignment.Center){
+  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=17.sp,color=ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center),decorationBox={inner->
    Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
     if(value.isEmpty()&&hint.isNotBlank())Text(hint,fontSize=12.sp,color=Muted)
     inner()
@@ -106,24 +100,24 @@ private val pressureRangeTexts=listOf("＜90" to "＜60","90–119" to "60–79"
 }
 private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  value==null->Color(0xFFF2F2F2)
- value<(if(systolic)90 else 60)->Color(0xFFDCEBFA)
- value<(if(systolic)120 else 80)->Color(0xFFBDEED8)
- value<(if(systolic)140 else 90)->Color(0xFFFFE2B5)
- else->Color(0xFFF0525C)
+ value<(if(systolic)90 else 60)->pressureColors[0]
+ value<(if(systolic)120 else 80)->pressureColors[1]
+ value<(if(systolic)140 else 90)->pressureColors[2]
+ else->pressureColors[3]
 }
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
  Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.Bottom){
-   @Composable fun Entry(label:String,value:String,fill:Color,change:(String)->Unit,hint:String=""){
+   @Composable fun Entry(label:String,value:String,fill:Color,change:(String)->Unit,hint:String="",ink:Color=Ink){
     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
      Text(label,fontSize=11.sp,color=Muted,maxLines=1,softWrap=false)
-     CompactPressureField(value,change,Modifier.fillMaxWidth(),hint,fill)
+     CompactPressureField(value,change,Modifier.fillMaxWidth(),hint,fill,ink)
     }
    }
    Entry("时间",reading.time,Color.White,{onChange(reading.copy(time=it.take(5)))},"HH:mm")
-   Entry("脉搏 次/分",reading.pulse?.toString().orEmpty(),when{reading.pulse==null->Color(0xFFE5F8ED);reading.pulse in 60..100->Color(0xFFCFF3E0);else->Color(0xFFFFDCE2)},{v->onChange(reading.copy(pulse=v.filter(Char::isDigit).take(3).toIntOrNull()))})
-   Entry("高压 mmHg",reading.systolic?.toString().orEmpty(),pressureValueColor(reading.systolic,true),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))})
-   Entry("低压 mmHg",reading.diastolic?.toString().orEmpty(),pressureValueColor(reading.diastolic,false),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))})
+   Entry("脉搏 次/分",reading.pulse?.toString().orEmpty(),pulseValueColor(reading.pulse),{v->onChange(reading.copy(pulse=v.filter(Char::isDigit).take(3).toIntOrNull()))})
+   Entry("高压 mmHg",reading.systolic?.toString().orEmpty(),pressureValueColor(reading.systolic,true),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},ink=if(reading.systolic==null)Ink else Color.White)
+   Entry("低压 mmHg",reading.diastolic?.toString().orEmpty(),pressureValueColor(reading.diastolic,false),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},ink=if(reading.diastolic==null)Ink else Color.White)
    if(onRemove!=null)IconButton(onRemove,modifier=Modifier.size(26.dp)){Icon(Icons.Outlined.Close,"删除这组血压",tint=Muted)}
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
@@ -222,8 +216,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
      Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
     Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
-     if(record.systolic!=null||record.diastolic!=null)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,false,record.pulse)
-     record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,false,reading.pulse)}
+     if(record.systolic!=null||record.diastolic!=null||record.pulse!=null)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,record.pulse)
+     record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,reading.pulse)}
     }
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)

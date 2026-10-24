@@ -15,6 +15,15 @@ class CourseNavigationTest {
  @get:Rule val compose=createComposeRule()
  private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun courseCardShowsFourEqualTimePulseAndPressureBlocks(){
+  val initial=CourseRecord(title="四块血压",pressureTime="07:58",systolic=142,diastolic=96,pulse=94)
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),HealthStore(context),{},{},{},{_,_->})}}
+  listOf("时间","脉搏","高压","低压").forEach{compose.onNodeWithText(it).assertIsDisplayed()}
+  val blocks=listOf("07:58","94","142","96").map{compose.onNodeWithText(it).assertIsDisplayed().fetchSemanticsNode().boundsInRoot}
+  blocks.zipWithNext().forEach{(left,right)->assertTrue(right.left>left.right);assertEquals(left.top,right.top,1f)}
+  compose.onNodeWithText("142/96").assertDoesNotExist()
+  compose.onNodeWithText("脉搏 94 次/分").assertDoesNotExist()
+ }
  @Test fun pressureSummaryAddButtonAndSymptomsHaveCompactGaps(){
   val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   var saved:CourseRecord?=null
