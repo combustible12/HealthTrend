@@ -3,6 +3,10 @@ package com.combustible12.healthtrend
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,7 +24,7 @@ import java.time.format.DateTimeFormatter
 fun ClockTimeSelector(value:String,onSelect:(String)->Unit,modifier:Modifier=Modifier){
  val context=LocalContext.current
  val time=runCatching{LocalTime.parse(value.trim(),DateTimeFormatter.ofPattern("H:mm"))}.getOrElse{LocalTime.now()}
- Box(modifier.height(38.dp).clickable{
+ Box(modifier.height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(Color.White).clickable{
   TimePickerDialog(context,{_,hour,minute->onSelect("%02d:%02d".format(hour,minute))},time.hour,time.minute,true).show()
  },contentAlignment=Alignment.Center){
   Text(value,maxLines=1,fontSize=17.sp,textAlign=TextAlign.Center)
