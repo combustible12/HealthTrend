@@ -116,4 +116,15 @@ class MetricPurposeCatalogueTest {
    assertFalse("Meaningless category label remains: $it",metricPurpose(it) in meaningless)
   }
  }
+ @Test fun newlyAddedSummariesAvoidVagueOrTautologicalWording() {
+  val vague=listOf("提示","倾向","相关","常见于","可见于")
+  val tautological=listOf("数量增加","比例增加","占比增加","水平升高","数值升高")
+  MetricPurposeCatalogue.keys().filter {
+   LegacyMetricPurpose.summary(it)==null && LegacyMetricPurpose.qualitativeSummary(it)==null
+  }.forEach { key ->
+   val summary=metricPurpose(key)
+   vague.forEach { word -> assertFalse("Vague wording '$word' remains: $key / $summary",summary.contains(word)) }
+   tautological.forEach { word -> assertFalse("Tautology '$word' remains: $key / $summary",summary.contains(word)) }
+  }
+ }
 }
