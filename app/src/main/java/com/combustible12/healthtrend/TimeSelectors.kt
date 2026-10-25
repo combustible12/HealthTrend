@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
@@ -17,10 +20,10 @@ import java.time.format.DateTimeFormatter
 fun ClockTimeSelector(value:String,onSelect:(String)->Unit,modifier:Modifier=Modifier){
  val context=LocalContext.current
  val time=runCatching{LocalTime.parse(value.trim(),DateTimeFormatter.ofPattern("H:mm"))}.getOrElse{LocalTime.now()}
- Box(modifier.clickable{
+ Box(modifier.height(38.dp).clickable{
   TimePickerDialog(context,{_,hour,minute->onSelect("%02d:%02d".format(hour,minute))},time.hour,time.minute,true).show()
- }){
-  Text(value,Modifier.padding(10.dp),maxLines=1)
+ },contentAlignment=Alignment.Center){
+  Text(value,maxLines=1,fontSize=17.sp,textAlign=TextAlign.Center)
  }
 }
 
