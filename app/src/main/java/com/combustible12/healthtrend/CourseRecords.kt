@@ -107,7 +107,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
 }
 @Composable private fun PressureReadingEditor(reading:BloodPressureReading,onChange:(BloodPressureReading)->Unit,onRemove:(()->Unit)?=null){
  Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.Bottom){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.Top){
    @Composable fun Entry(label:String,value:String,fill:Color,change:(String)->Unit,hint:String="",ink:Color=Ink){
     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
      Text(label,fontSize=11.sp,color=Muted,maxLines=1,softWrap=false)
