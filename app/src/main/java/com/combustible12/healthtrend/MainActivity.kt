@@ -694,41 +694,7 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   else->report.reportType==category
  }
 }
-fun metricPurpose(metricKey:String):String?=when(metricKey){
- "WBC"->"↑感染/炎症 / ↓感染防御不足"
- "NEUT#"->"↑细菌感染/炎症 / ↓感染防御不足"
- "NEUT%"->"↑细菌感染/炎症"
- "LYMPH#","LYMPH%"->"↑病毒感染等"
- "MONO#","MONO%"->"↑感染/炎症"
- "EOS#","EOS%"->"↑过敏/寄生虫感染"
- "BASO#","BASO%"->"↑过敏/炎症"
- "RBC"->"↓贫血 / ↑脱水等"
- "HGB"->"↓贫血"
- "HCT"->"↓贫血 / ↑脱水等"
- "MCV"->"↑缺B12/叶酸等 / ↓缺铁等"
- "MCH","MCHC"->"↓缺铁等"
- "RDW-CV","RDW-SD"->"↑贫血原因参考"
- "PLT"->"↑血栓 / ↓出血"
- "PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC"->"血小板辅助指标"
- "NRBC%","NRBC#"->"↑造血异常等"
- "ALT"->"↑肝细胞损伤"
- "AST"->"↑肝脏/肌肉损伤"
- "GGT"->"↑肝胆异常"
- "ALP"->"↑胆道/骨骼异常"
- "TBIL"->"↑肝胆/溶血异常"
- "DBIL"->"↑胆汁排出不畅"
- "IBIL"->"↑溶血/肝脏处理异常"
- "TBA"->"↑肝胆异常"
- "TP","ALB","PA"->"↓营养不足/肝合成减少"
- "GLOB"->"↑炎症/免疫异常"
- "A/G"->"↓肝脏/炎症问题"
- "AST/ALT"->"肝功能辅助指标"
- "CHE"->"↓肝脏合成能力不足"
- "UREA"->"↑肾脏排出减少/脱水"
- "CREA"->"↑肾功能下降"
- "UA"->"↑痛风/肾脏负担"
- else->null
-}
+fun metricPurpose(metricKey:String):String?=MetricPurposeCatalogue.short(metricKey) ?: qualitativeMetricPurpose(metricKey)
 fun metricPurposeDetail(metricKey:String):String?=when(metricKey){
  "WBC"->"白细胞高于参考范围时，可见于感染、炎症等情况；低于参考范围时，可能提示感染防御能力下降。趋势曲线上升或下降不等于指标已经异常，应结合参考范围和其他检查判断。"
  "NEUT#","NEUT%"->"中性粒细胞高于参考范围时，可见于细菌感染、炎症、应激等情况；偏低时感染防御能力可能下降。单纯趋势变化不能用于判断是否感染。"
