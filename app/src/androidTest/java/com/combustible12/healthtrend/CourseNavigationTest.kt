@@ -19,7 +19,7 @@ class CourseNavigationTest {
   val initial=CourseRecord(title="四块血压",pressureTime="07:58",systolic=142,diastolic=96,pulse=94)
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),HealthStore(context),{},{},{},{_,_->})}}
   listOf("时间","脉搏","高压","低压").forEach{compose.onNodeWithText(it).assertIsDisplayed()}
-  val blocks=listOf("07:58","94","142","96").map{compose.onNodeWithText(it).assertIsDisplayed().fetchSemanticsNode().boundsInRoot}
+  val blocks=listOf("07:58","94","142","96").map{compose.onNodeWithText(it,useUnmergedTree=true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot}
   blocks.zipWithNext().forEach{(left,right)->assertTrue(right.left>left.right);assertEquals(left.top,right.top,1f)}
   compose.onNodeWithText("142/96").assertDoesNotExist()
   compose.onNodeWithText("脉搏 94 次/分").assertDoesNotExist()

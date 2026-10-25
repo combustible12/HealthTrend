@@ -317,7 +317,7 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("编辑",useUnmergedTree=true).performScrollTo().performClick()
   compose.onNode(hasSetTextAction() and hasText(imported.rows.single().key)).performTextReplacement("AST")
   compose.onNodeWithText("完成核对").assertIsEnabled().performClick()
-  compose.onNodeWithText("保存").assertIsEnabled()
+  compose.onNode(hasClickAction() and hasAnyDescendant(hasText("保存")),useUnmergedTree=true).assertIsEnabled()
  }
  @Test fun conflictingRatioNameCannotAutoResolveWhenEditorOpens(){
   val store=HealthStore(context)
