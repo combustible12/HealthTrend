@@ -10,6 +10,7 @@ class MetricPurposeCatalogueTest {
   }
  }
  @Test fun everyActualStandardHasTheReviewedCodeNameSummaryAndDetail() {
+  assertEquals("白细胞计数",MetricPurposeCatalogue.resolveKey("白细胞计数")?.let{UnifiedMetricStandard.definition(it)?.name})
   val standards=UnifiedMetricStandard.keys()
   assertEquals(147,standards.size)
   assertEquals(standards,reviewed.map{it[0]}.toSet())

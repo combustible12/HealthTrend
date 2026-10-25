@@ -159,7 +159,7 @@ object MetricPurposeCatalogue {
  /** Read existing exact aliases only; never infer from substrings, units or custom labels. */
  private val nameKeys:Map<String,Set<String>> by lazy {
   buildMap {
-   entries.keys.forEach { key ->
+   MetricPurposeCatalogue.entries.keys.forEach { key ->
     val d=UnifiedMetricStandard.definition(key)
     val names=ReportParser.builtInAliasNames(key)+(d?.aliases.orEmpty())+listOfNotNull(d?.name)
     names.forEach { name ->
