@@ -386,6 +386,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   softWrap=true,modifier=Modifier.fillMaxWidth().clickable(onClick=onClick))
 }
 
+/** Card and dialog share the exact same resolved educational entry. */
+@Composable internal fun TrendPurposeExplanation(metricKey:String,title:String,purpose:MetricPurposeCatalogue.Entry=MetricPurposeCatalogue.forDisplay(metricKey)){
+ var open by remember(metricKey){mutableStateOf(false)}
+ TrendMeaningText(purpose.summary){open=true}
+ if(open)AlertDialog(onDismissRequest={open=false},title={Text(title)},text={Text(purpose.detail)},confirmButton={TextButton({open=false}){Text("知道了")}})
+}
+
 /** Compact card controls: change group, or pin this exact trend identity first. */
 @Composable internal fun TrendCardActions(primary:Boolean,onMove:()->Unit,onPin:()->Unit){
  Row(horizontalArrangement=Arrangement.spacedBy(2.dp)){
@@ -509,14 +516,13 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
    val valueColor=if(latest.value==null)qualitativeTrendColor(latest) else when(latestStatus){ResultStatus.NORMAL->Good;ResultStatus.LOW,ResultStatus.HIGH->Bad;else->Muted}
    TrendPaper{
     val metricAliases=aliasesFor(key)
-    var meaningDetail by remember{mutableStateOf(false)}
-    val trendMeaning=metricPurpose(key) ?: qualitativeMetricPurpose(key)
+    val purpose=MetricPurposeCatalogue.forDisplay(key)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top){
      Column(Modifier.weight(1f)){
       val baseTitle=preferredNames[key]?:fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key)
       val fixedTitle=dDimerTrendTitle(baseTitle,card.dimerBasis)
       TrendMetricTitle(fixedTitle,metricAliases)
-      trendMeaning?.let{TrendMeaningText(it){meaningDetail=true}}
+      TrendPurposeExplanation(key,fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key),purpose)
      }
      TrendLatestSummary(latest.trendDisplayText(),latest.resultStatusLabel(),valueColor)
     }
@@ -590,7 +596,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       onPin={store.pinTrendCard(card.storageKey(),mode=="重点指标");resultChanged()}
      )
     }
-    if(meaningDetail)AlertDialog(onDismissRequest={meaningDetail=false},title={Text(fixedTrendTitle(key)?:labDisplayTitle(latest.rawName,key))},text={Text(metricPurposeDetail(key)?:trendMeaning.orEmpty())},confirmButton={TextButton({meaningDetail=false}){Text("知道了")}})
     previewSeries?.let{series->
      val sx=series.last().second
      val bounds=sx.trendReferenceRange()
@@ -693,29 +698,6 @@ fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Bool
   "电解质及肾功能"->report.reportType=="电解质及肾功能"
   else->report.reportType==category
  }
-}
-fun metricPurpose(metricKey:String):String?=MetricPurposeCatalogue.short(metricKey) ?: qualitativeMetricPurpose(metricKey)
-fun metricPurposeDetail(metricKey:String):String?=when(metricKey){
- "WBC"->"白细胞高于参考范围时，可见于感染、炎症等情况；低于参考范围时，可能提示感染防御能力下降。趋势曲线上升或下降不等于指标已经异常，应结合参考范围和其他检查判断。"
- "NEUT#","NEUT%"->"中性粒细胞高于参考范围时，可见于细菌感染、炎症、应激等情况；偏低时感染防御能力可能下降。单纯趋势变化不能用于判断是否感染。"
- "LYMPH#","LYMPH%"->"淋巴细胞高于参考范围时，可见于病毒感染、部分感染恢复期等情况，也可能受其他免疫或血液系统因素影响。趋势曲线上升不等于异常升高，仍在参考范围内时不能仅凭上涨判断存在病毒感染。"
- "MONO#","MONO%"->"单核细胞高于参考范围时，可见于部分感染、炎症或恢复期等情况。趋势变化本身不能确定具体原因，应结合参考范围和其他检查。"
- "EOS#","EOS%"->"嗜酸性粒细胞高于参考范围时，可见于过敏、寄生虫感染等情况。仅凭趋势变化不能确定原因。"
- "BASO#","BASO%"->"嗜碱性粒细胞高于参考范围时，可见于过敏、炎症等情况，也可能受其他因素影响。需结合参考范围和其他检查判断。"
- "RBC","HGB","HCT"->"红细胞、血红蛋白或红细胞压积偏低时常用于评估贫血；部分指标偏高可见于脱水等情况。趋势变化需结合参考范围及相关指标一起判断。"
- "MCV","MCH","MCHC","RDW-CV","RDW-SD"->"这些红细胞相关指标主要用于辅助判断贫血类型和原因，例如缺铁、维生素B12或叶酸不足等。单项变化通常不能独立诊断。"
- "PLT"->"血小板异常可与出血、血栓风险、感染炎症等多种情况相关。高低方向和临床意义不同，需要结合数值、参考范围及其他检查判断。"
- "PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC"->"这些是血小板相关辅助指标，用于观察血小板数量、体积和分布特征。通常需要与PLT及其他检查一起解读。"
- "NRBC%","NRBC#"->"外周血出现或升高有时与造血应激或造血系统异常等情况相关。具体意义需结合血常规其他指标和临床情况判断。"
- "ALT"->"ALT高于参考范围时可见于肝细胞损伤等情况，但升高程度与病因并非一一对应。应结合AST、胆红素等指标及临床情况判断。"
- "AST"->"AST高于参考范围时可见于肝脏或肌肉损伤等情况，并非肝脏特异指标。应结合ALT及其他检查判断。"
- "GGT","ALP","TBIL","DBIL","IBIL","TBA"->"这些指标异常可与肝胆、胆汁排泄或溶血等情况相关，不同指标含义不同。需要结合参考范围、其他肝功能指标及临床情况综合判断。"
- "TP","ALB","GLOB","A/G","PA","CHE"->"这些指标可反映营养状态、蛋白代谢或肝脏合成功能等方面。异常原因较多，不能仅凭单项升降判断具体疾病。"
- "AST/ALT"->"AST/ALT比值是肝功能辅助指标，需要结合AST、ALT的实际数值及其他检查解读，不能单独用于诊断。"
- "UREA"->"尿素高于参考范围时可见于肾脏排泄减少、脱水等情况，也会受饮食和代谢状态影响。应结合肌酐等指标判断。"
- "CREA"->"肌酐高于参考范围时可能提示肾功能下降，但也受肌肉量等因素影响。应结合eGFR、尿素及临床情况综合判断。"
- "UA"->"尿酸升高可增加痛风风险，也可能与肾脏排泄、饮食和代谢因素有关。单次或趋势升高不等于已经发生痛风。"
- else->"该说明用于帮助理解指标异常时可能相关的情况。趋势曲线的上升或下降不等于指标已经超出参考范围，也不能单独用于诊断。"
 }
 fun trendPointContentDescription(metricKey:String,testedAtEpochMillis:Long)="趋势点 $metricKey ${dateText(testedAtEpochMillis)}"
 fun trendPointPosition(points:List<Pair<Long,Double>>,index:Int,width:Float,height:Float,referenceLow:Double?=null,referenceHigh:Double?=null):Offset{

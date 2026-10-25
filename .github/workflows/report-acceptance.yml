@@ -35,7 +35,7 @@ jobs:
           script: |
             adb shell am force-stop com.android.launcher3
             adb logcat -G 16M
-            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.combustible12.healthtrend.TrendRenderingTest,com.combustible12.healthtrend.ReportModuleAcceptanceTest,com.combustible12.healthtrend.TextResultTrendTest,com.combustible12.healthtrend.TrendMeaningLayoutTest,com.combustible12.healthtrend.BloodGroupLayoutTest,com.combustible12.healthtrend.TrendAliasInteractionTest,com.combustible12.healthtrend.CourseNavigationTest && report_test_status=0 || report_test_status=$?; adb logcat -d -s REPORT_QA:I > report-qa.log; exit "$report_test_status"
+            gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.combustible12.healthtrend.TrendRenderingTest,com.combustible12.healthtrend.ReportModuleAcceptanceTest,com.combustible12.healthtrend.TextResultTrendTest,com.combustible12.healthtrend.TrendMeaningLayoutTest,com.combustible12.healthtrend.MetricPurposeInteractionTest,com.combustible12.healthtrend.BloodGroupLayoutTest,com.combustible12.healthtrend.TrendAliasInteractionTest,com.combustible12.healthtrend.CourseNavigationTest && report_test_status=0 || report_test_status=$?; adb logcat -d -s REPORT_QA:I > report-qa.log; exit "$report_test_status"
       - name: Gather screenshots
         if: always()
         run: adb pull /sdcard/Android/data/com.combustible12.healthtrend/files/report-qa report-qa || true
