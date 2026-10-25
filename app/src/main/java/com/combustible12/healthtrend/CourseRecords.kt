@@ -120,14 +120,6 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    Entry("低压 mmHg",reading.diastolic?.toString().orEmpty(),pressureValueColor(reading.diastolic,false),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},ink=if(reading.diastolic==null)Ink else Color.White)
    if(onRemove!=null)IconButton(onRemove,modifier=Modifier.size(26.dp)){Icon(Icons.Outlined.Close,"删除这组血压",tint=Muted)}
   }
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
-   val ranges=listOf("60–100","<90\\n<60","90–119\\n60–79","120–139\\n80–89","≥140\\n≥90")
-   ranges.forEachIndexed{index,label->
-    Box(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(8.dp)).background(if(index==0)Color(0xFFF4F4F4) else Color(0xFFEAEAEA)),contentAlignment=Alignment.Center){
-     Text(label.replace("\\n","\n"),fontSize=11.sp,lineHeight=14.sp,color=Color(0xFF666666),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
-    }
-   }
-  }
   Text("脉搏 ${reading.pulse?.toString() ?: "—"} 次/分   血压 ${reading.systolic?.toString() ?: "—"}/${reading.diastolic?.toString() ?: "—"} mmHg",fontSize=13.sp,color=Ink)
  }
 }
@@ -316,6 +308,14 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
    Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
+   val ranges=listOf("60–100","<90\\n<60","90–119\\n60–79","120–139\\n80–89","≥140\\n≥90")
+   ranges.forEachIndexed{index,label->
+    Box(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(8.dp)).background(if(index==0)Color(0xFFF4F4F4) else Color(0xFFEAEAEA)),contentAlignment=Alignment.Center){
+     Text(label.replace("\\n","\n"),fontSize=11.sp,lineHeight=14.sp,color=Color(0xFF666666),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    }
+   }
+  }
     Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
      PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
      record.additionalPressures.forEachIndexed{index,reading->
