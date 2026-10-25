@@ -20,7 +20,7 @@ fun ClockTimeSelector(value:String,onSelect:(String)->Unit,modifier:Modifier=Mod
  Box(modifier.clickable{
   TimePickerDialog(context,{_,hour,minute->onSelect("%02d:%02d".format(hour,minute))},time.hour,time.minute,true).show()
  }){
-  Text(value.ifBlank{"选择时间"},Modifier.padding(10.dp))
+  Text(value,Modifier.padding(10.dp),maxLines=1)
  }
 }
 
