@@ -20,10 +20,31 @@ class MetricPurposeCatalogueTest {
    assertEquals(name,UnifiedMetricStandard.definition(key)!!.name)
    assertEquals("Wrong summary for $key",summary,metricPurpose(key))
    assertEquals("Wrong detail for $key",detail,metricPurposeDetail(key))
-   assertTrue("Too long: $key",summary.length<=16)
+   assertTrue("Too long: $key",summary.length<=24)
    assertTrue("Missing specific detail: $key",detail.length>summary.length+12)
-   assertTrue(detail.startsWith(name+"："))
+   if(LegacyMetricPurpose.summary(key)==null)assertTrue(detail.startsWith(name+"："))
+   else assertEquals("Legacy detail changed: $key",LegacyMetricPurpose.detail(key),detail)
   }
+ }
+ @Test fun summariesThatExistedBeforeTheCatalogueStayVerbatim() {
+  val legacy=mapOf(
+   "WBC" to "↑感染/炎症 / ↓感染防御不足", "NEUT#" to "↑细菌感染/炎症 / ↓感染防御不足", "NEUT%" to "↑细菌感染/炎症",
+   "LYMPH#" to "↑病毒感染等", "LYMPH%" to "↑病毒感染等", "MONO#" to "↑感染/炎症", "MONO%" to "↑感染/炎症",
+   "EOS#" to "↑过敏/寄生虫感染", "EOS%" to "↑过敏/寄生虫感染", "BASO#" to "↑过敏/炎症", "BASO%" to "↑过敏/炎症",
+   "RBC" to "↓贫血 / ↑脱水等", "HGB" to "↓贫血", "HCT" to "↓贫血 / ↑脱水等", "MCV" to "↑缺B12/叶酸等 / ↓缺铁等",
+   "MCH" to "↓缺铁等", "MCHC" to "↓缺铁等", "RDW-CV" to "↑贫血原因参考", "RDW-SD" to "↑贫血原因参考",
+   "PLT" to "↑血栓 / ↓出血", "PCT" to "血小板辅助指标", "MPV" to "血小板辅助指标", "PDW-CV" to "血小板辅助指标",
+   "PDW-SD" to "血小板辅助指标", "P-LCR" to "血小板辅助指标", "P-LCC" to "血小板辅助指标", "NRBC%" to "↑造血异常等", "NRBC#" to "↑造血异常等",
+   "ALT" to "↑肝细胞损伤", "AST" to "↑肝脏/肌肉损伤", "GGT" to "↑肝胆异常", "ALP" to "↑胆道/骨骼异常",
+   "TBIL" to "↑肝胆/溶血异常", "DBIL" to "↑胆汁排出不畅", "IBIL" to "↑溶血/肝脏处理异常", "TBA" to "↑肝胆异常",
+   "TP" to "↓营养不足/肝合成减少", "ALB" to "↓营养不足/肝合成减少", "PA" to "↓营养不足/肝合成减少",
+   "GLOB" to "↑炎症/免疫异常", "A/G" to "↓肝脏/炎症问题", "AST/ALT" to "肝功能辅助指标", "CHE" to "↓肝脏合成能力不足",
+   "UREA" to "↑肾脏排出减少/脱水", "CREA" to "↑肾功能下降", "UA" to "↑痛风/肾脏负担",
+   "HBSAG" to "阳性提示可能存在乙肝病毒感染", "HBSAB" to "阳性提示存在乙肝表面抗体", "HBEAG" to "阳性可提示乙肝病毒复制较活跃",
+   "HBEAB" to "阳性提示存在乙肝e抗体，需结合其他指标", "HBCAB" to "阳性提示曾经或目前感染过乙肝病毒",
+   "HIVAB" to "筛查阳性需要进一步确证", "TPAB" to "阳性需结合其他梅毒检查判断"
+  )
+  legacy.forEach { (key,summary) -> assertEquals(key,summary,metricPurpose(key)) }
  }
  @Test fun everyExistingCodeAliasResolvesTheSameEntryWithoutChangingIdentity() {
   MetricDictionary.sourceCodeAliases().forEach { alias ->
@@ -84,9 +105,15 @@ class MetricPurposeCatalogueTest {
  }
  @Test fun tumorMarkersDoNotClaimDiagnosisAndNormalResultsAreNotCalledCancer() {
   UnifiedMetricStandard.keysForType("肿瘤标志物").forEach {
-   assertTrue(metricPurpose(it).contains("辅助"))
+   assertTrue(metricPurpose(it).startsWith("↑"))
    assertTrue(metricPurposeDetail(it).contains("不能单独确诊"))
    assertFalse(metricPurpose(it).contains("患癌"))
+  }
+ }
+ @Test fun newlyAddedSummariesExplainResultsInsteadOfRepeatingCategories() {
+  val meaningless=setOf("凝血功能评估","肿瘤监测辅助指标","电解质平衡指标","甲状腺功能评估","血脂代谢评估")
+  UnifiedMetricStandard.keys().filter{LegacyMetricPurpose.summary(it)==null}.forEach {
+   assertFalse("Meaningless category label remains: $it",metricPurpose(it) in meaningless)
   }
  }
 }
