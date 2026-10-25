@@ -114,7 +114,12 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
      CompactPressureField(value,change,Modifier.fillMaxWidth(),hint,fill,ink)
     }
    }
-   Entry("时间",reading.time,Color.White,{onChange(reading.copy(time=it.take(5)))},"HH:mm")
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+    Text("时间",fontSize=11.sp,color=Muted,maxLines=1)
+    Box(Modifier.fillMaxWidth().height(38.dp).clip(RoundedCornerShape(9.dp)).background(Color.White),contentAlignment=Alignment.Center){
+     ClockTimeSelector(reading.time,{onChange(reading.copy(time=it))},Modifier.fillMaxWidth())
+    }
+   }
    Entry("脉搏 次/分",reading.pulse?.toString().orEmpty(),pulseValueColor(reading.pulse),{v->onChange(reading.copy(pulse=v.filter(Char::isDigit).take(3).toIntOrNull()))})
    Entry("高压 mmHg",reading.systolic?.toString().orEmpty(),pressureValueColor(reading.systolic,true),{v->onChange(reading.copy(systolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},ink=if(reading.systolic==null)Ink else Color.White)
    Entry("低压 mmHg",reading.diastolic?.toString().orEmpty(),pressureValueColor(reading.diastolic,false),{v->onChange(reading.copy(diastolic=v.filter(Char::isDigit).take(3).toIntOrNull()))},ink=if(reading.diastolic==null)Ink else Color.White)
