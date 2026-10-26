@@ -986,19 +986,13 @@ class HealthStore(private val context:Context) {
  @Synchronized fun saveEntry(e:HealthEntry){require(e.title.isNotBlank());write("entries",JSONArray().apply{(entries().filterNot{it.id==e.id}+e).forEach{put(entryToJson(it))}})}
  @Synchronized fun deleteEntry(id:String){write("entries",JSONArray().apply{entries().filterNot{it.id==id}.forEach{put(entryToJson(it))}})}
  @Synchronized fun weightRecords()=rows(read("weights")){o->WeightRecord(o.getString("id"),o.getLong("date"),o.getDouble("kg"))}.sortedBy{it.measuredAtEpochMillis}
- private fun weightDay(epochMillis:Long)=java.time.Instant.ofEpochMilli(epochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
- @Synchronized fun weightRecordOn(epochMillis:Long)=weightRecords().lastOrNull{weightDay(it.measuredAtEpochMillis)==weightDay(epochMillis)}
- @Synchronized fun saveWeight(record:WeightRecord){
-  require(record.kilograms>0&&record.kilograms.isFinite())
-  val records=weightRecords();val day=weightDay(record.measuredAtEpochMillis)
-  val sameDay=records.lastOrNull{weightDay(it.measuredAtEpochMillis)==day}
-  val saved=record.copy(id=sameDay?.id?:record.id)
-  write("weights",JSONArray().apply{(records.filterNot{it.id==record.id||weightDay(it.measuredAtEpochMillis)==day}+saved).sortedBy{it.measuredAtEpochMillis}.forEach{put(JSONObject().put("id",it.id).put("date",it.measuredAtEpochMillis).put("kg",it.kilograms))}})
- }
- @Synchronized fun setWeightForDay(epochMillis:Long,kilograms:Double?){
-  val existing=weightRecordOn(epochMillis)
-  if(kilograms==null){if(existing!=null)deleteWeight(existing.id);return}
-  saveWeight(WeightRecord(existing?.id?:newId(),epochMillis,kilograms))
+ @Synchronized fun saveWeight(record:WeightRecord){require(record.kilograms>0&&record.kilograms.isFinite());write("weights",JSONArray().apply{(weightRecords().filterNot{it.id==record.id}+record).sortedBy{it.measuredAtEpochMillis}.forEach{put(JSONObject().put("id",it.id).put("date",it.measuredAtEpochMillis).put("kg",it.kilograms))}})}
+ private fun courseWeightId(courseRecordId:String)="course:$courseRecordId:weight"
+ @Synchronized fun weightRecordForCourse(courseRecordId:String)=weightRecords().firstOrNull{it.id==courseWeightId(courseRecordId)}
+ @Synchronized fun setWeightForCourse(courseRecordId:String,epochMillis:Long,kilograms:Double?){
+  val id=courseWeightId(courseRecordId)
+  if(kilograms==null){deleteWeight(id);return}
+  saveWeight(WeightRecord(id,epochMillis,kilograms))
  }
  @Synchronized fun deleteWeight(id:String){write("weights",JSONArray().apply{weightRecords().filterNot{it.id==id}.forEach{put(JSONObject().put("id",it.id).put("date",it.measuredAtEpochMillis).put("kg",it.kilograms))}})}
  @Synchronized fun courseRecords()=rows(read("course_records"),::courseRecordFromJson).sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
