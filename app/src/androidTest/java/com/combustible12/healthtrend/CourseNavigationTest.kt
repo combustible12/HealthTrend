@@ -27,7 +27,7 @@ class CourseNavigationTest {
  @Test fun pressureSummaryAddButtonAndSymptomsHaveCompactGaps(){
   val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_->saved=record},{},{_,_->})}}
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
@@ -50,12 +50,36 @@ class CourseNavigationTest {
  @Test fun additionalPressureCanBeAddedAndRemovedWithoutChangingFirstReading(){
   val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertEquals(initial,saved)}
+ }
+ @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
+  val initial=CourseRecord(title="体重记录")
+  var savedWeight:Double?=null;var openedTrend=0
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{_,weight->savedWeight=weight},{},{_,_->},{openedTrend++})}}
+  val weightTitle=compose.onNodeWithText("体重").performScrollTo().assertIsDisplayed()
+  val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
+  assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)
+  compose.onNodeWithContentDescription("体重输入 kg").performTextInput("61.5")
+  compose.onNodeWithText("kg").assertIsDisplayed()
+  weightTitle.performClick()
+  compose.runOnIdle{assertEquals(1,openedTrend)}
+  compose.onNodeWithText("保存记录").performClick()
+  compose.runOnIdle{assertEquals(61.5,savedWeight!!,0.0)}
+ }
+ @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){
+  val initial=CourseRecord(title="当天病程")
+  val store=HealthStore(context);store.setWeightForDay(initial.date,62.3)
+  var openedTrend=0
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->},{openedTrend++})}}
+  compose.onNodeWithText("62.3").assertIsDisplayed()
+  compose.onNodeWithText("kg").assertIsDisplayed()
+  compose.onNodeWithText("体重").performClick()
+  compose.runOnIdle{assertEquals(1,openedTrend)}
  }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}
