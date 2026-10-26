@@ -1,6 +1,11 @@
 name: Android compile check
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'app/src/**'
+      - 'ci/compile-trigger.txt'
+      - '.github/workflows/android-quick.yml'
   push:
     paths:
       - 'ci/compile-trigger.txt'
