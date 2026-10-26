@@ -438,7 +438,12 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("由肌酐、年龄和性别估算肾小球滤过率").assertExists()
   compose.onAllNodesWithContentDescription("移到其他指标").assertCountEquals(2)
   compose.onAllNodesWithContentDescription("置于最上方").assertCountEquals(2)
-  compose.onNodeWithContentDescription("趋势图 $DERIVED_EGFR_KEY",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  val eGfrTitle=compose.onNodeWithText("eGFR").fetchSemanticsNode()
+  val scroll=compose.onNode(hasScrollAction() and hasAnyDescendant(hasText("eGFR")),useUnmergedTree=true)
+  val viewport=scroll.fetchSemanticsNode().boundsInRoot
+  val dy=eGfrTitle.positionInRoot.y+eGfrTitle.size.height/2f-viewport.center.y
+  scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,dy)}
+  compose.waitForIdle()
   screenshot("derived-egfr-trend-card")
   compose.onNodeWithContentDescription(trendPointContentDescription(DERIVED_EGFR_KEY,report.testedAtEpochMillis),useUnmergedTree=true).performClick()
   compose.onNode(hasText("肌酐") and hasAnyAncestor(isDialog())).assertIsDisplayed()
