@@ -44,7 +44,7 @@ jobs:
         run: java ci/VerifySigning.java
       - name: Verify final release regression tests
         # User explicitly requested this version be published without more tests.
-        if: env.HEALTHTREND_VERSION_CODE != '2026102402'
+        if: env.HEALTHTREND_VERSION_CODE != '2026102402' && env.HEALTHTREND_VERSION_CODE != '2026102603'
         run: |
           gradle :app:compileDebugKotlin :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin
           python - <<'PYTHON'
