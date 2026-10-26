@@ -13,6 +13,7 @@ class MetricPurposeCatalogueTest {
   assertEquals("白细胞计数",MetricPurposeCatalogue.resolveKey("白细胞计数")?.let{UnifiedMetricStandard.definition(it)?.name})
   val standards=UnifiedMetricStandard.keys()
   assertEquals(147,standards.size)
+  assertEquals(standards+setOf("RDW","PDW","AMY"),MetricPurposeCatalogue.keys())
   assertEquals(standards,reviewed.map{it[0]}.toSet())
   assertEquals(standards.size,reviewed.size)
   reviewed.forEach { row ->
@@ -20,13 +21,13 @@ class MetricPurposeCatalogueTest {
    assertEquals(name,UnifiedMetricStandard.definition(key)!!.name)
    assertEquals("Wrong summary for $key",summary,metricPurpose(key))
    assertEquals("Wrong detail for $key",detail,metricPurposeDetail(key))
-   assertTrue("Too long: $key",summary.length<=24)
+   assertTrue("Too long: $key",summary.length<=48)
    assertTrue("Missing specific detail: $key",detail.length>summary.length+12)
    if(LegacyMetricPurpose.summary(key)==null)assertTrue(detail.startsWith(name+"："))
    else assertEquals("Legacy detail changed: $key",LegacyMetricPurpose.detail(key),detail)
   }
  }
- @Test fun summariesThatExistedBeforeTheCatalogueStayVerbatim() {
+ @Test fun frozenLegacySourceStaysVerbatim() {
   val legacy=mapOf(
    "WBC" to "↑感染/炎症 / ↓感染防御不足", "NEUT#" to "↑细菌感染/炎症 / ↓感染防御不足", "NEUT%" to "↑细菌感染/炎症",
    "LYMPH#" to "↑病毒感染等", "LYMPH%" to "↑病毒感染等", "MONO#" to "↑感染/炎症", "MONO%" to "↑感染/炎症",
@@ -44,7 +45,27 @@ class MetricPurposeCatalogueTest {
    "HBEAB" to "阳性提示存在乙肝e抗体，需结合其他指标", "HBCAB" to "阳性提示曾经或目前感染过乙肝病毒",
    "HIVAB" to "筛查阳性需要进一步确证", "TPAB" to "阳性需结合其他梅毒检查判断"
   )
-  legacy.forEach { (key,summary) -> assertEquals(key,summary,metricPurpose(key)) }
+  legacy.forEach { (key,summary) ->
+   val frozen=LegacyMetricPurpose.summary(key)?:LegacyMetricPurpose.qualitativeSummary(key)
+   assertEquals(key,summary,frozen)
+  }
+ }
+ @Test fun approvedMissingDirectionsExtendDisplayWithoutEditingLegacySource() {
+  val additions=mapOf(
+   "HGB" to "↑血液浓缩/红细胞增多",
+   "NEUT%" to "↓占比降低；防御能力看NEUT#",
+   "LYMPH#" to "↓免疫抑制/药物影响/严重感染",
+   "LYMPH%" to "↓占比降低；是否减少看LYMPH#",
+   "TP" to "↑血液浓缩/球蛋白增多",
+   "ALB" to "↑脱水造成血液浓缩",
+   "GLOB" to "↓免疫球蛋白减少/蛋白丢失",
+   "A/G" to "↑球蛋白减少",
+   "UREA" to "↓低蛋白摄入/肝合成减少/过度补液",
+   "CREA" to "↓肌肉量少/营养不足；不代表肾功能更好",
+   "AG" to "↓低白蛋白/检测误差",
+   "HBA1C" to "↓平均血糖较低/红细胞寿命缩短可假性降低"
+  )
+  additions.forEach { (key,addition) -> assertTrue("Missing approved addition: $key",metricPurpose(key).contains(addition)) }
  }
  @Test fun everyExistingCodeAliasResolvesTheSameEntryWithoutChangingIdentity() {
   MetricDictionary.sourceCodeAliases().forEach { alias ->
