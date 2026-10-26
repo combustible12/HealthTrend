@@ -838,3 +838,9 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 本地环境无 Gradle 可执行文件；这里只记录覆盖内容，不把源码检查算作通过。真实数量与结果由本次 GitHub Actions 日志回填。
 - 报告专项 run 39920190801：JVM/构建通过；Android 16 共 44 项，43 项通过、1 项失败。失败为 `actualComparisonTrendRetainsRangesLabelsAndGrayUnknownValues`，期望未知文字灰色但得到医院蓝色。生产绘制增加独立 `valueColors`，保留医院色散点/线段/图例，同时恢复未知文字灰色；测试保留并触发复验。
 - 报告专项 run 39921083910：原失败通过；44 项中另有 1 项新增测试失败。`allMainDotsUseHospitalColorsAndRemainClickable` 在 `performClick` 后立即采样，Material 点击指示临时压暗像素（期望红 0.941、采到 0.863）。测试改为先采静态中心像素，再执行点击并验证索引；颜色容差不变。
+# 2026-10-26 病程体重模块测试影响
+
+- 新增 `WeightCoursePersistenceTest`：同一自然日从趋势保存和病程保存只保留一条 WeightRecord、保留稳定 ID，并验证清空删除当天体重。
+- 扩展 `CourseNavigationTest`：真实 Compose 编辑页中体重位于症状上方、数值按 kg 保存、标题发出趋势跳转；对应病程卡片显示当天体重并可跳转。
+- 原 Trends 体重卡片、其他趋势分类、报告/指标身份、病程图片与血压布局逻辑未重写；现有全量单测和设备套件仍须运行。
+- 当前仅完成源码与静态 diff 检查；本地没有 Gradle，不能记为编译/JVM/设备通过，也未发布。
