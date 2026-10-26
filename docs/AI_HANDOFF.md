@@ -1032,8 +1032,8 @@ Android运行39091609823完整263项JVM中发现2项旧格式回归（连写中�
 - 第二轮 44 项中 43 项通过；生产规则修复已通过原失败用例，新失败来自新增散点测试在点击涟漪覆盖期间截图。测试改为先断言静态医院色像素、再点击验证命中，不放宽颜色误差、不删除任一行为断言。
 # 2026-10-26 病程体重模块交接
 
-- `CourseRecord` 不新增体重字段。编辑页、病程卡片及趋势页统一通过 `HealthStore.weightRecordOn/setWeightForDay` 访问既有 `WeightRecord`。
-- `saveWeight` 现按系统时区的自然日更新同一条记录并保留既有 ID，防止趋势页与病程页为同一天各建一条记录；清空病程编辑体重会删除当天体重。
+- `CourseRecord` 不新增体重数值字段。病程体重通过 `HealthStore.weightRecordForCourse/setWeightForCourse` 使用由病程 ID 派生的稳定 WeightRecord ID；趋势页继续使用原有 `saveWeight`。
+- 同一天允许多条体重。病程编辑只更新或清空该病程关联的体重，不覆盖同日趋势页或其他记录；病程卡片也只显示自己关联的体重。
 - 病程编辑页体重模块在症状上方，色块内无提示文字且只输入数值，kg 位于色块外。保存后病程卡片按记录日期查找并显示体重。
 - `trendCategoryRequest` 只负责把既有 Trends 本地 category 切到“体重”并清空搜索，不更改体重趋势渲染或其他趋势状态。
 - 本地环境无 Gradle；必须以 GitHub Actions 的编译、JVM 与 Android 设备结果为准，未通过前不得发布。
