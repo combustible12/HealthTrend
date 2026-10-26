@@ -4,6 +4,7 @@
 - `WeightRecord.courseRecordIds` 是可选向后兼容字段；`weightRecordForCourse` 同时识别新关联和旧派生 ID。完全相同时间戳只保留一个点，病程复用趋势点时不生成第二点。
 - `weightTrendSeries` 将实际记录时间映射为本地日期横坐标，并返回每天最早记录的索引。`Spark(stackEqualDates=true,linePointIndices=...)` 仅供体重卡使用；默认参数保持其他趋势现状。
 - 编辑页体重时间和数值直接复用血压控件，病程卡时间/数值直接复用血压展示尺寸和配色。云端验收尚未执行，禁止记为已通过或已发布。
+- 最终验收已完成：run 40274468022 编译、全量 JVM及设备测试源码通过；run 40274467990 的全量 JVM、APK 构建与 Android 16 共 53 项设备测试全部通过；run 40274473066 同步守卫通过。本轮只合并功能，不发布 APK。
 
 ## 2026-10-25 已完成验收及正式发布：HealthTrend 1.0.156
 
