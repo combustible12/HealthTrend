@@ -73,7 +73,7 @@ class CourseNavigationTest {
  }
  @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){
   val initial=CourseRecord(title="当天病程")
-  val store=HealthStore(context);store.setWeightForDay(initial.date,62.3)
+  val store=HealthStore(context);store.setWeightForCourse(initial.id,initial.date,62.3)
   var openedTrend=0
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->},{openedTrend++})}}
   compose.onNodeWithText("62.3").assertIsDisplayed()
