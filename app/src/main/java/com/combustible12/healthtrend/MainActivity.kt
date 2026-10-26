@@ -198,7 +198,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      val todayStart=today.atStartOfDay(zone).toInstant().toEpochMilli()
      val existing=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==today}
      courseRecord=existing?:CourseRecord(date=todayStart,title="")
-    },{record->change{store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1})
+    },{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
   }
@@ -258,7 +258,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
- if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,saved.date,kilograms);courseRecord=null}},{change{store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},{courseRecord=null;trendCategoryRequest="体重";tab=1})}
+ if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms);courseRecord=null}},{change{store.setWeightForCourse(current.id,current.date,null);store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},{courseRecord=null;trendCategoryRequest="体重";tab=1})}
  val dueReminder=remember(courseRecords,foregroundSequence,snoozedReminderIds){courseRecords.filter{it.id !in snoozedReminderIds&&it.isReminderDue(LocalDate.now())}.minByOrNull{it.reminderText}}
  if(dueReminder!=null)CourseReminderDialog(dueReminder,{snoozedReminderIds=snoozedReminderIds+dueReminder.id},{change{store.saveCourseRecord(dueReminder.copy(reminderCompletedAt=System.currentTimeMillis()))}})
  }
@@ -421,7 +421,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 @Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit,resultChanged:()->Unit={},requestedCategory:String?=null,onRequestedCategoryConsumed:()->Unit={}){
  val trendFocus=LocalFocusManager.current
  var textRevision by remember{mutableIntStateOf(0)}
- var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
+ var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var weightTime by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
  LaunchedEffect(requestedCategory){requestedCategory?.let{category=it;query="";onRequestedCategoryConsumed()}}
  var selected by remember{mutableStateOf<Pair<LabReport,LabResult>?>(null)}
  var editing by remember{mutableStateOf(false)};var editValue by remember{mutableStateOf("")}
@@ -484,15 +484,16 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
   if(category=="体重"&&query.isBlank()){
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({editingWeight=null;weightText="";weightDate=java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}){Text("+ 记录体重")}}
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({editingWeight=null;weightText="";val now=java.time.ZonedDateTime.now();weightDate=now.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));weightTime=now.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
     val w=weights.last()
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom){Text("体重",fontWeight=FontWeight.Bold,fontSize=16.sp);Row(verticalAlignment=Alignment.Bottom){Text(String.format(java.util.Locale.US,"%.1f",w.kilograms),fontWeight=FontWeight.Bold,fontSize=20.sp,color=Good);Spacer(Modifier.width(4.dp));Text("kg",fontSize=11.sp,color=Good)}}
-    Spark(points=weights.map{it.measuredAtEpochMillis to it.kilograms},color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={index->weights.getOrNull(index)?.let{editingWeight=it;weightText=it.kilograms.toString();weightDate=java.time.Instant.ofEpochMilli(it.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));showWeight=true}},metricKey="WEIGHT",pointDescriptions=weights.map{"体重 "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=weights.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},onShowPreview={})
+    val series=weightTrendSeries(weights)
+    Spark(points=series.points,color=TrendBlue,referenceLow=null,referenceHigh=null,onPointClick={index->series.records.getOrNull(index)?.let{editingWeight=it;weightText=it.kilograms.toString();val z=java.time.Instant.ofEpochMilli(it.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault());weightDate=z.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));weightTime=z.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));showWeight=true}},metricKey="WEIGHT",pointDescriptions=series.records.map{"体重 "+java.time.Instant.ofEpochMilli(it.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault()).toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))+" "+String.format(java.util.Locale.US,"%.1f kg",it.kilograms)},valueLabels=series.records.map{String.format(java.util.Locale.US,"%.1f",it.kilograms)},linePointIndices=series.earliestPointIndices,stackEqualDates=true,onShowPreview={})
    }
   }
   if(query.isNotBlank())weights.filter{DataSearch.weight(query,it)}.forEach{w->
-   Paper{Text("体重 · "+dateText(w.measuredAtEpochMillis),fontWeight=FontWeight.Bold);Text("${w.kilograms} kg");TextButton({editingWeight=w;weightText=w.kilograms.toString();weightDate=dateText(w.measuredAtEpochMillis).take(10).replace('-', '/');showWeight=true}){Text("编辑体重")}}
+   Paper{Text("体重 · "+dateText(w.measuredAtEpochMillis),fontWeight=FontWeight.Bold);Text("${w.kilograms} kg");TextButton({editingWeight=w;weightText=w.kilograms.toString();val z=java.time.Instant.ofEpochMilli(w.measuredAtEpochMillis).atZone(java.time.ZoneId.systemDefault());weightDate=z.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));weightTime=z.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));showWeight=true}){Text("编辑体重")}}
   }
   val searching=query.isNotBlank()
   // Load the editable dictionary once per render, not once for every trend row.
@@ -637,6 +638,10 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       Icon(Icons.Outlined.DateRange,"选择日期",tint=Accent)
      }
      Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
+      Text("记录时间",fontSize=12.sp,color=Muted)
+      ClockTimeSelector(weightTime,{weightTime=it},Modifier.fillMaxWidth().padding(top=6.dp))
+     }
+     Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
       Text("体重 kg",fontSize=12.sp,color=Muted)
       BasicTextField(
        value=weightText,
@@ -648,7 +653,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
     }
    },
-   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();if(kg!=null&&kg>0&&day!=null){val at=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},
+   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();val time=runCatching{java.time.LocalTime.parse(weightTime,java.time.format.DateTimeFormatter.ofPattern("H:mm"))}.getOrNull();if(kg!=null&&kg>0&&day!=null&&time!=null){val at=day.atTime(time).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg,courseRecordIds=editingWeight?.courseRecordIds.orEmpty()));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},
    dismissButton={Row { if(editingWeight!=null)TextButton({deletingWeight=editingWeight;showWeight=false}){Text("删除",color=Bad)};TextButton({editingWeight=null;showWeight=false}){Text("取消")} }}
   )
   if(showWeightDatePicker){
@@ -772,11 +777,11 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  drawPath(second,to,style=Stroke(strokeWidth))
 }
 
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},onShowPreview:()->Unit={}){
- val layout=trendTimeline(points,timelineDates)
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},linePointIndices:List<Int>?=null,stackEqualDates:Boolean=false,onShowPreview:()->Unit={}){
+ val layout=trendTimeline(points,timelineDates,stackEqualDates)
  val timeline=layout.dates
  val pointSlots=layout.pointSlots
- val pointBySlot=pointSlots.withIndex().associate{it.value to it.index}
+ val pointBySlot=buildMap{pointSlots.forEachIndexed{index,slot->if(!containsKey(slot))put(slot,index)}}
  val density=LocalDensity.current
  val textMeasurer=rememberTextMeasurer()
  val dateStyle=TextStyle(fontSize=10.sp,fontWeight=FontWeight.Normal)
@@ -810,7 +815,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  val chartHeight=160.dp
  val allBands=referenceBands+listOf(referenceLow to referenceHigh)
  val plotHeightPx=with(density){plotHeight.toPx()}
- val geometry=trendGeometry(points,timelineDates,segmentKeys,allBands,centered.map{with(density){it.toPx()}},plotHeightPx)
+ val geometry=trendGeometry(points,timelineDates,segmentKeys,allBands,centered.map{with(density){it.toPx()}},plotHeightPx,stackEqualDates)
  fun pointPosition(index:Int)=geometry.points[index].let{Offset(it.x,it.y)}
  Box(Modifier.fillMaxWidth().horizontalScroll(scroll)){
   BoxWithConstraints(Modifier.width(contentWidth).height(chartHeight)){
@@ -839,7 +844,10 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      referenceLow!=null->{val bottom=y(referenceLow);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
     val plotted=points.indices.map(::pointPosition)
-    val segments=geometry.segments
+    val segments=linePointIndices?.let{selected->
+     val valid=selected.filter{it in points.indices}
+     trendSegments(valid.map{pointSlots[it]},emptyList()).map{segment->segment.map{valid[it]}}
+    }?:geometry.segments
     segments.forEach{indices->val slopes=monotoneTrendSlopes(indices.map{plotted[it]});indices.zipWithNext().forEachIndexed{j,(previous,index)->drawHospitalTrendJoin(plotted[previous],plotted[index],segmentColors.getOrNull(previous)?:color,segmentColors.getOrNull(index)?:color,2.dp.toPx(),slopes[j],slopes[j+1])}}
    }
    points.indices.forEach{i->val at=pointPosition(i);Box(Modifier.offset{androidx.compose.ui.unit.IntOffset((at.x-12.dp.toPx()).roundToInt(),(at.y-12.dp.toPx()).roundToInt())}.size(24.dp).then(if(onPointClick==null)Modifier else Modifier.clickable{onPointClick(i)}).semantics{contentDescription=pointDescriptions.getOrNull(i)?:"趋势点 $metricKey ${i+1}"},contentAlignment=Alignment.Center){Canvas(Modifier.size(8.dp)){drawCircle(segmentColors.getOrNull(i)?:color)}}}

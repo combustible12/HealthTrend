@@ -1,3 +1,10 @@
+## 2026-10-26 体重时间与同日趋势测试影响（待验收）
+
+- `WeightCoursePersistenceTest` 改为验证：同日不同时刻保留；病程命中同一时刻时复用原点；改变病程时间不删除趋势原点；解除复用关联不删除趋势原点；仅由病程创建的点在清空后删除。
+- `TrendGeometryTest` 新增本地自然日归组、同日共享横坐标及每日最早记录索引断言；原检验指标“同时间独立槽位”断言保留，防止体重专用规则外溢。
+- `CourseNavigationTest` 验证体重时间选择、时间/体重编辑色块等高、病程卡时间/体重色块等宽等高、保存时间戳及原趋势跳转。
+- 需运行全量 JVM、`compileDebugKotlin`、`compileDebugAndroidTestKotlin` 和包含 `CourseNavigationTest` 的 Android 16 报告验收。当前本地没有 Gradle，不提前宣称通过；发布配置不改。
+
 ## 2026-10-25 已完成验收及正式发布：HealthTrend 1.0.156
 
 - 实际标准指标147项，说明覆盖147/147；修正30条短说明，补齐101项原无专属详细解释的标准指标，另补RDW、PDW、AMY三项历史说明。
