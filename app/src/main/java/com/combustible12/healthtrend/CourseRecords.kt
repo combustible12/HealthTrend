@@ -179,7 +179,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,store.weightRecordOn(record.date),{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view,openWeightTrend)
+     CourseTimelineCard(record,store.weightRecordForCourse(record.id),{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view,openWeightTrend)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -299,7 +299,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val coursePhases=remember{store.coursePhases()}
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
- var weightText by rememberSaveable(initial.id){mutableStateOf(store.weightRecordOn(initial.date)?.kilograms?.let(::courseWeightText).orEmpty())}
+ var weightText by rememberSaveable(initial.id){mutableStateOf(store.weightRecordForCourse(initial.id)?.kilograms?.let(::courseWeightText).orEmpty())}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
@@ -331,7 +331,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val editorScroll=rememberScrollState()
  FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!),kilograms)},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   CourseDateField(date){newDate->date=newDate;courseDateMillis(newDate,initial.date)?.let{weightText=store.weightRecordOn(it)?.kilograms?.let(::courseWeightText).orEmpty()}}
+   CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
