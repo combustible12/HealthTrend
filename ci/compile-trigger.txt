@@ -48,3 +48,4 @@
 2026-10-26 align course weight time and blocks with blood-pressure UI; stack same-day weight points
 2026-10-26 retest weight input after targeting the editable descendant inside the shared block
 2026-10-26 compile complete current metric descriptions and approved direction additions
+2026-10-26 rerun after frozen qualitative aliases use the legacy inputs

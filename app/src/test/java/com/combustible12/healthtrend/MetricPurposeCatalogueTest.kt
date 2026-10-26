@@ -46,7 +46,9 @@ class MetricPurposeCatalogueTest {
    "HIVAB" to "筛查阳性需要进一步确证", "TPAB" to "阳性需结合其他梅毒检查判断"
   )
   legacy.forEach { (key,summary) ->
-   val frozen=LegacyMetricPurpose.summary(key)?:LegacyMetricPurpose.qualitativeSummary(key)
+   val frozen=LegacyMetricPurpose.summary(key)?:LegacyMetricPurpose.qualitativeSummary(
+    when(key){"HIVAB"->"HIV";"TPAB"->"TP-AB";else->key}
+   )
    assertEquals(key,summary,frozen)
   }
  }
