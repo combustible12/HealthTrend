@@ -40,3 +40,4 @@
 2026-10-23 trend card icon actions, persistent ordering, single-sided bands and decimal scale
 2026-10-23 retain gray label for indeterminate comparisons without changing hospital-colored points
 2026-10-23 capture resting hospital dot color before click indication
+2026-10-26 course editor weight module, shared daily record, course-card display and trend navigation
