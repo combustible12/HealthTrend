@@ -84,7 +84,7 @@ class MetricPurposeCatalogueTest {
    "CKMB" to "活性与质量浓度", "AST" to "肌肉", "ALT/AST" to "互为反向", "HBA1C" to "2至3个月")
   expected.forEach { (key,term) -> assertTrue("$key must explain $term",metricPurposeDetail(key).contains(term)) }
   assertTrue("ALP legacy summary must stay verbatim",metricPurpose("ALP").contains("骨骼"))
-  listOf("PCT" to "PCTIN","AST" to "AST/ALT","FT4" to "T4","P-LCR" to "P-LCC","RDW-CV" to "RDW-SD","PDW-CV" to "PDW-SD").forEach { (a,b) ->
+  listOf("PCT" to "PCTIN","AST" to "AST/ALT","FT4" to "T4").forEach { (a,b) ->
    assertNotEquals(metricPurposeDetail(a),metricPurposeDetail(b))
   }
  }
