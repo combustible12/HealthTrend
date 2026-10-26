@@ -427,6 +427,24 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("整体趋势 · 血红蛋白").performScrollTo().assertIsDisplayed()
   screenshot("numeric-overall")
  }
+ @Test fun derivedEgfrUsesTheCompleteTrendCardAndOpensSourceCreatinine(){
+  val store=HealthStore(context)
+  store.savePatientProfile(PatientProfile(birthDate="1972-01-02",sex="女"))
+  val report=materializeReportDraft(pastedReportDraft("合成医院\n肾功能\n2026-09-23\nCREA 肌酐 46 μmol/L 41-73",store=store),store).also{store.saveReport(it)}
+  compose.setContent{MaterialTheme{Trends(Modifier,store,listOf(report),0,{_,_->},{},{_,_,_->},{},{})}}
+  compose.onAllNodes(hasSetTextAction())[0].performTextInput("eGFR")
+  compose.onNodeWithText("eGFR").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("110.3").assertIsDisplayed()
+  compose.onNodeWithText(DERIVED_EGFR_UNIT,substring=true).assertIsDisplayed()
+  compose.onNodeWithText("由肌酐、年龄和性别估算肾小球滤过率").assertExists()
+  compose.onNodeWithContentDescription("移到其他指标").assertExists()
+  compose.onNodeWithContentDescription("置于最上方").assertExists()
+  compose.onNodeWithContentDescription(trendPointContentDescription(DERIVED_EGFR_KEY,report.testedAtEpochMillis),useUnmergedTree=true).performClick()
+  compose.onNode(hasText("肌酐") and hasAnyAncestor(isDialog())).assertIsDisplayed()
+  compose.onNode(hasText("46") and hasAnyAncestor(isDialog())).assertIsDisplayed()
+  compose.onNodeWithText("编辑结果").assertIsDisplayed()
+  compose.runOnIdle{assertEquals(report,HealthStore(context).reports().single())}
+ }
  @Test fun deviceStoreEditReplacementExportReimportAndDeletePreserveIdentity(){
   val store=HealthStore(context);val original=materializeReportDraft(draft(),store);store.saveReport(original)
   store.updateResultText(original.id,original.results.last().id,"+++")

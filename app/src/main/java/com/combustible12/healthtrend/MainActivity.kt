@@ -442,14 +442,24 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   "NRBC%"->"有核红细胞比率";"NRBC#"->"有核红细胞计数";"P-LCC"->"大血小板数目"
   "TP"->"总蛋白";"ALB"->"白蛋白";"GLOB"->"球蛋白";"A/G"->"白球比";"TBIL"->"总胆红素";"DBIL"->"直接胆红素";"IBIL"->"间接胆红素"
   "ALT"->"谷丙转氨酶";"AST"->"谷草转氨酶";"AST/ALT"->"谷草/谷丙";"GGT"->"谷氨酰转肽酶";"ALP"->"碱性磷酸酶";"CHE"->"胆碱酯酶"
-  "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸";"UREA/CREA"->"尿素/肌酐";"AMY"->"淀粉酶";"CKMB"->"肌酸激酶MB亚型";"CK"->"肌酸激酶";"PHOS"->"无机磷酸盐"
+  "TBA"->"总胆汁酸";"PA"->"前白蛋白";"UREA"->"尿素";"CREA"->"肌酐";"UA"->"尿酸";"UREA/CREA"->"尿素/肌酐";DERIVED_EGFR_KEY->"eGFR";"AMY"->"淀粉酶";"CKMB"->"肌酸激酶MB亚型";"CK"->"肌酸激酶";"PHOS"->"无机磷酸盐"
   else->null
  }
  val activeReports=remember(reports,textRevision){if(textRevision==0)reports else store.reports()}
- val all=activeReports.distinctBy{it.id}.flatMap{r->r.results.distinctBy{it.id}.filter{result->
+ val sourcePairs=activeReports.distinctBy{it.id}.flatMap{r->r.results.distinctBy{it.id}.filter{result->
   val key=canonicalMetricKey(result.metricKey)
   key !in setOf("RDW","PDW")&&distributionWidthIdentityProblem(key,result.rawName,result.unitAtTest)==null
- }.map{x->r to x}}.mapNotNull{pair->
+ }.map{x->r to x}}
+ val egfrPairs=remember(activeReports,revision,textRevision){derivedEgfrRows(activeReports,store.patientProfile())}
+ val egfrProfile=remember(revision){store.patientProfile()}
+ val hasCreatinine=sourcePairs.any{canonicalMetricKey(it.second.metricKey)=="CREA"}
+ val egfrUnavailableReason=when{
+  !hasCreatinine||egfrPairs.isNotEmpty()->null
+  profileBirthDate(egfrProfile.birthDate)==null->"已找到肌酐记录；请先在“我的”补全出生日期，eGFR 才会按检测当日年龄计算。"
+  egfrSex(egfrProfile.sex)==null->"已找到肌酐记录；请先在“我的”补全性别，eGFR 才会使用 CKD-EPI 2021 公式计算。"
+  else->"已找到肌酐记录，但没有可用于成人 eGFR 估算的精确数值。"
+ }
+ val all=(sourcePairs+egfrPairs).mapNotNull{pair->
   trendCardIdentity(store.trendIdentity(pair.second.metricKey),pair.second)?.let{it.copy(unit=trendUnitIdentity(pair.second)) to pair}
  }.groupBy({it.first},{it.second})
  // Hospital color identity is global to the whole Trends screen, not recalculated per metric.
@@ -501,13 +511,15 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   val preferredNames=remember(revision){store.preferredMetricNames()}
   val aliasIndex=remember(revision){savedAliases.entries.groupBy({canonicalMetricKey(it.value)},{it.key})}
   val builtInIndex=remember{ReportParser.builtInMetricKeys().associateWith{ReportParser.builtInAliasNames(it)}}
-  fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()).distinct()
+  fun aliasesFor(key:String)=(aliasIndex[key].orEmpty()+builtInIndex[key].orEmpty()+
+   if(key==DERIVED_EGFR_KEY)listOf("估算肾小球滤过率","肾小球滤过率","CKD-EPI 2021") else emptyList()).distinct()
   val filtered=orderTrendCards(all.filter{(card,list)->
    val key=card.metricKey
    val matchesText=list.any{(r,x)->DataSearch.row(query,r,x,savedAliases,preferredNames[key])} || DataSearch.matches(query,aliasesFor(key))
    matchesText && (searching || store.isPrimary(key)==(mode=="重点指标") && list.any{(r,x)->trendCategoryMatches(category,r,x)})
   }.toList(),store.trendCardOrder(mode=="重点指标")){it.first.storageKey()}
   Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
+  if(category=="肾功能"&&!searching&&egfrUnavailableReason!=null)Paper{Text(egfrUnavailableReason,color=Muted,fontSize=13.sp)}
   if((category!="体重"||searching)&&filtered.isEmpty())Paper{Text("暂无符合条件的指标")}
   if(category!="体重"||searching)filtered.forEach{(card,list)->
    val key=card.metricKey
@@ -580,7 +592,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       referenceBands=referenceBands,
       segmentKeys=compatiblePoints.map{trendHospitalKey(it.first.hospitalKey)},
       segmentColors=pointHospitalColors,
-      onPointClick={index->selected=compatiblePoints[index]},
+      onPointClick={index->selected=originalTrendPoint(compatiblePoints[index])},
       metricKey=key,
       pointDescriptions=compatiblePoints.map{trendPointContentDescription(key,it.first.testedAtEpochMillis)},
       valueLabels=compatiblePoints.map{it.second.trendDisplayText()},
@@ -695,7 +707,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
 fun trendCategoryMatches(category:String,report:LabReport,result:LabResult):Boolean{
  val key=canonicalMetricKey(result.metricKey)
  val liver=setOf("ALT","AST","AST/ALT","GGT","ALP","TBIL","DBIL","IBIL","TBA","TP","ALB","GLOB","A/G","PA","CHE")
- val kidney=setOf("CREA","UREA","BUN","UA","EGFR")
+ val kidney=setOf("CREA","UREA","BUN","UA","EGFR",DERIVED_EGFR_KEY)
  val cbc=setOf("WBC","RBC","HGB","HCT","MCV","MCH","MCHC","PLT","NEUT#","LYMPH#","MONO#","EOS#","BASO#","NEUT%","LYMPH%","MONO%","EOS%","BASO%","RDW-CV","RDW-SD","PCT","MPV","PDW-CV","PDW-SD","P-LCR","P-LCC","NRBC#","NRBC%")
  return when(category){
   "肝功能"->key in liver

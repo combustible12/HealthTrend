@@ -13,7 +13,7 @@ class MetricPurposeCatalogueTest {
   assertEquals("白细胞计数",MetricPurposeCatalogue.resolveKey("白细胞计数")?.let{UnifiedMetricStandard.definition(it)?.name})
   val standards=UnifiedMetricStandard.keys()
   assertEquals(147,standards.size)
-  assertEquals(standards+setOf("RDW","PDW","AMY"),MetricPurposeCatalogue.keys())
+  assertEquals(standards+setOf("RDW","PDW","AMY",DERIVED_EGFR_KEY),MetricPurposeCatalogue.keys())
   assertEquals(standards,reviewed.map{it[0]}.toSet())
   assertEquals(standards.size,reviewed.size)
   reviewed.forEach { row ->

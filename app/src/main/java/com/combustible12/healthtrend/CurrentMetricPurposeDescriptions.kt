@@ -3,7 +3,7 @@ package com.combustible12.healthtrend
 /**
  * Current complete description set used by the app.
  *
- * It contains every standard metric plus the supported historical RDW/PDW/AMY entries.
+ * It contains every standard metric plus supported historical and display-only derived entries.
  * LegacyMetricPurpose remains a read-only backup and must never be edited for current changes.
  */
 object MetricPurposeCatalogue {
@@ -159,6 +159,7 @@ object MetricPurposeCatalogue {
   "RDW" to Entry("↑需鉴别缺铁、B12或叶酸缺乏", "历史RDW指标反映红细胞大小差异；需根据原报告单位区分CV（%）与SD（fL），本说明不改变历史身份或数值。"),
   "PDW" to Entry("↑血小板生成或活化改变，结合PLT和MPV", "历史PDW指标反映血小板大小差异；需根据原报告单位区分CV（%）与SD（fL），本说明不改变历史身份或数值。"),
   "AMY" to Entry("↑需排查胰腺炎、唾液腺疾病或肾功能下降", "淀粉酶与胰腺及唾液腺等有关；异常不能单独诊断胰腺疾病，需结合脂肪酶及临床情况。"),
+  DERIVED_EGFR_KEY to Entry("由肌酐、年龄和性别估算肾小球滤过率", "eGFR（CKD-EPI 2021 肌酐公式）：由标准化血清肌酐、检测日期对应年龄和性别估算，单位 mL/min/1.73m²，不使用体重。仅用于18岁及以上；60–89不能单独诊断慢性肾病，应结合尿白蛋白、持续时间及其他检查判断。肌肉量或急性肾功能变化可影响准确性；用药剂量与临床决定以医生和检验系统结果为准。"),
  )
  private val entries=currentEntries.mapValues { (key,entry) ->
   // Keep the old long-form text intact while current summaries live exclusively in this file.
