@@ -840,7 +840,7 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 报告专项 run 39921083910：原失败通过；44 项中另有 1 项新增测试失败。`allMainDotsUseHospitalColorsAndRemainClickable` 在 `performClick` 后立即采样，Material 点击指示临时压暗像素（期望红 0.941、采到 0.863）。测试改为先采静态中心像素，再执行点击并验证索引；颜色容差不变。
 # 2026-10-26 病程体重模块测试影响
 
-- 新增 `WeightCoursePersistenceTest`：同一自然日从趋势保存和病程保存只保留一条 WeightRecord、保留稳定 ID，并验证清空删除当天体重。
+- 新增 `WeightCoursePersistenceTest`：同一自然日可保留多条 WeightRecord；病程使用稳定关联 ID 只更新/清空自己的记录，不影响同日其他体重。
 - 扩展 `CourseNavigationTest`：真实 Compose 编辑页中体重位于症状上方、数值按 kg 保存、标题发出趋势跳转；对应病程卡片显示当天体重并可跳转。
 - 原 Trends 体重卡片、其他趋势分类、报告/指标身份、病程图片与血压布局逻辑未重写；现有全量单测和设备套件仍须运行。
 - 当前仅完成源码与静态 diff 检查；本地没有 Gradle，不能记为编译/JVM/设备通过，也未发布。
