@@ -4,6 +4,7 @@
 - `TrendGeometryTest` 新增本地自然日归组、同日共享横坐标及每日最早记录索引断言；原检验指标“同时间独立槽位”断言保留，防止体重专用规则外溢。
 - `CourseNavigationTest` 验证体重时间选择、时间/体重编辑色块等高、病程卡时间/体重色块等宽等高、保存时间戳及原趋势跳转。
 - 需运行全量 JVM、`compileDebugKotlin`、`compileDebugAndroidTestKotlin` 和包含 `CourseNavigationTest` 的 Android 16 报告验收。当前本地没有 Gradle，不提前宣称通过；发布配置不改。
+- 首轮 run 40273613756 的 JVM/构建通过，Android 16 共 53 项仅 `courseEditorWeightIsAboveSymptomsAndSavesAsKilograms` 失败：尺寸语义位于外层色块，不具备 `RequestFocus`。现用祖先色块语义限定内部真实可编辑节点，未删除输入、尺寸或保存断言，等待复验。
 
 ## 2026-10-25 已完成验收及正式发布：HealthTrend 1.0.156
 

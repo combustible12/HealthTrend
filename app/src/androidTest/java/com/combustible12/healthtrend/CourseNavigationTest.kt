@@ -32,7 +32,7 @@ class CourseNavigationTest {
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
   val weight=compose.onNodeWithText("体重")
-  val weightInput=compose.onNodeWithContentDescription("体重输入 kg")
+  val weightInput=compose.onNodeWithContentDescription("体重输入色块")
   val symptoms=compose.onNodeWithText("症状")
   symptoms.performScrollTo()
   val scale=compose.density.density
@@ -69,10 +69,10 @@ class CourseNavigationTest {
   val weightTitle=compose.onNodeWithText("体重").performScrollTo().assertIsDisplayed()
   val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
   assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)
-  compose.onNodeWithContentDescription("体重输入 kg").performTextInput("61.5")
+  compose.onNode(hasSetTextAction() and hasAnyAncestor(hasContentDescription("体重输入色块")),useUnmergedTree=true).performTextInput("61.5")
   compose.onAllNodesWithText("时间").assertCountEquals(2)
   val timeBlock=compose.onNodeWithContentDescription("体重记录时间").fetchSemanticsNode().boundsInRoot
-  val weightBlock=compose.onNodeWithContentDescription("体重输入 kg").fetchSemanticsNode().boundsInRoot
+  val weightBlock=compose.onNodeWithContentDescription("体重输入色块").fetchSemanticsNode().boundsInRoot
   assertEquals(timeBlock.height,weightBlock.height,1f)
   compose.onNodeWithText("体重 kg").assertIsDisplayed()
   weightTitle.performClick()

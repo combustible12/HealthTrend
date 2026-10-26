@@ -483,7 +483,7 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
    }
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
     Text("体重 kg",fontSize=11.sp,color=Muted,maxLines=1)
-    CompactPressureField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入 kg"},fill=Color.White)
+    CompactPressureField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入色块"},fill=Color.White)
    }
   }
  }
