@@ -1,5 +1,9 @@
 name: Report module Android acceptance
 on:
+  pull_request:
+    paths:
+      - 'ci/report-acceptance.json'
+      - '.github/workflows/report-acceptance.yml'
   push:
     paths: [ci/report-acceptance.json]
   workflow_dispatch:
