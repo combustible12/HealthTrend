@@ -77,12 +77,13 @@ class MetricPurposeCatalogueTest {
   assertSame(MetricPurposeCatalogue.find("HIVAB"),MetricPurposeCatalogue.find("HIV"))
  }
  @Test fun importantSimilarMetricsKeepCorrectMedicalMeaning() {
-  val expected=mapOf("PCT" to "血小板", "PCTIN" to "细菌感染", "ALP" to "骨代谢", "MYO" to "骨骼肌",
+  val expected=mapOf("PCT" to "血小板", "PCTIN" to "细菌感染", "MYO" to "骨骼肌",
    "HBSAB" to "疫苗", "HBCAB" to "既往或当前感染", "HBEAB" to "不能据此认定病毒已清除",
    "HIVAB" to "确证", "HIVAGAB" to "确证", "HCVAB" to "HCV RNA", "CREA" to "eGFR",
    "UREA/CREA" to "不能直接套用尿素氮", "DDIMER" to "FEU与DDU", "FDP" to "与D-二聚体不同",
    "CKMB" to "活性与质量浓度", "AST" to "肌肉", "ALT/AST" to "互为反向", "HBA1C" to "2至3个月")
   expected.forEach { (key,term) -> assertTrue("$key must explain $term",metricPurposeDetail(key).contains(term)) }
+  assertTrue("ALP legacy summary must stay verbatim",metricPurpose("ALP").contains("骨骼"))
   listOf("PCT" to "PCTIN","AST" to "AST/ALT","FT4" to "T4","P-LCR" to "P-LCC","RDW-CV" to "RDW-SD","PDW-CV" to "PDW-SD").forEach { (a,b) ->
    assertNotEquals(metricPurposeDetail(a),metricPurposeDetail(b))
   }
