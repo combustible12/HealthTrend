@@ -43,3 +43,4 @@
 2026-10-26 course editor weight module, shared daily record, course-card display and trend navigation
 2026-10-26 rerun after weight persistence regression was added to the validation branch
 2026-10-26 final weight navigation integration and decimal keyboard regression compile
+2026-10-26 preserve multiple weights per day and isolate course-linked weight records
