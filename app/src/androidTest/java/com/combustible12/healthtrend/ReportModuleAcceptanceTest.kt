@@ -438,6 +438,7 @@ class ReportModuleAcceptanceTest {
   compose.onNodeWithText("由肌酐、年龄和性别估算肾小球滤过率").assertExists()
   compose.onAllNodesWithContentDescription("移到其他指标").assertCountEquals(2)
   compose.onAllNodesWithContentDescription("置于最上方").assertCountEquals(2)
+  compose.onNodeWithContentDescription("趋势图 $DERIVED_EGFR_KEY",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
   screenshot("derived-egfr-trend-card")
   compose.onNodeWithContentDescription(trendPointContentDescription(DERIVED_EGFR_KEY,report.testedAtEpochMillis),useUnmergedTree=true).performClick()
   compose.onNode(hasText("肌酐") and hasAnyAncestor(isDialog())).assertIsDisplayed()
