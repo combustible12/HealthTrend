@@ -27,20 +27,25 @@ class CourseNavigationTest {
  @Test fun pressureSummaryAddButtonAndSymptomsHaveCompactGaps(){
   val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_->saved=record},{},{_,_->})}}
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
+  val weight=compose.onNodeWithText("体重")
+  val weightInput=compose.onNodeWithContentDescription("体重输入 kg")
   val symptoms=compose.onNodeWithText("症状")
   symptoms.performScrollTo()
   val scale=compose.density.density
   val summaryBounds=summary.fetchSemanticsNode().boundsInRoot
   val addBounds=add.fetchSemanticsNode().boundsInRoot
+  val weightBounds=weight.fetchSemanticsNode().boundsInRoot
+  val weightInputBounds=weightInput.fetchSemanticsNode().boundsInRoot
   val symptomsBounds=symptoms.fetchSemanticsNode().boundsInRoot
   assertEquals(7f*scale,addBounds.top-summaryBounds.bottom,scale)
   assertEquals(32f*scale,addBounds.height,scale)
-  // Heading text is vertically centered beside its 24dp icon.
-  assertTrue(symptomsBounds.top-addBounds.bottom in 6f*scale..11f*scale)
+  assertTrue(weightBounds.top>addBounds.bottom)
+  assertTrue(weightInputBounds.top>weightBounds.bottom)
+  assertTrue(symptomsBounds.top>weightInputBounds.bottom)
   compose.onNodeWithText("60–100").assertExists()
   compose.onNodeWithText("<90\n<60").assertExists()
   compose.onNodeWithText("高压/低压（mmHg），按较高风险档位着色").assertDoesNotExist()
@@ -50,12 +55,43 @@ class CourseNavigationTest {
  @Test fun additionalPressureCanBeAddedAndRemovedWithoutChangingFirstReading(){
   val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{saved=it},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertEquals(initial,saved)}
+ }
+ @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
+  val initial=CourseRecord(title="体重记录")
+  var savedWeight:Double?=null;var openedTrend=0
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{_,weight->savedWeight=weight},{},{_,_->},{openedTrend++})}}
+  val weightTitle=compose.onNodeWithText("体重").performScrollTo().assertIsDisplayed()
+  val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
+  assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)
+  compose.onNodeWithContentDescription("体重输入 kg").performTextInput("61.5")
+  compose.onNodeWithText("kg").assertIsDisplayed()
+  weightTitle.performClick()
+  compose.runOnIdle{assertEquals(1,openedTrend)}
+  compose.onNodeWithText("保存记录").performClick()
+  compose.runOnIdle{assertEquals(61.5,savedWeight!!,0.0)}
+ }
+ @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){
+  val initial=CourseRecord(title="当天病程")
+  val store=HealthStore(context);store.setWeightForCourse(initial.id,initial.date,62.3)
+  var openedTrend=0
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->},{openedTrend++})}}
+  compose.onNodeWithText("62.3").assertIsDisplayed()
+  compose.onNodeWithText("kg").assertIsDisplayed()
+  compose.onNodeWithText("体重").performClick()
+  compose.runOnIdle{assertEquals(1,openedTrend)}
+ }
+ @Test fun editorWeightTitleNavigatesThroughAppToExistingWeightTrend(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithContentDescription("新增病程记录").performClick()
+  compose.onNodeWithText("体重").performScrollTo().performClick()
+  compose.onNodeWithText("+ 记录体重").assertIsDisplayed()
+  compose.onNodeWithText("暂无体重记录").assertIsDisplayed()
  }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}

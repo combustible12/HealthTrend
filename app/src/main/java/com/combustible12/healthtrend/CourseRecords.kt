@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -30,8 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -133,7 +137,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  open:(CourseRecord)->Unit,
  add:()->Unit,
  remove:(CourseRecord)->Unit,
- view:(List<String>,Int)->Unit
+ view:(List<String>,Int)->Unit,
+ openWeightTrend:()->Unit={}
 ){
  var phases by remember{mutableStateOf(store.coursePhases())}
  var managingPhases by rememberSaveable{mutableStateOf(false)}
@@ -174,7 +179,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view)
+     CourseTimelineCard(record,store.weightRecordForCourse(record.id),{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view,openWeightTrend)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -189,7 +194,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  deleting?.let{target->DeleteConfirmation({deleting=null}){remove(target);deleting=null}}
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,onOpen:()->Unit,menuOpen:Boolean,onMenu:()->Unit,onEdit:()->Unit,onDelete:()->Unit,onDismiss:()->Unit,view:(List<String>,Int)->Unit){
+@Composable private fun CourseTimelineCard(record:CourseRecord,weight:WeightRecord?,onOpen:()->Unit,menuOpen:Boolean,onMenu:()->Unit,onEdit:()->Unit,onDelete:()->Unit,onDismiss:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -220,12 +225,25 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
      if(showPrimary)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,record.pulse,showHeader=false)
      record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,reading.pulse,showHeader=false)}
     }
+    if(weight!=null)CourseWeightView(weight.kilograms,openWeightTrend)
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
     if(record.reminderDate.isNotBlank()&&record.reminderCompletedAt==null)CourseTextRow(Icons.Outlined.Notifications,"提醒 · ${reminderDisplayDate(record.reminderDate)}")
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view)
    }
+  }
+ }
+}
+
+@Composable private fun CourseWeightView(kilograms:Double,onOpenTrend:()->Unit){
+ Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend),verticalAlignment=Alignment.CenterVertically){
+   Icon(Icons.Outlined.MonitorWeight,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text("体重",Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=15.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",Modifier.size(18.dp),tint=Muted)
+  }
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
+   Box(Modifier.width(96.dp).height(30.dp).clip(RoundedCornerShape(9.dp)).background(SelectedTint),contentAlignment=Alignment.Center){Text(courseWeightText(kilograms),fontWeight=FontWeight.Bold,fontSize=14.sp)}
+   Text("kg",fontSize=12.sp,color=Muted)
   }
  }
 }
@@ -276,11 +294,12 @@ private fun coursePhaseColors(phase:String)=when(phase){
  Box(modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
 }
 
-@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit){
+@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={}){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhases()}
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
  var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
+ var weightText by rememberSaveable(initial.id){mutableStateOf(store.weightRecordForCourse(initial.id)?.kilograms?.let(::courseWeightText).orEmpty())}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
@@ -307,9 +326,10 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
- val selectedDate=courseDateMillis(date,initial.date);val valid=record.title.isNotBlank()&&selectedDate!=null&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
+ val selectedDate=courseDateMillis(date,initial.date);val kilograms=weightText.toDoubleOrNull();val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite())
+ val valid=record.title.isNotBlank()&&selectedDate!=null&&validWeight&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
  val editorScroll=rememberScrollState()
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!))},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
+ FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!),kilograms)},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
@@ -334,6 +354,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
      TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
     }
+    CourseWeightEditor(weightText,{weightText=sanitizeWeightInput(it)},onOpenWeightTrend)
     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    }
    OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
@@ -444,6 +465,27 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
 }
 
 @Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
+
+@Composable private fun CourseWeightEditor(value:String,onValueChange:(String)->Unit,onOpenTrend:()->Unit){
+ Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).padding(vertical=2.dp),verticalAlignment=Alignment.CenterVertically){
+   Icon(Icons.Outlined.MonitorWeight,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("体重",Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",tint=Muted)
+  }
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+   Box(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(10.dp)).background(SelectedTint).padding(horizontal=12.dp),contentAlignment=Alignment.Center){
+    BasicTextField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入 kg"},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),textStyle=androidx.compose.ui.text.TextStyle(fontSize=18.sp,fontWeight=FontWeight.Bold,color=Ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center))
+   }
+   Text("kg",fontSize=15.sp,color=Muted)
+  }
+ }
+}
+
+internal fun sanitizeWeightInput(input:String):String{
+ val filtered=input.replace(',','.').replace('，','.').filter{it.isDigit()||it=='.'}
+ val dot=filtered.indexOf('.')
+ return if(dot<0)filtered.take(4) else filtered.take(dot).take(4)+"."+filtered.drop(dot+1).filter(Char::isDigit).take(2)
+}
+private fun courseWeightText(value:Double)=java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 
 private fun courseDate(epoch:Long):String{val d=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault());return "${d.monthValue}/${d.dayOfMonth}"}
 private fun courseEditorDate(epoch:Long)=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate().toString()
