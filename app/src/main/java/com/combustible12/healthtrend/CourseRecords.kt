@@ -7,6 +7,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -34,6 +35,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -471,7 +473,7 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
   }
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
    Box(Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(10.dp)).background(SelectedTint).padding(horizontal=12.dp),contentAlignment=Alignment.Center){
-    BasicTextField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入 kg"},singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=18.sp,fontWeight=FontWeight.Bold,color=Ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center))
+    BasicTextField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入 kg"},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),textStyle=androidx.compose.ui.text.TextStyle(fontSize=18.sp,fontWeight=FontWeight.Bold,color=Ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center))
    }
    Text("kg",fontSize=15.sp,color=Muted)
   }
