@@ -81,6 +81,13 @@ class CourseNavigationTest {
   compose.onNodeWithText("体重").performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
  }
+ @Test fun editorWeightTitleNavigatesThroughAppToExistingWeightTrend(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithContentDescription("新增病程记录").performClick()
+  compose.onNodeWithText("体重").performScrollTo().performClick()
+  compose.onNodeWithText("+ 记录体重").assertIsDisplayed()
+  compose.onNodeWithText("暂无体重记录").assertIsDisplayed()
+ }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("病程记录").assertIsDisplayed()
