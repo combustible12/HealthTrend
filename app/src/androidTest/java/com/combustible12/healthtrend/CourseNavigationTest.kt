@@ -31,16 +31,21 @@ class CourseNavigationTest {
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
+  val weight=compose.onNodeWithText("体重")
+  val weightInput=compose.onNodeWithContentDescription("体重输入 kg")
   val symptoms=compose.onNodeWithText("症状")
   symptoms.performScrollTo()
   val scale=compose.density.density
   val summaryBounds=summary.fetchSemanticsNode().boundsInRoot
   val addBounds=add.fetchSemanticsNode().boundsInRoot
+  val weightBounds=weight.fetchSemanticsNode().boundsInRoot
+  val weightInputBounds=weightInput.fetchSemanticsNode().boundsInRoot
   val symptomsBounds=symptoms.fetchSemanticsNode().boundsInRoot
   assertEquals(7f*scale,addBounds.top-summaryBounds.bottom,scale)
   assertEquals(32f*scale,addBounds.height,scale)
-  // Heading text is vertically centered beside its 24dp icon.
-  assertTrue(symptomsBounds.top-addBounds.bottom in 6f*scale..11f*scale)
+  assertTrue(weightBounds.top>addBounds.bottom)
+  assertTrue(weightInputBounds.top>weightBounds.bottom)
+  assertTrue(symptomsBounds.top>weightInputBounds.bottom)
   compose.onNodeWithText("60–100").assertExists()
   compose.onNodeWithText("<90\n<60").assertExists()
   compose.onNodeWithText("高压/低压（mmHg），按较高风险档位着色").assertDoesNotExist()
