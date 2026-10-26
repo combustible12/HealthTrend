@@ -45,3 +45,5 @@
 2026-10-26 final weight navigation integration and decimal keyboard regression compile
 2026-10-26 preserve multiple weights per day and isolate course-linked weight records
 2026-10-26 update obsolete course spacing assertion for the inserted weight module
+2026-10-26 align course weight time and blocks with blood-pressure UI; stack same-day weight points
+2026-10-26 retest weight input after targeting the editable descendant inside the shared block

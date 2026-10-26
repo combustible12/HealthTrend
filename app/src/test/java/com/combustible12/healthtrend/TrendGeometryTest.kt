@@ -40,6 +40,16 @@ class TrendGeometryTest {
   assertEquals(listOf(0,1,2),t.pointSlots);assertEquals(listOf(1L,1L,2L,3L),t.dates)
   assertEquals(listOf(listOf(0,1,2)),trendSegments(t.pointSlots,listOf("A","B","B")))
  }
+ @Test fun weightPointsStackByDayAndOnlyEarliestPointContinuesTheLine(){
+  val zone=java.time.ZoneId.of("Asia/Shanghai")
+  fun at(day:Int,hour:Int)=java.time.LocalDate.of(2026,10,day).atTime(hour,0).atZone(zone).toInstant().toEpochMilli()
+  val series=weightTrendSeries(listOf(WeightRecord("late",at(26,20),60.1),WeightRecord("early",at(26,7),61.0),WeightRecord("next",at(27,8),60.8)),zone)
+  assertEquals(listOf("early","late","next"),series.records.map{it.id})
+  assertEquals(series.points[0].first,series.points[1].first)
+  assertNotEquals(series.points[1].first,series.points[2].first)
+  assertEquals(listOf(0,2),series.earliestPointIndices)
+  assertEquals(listOf(0,0,1),trendTimeline(series.points,series.points.map{it.first},stackEqualDates=true).pointSlots)
+ }
  @Test fun paletteSlotsSurviveReorderingNewHospitalsAndNormalization(){
   val keys=hospitalPaletteKeys(emptyList(),listOf("A"," B ","", "A"))
   assertEquals(listOf("A","B","医院未录入"),keys)

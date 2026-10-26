@@ -18,7 +18,12 @@ internal fun hospitalPaletteArgb(slot:Int,abnormal:Boolean):Long {
  else 0xFF000000L or (16L shl 16) or ((tone/2).toLong() shl 8) or tone.toLong()
 }
 internal data class TrendTimeline(val dates:List<Long>,val pointSlots:List<Int>)
-internal fun trendTimeline(points:List<Pair<Long,Double>>,dates:List<Long>):TrendTimeline {
+internal fun trendTimeline(points:List<Pair<Long,Double>>,dates:List<Long>,stackEqualDates:Boolean=false):TrendTimeline {
+ if(stackEqualDates){
+  val timeline=(dates+points.map{it.first}).distinct().sorted()
+  val slots=timeline.withIndex().associate{it.value to it.index}
+  return TrendTimeline(timeline,points.map{slots.getValue(it.first)})
+ }
  val counts=points.groupingBy{it.first}.eachCount()
  val timeline=(dates+points.map{it.first}).distinct().sorted().flatMap{date->List(counts[date]?:1){date}}
  val slots=timeline.withIndex().groupBy({it.value},{it.index})
@@ -50,11 +55,22 @@ internal fun trendScale(values:List<Double>,bands:List<Pair<Double?,Double?>>):T
 internal data class TrendCoordinate(val x:Float,val y:Float)
 internal data class TrendGeometry(val timeline:TrendTimeline,val scale:TrendScale,val points:List<TrendCoordinate>,val segments:List<List<Int>>)
 /** Both canvases and point hit targets consume this exact projection. */
-internal fun trendGeometry(points:List<Pair<Long,Double>>,dates:List<Long>,hospitals:List<String>,bands:List<Pair<Double?,Double?>>,centers:List<Float>,height:Float):TrendGeometry {
- val timeline=trendTimeline(points,dates)
+internal fun trendGeometry(points:List<Pair<Long,Double>>,dates:List<Long>,hospitals:List<String>,bands:List<Pair<Double?,Double?>>,centers:List<Float>,height:Float,stackEqualDates:Boolean=false):TrendGeometry {
+ val timeline=trendTimeline(points,dates,stackEqualDates)
  require(centers.size==timeline.dates.size)
  val scale=trendScale(points.map{it.second},bands)
  return TrendGeometry(timeline,scale,points.indices.map{i->TrendCoordinate(centers[timeline.pointSlots[i]],scale.y(points[i].second,height))},trendSegments(timeline.pointSlots,hospitals))
+}
+
+internal data class WeightTrendSeries(val records:List<WeightRecord>,val points:List<Pair<Long,Double>>,val earliestPointIndices:List<Int>)
+internal fun weightTrendSeries(records:List<WeightRecord>,zone:java.time.ZoneId=java.time.ZoneId.systemDefault()):WeightTrendSeries {
+ val sorted=records.sortedWith(compareBy<WeightRecord>{it.measuredAtEpochMillis}.thenBy{it.id})
+ val points=sorted.map{record->
+  val day=java.time.Instant.ofEpochMilli(record.measuredAtEpochMillis).atZone(zone).toLocalDate()
+  day.atStartOfDay(zone).toInstant().toEpochMilli() to record.kilograms
+ }
+ val earliest=points.indices.distinctBy{points[it].first}
+ return WeightTrendSeries(sorted,points,earliest)
 }
 
 internal fun trendHasHistoricalAbnormal(results:List<LabResult>)=results.any{it.status() in setOf(ResultStatus.HIGH,ResultStatus.LOW)}
