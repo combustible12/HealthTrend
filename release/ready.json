@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "b074a764ad3243b0f732969a0137d3ff5eb44b7b",
-  "validationMode": "validated-egfr-release",
-  "versionCode": 2026102701,
-  "versionName": "1.0.160"
+  "sourceBaseCommit": "ca20b5063478a1a86d9b2d38db453abb1e389c3e",
+  "validationMode": "validated-course-auto-reminders",
+  "versionCode": 2026102801,
+  "versionName": "1.0.161"
 }
