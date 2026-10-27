@@ -225,6 +225,13 @@ data class CourseRecord(
  val updatedAt:Long=System.currentTimeMillis(),
  val titleAuto:Boolean=true
 ):java.io.Serializable
+data class TreatmentReminder(
+ val id:String=newId(),
+ val radiationNumber:Int,
+ val text:String,
+ val completedAt:Long?=null,
+ val createdAt:Long=System.currentTimeMillis()
+):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
 data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpochMillis:Long,val category:String,val sourceImageUri:String?)

@@ -203,20 +203,34 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
  val rows=(records.filterNot{it.id==record.id}+record).map{it to courseLocalDate(it.date)}
  val chemotherapyDates=rows.filter{(item,date)->item.phase in chemotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().sorted()
  val latestChemotherapy=chemotherapyDates.lastOrNull()
- val chemotherapy=latestChemotherapy?.let{date->
-  val cycle=chemotherapyDates.indexOf(date)+1
-  val day=java.time.temporal.ChronoUnit.DAYS.between(date,target)+1
-  "${cycle}化${day}"
+ val priorRows=records.filterNot{it.id==record.id}.map{it to courseLocalDate(it.date)}.filter{!it.second.isAfter(target)}
+ val chemoPattern=Regex("(\\d+)化(\\d+)")
+ val chemoAnchor=priorRows.mapNotNull{(item,date)->chemoPattern.find(item.title)?.let{match->Triple(date,match.groupValues[1].toInt(),match.groupValues[2].toInt())}}.maxByOrNull{it.first}
+ val chemotherapy=when{
+  record.phase in chemotherapyCoursePhases->{
+   val cycle=(chemoAnchor?.second?:chemotherapyDates.dropLast(1).size)+1
+   "${cycle}化1"
+  }
+  chemoAnchor!=null->"${chemoAnchor.second}化${chemoAnchor.third+java.time.temporal.ChronoUnit.DAYS.between(chemoAnchor.first,target)}"
+  latestChemotherapy!=null->{val cycle=chemotherapyDates.indexOf(latestChemotherapy)+1;val day=java.time.temporal.ChronoUnit.DAYS.between(latestChemotherapy,target)+1;"${cycle}化${day}"}
+  else->null
  }
  val radiotherapy=if(record.phase in radiotherapyCoursePhases){
-  val count=rows.filter{(item,date)->item.phase in radiotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().size
+  val radiationPattern=Regex("放(\\d+)")
+  val anchor=priorRows.mapNotNull{(item,date)->radiationPattern.find(item.title)?.groupValues?.get(1)?.toIntOrNull()?.let{date to it}}.maxByOrNull{it.first}
+  val count=if(anchor==null)rows.filter{(item,date)->item.phase in radiotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().size
+   else anchor.second+rows.filter{(item,date)->item.phase in radiotherapyCoursePhases&&date.isAfter(anchor.first)&&!date.isAfter(target)}.map{it.second}.distinct().size
   "放$count"
  }else null
  return listOfNotNull(chemotherapy,radiotherapy).joinToString("-")
 }
 
 internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):String=
- if(record.titleAuto)automaticCourseTitle(record,records) else record.title
+ if(record.titleAuto)record.title.ifBlank{automaticCourseTitle(record,records)} else record.title
+
+internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&reminderText.isBlank()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
+
+internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
 internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalDate.parse(lastDate).plusDays(28).toString()}.getOrNull()
 
@@ -355,11 +369,13 @@ private fun coursePhaseColors(phase:String)=when(phase){
  Box(modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
 }
 
-@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={}){
+@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={}){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhases()}
+ val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
- var date by rememberSaveable{mutableStateOf(courseEditorDate(initial.date))}
+ var date by rememberSaveable{mutableStateOf(if(exists)courseEditorDate(initial.date) else "")}
+ var duplicateRecord by remember{mutableStateOf<CourseRecord?>(null)}
  val initialWeight=remember(initial.id){store.weightRecordForCourse(initial.id)}
  var weightText by rememberSaveable(initial.id){mutableStateOf(initialWeight?.kilograms?.let(::courseWeightText).orEmpty())}
  var weightTime by rememberSaveable(initial.id){mutableStateOf(initialWeight?.let{weightTimeText(it.measuredAtEpochMillis)}?:LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))}
@@ -384,22 +400,28 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val checkInput=rememberPhotoInput({addImages("check",it)},{error=it})
  val medicineInput=rememberPhotoInput({addImages("medicine",it)},{error=it})
  val noteInput=rememberPhotoInput({addImages("note",it)},{error=it})
- val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date)
- val automaticTitle=selectedDate?.let{displayCourseTitle(record.copy(date=it,titleAuto=true),remembered)}.orEmpty()
+ val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
  val editorTitle=if(record.titleAuto)automaticTitle else record.title
  val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null)
  val valid=selectedDate!=null&&validWeight&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
  val editorScroll=rememberScrollState()
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!,title=editorTitle),kilograms,if(kilograms==null)null else weightAt)},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
+ FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
+  val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
+  onSave(saved,kilograms,if(kilograms==null)null else weightAt)
+ },Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   CourseDateField(date){date=it}
+   CourseDateField(date){candidate->
+    val millis=courseDateMillis(candidate,initial.date)
+    val match=millis?.let{target->val day=courseLocalDate(target);store.courseRecords().firstOrNull{it.id!=initial.id&&courseLocalDate(it.date)==day}}
+    if(match==null)date=candidate else if(match.isBlankCourseCard()&&store.weightRecordForCourse(match.id)==null)onOpenExisting(match) else duplicateRecord=match
+   }
    Text("阶段",fontWeight=FontWeight.Medium)
-   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase,title="",titleAuto=true)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
    Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
@@ -469,6 +491,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  }
  if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=when(kind){"symptom"->record.copy(symptomImages=record.symptomImages.filterIndexed{j,_->j!=index});"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
  if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、药品、备注及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
+ duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;onOpenExisting(existing)}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
 }
 
 @Composable private fun CourseReminderEditor(record:CourseRecord,onChange:(CourseRecord)->Unit){
@@ -520,12 +543,12 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
 @Composable private fun CourseDateField(value:String,onChange:(String)->Unit){
  val context=LocalContext.current
  Box(Modifier.fillMaxWidth()){
-  OutlinedTextField(value,{},Modifier.fillMaxWidth(),trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+  OutlinedTextField(value,{},Modifier.fillMaxWidth(),placeholder={Text("选择日期")},trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
   Box(Modifier.matchParentSize().clickable{
    val initial=runCatching{LocalDate.parse(value)}.getOrElse{LocalDate.now()}
    android.app.DatePickerDialog(context,{_,year,month,day->
     onChange(LocalDate.of(year,month+1,day).toString())
-   },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
+   },initial.year,initial.monthValue-1,initial.dayOfMonth).apply{datePicker.maxDate=System.currentTimeMillis()}.show()
   })
  }
 }

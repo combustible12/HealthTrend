@@ -176,3 +176,4 @@ w’êS¦†ç!%[š*_’öOšŠš¾K&ç–òšŸš*_’öLß’â«.³®/¢ê¯’î÷–>+’â·šZ¿šb;†»š*_’ö
 - å…³é”®å®ç°ï¼šCourseRecords.ktã€HealthModels.ktã€HealthStore.ktï¼›å›å½’æµ‹è¯•ï¼šCourseTreatmentTitleTest.ktã€‚
 
 - åˆ†ç±»è¿ç§»ä¿®æ­£ï¼šæ”¾åŒ–æ ‡ç­¾åªåœ¨å‡çº§åçš„é¦–æ¬¡è¯»å–åŠ å…¥ä¸€æ¬¡ï¼›ç”¨æˆ·ä»¥åä»åˆ†ç±»ç®¡ç†åˆ é™¤æ—¶ä¸å†è‡ªåŠ¨æ¢å¤ã€‚
+\n\n## 2026-10-28 course auto cards and treatment reminders\nDaily course cards append only after the latest stored date. Weekdays auto-count radiotherapy; weekends skip it. Manual add uses a blank draft and never reuses an existing record. Treatment reminders are stored separately and shown on Home. Existing course records are never rewritten.\n

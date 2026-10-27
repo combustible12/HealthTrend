@@ -53,4 +53,19 @@ class CoursePhasePersistenceTest {
   assertTrue(record.isReminderDue(java.time.LocalDate.of(2026,10,23)))
   assertFalse(record.isReminderDue(java.time.LocalDate.of(2026,10,24)))
  }
+ @Test fun duplicateCourseDateIsRejectedWithoutChangingExistingRecord(){
+  val store=HealthStore(context)
+  val first=CourseRecord(date=java.time.LocalDate.of(2026,10,27).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="原记录",titleAuto=false,noteText="保留")
+  store.saveCourseRecord(first)
+  val duplicate=CourseRecord(date=first.date,title="新记录",titleAuto=false)
+  assertThrows(IllegalArgumentException::class.java){store.saveCourseRecord(duplicate)}
+  assertEquals(listOf(first.id),store.courseRecords().map{it.id})
+  assertEquals("保留",store.courseRecords().single().noteText)
+ }
+ @Test fun treatmentReminderPersistsSeparatelyFromCourseRecords(){
+  val store=HealthStore(context);val reminder=TreatmentReminder(radiationNumber=12,text="找主任做检查")
+  store.saveTreatmentReminder(reminder)
+  assertTrue(store.courseRecords().isEmpty())
+  assertEquals("找主任做检查",HealthStore(context).treatmentReminders().single().text)
+ }
 }

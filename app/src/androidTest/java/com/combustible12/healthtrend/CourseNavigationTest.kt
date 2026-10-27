@@ -26,8 +26,9 @@ class CourseNavigationTest {
  }
  @Test fun pressureSummaryAddButtonAndSymptomsHaveCompactGaps(){
   val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
+  val store=HealthStore(context);store.saveCourseRecord(initial)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
@@ -54,8 +55,9 @@ class CourseNavigationTest {
  }
  @Test fun additionalPressureCanBeAddedAndRemovedWithoutChangingFirstReading(){
   val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
+  val store=HealthStore(context);store.saveCourseRecord(initial)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
@@ -64,8 +66,9 @@ class CourseNavigationTest {
  }
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
+  val store=HealthStore(context);store.saveCourseRecord(initial)
   var savedWeight:Double?=null;var savedAt:Long?=null;var openedTrend=0
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,HealthStore(context),{},{_,weight,at->savedWeight=weight;savedAt=at},{},{_,_->},{openedTrend++})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{_,weight,at->savedWeight=weight;savedAt=at},{},{_,_->},{openedTrend++})}}
   val weightTitle=compose.onNodeWithText("体重").performScrollTo().assertIsDisplayed()
   val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
   assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)

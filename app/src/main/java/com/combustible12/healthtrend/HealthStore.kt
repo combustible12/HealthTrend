@@ -69,7 +69,7 @@ class HealthStore(private val context:Context) {
  private fun write(key:String,a:JSONArray){
   // A durable rollback checkpoint is written BEFORE changing critical datasets.
   // Never restore automatically: doing so could overwrite newer confirmed data.
-  if(key in setOf("reports","course_records","templates","metric_standard_ranges","report_identity_links")){
+  if(key in setOf("reports","course_records","treatment_reminders","templates","metric_standard_ranges","report_identity_links")){
    val previous=prefs.getString(key,null)
    if(previous!=null && previous!=a.toString()){
     val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
@@ -1036,27 +1036,42 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteWeight(id:String){write("weights",JSONArray().apply{weightRecords().filterNot{it.id==id}.forEach{put(weightRecordToJson(it))}})}
  @Synchronized fun courseRecords()=rows(read("course_records"),::courseRecordFromJson).sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
  @Synchronized fun saveCourseRecord(record:CourseRecord){
-  val previous=courseRecords().firstOrNull{it.id==record.id}
+  val all=courseRecords();val previous=all.firstOrNull{it.id==record.id}
+  val zone=java.time.ZoneId.systemDefault();val targetDay=java.time.Instant.ofEpochMilli(record.date).atZone(zone).toLocalDate()
+  val previousDay=previous?.let{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()}
+  if(previous==null||previousDay!=targetDay)require(all.none{it.id!=record.id&&java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==targetDay}){"该日期已有病程记录"}
   val saved=record.copy(createdAt=previous?.createdAt?:record.createdAt,updatedAt=System.currentTimeMillis())
-  write("course_records",JSONArray().apply{(courseRecords().filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
+  write("course_records",JSONArray().apply{(all.filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
  }
  @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
  @Synchronized fun ensureCourseRecordsThroughToday():Int{
   val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
   if(current.isEmpty()){
-   val placeholder=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
+   val draft=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(today.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
+   val placeholder=draft.copy(title=automaticCourseTitle(draft,emptyList()))
    write("course_records",JSONArray().apply{put(courseRecordToJson(placeholder))})
    return 1
   }
   val existingDays=current.map{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()}.toSet()
   val historicalDays=existingDays.filter{!it.isAfter(today)}
-  val start=historicalDays.minOrNull()?:today
+  val start=historicalDays.maxOrNull()?:today
   val span=java.time.temporal.ChronoUnit.DAYS.between(start,today)
   require(span in 0..3660){"病程日期跨度异常，请检查最早病程日期"}
-  val missing=generateSequence(start){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{it !in existingDays}.map{day->CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")}.toList()
+  val accumulated=current.toMutableList()
+  val missing=generateSequence(start.plusDays(1)){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{!it.isAfter(today)&&it !in existingDays}.map{day->
+   val draft=CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
+   draft.copy(title=automaticCourseTitle(draft,accumulated)).also{accumulated+=it}
+  }.toList()
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
   return missing.size
  }
+ @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.getInt("radiationNumber"),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
+ @Synchronized fun saveTreatmentReminder(reminder:TreatmentReminder){
+  require(reminder.radiationNumber>0){"放疗次数必须大于0"};require(reminder.text.isNotBlank()){"请填写提醒内容"}
+  val saved=reminder.copy(text=reminder.text.trim())
+  write("treatment_reminders",JSONArray().apply{(treatmentReminders().filterNot{it.id==saved.id}+saved).forEach{put(treatmentReminderToJson(it))}})
+ }
+ @Synchronized fun deleteTreatmentReminder(id:String){write("treatment_reminders",JSONArray().apply{treatmentReminders().filterNot{it.id==id}.forEach{put(treatmentReminderToJson(it))}})}
  fun isPrimary(k:String)=if(prefs.contains("primary:$k"))prefs.getBoolean("primary:$k",false)else k in ReportParser.primaryKeys
  fun setPrimary(k:String,value:Boolean){check(prefs.edit().putBoolean("primary:$k",value).commit())}
  fun ownImage(uri:Uri):String {
@@ -1138,6 +1153,7 @@ class HealthStore(private val context:Context) {
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
  private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
+ private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
   date=o.getLong("date"),

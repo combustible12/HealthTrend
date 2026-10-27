@@ -40,4 +40,16 @@ class CourseTreatmentTitleTest {
  @Test fun portMaintenanceAdvancesByTwentyEightDays(){
   assertEquals("2026-11-11",nextPortMaintenanceDate("2026-10-14"))
  }
+
+ @Test fun manualRadiotherapyNumberBecomesNextAutomaticAnchor(){
+  val chemotherapy=record("2026-10-14","化疗").copy(title="2化1",titleAuto=false)
+  val corrected=record("2026-10-27","放疗").copy(title="2化14-放6",titleAuto=false)
+  val next=record("2026-10-28","放疗")
+  assertEquals("2化15-放7",automaticCourseTitle(next,listOf(chemotherapy,corrected,next)))
+ }
+
+ @Test fun blankAutoCardHasNoUserContent(){
+  assertEquals(true,record("2026-10-28","放疗").copy(title="2化15-放7").isBlankCourseCard())
+  assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",noteText="已记录").isBlankCourseCard())
+ }
 }

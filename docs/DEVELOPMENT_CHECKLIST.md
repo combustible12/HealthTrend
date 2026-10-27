@@ -172,3 +172,4 @@ w�
 - [x] 增加 CourseTreatmentTitleTest：观察日隐藏放疗、实际放疗累计、放化规则、手动标题保护、28 天维护日期。
 
 - [x] 放化分类采用一次性迁移标记，保持“删除分类后不恢复默认项”的既有规则。
+\n\n## 2026-10-28 course auto-card checklist\n- [x] Preserve all existing course fields and manual titles.\n- [x] Append daily cards only after the latest date; weekdays count radiotherapy and weekends skip.\n- [x] Enforce one course card per date; edit an existing blank card instead of duplicating it.\n- [x] Keep treatment reminders separate from course records.\n
