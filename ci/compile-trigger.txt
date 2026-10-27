@@ -53,3 +53,4 @@
 2026-10-27 course treatment title and port maintenance compile check
 2026-10-27 one-time combined phase migration regression
 2026-10-27 automatic daily course cards, unique dates, and treatment reminders
+2026-10-28 overall trend landscape preview compile check
