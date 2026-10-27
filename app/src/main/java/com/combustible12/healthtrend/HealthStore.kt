@@ -39,13 +39,21 @@ class HealthStore(private val context:Context) {
  }
  fun coursePhases():List<String> {
   val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他")
-  if(!prefs.contains("course_phases"))return defaults
+  if(!prefs.contains("course_phases")){
+   check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
+   return defaults
+  }
   val saved=read("course_phases")
   val phases=(0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
-  return if("放化" in phases)phases else phases+"放化"
+  if(prefs.getBoolean("course_phase_combined_migrated",false))return phases
+  val migrated=if("放化" in phases)phases else phases+"放化"
+  write("course_phases",JSONArray(migrated))
+  check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
+  return migrated
  }
  fun saveCoursePhases(phases:List<String>){
   write("course_phases",JSONArray(phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()))
+  check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
  }
  fun portMaintenanceLastDate():String?=prefs.getString("port_maintenance_last_date",null)?.takeIf{value->
   runCatching{java.time.LocalDate.parse(value)}.isSuccess

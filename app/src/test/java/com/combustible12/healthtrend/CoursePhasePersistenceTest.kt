@@ -16,7 +16,7 @@ class CoursePhasePersistenceTest {
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
  @Test fun customPhasesPersistAndEmptyListDoesNotRestoreDeletedDefaults(){
   val store=HealthStore(context)
-  assertEquals(listOf("化疗日","恢复期","观察","其他"),store.coursePhases())
+  assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他"),store.coursePhases())
   store.saveCoursePhases(listOf("放疗日"," 恢复期 ","放疗日","全部",""))
   assertEquals(listOf("放疗日","恢复期"),HealthStore(context).coursePhases())
   store.saveCoursePhases(emptyList())
