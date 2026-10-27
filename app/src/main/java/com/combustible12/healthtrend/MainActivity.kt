@@ -3,6 +3,11 @@
 package com.combustible12.healthtrend
 
 import android.os.Bundle
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,6 +54,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -65,6 +71,7 @@ private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Colo
  keys.mapIndexed{slot,key->trendHospitalKey(key) to Color(hospitalPaletteArgb(slot,abnormal))}.toMap()
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 fun dateText(n:Long)=Instant.ofEpochMilli(n).atZone(ZoneId.systemDefault()).format(stamp)
+private tailrec fun Context.findActivity():Activity?=when(this){is Activity->this;is ContextWrapper->baseContext.findActivity();else->null}
 fun normalizeDateText(s:String):String? {
  val m=Regex("^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})(?:\\s+(\\d{1,2}):(\\d{2}))?$").matchEntire(s.trim())?:return null
  return runCatching{
@@ -908,14 +915,30 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
   }
  }
 }
+@Composable internal fun TrendPreviewHeader(metricKey:String,landscape:Boolean,onToggleLandscape:()->Unit){
+ Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+  Text("整体趋势 · $metricKey",Modifier.weight(1f),fontWeight=FontWeight.Bold)
+  IconButton(onToggleLandscape,modifier=Modifier.size(36.dp)){
+   Icon(if(landscape)Icons.Outlined.StayCurrentPortrait else Icons.Outlined.ScreenRotation,if(landscape)"退出横屏" else "横屏显示",tint=Accent)
+  }
+ }
+}
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first}){
- Dialog(onDismissRequest=onDismiss){
-  Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-    Text("整体趋势 · $metricKey",fontWeight=FontWeight.Bold)
+ val context=LocalContext.current
+ val activity=remember(context){context.findActivity()}
+ val originalOrientation=remember(activity){activity?.requestedOrientation?:ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED}
+ val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
+ fun restoreOrientation(){activity?.requestedOrientation=originalOrientation}
+ DisposableEffect(activity,originalOrientation){onDispose{restoreOrientation()}}
+ Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=DialogProperties(usePlatformDefaultWidth=!landscape)){
+  Card(modifier=if(landscape)Modifier.fillMaxWidth(.96f).fillMaxHeight(.94f) else Modifier,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Column(Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    TrendPreviewHeader(metricKey,landscape){
+     activity?.requestedOrientation=if(landscape)originalOrientation else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+    }
     if(referenceNotes.isNotEmpty())Text(referenceNotes.joinToString("；"),color=Muted,fontSize=12.sp)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
-     Canvas(Modifier.fillMaxWidth().height(160.dp)){
+     Canvas(Modifier.fillMaxWidth().height(if(landscape)220.dp else 160.dp)){
       val layout=trendTimeline(points,timelineDates)
       val centers=layout.dates.indices.map{i->if(layout.dates.size==1)size.width/2 else 8f+(size.width-16f)*i/(layout.dates.size-1)}
       val geometry=trendGeometry(points,timelineDates,segmentKeys,referenceBands,centers,size.height)
@@ -955,7 +978,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
       Text(trendShortDate(points.last().first),fontSize=10.sp,color=Muted)
      }
     }
-    TextButton({onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
+    TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
    }
   }
  }

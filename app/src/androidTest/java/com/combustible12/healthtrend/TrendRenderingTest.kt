@@ -27,6 +27,16 @@ class TrendRenderingTest {
    node.performClick();compose.runOnIdle{assertEquals(i,clicked)}
   }
  }
+ @Test fun previewHeaderOffersLandscapeAndPortraitActions(){
+  var toggled=0
+  compose.setContent{MaterialTheme{TrendPreviewHeader("WBC",false){toggled++}}}
+  compose.onNodeWithText("整体趋势 · WBC").assertIsDisplayed()
+  compose.onNodeWithContentDescription("横屏显示").assertIsDisplayed().performClick()
+  compose.runOnIdle{assertEquals(1,toggled)}
+  compose.setContent{MaterialTheme{TrendPreviewHeader("WBC",true){toggled++}}}
+  compose.onNodeWithContentDescription("退出横屏").assertIsDisplayed().performClick()
+  compose.runOnIdle{assertEquals(2,toggled)}
+ }
  @Test fun previewContainsEveryDotIncludingConnectedSegmentEndpoints(){
   compose.setContent{MaterialTheme{TrendPreviewDialog(points,Color.Black,List(3){3.5 to 9.5},listOf("A","A","A"),List(3){colors[0]},"WBC",{})}}
   compose.onNodeWithText("整体趋势 · WBC").assertIsDisplayed()
