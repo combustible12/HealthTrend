@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "6369dc365a40089819165513e07d981f3f6b0caf",
-  "validationMode": "user-requested-direct-release",
-  "versionCode": 2026102603,
-  "versionName": "1.0.159"
+  "sourceBaseCommit": "b074a764ad3243b0f732969a0137d3ff5eb44b7b",
+  "validationMode": "validated-egfr-release",
+  "versionCode": 2026102701,
+  "versionName": "1.0.160"
 }
