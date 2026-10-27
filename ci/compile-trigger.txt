@@ -50,3 +50,4 @@
 2026-10-26 compile complete current metric descriptions and approved direction additions
 2026-10-26 rerun after frozen qualitative aliases use the legacy inputs
 2026-10-26 derived adult eGFR trend card from exact creatinine, age and sex; compile and tests only, no release
+2026-10-27 course treatment title and port maintenance compile check
