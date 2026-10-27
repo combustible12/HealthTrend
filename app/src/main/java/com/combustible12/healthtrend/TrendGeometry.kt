@@ -30,6 +30,26 @@ internal fun trendTimeline(points:List<Pair<Long,Double>>,dates:List<Long>,stack
  val seen=mutableMapOf<Long,Int>()
  return TrendTimeline(timeline,points.map{(date,_)->val n=seen[date]?:0;seen[date]=n+1;slots.getValue(date)[n]})
 }
+internal data class TrendEventPosition(val epochMillis:Long,val x:Float)
+internal fun trendEventPositions(eventDates:List<Long>,timelineDates:List<Long>,centers:List<Float>,zone:java.time.ZoneId=java.time.ZoneId.systemDefault()):List<TrendEventPosition>{
+ require(timelineDates.size==centers.size)
+ if(timelineDates.isEmpty())return emptyList()
+ fun day(value:Long)=java.time.Instant.ofEpochMilli(value).atZone(zone).toLocalDate().toEpochDay()
+ val anchors=timelineDates.zip(centers).groupBy{day(it.first)}.map{(date,rows)->date to rows.map{it.second}.average().toFloat()}.sortedBy{it.first}
+ if(anchors.isEmpty())return emptyList()
+ return eventDates.distinctBy(::day).sortedBy(::day).mapNotNull{event->
+  val target=day(event)
+  if(target<anchors.first().first||target>anchors.last().first)return@mapNotNull null
+  val exact=anchors.firstOrNull{it.first==target}
+  if(exact!=null)return@mapNotNull TrendEventPosition(event,exact.second)
+  val right=anchors.indexOfFirst{it.first>target}
+  if(right<=0)return@mapNotNull null
+  val left=anchors[right-1];val next=anchors[right]
+  val ratio=(target-left.first).toFloat()/(next.first-left.first).toFloat()
+  TrendEventPosition(event,left.second+(next.second-left.second)*ratio)
+ }
+}
+
 internal fun trendSegments(pointSlots:List<Int>,hospitalKeys:List<String>):List<List<Int>> {
  require(hospitalKeys.isEmpty()||hospitalKeys.size==pointSlots.size)
  val segments=mutableListOf<MutableList<Int>>()

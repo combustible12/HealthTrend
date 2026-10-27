@@ -198,7 +198,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
 }
 
-private val chemotherapyCoursePhases=setOf("化疗","化疗日","放化")
+internal val chemotherapyCoursePhases=setOf("化疗","化疗日","放化")
 private val radiotherapyCoursePhases=setOf("放疗","放疗日","放化")
 
 private fun courseLocalDate(epoch:Long):LocalDate=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -232,6 +232,13 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
 
 internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):String=
  if(record.titleAuto)record.title.ifBlank{automaticCourseTitle(record,records)} else record.title
+
+internal fun chemotherapyEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneId.systemDefault()):List<Long>{
+ val treatmentDay=Regex("""(?:^|-)\d+化1(?:-|$)""")
+ return records.filter{record->
+  record.phase in setOf("化疗","化疗日")||treatmentDay.containsMatchIn(displayCourseTitle(record,records))
+ }.map{record->courseLocalDate(record.date).atStartOfDay(zone).toInstant().toEpochMilli()}.distinct().sorted()
+}
 
 internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&reminderText.isBlank()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
 

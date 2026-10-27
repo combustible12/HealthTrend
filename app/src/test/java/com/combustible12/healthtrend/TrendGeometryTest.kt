@@ -105,4 +105,15 @@ class TrendGeometryTest {
   assertFalse(trendUnitsCompatible(row("RDW-CV",12.0,"%"),row("RDW-SD",40.0,"fL")))
   assertEquals(UnitNormalizer.normalize("FDP",1.0,"ug/mL"),UnitNormalizer.normalize("FDP",1.0,"μg/mL"))
  }
+ @Test fun treatmentEventsInterpolateByDateWithoutChangingTimelineSlots(){
+  val zone=java.time.ZoneId.of("UTC")
+  fun day(value:String)=java.time.LocalDate.parse(value).atStartOfDay(zone).toInstant().toEpochMilli()
+  val timeline=listOf(day("2026-01-01"),day("2026-01-11"))
+  val positions=trendEventPositions(listOf(day("2025-12-31"),day("2026-01-06"),day("2026-01-06")),timeline,listOf(10f,110f),zone)
+  assertEquals(1,positions.size)
+  assertEquals(day("2026-01-06"),positions.single().epochMillis)
+  assertEquals(60f,positions.single().x,0.01f)
+  assertEquals(timeline,trendTimeline(listOf(timeline[0] to 1.0,timeline[1] to 2.0),timeline).dates)
+ }
+
 }

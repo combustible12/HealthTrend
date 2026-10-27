@@ -52,4 +52,17 @@ class TrendRenderingTest {
   compose.onNodeWithContentDescription("置于最上方").assertIsDisplayed().performClick()
   compose.runOnIdle{assertEquals(1,moved);assertEquals(1,pinned)}
  }
+ @Test fun chemotherapyMarkersUseGrayDateOverlayAndOverallAxis(){
+  val zone=java.time.ZoneId.systemDefault()
+  fun day(value:String)=java.time.LocalDate.parse(value).atStartOfDay(zone).toInstant().toEpochMilli()
+  val datedPoints=listOf(day("2026-01-01") to 3.0,day("2026-01-11") to 2.0)
+  val treatment=day("2026-01-06")
+  compose.setContent{MaterialTheme{Spark(datedPoints,Color.Black,eventDates=listOf(treatment))}}
+  compose.onNodeWithContentDescription("化疗日期 01/06").assertIsDisplayed()
+  compose.onNodeWithText("01/06").assertIsDisplayed()
+  compose.setContent{MaterialTheme{TrendPreviewAxis(datedPoints,datedPoints.map{it.first},listOf(treatment))}}
+  compose.onNodeWithContentDescription("整体趋势化疗日期 01/06").assertIsDisplayed()
+  compose.onNodeWithText("01/06").assertIsDisplayed()
+ }
+
 }

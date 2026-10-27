@@ -52,4 +52,12 @@ class CourseTreatmentTitleTest {
   assertEquals(true,record("2026-10-28","放疗").copy(title="2化15-放7").isBlankCourseCard())
   assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",noteText="已记录").isBlankCourseCard())
  }
+ @Test fun chemotherapyEventsUseActualTreatmentDaysOnly(){
+  val first=record("2026-10-10","化疗")
+  val observation=record("2026-10-11","观察")
+  val manual=record("2026-10-20","观察").copy(title="2化1",titleAuto=false)
+  val records=listOf(first,observation,manual)
+  assertEquals(listOf(day("2026-10-10"),day("2026-10-20")),chemotherapyEventDates(records))
+ }
+
 }
