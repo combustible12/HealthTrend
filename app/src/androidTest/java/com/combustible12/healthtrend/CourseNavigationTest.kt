@@ -15,6 +15,20 @@ class CourseNavigationTest {
  @get:Rule val compose=createComposeRule()
  private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun portMaintenanceMatchesCourseCardWidthAndFilterHeight(){
+  val initial=CourseRecord(title="布局核对")
+  val store=HealthStore(context)
+  store.saveCoursePhases(listOf("放疗日"))
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->})}}
+  val bar=compose.onNodeWithContentDescription("港维护色块").fetchSemanticsNode().boundsInRoot
+  val card=compose.onNode(hasClickAction() and hasAnyDescendant(hasText("布局核对",substring=true))).fetchSemanticsNode().boundsInRoot
+  val filter=compose.onNode(hasText("放疗日") and hasClickAction()).fetchSemanticsNode().boundsInRoot
+  assertEquals(card.left,bar.left,1f)
+  assertEquals(card.right,bar.right,1f)
+  assertEquals(filter.height,bar.height,1f)
+  compose.onNodeWithText("港维护").assertIsDisplayed()
+  compose.onNodeWithText("已维护").assertIsDisplayed()
+ }
  @Test fun courseCardShowsFourEqualTimePulseAndPressureBlocks(){
   val initial=CourseRecord(title="四块血压",pressureTime="07:58",systolic=142,diastolic=96,pulse=94)
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),HealthStore(context),{},{},{},{_,_->})}}

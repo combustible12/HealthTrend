@@ -59,6 +59,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
 
+private val courseFilterHeight=32.dp
+
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
 /** A high reading in either component determines the higher risk category. */
 internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
@@ -169,11 +171,14 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    }
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
-    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
     }
     TextButton({managingPhases=true}){Text("管理")}
    }
-   PortMaintenanceBar(store)
+   Row(Modifier.fillMaxWidth().offset(x=(-6).dp).padding(end=8.dp)){
+    Spacer(Modifier.width(22.dp))
+    PortMaintenanceBar(store,Modifier.weight(1f))
+   }
    Spacer(Modifier.height(8.dp))
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
@@ -234,7 +239,7 @@ internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records
 
 internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalDate.parse(lastDate).plusDays(28).toString()}.getOrNull()
 
-@Composable private fun PortMaintenanceBar(store:HealthStore){
+@Composable private fun PortMaintenanceBar(store:HealthStore,modifier:Modifier=Modifier){
  val context=LocalContext.current
  var lastDate by remember{mutableStateOf(store.portMaintenanceLastDate().orEmpty())}
  val nextDate=nextPortMaintenanceDate(lastDate).orEmpty()
@@ -247,8 +252,8 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
    lastDate=selected
   },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
  }
- Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),color=Color(0xFFF8F3EF)){
-  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
+ Surface(modifier.fillMaxWidth().height(courseFilterHeight).semantics{contentDescription="港维护色块"},shape=RoundedCornerShape(12.dp),color=Color.White){
+  Row(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
    Text("港维护",fontSize=13.sp,fontWeight=FontWeight.Normal,color=Muted)
    Spacer(Modifier.width(12.dp))
    Text(compact(lastDate),Modifier.clickable{pickLastDate()},fontSize=13.sp,fontWeight=FontWeight.Normal,color=Ink)
