@@ -38,12 +38,21 @@ class HealthStore(private val context:Context) {
   write(key,JSONArray(listOf(cardKey)+trendCardOrder(primary).filterNot{it==cardKey}))
  }
  fun coursePhases():List<String> {
-  if(!prefs.contains("course_phases"))return listOf("化疗日","恢复期","观察","其他")
+  val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他")
+  if(!prefs.contains("course_phases"))return defaults
   val saved=read("course_phases")
-  return (0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
+  val phases=(0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
+  return if("放化" in phases)phases else phases+"放化"
  }
  fun saveCoursePhases(phases:List<String>){
   write("course_phases",JSONArray(phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()))
+ }
+ fun portMaintenanceLastDate():String?=prefs.getString("port_maintenance_last_date",null)?.takeIf{value->
+  runCatching{java.time.LocalDate.parse(value)}.isSuccess
+ }
+ fun savePortMaintenanceLastDate(value:String){
+  require(runCatching{java.time.LocalDate.parse(value)}.isSuccess){"港维护日期格式错误"}
+  check(prefs.edit().putString("port_maintenance_last_date",value).commit()){"港维护日期保存失败"}
  }
  // Startup must never seed obsolete hospital templates on a fresh install.
  // Existing legacy templates remain stored unchanged for compatibility/backup.
@@ -1019,7 +1028,6 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteWeight(id:String){write("weights",JSONArray().apply{weightRecords().filterNot{it.id==id}.forEach{put(weightRecordToJson(it))}})}
  @Synchronized fun courseRecords()=rows(read("course_records"),::courseRecordFromJson).sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
  @Synchronized fun saveCourseRecord(record:CourseRecord){
-  require(record.title.isNotBlank())
   val previous=courseRecords().firstOrNull{it.id==record.id}
   val saved=record.copy(createdAt=previous?.createdAt?:record.createdAt,updatedAt=System.currentTimeMillis())
   write("course_records",JSONArray().apply{(courseRecords().filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
@@ -1121,12 +1129,12 @@ class HealthStore(private val context:Context) {
  private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
- private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
+ private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
   date=o.getLong("date"),
   phase=o.optString("phase","观察"),
-  title=o.getString("title"),
+  title=o.optString("title"),
   symptomText=o.optString("symptomText"),
   systolic=if(o.isNull("systolic"))null else o.optInt("systolic").takeIf{it>0},
   diastolic=if(o.isNull("diastolic"))null else o.optInt("diastolic").takeIf{it>0},
@@ -1144,7 +1152,8 @@ class HealthStore(private val context:Context) {
   noteText=o.optString("noteText"),
   noteImages=o.optJSONArray("noteImages").stringList(),
   createdAt=o.optLong("createdAt",o.getLong("date")),
-  updatedAt=o.optLong("updatedAt",o.getLong("date"))
+  updatedAt=o.optLong("updatedAt",o.getLong("date")),
+  titleAuto=o.optBoolean("titleAuto",o.optString("title").isBlank())
  )
 }
 /** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */

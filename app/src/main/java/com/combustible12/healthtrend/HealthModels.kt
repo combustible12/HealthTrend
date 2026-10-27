@@ -222,7 +222,8 @@ data class CourseRecord(
  val noteText:String="",
  val noteImages:List<String> = emptyList(),
  val createdAt:Long=System.currentTimeMillis(),
- val updatedAt:Long=System.currentTimeMillis()
+ val updatedAt:Long=System.currentTimeMillis(),
+ val titleAuto:Boolean=true
 ):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")

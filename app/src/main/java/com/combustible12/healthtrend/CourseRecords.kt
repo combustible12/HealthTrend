@@ -150,8 +150,6 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   (query.isNotBlank()||filter=="全部"||record.phase==filter)&&DataSearch.course(query,record)
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
- var menuFor by remember{mutableStateOf<String?>(null)}
- var deleting by remember{mutableStateOf<CourseRecord?>(null)}
  Box(modifier.fillMaxSize()){
   Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
    Spacer(Modifier.height(12.dp))
@@ -175,11 +173,13 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
     }
     TextButton({managingPhases=true}){Text("管理")}
    }
+   PortMaintenanceBar(store)
+   Spacer(Modifier.height(8.dp))
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,store.weightRecordForCourse(record.id),{open(record)},menuFor==record.id,{menuFor=record.id},{menuFor=null;open(record)},{menuFor=null;deleting=record},{menuFor=null},view,openWeightTrend)
+     CourseTimelineCard(record,displayCourseTitle(record,records),store.weightRecordForCourse(record.id),{open(record)},view,openWeightTrend)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -191,10 +191,67 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   runCatching{store.saveCoursePhases(updated)}.onSuccess{phases=store.coursePhases();if(filter!="全部"&&filter !in phases)filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
- deleting?.let{target->DeleteConfirmation({deleting=null}){remove(target);deleting=null}}
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,weight:WeightRecord?,onOpen:()->Unit,menuOpen:Boolean,onMenu:()->Unit,onEdit:()->Unit,onDelete:()->Unit,onDismiss:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
+private val chemotherapyCoursePhases=setOf("化疗","化疗日","放化")
+private val radiotherapyCoursePhases=setOf("放疗","放疗日","放化")
+
+private fun courseLocalDate(epoch:Long):LocalDate=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate()
+
+internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>):String{
+ val target=courseLocalDate(record.date)
+ val rows=(records.filterNot{it.id==record.id}+record).map{it to courseLocalDate(it.date)}
+ val chemotherapyDates=rows.filter{(item,date)->item.phase in chemotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().sorted()
+ val latestChemotherapy=chemotherapyDates.lastOrNull()
+ val chemotherapy=latestChemotherapy?.let{date->
+  val cycle=chemotherapyDates.indexOf(date)+1
+  val day=java.time.temporal.ChronoUnit.DAYS.between(date,target)+1
+  "${cycle}化${day}"
+ }
+ val radiotherapy=if(record.phase in radiotherapyCoursePhases){
+  val count=rows.filter{(item,date)->item.phase in radiotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().size
+  "放$count"
+ }else null
+ return listOfNotNull(chemotherapy,radiotherapy).joinToString("-")
+}
+
+internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):String=
+ if(record.titleAuto)automaticCourseTitle(record,records) else record.title
+
+internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalDate.parse(lastDate).plusDays(28).toString()}.getOrNull()
+
+@Composable private fun PortMaintenanceBar(store:HealthStore){
+ val context=LocalContext.current
+ var lastDate by remember{mutableStateOf(store.portMaintenanceLastDate().orEmpty())}
+ val nextDate=nextPortMaintenanceDate(lastDate).orEmpty()
+ fun compact(value:String)=runCatching{LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MM/dd"))}.getOrElse{"--/--"}
+ fun pickLastDate(){
+  val initial=runCatching{LocalDate.parse(lastDate)}.getOrElse{LocalDate.now()}
+  android.app.DatePickerDialog(context,{_,year,month,day->
+   val selected=LocalDate.of(year,month+1,day).toString()
+   store.savePortMaintenanceLastDate(selected)
+   lastDate=selected
+  },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
+ }
+ Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),color=Color(0xFFF8F3EF)){
+  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
+   Text("港维护",fontSize=13.sp,fontWeight=FontWeight.Normal,color=Muted)
+   Spacer(Modifier.width(12.dp))
+   Text(compact(lastDate),Modifier.clickable{pickLastDate()},fontSize=13.sp,fontWeight=FontWeight.Normal,color=Ink)
+   Spacer(Modifier.width(8.dp))
+   Text("→",fontSize=13.sp,fontWeight=FontWeight.Normal,color=Muted)
+   Spacer(Modifier.width(8.dp))
+   Text(compact(nextDate),fontSize=14.sp,fontWeight=FontWeight.Bold,color=Ink)
+   Spacer(Modifier.weight(1f))
+   Text("已维护",Modifier.clickable(enabled=nextDate.isNotBlank()){
+    store.savePortMaintenanceLastDate(nextDate)
+    lastDate=nextDate
+   }.padding(start=12.dp,top=4.dp,bottom=4.dp),fontSize=13.sp,fontWeight=FontWeight.Normal,color=if(nextDate.isNotBlank())Accent else Muted)
+  }
+ }
+}
+
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,weight:WeightRecord?,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -209,11 +266,11 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
        Text(weekday,fontSize=13.sp,fontWeight=FontWeight.Bold,color=phaseColors.second)
       }
       Spacer(Modifier.width(8.dp))
-      Text("${courseDate(record.date)} · ${record.title.ifBlank{"待填写"}}",fontWeight=FontWeight.Bold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+      val heading=courseDate(record.date)+(displayTitle.trim().takeIf{it.isNotBlank()}?.let{" · $it"}?:"")
+      Text(heading,fontWeight=FontWeight.Bold,fontSize=15.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      }
      Spacer(Modifier.width(6.dp))
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
-     Box(Modifier.size(28.dp).clickable(onClick=onMenu),contentAlignment=Alignment.Center){Icon(Icons.Outlined.MoreVert,"更多",Modifier.size(18.dp));DropdownMenu(menuOpen,onDismiss){DropdownMenuItem({Text("编辑")},onEdit,leadingIcon={Icon(Icons.Outlined.Edit,null)});DropdownMenuItem({Text("删除",color=Bad)},onDelete,leadingIcon={Icon(Icons.Outlined.Delete,null,tint=Bad)})}}
     }
     Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
      val showPrimary=record.systolic!=null||record.diastolic!=null||record.pulse!=null
@@ -252,10 +309,11 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
 }
 
 private fun coursePhaseColors(phase:String)=when(phase){
- "化疗日"->Color(0xFFFFEEE5) to Color(0xFFF2763D)
+ "化疗","化疗日"->Color(0xFFFFEEE5) to Color(0xFFF2763D)
  "恢复期"->Color(0xFFE5F8EE) to Color(0xFF20A66A)
  "观察"->Color(0xFFE4F2FF) to Color(0xFF3285C8)
  "放疗","放疗日"->Color(0xFFF0E7FF) to Color(0xFF8554C0)
+ "放化"->Color(0xFFF7E7F0) to Color(0xFFA24D79)
  else->{
   val palette=listOf(
    Color(0xFFFFE8F0) to Color(0xFFBE4E7A),
@@ -331,15 +389,18 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
- val selectedDate=courseDateMillis(date,initial.date);val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null)
- val valid=record.title.isNotBlank()&&selectedDate!=null&&validWeight&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
+ val selectedDate=courseDateMillis(date,initial.date)
+ val automaticTitle=selectedDate?.let{displayCourseTitle(record.copy(date=it,titleAuto=true),remembered)}.orEmpty()
+ val editorTitle=if(record.titleAuto)automaticTitle else record.title
+ val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null)
+ val valid=selectedDate!=null&&validWeight&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
  val editorScroll=rememberScrollState()
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!),kilograms,if(kilograms==null)null else weightAt)},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
+ FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({onSave(record.copy(date=selectedDate!!,title=editorTitle),kilograms,if(kilograms==null)null else weightAt)},Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){date=it}
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-   CourseRememberedField(record.title,{record=record.copy(title=it)},"标题",rememberedTitles)
+   CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
    Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
