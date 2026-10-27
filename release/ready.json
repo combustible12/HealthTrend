@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "ca20b5063478a1a86d9b2d38db453abb1e389c3e",
-  "validationMode": "validated-course-auto-reminders",
-  "versionCode": 2026102801,
-  "versionName": "1.0.161"
+  "sourceBaseCommit": "a53ed02640cfb9e8188b6cf951eb0553ba70ca75",
+  "validationMode": "port-bar-layout-source-review-and-release-regression",
+  "versionCode": 2026102802,
+  "versionName": "1.0.162"
 }
