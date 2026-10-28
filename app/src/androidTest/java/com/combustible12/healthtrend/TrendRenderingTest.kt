@@ -4,7 +4,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -44,18 +43,19 @@ class TrendRenderingTest {
   compose.onNodeWithContentDescription("退出横屏").assertIsDisplayed().performClick()
   compose.runOnIdle{assertEquals(2,toggled)}
  }
- @Test fun landscapePreviewFrameKeepsContentInsideVisibleBounds(){
+ @Test fun landscapePreviewCardIsCenteredWithSpaceOnEveryEdge(){
   compose.setContent{MaterialTheme{
    Box(Modifier.requiredSize(320.dp,180.dp).semantics{contentDescription="横屏范围"}){
-    TrendPreviewDialogFrame(true){Box(Modifier.fillMaxSize().semantics{contentDescription="横屏内容"})}
+    TrendPreviewDialogFrame(true){Box(Modifier.trendPreviewCardSize(true).semantics{contentDescription="横屏卡片"})}
    }
   }}
   val frame=compose.onNodeWithContentDescription("横屏范围").fetchSemanticsNode().boundsInRoot
-  val content=compose.onNodeWithContentDescription("横屏内容").fetchSemanticsNode().boundsInRoot
-  assertTrue(content.left>frame.left)
-  assertTrue(content.top>frame.top)
-  assertTrue(content.right<frame.right)
-  assertTrue(content.bottom<frame.bottom)
+  val card=compose.onNodeWithContentDescription("横屏卡片").fetchSemanticsNode().boundsInRoot
+  val left=card.left-frame.left;val right=frame.right-card.right
+  val top=card.top-frame.top;val bottom=frame.bottom-card.bottom
+  assertTrue(left>0f&&right>0f&&top>0f&&bottom>0f)
+  assertEquals(left,right,1.5f)
+  assertEquals(top,bottom,1.5f)
  }
  @Test fun previewContainsEveryDotIncludingConnectedSegmentEndpoints(){
   compose.setContent{MaterialTheme{TrendPreviewDialog(points,Color.Black,List(3){3.5 to 9.5},listOf("A","A","A"),List(3){colors[0]},"WBC",{})}}

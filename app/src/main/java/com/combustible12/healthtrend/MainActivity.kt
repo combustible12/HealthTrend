@@ -963,6 +963,8 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
   contentAlignment=Alignment.Center
  ){content()}
 }
+internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
+ then(if(landscape)Modifier.fillMaxWidth(.88f).fillMaxHeight(.82f) else Modifier)
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventDates:List<Long> = emptyList()){
  val context=LocalContext.current
  val activity=remember(context){context.findActivity()}
@@ -972,14 +974,17 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  DisposableEffect(activity,originalOrientation){onDispose{restoreOrientation()}}
  Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=DialogProperties(usePlatformDefaultWidth=!landscape)){
   TrendPreviewDialogFrame(landscape){
-   Card(modifier=if(landscape)Modifier.fillMaxSize() else Modifier,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-    Column(Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Card(modifier=Modifier.trendPreviewCardSize(landscape),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+    Column(
+     Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier.verticalScroll(rememberScrollState())).padding(if(landscape)14.dp else 20.dp),
+     verticalArrangement=Arrangement.spacedBy(if(landscape)8.dp else 12.dp)
+    ){
     TrendPreviewHeader(metricKey,landscape){
      activity?.requestedOrientation=if(landscape)originalOrientation else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
     }
-    if(referenceNotes.isNotEmpty())Text(referenceNotes.joinToString("；"),color=Muted,fontSize=12.sp)
+    if(referenceNotes.isNotEmpty())Text(referenceNotes.joinToString("；"),color=Muted,fontSize=12.sp,maxLines=if(landscape)1 else Int.MAX_VALUE,overflow=TextOverflow.Ellipsis)
     if(points.isEmpty()){Text("暂无数据",color=Muted)}else{
-     Canvas(Modifier.fillMaxWidth().height(if(landscape)220.dp else 160.dp)){
+     Canvas(Modifier.fillMaxWidth().then(if(landscape)Modifier.weight(1f) else Modifier.height(160.dp))){
       val layout=trendTimeline(points,timelineDates)
       val centers=layout.dates.indices.map{i->if(layout.dates.size==1)size.width/2 else 8f+(size.width-16f)*i/(layout.dates.size-1)}
       val geometry=trendGeometry(points,timelineDates,segmentKeys,referenceBands,centers,size.height)
@@ -1018,7 +1023,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      }
      TrendPreviewAxis(points,timelineDates,eventDates)
     }
-    TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
+    if(!landscape)TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
     }
    }
   }

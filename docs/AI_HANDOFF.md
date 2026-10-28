@@ -7,7 +7,8 @@
 
 ## 2026-10-28 整体趋势横屏显示交接（待验证、未发布）
 
-- 横屏弹窗外框使用WindowInsets.safeDrawing并叠加水平16dp、垂直12dp边距；Card填满安全区，禁止恢复为基于整窗百分比的宽高，以免导航栏侧置或底置时裁切。
+- 横屏弹窗外框使用WindowInsets.safeDrawing并叠加水平16dp、垂直12dp边距；用户否决铺满和滚动，Card必须保持安全内容区内88%宽、82%高并正中央。
+- 横屏Column无verticalScroll，Canvas用weight自适应剩余高度，标题、完整曲线与日期轴一次显示，底部关闭按钮仅竖屏保留。
 - 数值型趋势卡点击“整体”后，弹窗标题右侧提供横屏图标；横屏时使用接近全屏的弹窗和220dp图表，退出横屏或关闭弹窗恢复原方向。
 - 方向变化由MainActivity通过configChanges承接，保留当前previewSeries与弹窗状态。曲线、参考范围、医院颜色、断点、单位和报告数据未修改。
 - TrendRenderingTest新增可见按钮和准确回调断言；需检查云端快速编译结果，发布配置未改。
