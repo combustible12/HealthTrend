@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "c8c3891fe1398a6be4f9aa1b2dbae1dd62e72a3e",
-  "validationMode": "landscape-safe-drawing-bounds-compile-unit-and-device-source-regression",
-  "versionCode": 2026102805,
-  "versionName": "1.0.165"
+  "sourceBaseCommit": "a0fd62ad3296ff2cdbfce1fc26870bfd2f4c5235",
+  "validationMode": "centered-non-scrolling-landscape-card-compile-and-unit-regression",
+  "versionCode": 2026102806,
+  "versionName": "1.0.166"
 }
