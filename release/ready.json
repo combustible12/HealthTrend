@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "a0fd62ad3296ff2cdbfce1fc26870bfd2f4c5235",
-  "validationMode": "centered-non-scrolling-landscape-card-compile-and-unit-regression",
-  "versionCode": 2026102806,
-  "versionName": "1.0.166"
+  "sourceBaseCommit": "7632357b0f49e8c91c3a691ba7c925890f1736bb",
+  "validationMode": "remove-duplicate-landscape-dialog-insets-release-regression",
+  "versionCode": 2026102807,
+  "versionName": "1.0.167"
 }
