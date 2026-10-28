@@ -69,7 +69,7 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399)
-internal data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventDates:List<Long>)
+data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventDates:List<Long>)
 private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color> =
  keys.mapIndexed{slot,key->trendHospitalKey(key) to Color(hospitalPaletteArgb(slot,abnormal))}.toMap()
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
