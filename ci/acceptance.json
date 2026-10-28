@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "b2eca10e227f5c9d6a47d037b2b0c1e433dabdbf",
-  "requestedAt": "2026-10-23",
-  "scope": "Monotone shared-tangent trends, hospital color transitions and chart regressions",
-  "revision": 9
+  "sourceCommit": "a0fd62ad3296ff2cdbfce1fc26870bfd2f4c5235",
+  "requestedAt": "2026-10-28",
+  "scope": "Centered non-scrolling landscape trend card with equal visible margins",
+  "revision": 10
 }
