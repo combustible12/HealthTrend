@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "382c1e99a763503bf20cfa6b7b80cf37863d8962",
-  "validationMode": "chemotherapy-trend-markers-compile-unit-and-device-source-regression",
-  "versionCode": 2026102803,
-  "versionName": "1.0.163"
+  "sourceBaseCommit": "060265536af3acc63f30b99b81b9c3e091e90d48",
+  "validationMode": "consecutive-chemotherapy-marker-collapse-compile-unit-and-device-source-regression",
+  "versionCode": 2026102804,
+  "versionName": "1.0.164"
 }
