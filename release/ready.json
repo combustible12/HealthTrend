@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "58918f998b0900e498bc228bf855d9706db600f2",
-  "validationMode": "activity-root-centered-trend-preview-release-regression",
+  "sourceBaseCommit": "73bc72d96ff87a2bc0d0ffa5f95fb5a599163ef3",
+  "validationMode": "activity-root-centered-trend-preview-visibility-fix-release-regression",
   "versionCode": 2026102808,
   "versionName": "1.0.168"
 }
