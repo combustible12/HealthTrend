@@ -1,6 +1,7 @@
 ## 2026-10-28 化疗日期趋势事件层测试影响（待验证、未发布）
 
 - CourseTreatmentTitleTest：实际“化疗/化疗日”和明确“X化1”被识别为化疗事件；普通观察日不误入。
+- CourseTreatmentTitleTest：连续三天化疗只返回第一天，间隔后的下一疗程首日仍保留。
 - TrendGeometryTest：化疗日期在相邻检验日期间按日历比例插值，重复事件合并，范围外事件隐藏；原timeline槽位保持不变，防止事件制造曲线断点。
 - TrendRenderingTest：普通卡显示化疗日期标记，整体趋势底轴显示化疗日期；曲线、医院颜色和横屏按钮既有测试保留。
 - 等待compileDebugKotlin、JVM回归及Android测试源码编译，不宣称手机实机视觉验收。

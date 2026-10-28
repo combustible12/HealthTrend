@@ -1,6 +1,7 @@
 ## 2026-10-28 化疗日期趋势事件层交接（待验证、未发布）
 
 - 实际化疗日来自病程分类“化疗/化疗日”或明确标题“X化1”。普通数值趋势叠加浅灰日期、半透明灰三角和细灰竖线；整体趋势只画细灰竖线，并在底轴增加灰色化疗日期。
+- 连续自然日的化疗视为同一段，趋势事件层只保留首日，不显示“化疗”文字；日期中断后再出现化疗则保留新的首日。
 - trendEventPositions按LocalDate在相邻检验槽中心间插值；事件日期未加入timelineDates，不能导致检验曲线断开。
 - 已补CourseTreatmentTitleTest、TrendGeometryTest和TrendRenderingTest；需运行轻量编译，发布配置未改。
 

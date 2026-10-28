@@ -235,9 +235,11 @@ internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):
 
 internal fun chemotherapyEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneId.systemDefault()):List<Long>{
  val treatmentDay=Regex("""(?:^|-)\d+化1(?:-|$)""")
- return records.filter{record->
+ val dates=records.filter{record->
   record.phase in setOf("化疗","化疗日")||treatmentDay.containsMatchIn(displayCourseTitle(record,records))
- }.map{record->courseLocalDate(record.date).atStartOfDay(zone).toInstant().toEpochMilli()}.distinct().sorted()
+ }.map{record->courseLocalDate(record.date)}.distinct().sorted()
+ return dates.filterIndexed{index,date->index==0||date!=dates[index-1].plusDays(1)}
+  .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
 }
 
 internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&reminderText.isBlank()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()

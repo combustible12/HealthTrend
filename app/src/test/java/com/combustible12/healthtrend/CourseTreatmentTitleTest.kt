@@ -60,4 +60,14 @@ class CourseTreatmentTitleTest {
   assertEquals(listOf(day("2026-10-10"),day("2026-10-20")),chemotherapyEventDates(records))
  }
 
+ @Test fun consecutiveChemotherapyDaysUseOnlyFirstDayAsTrendEvent(){
+  val records=listOf(
+   record("2026-10-10","化疗"),
+   record("2026-10-11","化疗日"),
+   record("2026-10-12","化疗"),
+   record("2026-10-20","化疗")
+  )
+  assertEquals(listOf(day("2026-10-10"),day("2026-10-20")),chemotherapyEventDates(records))
+ }
+
 }
