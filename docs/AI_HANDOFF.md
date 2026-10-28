@@ -7,9 +7,9 @@
 
 ## 2026-10-28 整体趋势横屏显示交接（待验证、未发布）
 
-- 横屏右偏根因是Dialog默认decorFitsSystemWindows与内部WindowInsets.safeDrawing重复应用非对称左侧inset。横屏必须使用decorFitsSystemWindows=false，内部只保留对称水平16dp、垂直12dp边距；Card保持该区域88%宽、82%高并正中央。
-- 横屏Column无verticalScroll，Canvas用weight自适应剩余高度，标题、完整曲线与日期轴一次显示，底部关闭按钮仅竖屏保留。
-- 数值型趋势卡点击“整体”后，弹窗标题右侧提供横屏图标；横屏时使用接近全屏的弹窗和220dp图表，退出横屏或关闭弹窗恢复原方向。
+- 横屏右偏根因是独立Android Dialog窗口坐标系本身不与Activity页面重合；禁止继续在Dialog内部用inset、百分比或offset补偿。数值整体预览状态已提升到App根Box，使用Activity全屏遮罩和Alignment.Center直接定位。
+- 横屏Column无verticalScroll，Canvas用weight自适应剩余高度，标题、完整曲线、日期轴和右下角关闭按钮一次显示。
+- 数值型趋势卡点击“整体”后，根遮罩卡片标题右侧提供横屏图标；横屏Card为页面88%×82%，Canvas使用剩余高度，退出横屏、右下角关闭、系统返回及遮罩空白处均恢复原方向。
 - 方向变化由MainActivity通过configChanges承接，保留当前previewSeries与弹窗状态。曲线、参考范围、医院颜色、断点、单位和报告数据未修改。
 - TrendRenderingTest新增可见按钮和准确回调断言；需检查云端快速编译结果，发布配置未改。
 

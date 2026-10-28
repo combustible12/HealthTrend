@@ -12,6 +12,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +69,7 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399)
+internal data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventDates:List<Long>)
 private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color> =
  keys.mapIndexed{slot,key->trendHospitalKey(key) to Color(hospitalPaletteArgb(slot,abnormal))}.toMap()
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -98,6 +101,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
  var trendCategoryRequest by remember{mutableStateOf<String?>(null)}
+ var trendPreview by remember{mutableStateOf<TrendPreviewRequest?>(null)}
  var foregroundSequence by remember{mutableIntStateOf(0)}
  var snoozedReminderIds by remember{mutableStateOf<Set<String>>(emptySet())}
  val lifecycleOwner=LocalLifecycleOwner.current
@@ -179,7 +183,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
- Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null)Modifier.clearAndSetSemantics{} else Modifier)){
+ Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null||trendPreview!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("导入" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   var mainPageDrag by remember{mutableFloatStateOf(0f)}
@@ -200,7 +204,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
-   },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++},requestedCategory=trendCategoryRequest,onRequestedCategoryConsumed={trendCategoryRequest=null})
+   },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++},requestedCategory=trendCategoryRequest,onRequestedCategoryConsumed={trendCategoryRequest=null},showPreview={trendPreview=it})
     2->CourseRecordsPage(m,courseRecords,store,{courseRecord=it},{courseRecord=CourseRecord(date=0L,title="")},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
@@ -305,6 +309,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   reportInfo=viewerReportId?.let{id->reports.firstOrNull{it.id==id}},
   removalMessage=if(viewerReportId!=null)"仅删除这份报告中的图片关联，不影响检查数据和趋势。" else "仅从这条病程记录移除当前图片，不影响其他内容。"
  )
+ trendPreview?.let{preview->TrendPreviewDialog(preview.points,preview.color,preview.referenceBands,preview.segmentKeys,preview.segmentColors,preview.metricKey,{trendPreview=null},preview.referenceNotes,preview.timelineDates,preview.eventDates)}
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }
@@ -458,7 +463,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   }},confirmButton={TextButton({showAliases=false}){Text("关闭")}})
 }
 
-@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit,resultChanged:()->Unit={},requestedCategory:String?=null,onRequestedCategoryConsumed:()->Unit={}){
+@Composable fun Trends(m:Modifier,store:HealthStore,reports:List<LabReport>,revision:Int,priority:(String,Boolean)->Unit,images:(List<String>)->Unit,edit:(LabReport,LabResult,Double)->Unit,openCourse:(Long)->Unit,onMainPageSwipe:(Int)->Unit,resultChanged:()->Unit={},requestedCategory:String?=null,onRequestedCategoryConsumed:()->Unit={},showPreview:(TrendPreviewRequest)->Unit={}){
  val trendFocus=LocalFocusManager.current
  var textRevision by remember{mutableIntStateOf(0)}
  var category by rememberSaveable{mutableStateOf("血常规")};var mode by rememberSaveable{mutableStateOf("重点指标")};var query by rememberSaveable{mutableStateOf("")};var range by rememberSaveable{mutableStateOf("全部")};var weightVersion by remember{mutableIntStateOf(0)};var showWeight by remember{mutableStateOf(false)};var weightText by remember{mutableStateOf("")};var weightDate by remember{mutableStateOf("")};var weightTime by remember{mutableStateOf("")};var editingWeight by remember{mutableStateOf<WeightRecord?>(null)};var deletingWeight by remember{mutableStateOf<WeightRecord?>(null)}
@@ -583,7 +588,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
      TrendLatestSummary(latest.trendDisplayText(),latest.resultStatusLabel(),valueColor)
     }
-    var previewSeries by remember{mutableStateOf<List<Pair<LabReport,LabResult>>?>(null)}
     val textPoints=points.filter{it.second.value==null&&it.second.textValue.isNotBlank()}
     var textPreview by remember{mutableStateOf(false)}
     // Equivalent spellings have already collapsed to one identity. A genuinely
@@ -598,6 +602,19 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
     val hasHistoricalAbnormal=trendHasHistoricalAbnormal(list.map{it.second})
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
     val pointHospitalColors=compatiblePoints.map{(report,result)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))}
+    fun openOverallPreview(series:List<Pair<LabReport,LabResult>>){
+     showPreview(TrendPreviewRequest(
+      points=series.map{it.first.testedAtEpochMillis to it.second.trendPlotValue()!!},
+      color=if(hasHistoricalAbnormal)Bad else TrendBlue,
+      referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
+      segmentKeys=series.map{trendHospitalKey(it.first.hospitalKey)},
+      segmentColors=series.map{(report,_)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))},
+      metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
+      referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct(),
+      timelineDates=trendTimelineDates(activeReports,series.map{it.first},cutoff),
+      eventDates=treatmentDates
+     ))
+    }
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
@@ -611,7 +628,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
      }
      if(compatiblePoints.isNotEmpty() && rangeDisplayRows.isNotEmpty()){
       TextButton(
-       onClick={trendFocus.clearFocus();previewSeries=compatiblePoints},
+       onClick={trendFocus.clearFocus();openOverallPreview(compatiblePoints)},
        modifier=Modifier.align(Alignment.TopEnd).heightIn(min=24.dp),
        contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)
       ){Text("整体",fontSize=12.sp,color=Accent)}
@@ -644,7 +661,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(activeReports,compatiblePoints.map{it.first},cutoff),
       eventDates=treatmentDates,
-      onShowPreview={trendFocus.clearFocus();previewSeries=compatiblePoints}
+      onShowPreview={trendFocus.clearFocus();openOverallPreview(compatiblePoints)}
      )
     }
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
@@ -652,22 +669,6 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       primary=mode=="重点指标",
       onMove={priority(key,mode!="重点指标")},
       onPin={store.pinTrendCard(card.storageKey(),mode=="重点指标");resultChanged()}
-     )
-    }
-    previewSeries?.let{series->
-     val sx=series.last().second
-     val bounds=sx.trendReferenceRange()
-     TrendPreviewDialog(
-      points=series.map{it.first.testedAtEpochMillis to it.second.trendPlotValue()!!},
-      color=if(hasHistoricalAbnormal) Bad else TrendBlue,
-      referenceBands=series.map{(_,r)->r.trendPlotReferenceRange()},
-      segmentKeys=series.map{trendHospitalKey(it.first.hospitalKey)},
-      segmentColors=series.map{(report,result)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))},
-      metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
-      onDismiss={previewSeries=null},
-      referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct(),
-      timelineDates=trendTimelineDates(activeReports,series.map{it.first},cutoff),
-      eventDates=treatmentDates
      )
     }
    }
@@ -965,10 +966,6 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
 }
 internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
  then(if(landscape)Modifier.fillMaxWidth(.88f).fillMaxHeight(.82f) else Modifier)
-internal fun trendPreviewDialogProperties(landscape:Boolean)=DialogProperties(
- usePlatformDefaultWidth=!landscape,
- decorFitsSystemWindows=!landscape
-)
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventDates:List<Long> = emptyList()){
  val context=LocalContext.current
  val activity=remember(context){context.findActivity()}
@@ -976,9 +973,11 @@ internal fun trendPreviewDialogProperties(landscape:Boolean)=DialogProperties(
  val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
  fun restoreOrientation(){activity?.requestedOrientation=originalOrientation}
  DisposableEffect(activity,originalOrientation){onDispose{restoreOrientation()}}
- Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=trendPreviewDialogProperties(landscape)){
+ BackHandler{restoreOrientation();onDismiss()}
+ val cardInteraction=remember{MutableInteractionSource()}
+ Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.55f)).clickable{restoreOrientation();onDismiss()},contentAlignment=Alignment.Center){
   TrendPreviewDialogFrame(landscape){
-   Card(modifier=Modifier.trendPreviewCardSize(landscape),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+   Card(modifier=Modifier.trendPreviewCardSize(landscape).clickable(interactionSource=cardInteraction,indication=null){},shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
     Column(
      Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier.verticalScroll(rememberScrollState())).padding(if(landscape)14.dp else 20.dp),
      verticalArrangement=Arrangement.spacedBy(if(landscape)8.dp else 12.dp)
@@ -1027,7 +1026,7 @@ internal fun trendPreviewDialogProperties(landscape:Boolean)=DialogProperties(
      }
      TrendPreviewAxis(points,timelineDates,eventDates)
     }
-    if(!landscape)TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
+    TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
     }
    }
   }
