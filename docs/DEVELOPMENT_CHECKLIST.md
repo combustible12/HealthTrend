@@ -8,7 +8,7 @@
 
 ## 2026-10-28 整体趋势横屏显示（待验证、未发布）
 
-- 横屏弹窗外框在WindowInsets.safeDrawing范围内保留水平16dp、垂直12dp安全边距；Card使用安全内容区88%宽、82%高并严格居中，不按整块窗口铺满。
+- 根因修正：Dialog默认decorFitsSystemWindows已经应用系统inset，内部再使用WindowInsets.safeDrawing会在横屏重复左侧inset并把卡片推向右侧。横屏改为decorFitsSystemWindows=false，外框只保留对称的水平16dp、垂直12dp边距；Card使用该对称区域88%宽、82%高居中。
 - 横屏Column取消verticalScroll，Canvas改用weight占满剩余高度，隐藏底部关闭按钮以保证标题、完整图表和日期轴同时可见。
 - MainActivity.kt：整体趋势标题增加横屏/退出横屏图标；横屏弹窗扩大至屏幕主要区域，图表高度增至220dp，所有退出路径恢复原屏幕方向。
 - AndroidManifest.xml：MainActivity接管方向与屏幕尺寸变化，确保切换横屏时不重建并丢失当前趋势弹窗。

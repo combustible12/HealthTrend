@@ -957,7 +957,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
 @Composable internal fun TrendPreviewDialogFrame(landscape:Boolean,content:@Composable ()->Unit){
  Box(
   Modifier.then(
-   if(landscape)Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal=16.dp,vertical=12.dp)
+   if(landscape)Modifier.fillMaxSize().padding(horizontal=16.dp,vertical=12.dp)
    else Modifier
   ),
   contentAlignment=Alignment.Center
@@ -965,6 +965,10 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
 }
 internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
  then(if(landscape)Modifier.fillMaxWidth(.88f).fillMaxHeight(.82f) else Modifier)
+internal fun trendPreviewDialogProperties(landscape:Boolean)=DialogProperties(
+ usePlatformDefaultWidth=!landscape,
+ decorFitsSystemWindows=!landscape
+)
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventDates:List<Long> = emptyList()){
  val context=LocalContext.current
  val activity=remember(context){context.findActivity()}
@@ -972,7 +976,7 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
  val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
  fun restoreOrientation(){activity?.requestedOrientation=originalOrientation}
  DisposableEffect(activity,originalOrientation){onDispose{restoreOrientation()}}
- Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=DialogProperties(usePlatformDefaultWidth=!landscape)){
+ Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=trendPreviewDialogProperties(landscape)){
   TrendPreviewDialogFrame(landscape){
    Card(modifier=Modifier.trendPreviewCardSize(landscape),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
     Column(

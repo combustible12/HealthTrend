@@ -57,6 +57,10 @@ class TrendRenderingTest {
   assertEquals(left,right,1.5f)
   assertEquals(top,bottom,1.5f)
  }
+ @Test fun landscapeDialogUsesFullDisplayCoordinatesWithoutDoubleInsets(){
+  assertFalse(trendPreviewDialogProperties(true).decorFitsSystemWindows)
+  assertTrue(trendPreviewDialogProperties(false).decorFitsSystemWindows)
+ }
  @Test fun previewContainsEveryDotIncludingConnectedSegmentEndpoints(){
   compose.setContent{MaterialTheme{TrendPreviewDialog(points,Color.Black,List(3){3.5 to 9.5},listOf("A","A","A"),List(3){colors[0]},"WBC",{})}}
   compose.onNodeWithText("整体趋势 · WBC").assertIsDisplayed()

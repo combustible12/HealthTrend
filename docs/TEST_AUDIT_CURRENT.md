@@ -10,6 +10,7 @@
 
 - TrendRenderingTest新增固定横屏容器边界回归：安全框内的弹窗内容四边必须严格落在可见范围内。
 - 边界回归升级为直接测量卡片：四边均有空白，左右边距相等、上下边距相等，防止再次以fillMaxSize铺满。
+- 增加Dialog属性回归：横屏必须关闭decorFitsSystemWindows以避免系统inset与内部布局重复计算；竖屏继续使用系统默认适配。
 - TrendRenderingTest新增TrendPreviewHeader实际组件测试：竖屏显示“横屏显示”、横屏显示“退出横屏”，并分别触发一次方向切换回调。
 - 保留整体趋势的平滑曲线、参考带、医院颜色和孤立点绘制测试；本次不改计算与数据身份。
 - MainActivity增加orientation/screenSize配置变化承接，避免横屏切换重建丢失弹窗。等待云端compileDebugKotlin与Android测试源码编译结果，不宣称手机实机验收。
