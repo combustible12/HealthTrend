@@ -954,6 +954,15 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
   }
  }
 }
+@Composable internal fun TrendPreviewDialogFrame(landscape:Boolean,content:@Composable ()->Unit){
+ Box(
+  Modifier.then(
+   if(landscape)Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal=16.dp,vertical=12.dp)
+   else Modifier
+  ),
+  contentAlignment=Alignment.Center
+ ){content()}
+}
 @Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventDates:List<Long> = emptyList()){
  val context=LocalContext.current
  val activity=remember(context){context.findActivity()}
@@ -962,8 +971,9 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  fun restoreOrientation(){activity?.requestedOrientation=originalOrientation}
  DisposableEffect(activity,originalOrientation){onDispose{restoreOrientation()}}
  Dialog(onDismissRequest={restoreOrientation();onDismiss()},properties=DialogProperties(usePlatformDefaultWidth=!landscape)){
-  Card(modifier=if(landscape)Modifier.fillMaxWidth(.96f).fillMaxHeight(.94f) else Modifier,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Column(Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  TrendPreviewDialogFrame(landscape){
+   Card(modifier=if(landscape)Modifier.fillMaxSize() else Modifier,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
+    Column(Modifier.fillMaxWidth().then(if(landscape)Modifier.fillMaxHeight() else Modifier).verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
     TrendPreviewHeader(metricKey,landscape){
      activity?.requestedOrientation=if(landscape)originalOrientation else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
     }
@@ -1009,6 +1019,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      TrendPreviewAxis(points,timelineDates,eventDates)
     }
     TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
+    }
    }
   }
  }

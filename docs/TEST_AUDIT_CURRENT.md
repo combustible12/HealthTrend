@@ -8,6 +8,7 @@
 
 ## 2026-10-28 整体趋势横屏显示测试影响（待验证、未发布）
 
+- TrendRenderingTest新增固定横屏容器边界回归：安全框内的弹窗内容四边必须严格落在可见范围内。
 - TrendRenderingTest新增TrendPreviewHeader实际组件测试：竖屏显示“横屏显示”、横屏显示“退出横屏”，并分别触发一次方向切换回调。
 - 保留整体趋势的平滑曲线、参考带、医院颜色和孤立点绘制测试；本次不改计算与数据身份。
 - MainActivity增加orientation/screenSize配置变化承接，避免横屏切换重建丢失弹窗。等待云端compileDebugKotlin与Android测试源码编译结果，不宣称手机实机验收。
