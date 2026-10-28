@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "7632357b0f49e8c91c3a691ba7c925890f1736bb",
-  "validationMode": "remove-duplicate-landscape-dialog-insets-release-regression",
-  "versionCode": 2026102807,
-  "versionName": "1.0.167"
+  "sourceBaseCommit": "58918f998b0900e498bc228bf855d9706db600f2",
+  "validationMode": "activity-root-centered-trend-preview-release-regression",
+  "versionCode": 2026102808,
+  "versionName": "1.0.168"
 }
