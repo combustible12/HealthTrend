@@ -26,3 +26,5 @@
 - 禁止 OutlinedButton、OutlinedCard、BorderStroke、Modifier.border；FilterChip 必须 `border=null`。原生 DatePickerDialog/TimePickerDialog 是功能型系统选择器的明确例外。
 - `ci/check_ui_design_rules.py` 已接入变更检查和发布流程并报告文件/行号；`UiDesignRuleTest` 与 `AppInputFieldTest` 同步验证源码约束及普通、聚焦、错误、禁用输入行为。
 - 病程记录标题右侧的日历按钮使用 `courseRecordForDate` 精确按本地日期查找；命中后清空搜索/分类过滤并滚动到卡片，未命中显示提示且不创建记录。
+- 2026-10-29 起不再提供病程检查提醒：不要恢复 CourseReminderEditor、CourseReminderDialog 或 reminderDate 触发。模型/JSON 中旧 reminder 字段仅用于历史备份兼容。
+- 唯一业务提醒是导入页 TreatmentReminder：`nextDueTreatmentReminder` 选择 completedAt 为空、目标次数不高于当前最高“放N”、且本次前台未稍后的记录，再按目标次数和创建时间排序。

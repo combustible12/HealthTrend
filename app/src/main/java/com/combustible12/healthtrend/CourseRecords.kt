@@ -247,7 +247,7 @@ internal fun chemotherapyEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneI
   .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
 }
 
-internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&reminderText.isBlank()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
+internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
 
 internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
@@ -318,7 +318,6 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
     if(weight!=null)CourseWeightView(weight,openWeightTrend)
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
-    if(record.reminderDate.isNotBlank()&&record.reminderCompletedAt==null)CourseTextRow(Icons.Outlined.Notifications,"提醒 · ${reminderDisplayDate(record.reminderDate)}")
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view)
    }
@@ -427,7 +426,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
  val editorTitle=if(record.titleAuto)automaticTitle else record.title
  val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null)
- val valid=selectedDate!=null&&validWeight&&!busy&&(record.reminderDate.isBlank()||record.reminderText.isNotBlank())
+ val valid=selectedDate!=null&&validWeight&&!busy
  val editorScroll=rememberScrollState()
  FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
   val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
@@ -469,7 +468,6 @@ private fun coursePhaseColors(phase:String)=when(phase){
    if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
-   CourseReminderEditor(record,{record=it})
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
@@ -512,37 +510,6 @@ private fun coursePhaseColors(phase:String)=when(phase){
  if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、药品、备注及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
  duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;onOpenExisting(existing)}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
 }
-
-@Composable private fun CourseReminderEditor(record:CourseRecord,onChange:(CourseRecord)->Unit){
- val context=LocalContext.current
- val active=record.reminderDate.isNotBlank()
- Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(12.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
-  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-   Icon(Icons.Outlined.Notifications,null,tint=Accent,modifier=Modifier.size(20.dp));Spacer(Modifier.width(8.dp))
-   Text("检查提醒",Modifier.weight(1f),fontWeight=FontWeight.Medium)
-   if(active)TextButton({onChange(record.copy(reminderText="",reminderDate="",reminderCompletedAt=null))}){Text("取消提醒",color=Muted)}
-   else TextButton({
-    val initial=LocalDate.now()
-    android.app.DatePickerDialog(context,{_,year,month,day->
-     onChange(record.copy(reminderText=record.checkText.trim(),reminderDate=LocalDate.of(year,month+1,day).toString(),reminderCompletedAt=null))
-    },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
-   }){Text("设置提醒")}
-  }
-  if(active){
-   AppInputField(record.reminderText,{onChange(record.copy(reminderText=it,reminderCompletedAt=null))},label="提醒内容",singleLine=true)
-   Surface(onClick={
-    val initial=runCatching{LocalDate.parse(record.reminderDate)}.getOrElse{LocalDate.now()}
-    android.app.DatePickerDialog(context,{_,year,month,day->onChange(record.copy(reminderDate=LocalDate.of(year,month+1,day).toString(),reminderCompletedAt=null))},initial.year,initial.monthValue-1,initial.dayOfMonth).show()
-   },shape=RoundedCornerShape(10.dp),color=Color(0xFFF8F3EF)){
-    Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.CalendarMonth,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(reminderDisplayDate(record.reminderDate))}
-   }
-   Text("到期当天打开或切回 App 时提醒",fontSize=12.sp,color=Muted)
-  }
- }
-}
-
-internal fun reminderDisplayDate(value:String):String=runCatching{val d=LocalDate.parse(value);"${d.monthValue}月${d.dayOfMonth}日 · 星期${listOf("一","二","三","四","五","六","日")[d.dayOfWeek.value-1]}"}.getOrElse{value}
-internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank()&&reminderDate==today.toString()&&reminderCompletedAt==null
 
 @Composable private fun CourseRememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,minLines:Int=1){
  var focused by remember{mutableStateOf(false)}

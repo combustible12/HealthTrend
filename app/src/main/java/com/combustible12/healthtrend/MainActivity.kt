@@ -265,11 +265,9 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms);courseRecord=null}},{change{store.setWeightForCourse(current.id,current.date,null);store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},onOpenWeightTrend={courseRecord=null;trendCategoryRequest="体重";tab=1},onOpenExisting={existing->courseRecord=existing})}
- val dueReminder=remember(courseRecords,foregroundSequence,snoozedReminderIds){courseRecords.filter{it.id !in snoozedReminderIds&&it.isReminderDue(LocalDate.now())}.minByOrNull{it.reminderText}}
- if(dueReminder!=null)CourseReminderDialog(dueReminder,{snoozedReminderIds=snoozedReminderIds+dueReminder.id},{change{store.saveCourseRecord(dueReminder.copy(reminderCompletedAt=System.currentTimeMillis()))}})
  val radiationNumber=remember(courseRecords){currentRadiotherapyNumber(courseRecords)}
- val dueTreatmentReminder=remember(treatmentReminders,radiationNumber,foregroundSequence,snoozedReminderIds){treatmentReminders.firstOrNull{it.completedAt==null&&it.radiationNumber<=radiationNumber&&it.id !in snoozedReminderIds}}
- if(dueReminder==null&&dueTreatmentReminder!=null)TreatmentReminderDialog(dueTreatmentReminder,{snoozedReminderIds=snoozedReminderIds+dueTreatmentReminder.id},{change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis()))}})
+ val dueTreatmentReminder=remember(treatmentReminders,radiationNumber,foregroundSequence,snoozedReminderIds){nextDueTreatmentReminder(treatmentReminders,radiationNumber,snoozedReminderIds)}
+ if(dueTreatmentReminder!=null)TreatmentReminderDialog(dueTreatmentReminder,{snoozedReminderIds=snoozedReminderIds+dueTreatmentReminder.id},{change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis()))}})
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null;viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null},viewerStart,
   onReplace=if(viewerReportId!=null||viewerCourseRecordId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
@@ -313,24 +311,8 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
 }
 
-@Composable private fun CourseReminderDialog(record:CourseRecord,onLater:()->Unit,onComplete:()->Unit){
- Dialog(onDismissRequest=onLater){
-  Card(Modifier.fillMaxWidth().heightIn(min=420.dp).semantics{contentDescription="病程到期提醒大卡片"},shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
-   Column(Modifier.fillMaxSize().padding(horizontal=28.dp,vertical=32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween){
-    Column(horizontalAlignment=Alignment.CenterHorizontally){
-     Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Icon(Icons.Outlined.NotificationsActive,"到期提醒",Modifier.padding(18.dp).size(42.dp),tint=Accent)}
-     Spacer(Modifier.height(26.dp));Text("今日提醒",fontSize=18.sp,color=Accent,fontWeight=FontWeight.Bold)
-     Spacer(Modifier.height(12.dp));Text(reminderDisplayDate(record.reminderDate).substringBefore(" ·"),fontSize=28.sp,fontWeight=FontWeight.Bold)
-     Spacer(Modifier.height(18.dp));Text(record.reminderText,fontSize=34.sp,lineHeight=42.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
-    }
-    Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(10.dp)){
-     Button(onComplete,Modifier.fillMaxWidth().height(54.dp)){Text("已完成",fontSize=17.sp,color=Color.White)}
-     TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后再提醒",color=Muted)}
-    }
-   }
-  }
- }
-}
+internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiationNumber:Int,snoozedIds:Set<String> = emptySet()):TreatmentReminder?=
+ reminders.filter{it.completedAt==null&&it.radiationNumber<=radiationNumber&&it.id !in snoozedIds}.minWithOrNull(compareBy<TreatmentReminder>{it.radiationNumber}.thenBy{it.createdAt})
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",spacing:androidx.compose.ui.unit.Dp=14.dp,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(m.fillMaxSize()){

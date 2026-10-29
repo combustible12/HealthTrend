@@ -32,26 +32,25 @@ class CoursePhasePersistenceTest {
   assertEquals(original,prefs.getString("course_records",null))
   assertEquals("化疗日",HealthStore(context).courseRecords().single().phase)
  }
- @Test fun reminderPersistsAndLegacyRecordsStayCompatible(){
+ @Test fun legacyCourseReminderFieldsStayReadableForBackupCompatibility(){
   val store=HealthStore(context)
   val record=CourseRecord(title="2化12-放2",checkText="抽血化验",reminderText="抽血化验",reminderDate="2026-10-23")
   store.saveCourseRecord(record)
   val saved=HealthStore(context).courseRecords().single()
   assertEquals("抽血化验",saved.reminderText)
   assertEquals("2026-10-23",saved.reminderDate)
-  assertTrue(saved.isReminderDue(java.time.LocalDate.of(2026,10,23)))
-  store.saveCourseRecord(saved.copy(reminderCompletedAt=123L))
-  assertFalse(HealthStore(context).courseRecords().single().isReminderDue(java.time.LocalDate.of(2026,10,23)))
 
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"old","date":1,"phase":"观察","title":"旧病程","symptomText":"","symptomImages":[],"checkText":"旧检查","checkImages":[],"medicineText":"","medicineImages":[],"noteText":"","noteImages":[]}]""").commit()
   val legacy=HealthStore(context).courseRecords().single()
   assertEquals("",legacy.reminderText);assertEquals("",legacy.reminderDate);assertNull(legacy.reminderCompletedAt)
  }
- @Test fun reminderOnlyTriggersOnExactLocalDate(){
-  val record=CourseRecord(title="记录",reminderText="抽血化验",reminderDate="2026-10-23")
-  assertFalse(record.isReminderDue(java.time.LocalDate.of(2026,10,22)))
-  assertTrue(record.isReminderDue(java.time.LocalDate.of(2026,10,23)))
-  assertFalse(record.isReminderDue(java.time.LocalDate.of(2026,10,24)))
+ @Test fun treatmentReminderTriggersAtOrAfterTargetAndHonorsCompletionAndSnooze(){
+  val earlier=TreatmentReminder(id="earlier",radiationNumber=2,text="较早",createdAt=1)
+  val later=TreatmentReminder(id="later",radiationNumber=3,text="较晚",createdAt=2)
+  assertNull(nextDueTreatmentReminder(listOf(later,earlier),1))
+  assertEquals("earlier",nextDueTreatmentReminder(listOf(later,earlier),3)?.id)
+  assertEquals("later",nextDueTreatmentReminder(listOf(later,earlier),3,setOf("earlier"))?.id)
+  assertNull(nextDueTreatmentReminder(listOf(earlier.copy(completedAt=3),later.copy(completedAt=4)),9))
  }
  @Test fun duplicateCourseDateIsRejectedWithoutChangingExistingRecord(){
   val store=HealthStore(context)

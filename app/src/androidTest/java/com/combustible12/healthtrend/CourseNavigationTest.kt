@@ -132,18 +132,16 @@ class CourseNavigationTest {
   compose.onNodeWithText("健康记录").assertDoesNotExist()
   compose.onNodeWithText("最近").assertDoesNotExist()
  }
- @Test fun dueReminderIsOversizedAndCompletingItPersists(){
-  val today=java.time.LocalDate.now()
-  val at=today.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-  HealthStore(context).saveCourseRecord(CourseRecord(date=at,title="2化12-放2",checkText="抽血化验",reminderText="抽血化验",reminderDate=today.toString()))
+ @Test fun importPageTreatmentReminderUsesRadiotherapyCountAndCompletes(){
+  val store=HealthStore(context)
+  store.saveCourseRecord(CourseRecord(title="2化12-放2",titleAuto=false))
+  store.saveTreatmentReminder(TreatmentReminder(radiationNumber=2,text="找主任做检查"))
   compose.setContent{MaterialTheme{App()}}
-  compose.onNodeWithText("今日提醒").assertIsDisplayed()
-  compose.onNodeWithContentDescription("到期提醒").assertIsDisplayed()
-  val card=compose.onNodeWithContentDescription("病程到期提醒大卡片").fetchSemanticsNode().boundsInRoot
-  assertTrue(card.height>400f)
+  compose.onNodeWithText("放2提醒").assertIsDisplayed()
+  compose.onNodeWithText("找主任做检查").assertIsDisplayed()
   compose.onNodeWithText("已完成").performClick()
-  compose.onNodeWithText("今日提醒").assertDoesNotExist()
-  compose.runOnIdle{assertNotNull(HealthStore(context).courseRecords().first{it.title=="2化12-放2"}.reminderCompletedAt)}
+  compose.onNodeWithText("放2提醒").assertDoesNotExist()
+  compose.runOnIdle{assertNotNull(HealthStore(context).treatmentReminders().single().completedAt)}
  }
  @Test fun categoriesCanBeAddedDeletedAndUsedInEditor(){
   compose.setContent{MaterialTheme{App()}}

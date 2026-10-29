@@ -26,3 +26,4 @@
 - MainActivity、CourseRecords、Editors、Updates、ImageDocuments 的普通输入、搜索、紧凑数值和行内编辑均接入同一基础组件；清除描边按钮，并补齐 FilterChip 的 `border=null`。
 - 静态脚本、JVM 回归和 Compose UI 用例同步覆盖；主分支检查和正式发布会按文件与行号拒绝禁用组件、业务层直接 BasicTextField、描边按钮及筛选边框。
 - 病程标题栏新增日期查看入口：原生日期选择器按本地日期匹配记录，命中后重置筛选并滚动到对应卡片；未命中仅提示，不触发新增流程。
+- 删除 CourseReminderEditor、病程提醒摘要和 CourseReminderDialog 到期链路；旧 CourseRecord reminder 字段保留序列化兼容但完全休眠。导入页 TreatmentReminder 继续按最高“放N”触发，并用统一选择函数确定最早到期项。
