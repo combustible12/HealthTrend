@@ -15,11 +15,29 @@ class BloodCellCtcaeGradeTest {
  }
 
  @Test fun normalMissingRangeComparatorAndUnknownUnitAreExplicit(){
-  assertEquals("未达到 1 级",grade("WBC",4.0,4.0).label)
+  val normal=grade("WBC",4.0,4.0)
+  assertEquals("未达到 1 级",normal.label)
+  assertEquals("无需因本项分级额外处理，按原计划复查。",normal.advice)
   assertEquals("无法判定",result("WBC",2.5,null).let(::bloodCellCtcaeV5Grade)!!.label)
   assertEquals("无法判定",result("WBC",2.5,4.0).copy(comparator="<").let(::bloodCellCtcaeV5Grade)!!.label)
   assertEquals("无法判定",result("WBC",2.5,4.0,"cells/L").let(::bloodCellCtcaeV5Grade)!!.label)
   assertNull(bloodCellCtcaeV5Grade(result("RBC",3.0,4.0,"10^12/L")))
+ }
+
+ @Test fun gradeThreeAdviceIsActionableAndMetricSpecific(){
+  val neutrophil=grade("NEUT#",0.72,1.8)
+  assertEquals(3,neutrophil.grade)
+  assertTrue(neutrophil.advice.contains("当天联系治疗团队"))
+  assertTrue(neutrophil.advice.contains("38℃"))
+  assertTrue(neutrophil.advice.contains("由医生评估"))
+
+  val platelet=grade("PLT",40.0,125.0)
+  assertTrue(platelet.advice.contains("出血不止"))
+  assertTrue(platelet.advice.contains("剧烈头痛"))
+
+  val anemia=grade("HGB",75.0,115.0,"g/L")
+  assertTrue(anemia.advice.contains("气促"))
+  assertTrue(anemia.advice.contains("晕厥"))
  }
 
  private fun assertGrades(key:String,low:Double,cases:List<Pair<Double,Int>>,unit:String="10^9/L"){
