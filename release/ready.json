@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "36d3e65617a34169ef5cf21e694a01c7e18e6344",
-  "validationMode": "borderless-input-global-rule-junit-order-release-guard",
-  "versionCode": 2026102901,
-  "versionName": "1.0.169"
+  "sourceBaseCommit": "fadb1eabfd244b665182be3426152fed845f81fc",
+  "validationMode": "basictextfield-borderless-component-system-regression",
+  "versionCode": 2026102902,
+  "versionName": "1.0.170"
 }
