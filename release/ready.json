@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "146f656715155838ae20ca35f93e524111b5b077",
-  "validationMode": "snapshotted-height-dubois-bsa-three-block-course-weight",
-  "versionCode": 2026102911,
-  "versionName": "1.0.179"
+  "sourceBaseCommit": "26c6db87cb03c183937d4552c1ef3d487ab32686",
+  "validationMode": "course-bmi-height-snapshot-ctcae-detail-and-compact-label-spacing",
+  "versionCode": 2026103001,
+  "versionName": "1.0.180"
 }
