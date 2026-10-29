@@ -93,7 +93,6 @@ class TrendRenderingTest {
   val injection=day("2026-01-06")
   assertEquals(TreatmentMarkerGray,TrendEventLineColor)
   assertEquals(.28f,TrendEventLineAlpha)
-  assertNotEquals(GrowthFactorMarker,TrendEventLineColor)
   compose.setContent{MaterialTheme{Spark(datedPoints,Color.Black,eventLayers=listOf(TrendEventLayer(TrendEventKind.GROWTH_FACTOR_INJECTION,listOf(injection))))}}
   compose.onNodeWithContentDescription("升白针日期 01/06").assertIsDisplayed()
   compose.onNodeWithText("01/06").assertDoesNotExist()

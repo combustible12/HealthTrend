@@ -30,4 +30,4 @@
 - TreatmentReminder 增加可选 triggerDate：旧 JSON 缺失时继续作为放疗次数提醒；日期提醒不要求“放N”，到期或逾期仍有效。编辑器以无描边筛选项切换“放疗次数 / 日期”。
 - TreatmentReminder 日期模式同时保存 triggerTime（旧数据默认 09:00）；HealthStore 成功落盘后统一同步 AlarmManager，删除、完成、恢复均由同一入口取消或重建任务。系统通知接收器只读取仍存在且未完成的日期提醒，启动、重启、系统时间/时区改变及应用更新后统一重建。Android 13+ 的 POST_NOTIFICATIONS 权限只在保存日期提醒时请求，不使用精确闹钟特殊权限。
 - CourseRecord 增加 growthFactorInjection，旧 JSON 首次读取时仅从明确已执行的“升白针”备注迁移并立即持久化，后续只使用正式布尔字段。编辑器提供无描边纯色 FilterChip；标记本身使自动卡不再被视为空卡。
-- 趋势事件参数统一为 TrendEventLayer；化疗与升白针共用日期插值和同一浅灰 1dp 竖线，分别以三角和圆点区分。growthFactorInjectionEventDates 合并连续自然日并只保留首日；升白针不写入横轴日期。
+- 趋势事件参数统一为 TrendEventLayer；化疗与升白针共用日期插值和同一浅灰 1dp 竖线，化疗三角与升白针圆点也使用同一浅灰色，只以形状区分。growthFactorInjectionEventDates 合并连续自然日并只保留首日；升白针不写入横轴日期。

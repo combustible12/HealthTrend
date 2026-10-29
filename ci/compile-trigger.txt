@@ -2,6 +2,7 @@
 2026-10-17 blood group 2x2 solid-fill layout; compile and tests only, no release
 2026-10-17 recognize white-globulin ratio alias as existing A/G, compile and test only
 2026-10-29 unify growth-factor and chemotherapy event-line color; keep distinct circle marker; compile and tests only
+2026-10-29 unify growth-factor circle hue with chemotherapy marker; shape-only distinction; compile and tests only
 
 2026-10-17 catalogue import/unit/flag/storage adaptation and baseline syntax repair; compile and test only
 2026-10-17 fix omitted qualitative unit column and production identity reconciliation after logged test failures

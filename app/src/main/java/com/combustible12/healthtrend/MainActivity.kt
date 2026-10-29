@@ -70,7 +70,7 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
-val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399);val GrowthFactorMarker=Color(0xFF596572)
+val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399)
 val TrendEventLineColor=TreatmentMarkerGray
 const val TrendEventLineAlpha=.28f
 enum class TrendEventKind { CHEMOTHERAPY,GROWTH_FACTOR_INJECTION }
@@ -946,7 +946,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      Canvas(Modifier.width(10.dp).height(6.dp)){val triangle=Path().apply{moveTo(0f,0f);lineTo(size.width,0f);lineTo(size.width/2f,size.height);close()};drawPath(triangle,TreatmentMarkerGray.copy(alpha=.38f))}
     }
    }
-   injectionEvents.forEach{event->Canvas(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-3.dp.toPx()).roundToInt(),15.dp.toPx().roundToInt())}.size(6.dp).semantics{contentDescription="升白针日期 ${trendShortDate(event.epochMillis)}"}){drawCircle(GrowthFactorMarker.copy(alpha=.72f))}}
+   injectionEvents.forEach{event->Canvas(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-3.dp.toPx()).roundToInt(),15.dp.toPx().roundToInt())}.size(6.dp).semantics{contentDescription="升白针日期 ${trendShortDate(event.epochMillis)}"}){drawCircle(TrendEventLineColor.copy(alpha=.72f))}}
    timeline.forEachIndexed{slot,date->
     val pointIndex=pointBySlot[slot]?:-1
     val groupWidth=groupWidths[slot]
@@ -1041,7 +1041,7 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
        }
       }
       treatmentEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx())}
-      injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(GrowthFactorMarker.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
+      injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(TrendEventLineColor.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
        val slopes=monotoneTrendSlopes(indices.map{plotted[it]})
