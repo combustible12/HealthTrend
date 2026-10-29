@@ -58,4 +58,15 @@ class WeightCoursePersistenceTest {
   assertEquals(152.0,store.weightRecords().single{it.measuredAtEpochMillis==first}.heightCmAtMeasurement!!,0.0)
   assertEquals(160.0,store.weightRecords().single{it.measuredAtEpochMillis==second}.heightCmAtMeasurement!!,0.0)
  }
+
+ @Test fun courseCanOverrideDefaultHeightWithoutChangingEarlierHistory(){
+  val store=HealthStore(context);store.savePatientProfile(PatientProfile(heightCm="160"))
+  val first=LocalDate.of(2026,10,28).atTime(8,0).atZone(zone).toInstant().toEpochMilli()
+  val second=LocalDate.of(2026,10,29).atTime(8,0).atZone(zone).toInstant().toEpochMilli()
+  store.setWeightForCourse("first",first,50.0,158.5)
+  store.setWeightForCourse("second",second,50.0)
+  assertEquals(158.5,store.weightRecordForCourse("first")!!.heightCmAtMeasurement!!,0.0)
+  assertEquals(160.0,store.weightRecordForCourse("second")!!.heightCmAtMeasurement!!,0.0)
+  assertEquals("19.9",bodyMassIndexText(store.weightRecordForCourse("first")!!.heightCmAtMeasurement,50.0))
+ }
 }

@@ -205,7 +205,7 @@ class MainActivity:ComponentActivity(){
  val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  Box(Modifier.fillMaxSize()){
  Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null||trendPreview!=null)Modifier.clearAndSetSemantics{} else Modifier)){
- Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("导入" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"我的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
+ Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("导入" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"她的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
   val m=Modifier.padding(padding)
   var mainPageDrag by remember{mutableFloatStateOf(0f)}
   Box(Modifier.fillMaxSize().pointerInput(tab){
@@ -266,7 +266,7 @@ class MainActivity:ComponentActivity(){
   onDismissRequest={replacementReport=null;replacementCandidates=emptyList();selectedReplacementId=null},
   title={Text("替换旧报告？")},
   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-   Text("新报告已核对完成。请选择要替换的同医院、同日期、同检查类型旧报告。确认后旧报告退出列表和趋势，但会封存并可在“我的”中恢复。")
+   Text("新报告已核对完成。请选择要替换的同医院、同日期、同检查类型旧报告。确认后旧报告退出列表和趋势，但会封存并可在“她的”中恢复。")
    replacementCandidates.forEach{old->Row(Modifier.fillMaxWidth().clickable{selectedReplacementId=old.id},verticalAlignment=Alignment.CenterVertically){
     RadioButton(selectedReplacementId==old.id,{selectedReplacementId=old.id});Column{Text("${old.hospitalKey} · ${old.reportType}");Text("${dateText(old.testedAtEpochMillis)} · ${old.results.size}项",color=Muted,fontSize=12.sp)}
    }}
@@ -286,7 +286,7 @@ class MainActivity:ComponentActivity(){
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
- if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms);courseRecord=null}},{change{store.setWeightForCourse(current.id,current.date,null);store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},onOpenWeightTrend={courseRecord=null;trendCategoryRequest="体重";tab=1},onOpenExisting={existing->courseRecord=existing})}
+ if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt,heightCm->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms,heightCm);courseRecord=null}},{change{store.setWeightForCourse(current.id,current.date,null);store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},onOpenWeightTrend={courseRecord=null;trendCategoryRequest="体重";tab=1},onOpenExisting={existing->courseRecord=existing})}
  val radiationNumber=remember(courseRecords){currentRadiotherapyNumber(courseRecords)}
  val dueTreatmentReminder=remember(treatmentReminders,radiationNumber,foregroundSequence,snoozedReminderIds){nextDueTreatmentReminder(treatmentReminders,radiationNumber,snoozedReminderIds)}
  if(dueTreatmentReminder!=null)TreatmentReminderDialog(dueTreatmentReminder,{snoozedReminderIds=snoozedReminderIds+dueTreatmentReminder.id},{change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis()))}})
@@ -530,8 +530,8 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
  val hasCreatinine=sourcePairs.any{canonicalMetricKey(it.second.metricKey)=="CREA"}
  val egfrUnavailableReason=when{
   !hasCreatinine||egfrPairs.isNotEmpty()->null
-  profileBirthDate(egfrProfile.birthDate)==null->"已找到肌酐记录；请先在“我的”补全出生日期，eGFR 才会按检测当日年龄计算。"
-  egfrSex(egfrProfile.sex)==null->"已找到肌酐记录；请先在“我的”补全性别，eGFR 才会使用 CKD-EPI 2021 公式计算。"
+  profileBirthDate(egfrProfile.birthDate)==null->"已找到肌酐记录；请先在“她的”补全出生日期，eGFR 才会按检测当日年龄计算。"
+  egfrSex(egfrProfile.sex)==null->"已找到肌酐记录；请先在“她的”补全性别，eGFR 才会使用 CKD-EPI 2021 公式计算。"
   else->"已找到肌酐记录，但没有可用于成人 eGFR 估算的精确数值。"
  }
  val all=(sourcePairs+egfrPairs).mapNotNull{pair->
@@ -765,6 +765,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
    Text("当次参考：${qualitativeDisplayText(x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)})} · ${x.resultStatusLabel()}",color=Muted)
+   bloodCellCtcaeV5Display(x)?.let{Text(it,color=Muted,fontSize=13.sp)}
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
    if(editing)TextButton({try{if(LabResultValues.valid(editValue)){store.updateResultText(r.id,x.id,editValue);textRevision++;resultChanged();val persisted=store.reports().first{it.id==r.id};selected=persisted to persisted.results.first{it.id==x.id};editing=false}}catch(e:Exception){imageError=e.message?:"保存失败"}},enabled=LabResultValues.valid(editValue)){Text("保存")}

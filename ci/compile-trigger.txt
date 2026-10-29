@@ -5,6 +5,7 @@
 2026-10-29 unify growth-factor circle hue with chemotherapy marker; shape-only distinction; compile and tests only
 2026-10-29 enforce one RGBA constant for chemotherapy triangle and growth-factor circle; compile and tests only
 2026-10-29 course weight three-block layout, frozen height snapshots, and DuBois BSA; compile and tests only
+2026-10-30 four-block course weight with BMI, per-record height override, compact label spacing, CTCAE detail, and 她的 tab
 
 2026-10-17 catalogue import/unit/flag/storage adaptation and baseline syntax repair; compile and test only
 2026-10-17 fix omitted qualitative unit column and production identity reconciliation after logged test failures

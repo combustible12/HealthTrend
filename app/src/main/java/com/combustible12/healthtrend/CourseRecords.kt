@@ -317,15 +317,18 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
      Spacer(Modifier.width(6.dp))
      Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
     }
-    Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
+    Column{
      val showPrimary=record.systolic!=null||record.diastolic!=null||record.pulse!=null
      if(showPrimary||record.additionalPressures.isNotEmpty()){
       Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
        listOf("时间","脉搏","高压","低压").forEach{label->Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)}
       }
+      Spacer(Modifier.height(2.5.dp))
      }
-     if(showPrimary)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,record.pulse,showHeader=false)
-     record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,reading.pulse,showHeader=false)}
+     Column(verticalArrangement=Arrangement.spacedBy(5.dp)){
+      if(showPrimary)PressureReadingView(record.pressureTime,record.systolic,record.diastolic,record.pulse,showHeader=false)
+      record.additionalPressures.forEach{reading->PressureReadingView(reading.time,reading.systolic,reading.diastolic,reading.pulse,showHeader=false)}
+     }
     }
     if(weight!=null)CourseWeightView(weight,openWeightTrend)
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
@@ -342,14 +345,17 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
   Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).semantics{contentDescription="体重模块标题"},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Outlined.MonitorWeight,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text("体重",Modifier.weight(1f),color=Muted,fontSize=13.sp,lineHeight=17.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",Modifier.size(18.dp),tint=Muted)
   }
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
-   listOf("时间","体重","体表面积").forEach{label->Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)}
-  }
-  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
-   @Composable fun Value(text:String,description:String){Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFE6E6E6)).semantics{contentDescription=description},contentAlignment=Alignment.Center){Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=Ink,maxLines=1,softWrap=false)}}
-   Value(weightTimeText(weight.measuredAtEpochMillis),"体重卡片时间色块")
-   Value(courseWeightText(weight.kilograms),"体重卡片数值色块")
-   Value(bodySurfaceAreaText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片体表面积色块")
+  Column(verticalArrangement=Arrangement.spacedBy(3.5.dp)){
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+    listOf("时间","kg","BMI","体表 m²").forEach{label->Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)}
+   }
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+    @Composable fun Value(text:String,description:String){Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFE6E6E6)).semantics{contentDescription=description},contentAlignment=Alignment.Center){Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=Ink,maxLines=1,softWrap=false)}}
+    Value(weightTimeText(weight.measuredAtEpochMillis),"体重卡片时间色块")
+    Value(courseWeightText(weight.kilograms),"体重卡片数值色块")
+    Value(bodyMassIndexText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片BMI色块")
+    Value(bodySurfaceAreaText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片体表面积色块")
+   }
   }
  }
 }
@@ -401,7 +407,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  Box(modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
 }
 
-@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={}){
+@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?,Double?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={}){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhases()}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
@@ -411,6 +417,8 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val initialWeight=remember(initial.id){store.weightRecordForCourse(initial.id)}
  var weightText by rememberSaveable(initial.id){mutableStateOf(initialWeight?.kilograms?.let(::courseWeightText).orEmpty())}
  var weightTime by rememberSaveable(initial.id){mutableStateOf(initialWeight?.let{weightTimeText(it.measuredAtEpochMillis)}?:LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))}
+ val initialHeight=initialWeight?.heightCmAtMeasurement?:store.patientProfile().heightCm.toDoubleOrNull()
+ var heightText by rememberSaveable(initial.id){mutableStateOf(initialHeight?.let(::courseHeightText).orEmpty())}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
@@ -439,12 +447,14 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val selectedDate=courseDateMillis(date,initial.date)
  val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
  val editorTitle=if(record.titleAuto)automaticTitle else record.title
- val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val validWeight=weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null)
+ val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val heightCm=heightText.toDoubleOrNull()
+ val validHeight=heightText.isBlank()||(heightCm!=null&&heightCm>0&&heightCm.isFinite())
+ val validWeight=(weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null))&&validHeight
  val valid=selectedDate!=null&&validWeight&&!busy
  val editorScroll=rememberScrollState()
  FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
   val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
-  onSave(saved,kilograms,if(kilograms==null)null else weightAt)
+  onSave(saved,kilograms,if(kilograms==null)null else weightAt,if(kilograms==null)null else heightCm)
  },Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){candidate->
@@ -476,7 +486,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
      TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
     }
-    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},initialWeight?.heightCmAtMeasurement?:store.patientProfile().heightCm.toDoubleOrNull(),onOpenWeightTrend)
+    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},heightText,{heightText=sanitizeHeightInput(it)},onOpenWeightTrend)
     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    }
    AppInputField(record.symptomText,{record=record.copy(symptomText=it)},minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}})
@@ -557,7 +567,8 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
 
-@Composable private fun CourseWeightEditor(time:String,onTimeChange:(String)->Unit,value:String,onValueChange:(String)->Unit,heightCm:Double?,onOpenTrend:()->Unit){
+@Composable private fun CourseWeightEditor(time:String,onTimeChange:(String)->Unit,value:String,onValueChange:(String)->Unit,heightText:String,onHeightChange:(String)->Unit,onOpenTrend:()->Unit){
+ val heightCm=heightText.toDoubleOrNull()
  Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
   Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).padding(vertical=2.dp).semantics{contentDescription="体重模块标题"},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Outlined.MonitorWeight,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("体重",Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",tint=Muted)
@@ -568,16 +579,28 @@ private fun coursePhaseColors(phase:String)=when(phase){
     ClockTimeSelector(time,onTimeChange,Modifier.fillMaxWidth().semantics{contentDescription="体重记录时间"})
    }
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-    Text("体重",fontSize=11.sp,color=Muted,maxLines=1)
+    Text("kg",fontSize=11.sp,color=Muted,maxLines=1)
     CompactPressureField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入色块"},fill=Color.White)
    }
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-    Text("体表面积",fontSize=11.sp,color=Muted,maxLines=1)
+    Text("BMI",fontSize=11.sp,color=Muted,maxLines=1)
+    Box(Modifier.fillMaxWidth().height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(Color.White).semantics{contentDescription="体重编辑BMI色块"},contentAlignment=Alignment.Center){
+     Text(bodyMassIndexText(heightCm,value.toDoubleOrNull()),fontSize=17.sp,color=Ink,maxLines=1,softWrap=false)
+    }
+   }
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+    Text("体表 m²",fontSize=11.sp,color=Muted,maxLines=1)
     Box(Modifier.fillMaxWidth().height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(Color.White).semantics{contentDescription="体重编辑体表面积色块"},contentAlignment=Alignment.Center){
      Text(bodySurfaceAreaText(heightCm,value.toDoubleOrNull()),fontSize=17.sp,color=Ink,maxLines=1,softWrap=false)
     }
    }
   }
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   Text("计算身高",fontSize=12.sp,color=Muted)
+   CompactPressureField(heightText,onHeightChange,Modifier.weight(1f).semantics{contentDescription="当次身高输入"},fill=Color.White)
+   Text("cm",fontSize=12.sp,color=Muted)
+  }
+  Text("默认取“她的”身高；保存后固定为当次记录",fontSize=11.sp,color=Muted)
  }
 }
 
@@ -589,12 +612,22 @@ internal fun bodySurfaceAreaText(heightCm:Double?,kilograms:Double?):String=body
  java.math.BigDecimal.valueOf(it).setScale(3,java.math.RoundingMode.HALF_UP).toPlainString()
 }?:"—"
 
+internal fun bodyMassIndex(heightCm:Double?,kilograms:Double?):Double?{
+ if(heightCm==null||kilograms==null||!heightCm.isFinite()||!kilograms.isFinite()||heightCm<=0.0||kilograms<=0.0)return null
+ val meters=heightCm/100.0
+ return kilograms/(meters*meters)
+}
+internal fun bodyMassIndexText(heightCm:Double?,kilograms:Double?):String=bodyMassIndex(heightCm,kilograms)?.let{
+ java.math.BigDecimal.valueOf(it).setScale(1,java.math.RoundingMode.HALF_UP).toPlainString()
+}?:"—"
+
 internal fun sanitizeWeightInput(input:String):String{
  val filtered=input.replace(',','.').replace('，','.').filter{it.isDigit()||it=='.'}
  val dot=filtered.indexOf('.')
  return if(dot<0)filtered.take(4) else filtered.take(dot).take(4)+"."+filtered.drop(dot+1).filter(Char::isDigit).take(2)
 }
 private fun courseWeightText(value:Double)=java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+private fun courseHeightText(value:Double)=java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 private fun weightTimeText(epochMillis:Long)=Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
 private fun weightDateTimeMillis(date:String,time:String):Long?=runCatching{LocalDate.parse(date).atTime(LocalTime.parse(time,DateTimeFormatter.ofPattern("H:mm"))).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()}.getOrNull()
 

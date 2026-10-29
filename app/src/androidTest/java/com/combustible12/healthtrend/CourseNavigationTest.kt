@@ -43,7 +43,7 @@ class CourseNavigationTest {
   val initial=CourseRecord(title="血压排版核对",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   val store=HealthStore(context);store.saveCourseRecord(initial)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->saved=record},{},{_,_->})}}
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
@@ -72,7 +72,7 @@ class CourseNavigationTest {
   val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
   val store=HealthStore(context);store.saveCourseRecord(initial)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
@@ -83,7 +83,7 @@ class CourseNavigationTest {
   val initial=CourseRecord(title="升白针标记")
   val store=HealthStore(context);store.saveCourseRecord(initial)
   var saved:CourseRecord?=null
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("升白针").performScrollTo().assertIsDisplayed().performClick()
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertTrue(saved?.growthFactorInjection==true)}
@@ -91,8 +91,8 @@ class CourseNavigationTest {
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
   val store=HealthStore(context);store.saveCourseRecord(initial);store.savePatientProfile(PatientProfile(heightCm="165"))
-  var savedWeight:Double?=null;var savedAt:Long?=null;var openedTrend=0
-  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{_,weight,at->savedWeight=weight;savedAt=at},{},{_,_->},{openedTrend++})}}
+  var savedWeight:Double?=null;var savedAt:Long?=null;var savedHeight:Double?=null;var openedTrend=0
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{_,weight,at,height->savedWeight=weight;savedAt=at;savedHeight=height},{},{_,_->},{openedTrend++})}}
   val weightTitle=compose.onNodeWithContentDescription("体重模块标题").performScrollTo().assertIsDisplayed()
   val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
   assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)
@@ -101,15 +101,18 @@ class CourseNavigationTest {
   val timeBlock=compose.onNodeWithContentDescription("体重记录时间").fetchSemanticsNode().boundsInRoot
   val weightBlock=compose.onNodeWithContentDescription("体重输入色块").fetchSemanticsNode().boundsInRoot
   val bsaBlock=compose.onNodeWithContentDescription("体重编辑体表面积色块").fetchSemanticsNode().boundsInRoot
-  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f)
-  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f)
+  val bmiBlock=compose.onNodeWithContentDescription("体重编辑BMI色块").fetchSemanticsNode().boundsInRoot
+  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f);assertEquals(bsaBlock.height,bmiBlock.height,1f)
+  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f);assertEquals(bsaBlock.width,bmiBlock.width,1f)
   compose.onNodeWithText("体重 kg").assertDoesNotExist()
-  compose.onNodeWithText("体表面积").assertIsDisplayed()
+  compose.onNodeWithText("体表 m²").assertIsDisplayed()
   compose.onNodeWithText("1.676").assertIsDisplayed()
+  compose.onNodeWithText("BMI").assertIsDisplayed()
+  compose.onNodeWithText("22.6").assertIsDisplayed()
   weightTitle.performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
   compose.onNodeWithText("保存记录").performClick()
-  compose.runOnIdle{assertEquals(61.5,savedWeight!!,0.0);assertNotNull(savedAt)}
+  compose.runOnIdle{assertEquals(61.5,savedWeight!!,0.0);assertNotNull(savedAt);assertEquals(165.0,savedHeight!!,0.0)}
  }
  @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){
   val at=java.time.LocalDate.of(2026,10,26).atTime(8,20).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -119,13 +122,16 @@ class CourseNavigationTest {
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->},{openedTrend++})}}
   compose.onNodeWithText("62.3").assertIsDisplayed()
   compose.onNodeWithText("kg").assertDoesNotExist()
-  compose.onNodeWithText("体表面积").assertIsDisplayed()
+  compose.onNodeWithText("体表 m²").assertIsDisplayed()
   compose.onNodeWithText("1.685").assertIsDisplayed()
+  compose.onNodeWithText("BMI").assertIsDisplayed()
+  compose.onNodeWithText("22.9").assertIsDisplayed()
   val timeBlock=compose.onNodeWithContentDescription("体重卡片时间色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val weightBlock=compose.onNodeWithContentDescription("体重卡片数值色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val bsaBlock=compose.onNodeWithContentDescription("体重卡片体表面积色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f)
-  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f)
+  val bmiBlock=compose.onNodeWithContentDescription("体重卡片BMI色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f);assertEquals(bsaBlock.width,bmiBlock.width,1f)
+  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f);assertEquals(bsaBlock.height,bmiBlock.height,1f)
   compose.onNodeWithContentDescription("体重模块标题").performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
  }

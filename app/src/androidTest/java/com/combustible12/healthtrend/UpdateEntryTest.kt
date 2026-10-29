@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 class UpdateEntryTest {
  @get:Rule val compose=createAndroidComposeRule<MainActivity>()
  @Test fun updateButtonIsAtMineBottomImmediatelyBeforeBackToTop() {
-  compose.onNodeWithText("我的").performClick()
+  compose.onNodeWithText("她的").performClick()
   compose.onNodeWithText("一键更新并升级").performScrollTo().assertIsDisplayed().assertIsEnabled().assertHasClickAction()
   compose.onNodeWithText("回到顶部").performScrollTo().assertIsDisplayed()
   val update=compose.onNodeWithText("一键更新并升级").assertIsDisplayed().fetchSemanticsNode().boundsInRoot

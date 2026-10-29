@@ -169,7 +169,7 @@ private fun URI(s:String)=java.net.URI(s)
    dismissButton={TextButton({restoreConfirm=false}){Text("取消")}})
  }
  if(archiveOpen){ArchivedReports(store,archiveRevision,{archiveOpen=false},{restoreEvent=it});return}
- Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
+ Screen(m,"她的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
    @Composable fun PatientField(label:String,value:String,onChange:(String)->Unit,readOnly:Boolean=false){AppInputField(value,onChange,label=label,readOnly=readOnly,singleLine=label!="备注",minLines=if(label=="备注")2 else 1,containerColor=Warm)}
    PatientField("姓名",patient.name,{patient=patient.copy(name=it)})
@@ -177,7 +177,7 @@ private fun URI(s:String)=java.net.URI(s)
    val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years.toString()}.getOrDefault("")
    PatientField("年龄",age,{},true)
    PatientField("性别",patient.sex,{patient=patient.copy(sex=it)})
-   PatientField("身高 cm",patient.heightCm,{patient=patient.copy(heightCm=sanitizeProfileHeight(it))})
+   PatientField("身高 cm",patient.heightCm,{patient=patient.copy(heightCm=sanitizeHeightInput(it))})
    PatientField("血型（ABO / Rh，例如 A型 Rh阳性）",patient.bloodType,{patient=patient.copy(bloodType=it)})
    PatientField("备注",patient.note,{patient=patient.copy(note=it)})
    Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料",color=Color.White)}}
@@ -207,7 +207,7 @@ private fun URI(s:String)=java.net.URI(s)
 
 }
 
-private fun sanitizeProfileHeight(input:String):String{
+internal fun sanitizeHeightInput(input:String):String{
  val filtered=input.replace(',','.').replace('，','.').filter{it.isDigit()||it=='.'}
  val dot=filtered.indexOf('.')
  return if(dot<0)filtered.take(3) else filtered.take(dot).take(3)+"."+filtered.drop(dot+1).filter(Char::isDigit).take(1)
