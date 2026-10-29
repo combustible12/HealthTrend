@@ -947,3 +947,10 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - `UpgradeTest` 增加患者身高保存重读，同时保留旧安装无患者资料时的默认对象断言；旧 JSON/旧体重没有新增字段时按空值读取，不改历史报告或体重数值。
 - 主提交 `146f656715155838ae20ca35f93e524111b5b077` 的同步守卫 run 40906803906 成功；Android quick run 40906803894 成功，`compileDebugKotlin`、全量 JVM 回归和 `compileDebugAndroidTestKotlin` 均通过。尚未运行本轮模拟器交互，不冒充手机实机视觉验收；准备发布 1.0.179（2026102911）。
 - 正式发布提交 `d89cc2b2a832d7249d9be8ecf6e4cc4a92b10944`，Publish HealthTrend run 40907441511 / job 123565950104 成功；最终 373 项 JVM 测试 0 失败、0 错误、0 跳过，签名恢复、纯色无描边规则、Release APK 构建与发布全部通过。实际下载 APK 57,067,464 字节，ZIP 完整；包名 `com.combustible12.healthtrend`、versionName `1.0.179`、versionCode `2026102911`；SHA-256 `7a694c16d5483279c901c4a8b693a927571780a8f3f1f806abc6b135989dadfa` 与资产 digest 一致。apksig V2 验证通过，证书 SHA-256 `5acccb7b281fbe2878ff8e62b57e4a1149c82bcf40e3c0b36d8e709c9da95628` 与旧版一致。
+
+## 2026-10-30 CTCAE 处置文案回归（待执行、未发布）
+
+- BloodCellCtcaeGradeTest 保留 WBC、NEUT#、PLT、HGB 的 CTCAE v5.0 全部数值边界断言。
+- 新断言锁定：正常为“建议：无”；G1 为各指标症状提醒；全部 G2 为“处理：复查血常规。”；白细胞/中性粒细胞、血小板与血红蛋白 G3 分别给出升白、输注血小板和输血的“可能处理”文案。
+- 缺正常下限、比较符号结果或不可换算单位统一标记“暂时无法分级”，保留具体 reason，advice 必须为空，界面不得显示空建议行。
+- 本轮不改变任何分级阈值、报告数据、趋势曲线或发布配置；等待同步守卫，Android/Kotlin 编译留到明确发布时执行。
