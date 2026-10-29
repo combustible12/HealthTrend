@@ -1065,10 +1065,13 @@ class HealthStore(private val context:Context) {
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
   return missing.size
  }
- @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.getInt("radiationNumber"),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
+ @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.optInt("radiationNumber",0),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()),o.optString("triggerDate"))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
  @Synchronized fun saveTreatmentReminder(reminder:TreatmentReminder){
-  require(reminder.radiationNumber>0){"放疗次数必须大于0"};require(reminder.text.isNotBlank()){"请填写提醒内容"}
-  val saved=reminder.copy(text=reminder.text.trim())
+  val triggerDate=reminder.triggerDate.trim()
+  if(triggerDate.isBlank())require(reminder.radiationNumber>0){"放疗次数必须大于0"}
+  else require(runCatching{java.time.LocalDate.parse(triggerDate)}.isSuccess){"提醒日期无效"}
+  require(reminder.text.isNotBlank()){"请填写提醒内容"}
+  val saved=reminder.copy(radiationNumber=if(triggerDate.isBlank())reminder.radiationNumber else 0,text=reminder.text.trim(),triggerDate=triggerDate)
   write("treatment_reminders",JSONArray().apply{(treatmentReminders().filterNot{it.id==saved.id}+saved).forEach{put(treatmentReminderToJson(it))}})
  }
  @Synchronized fun deleteTreatmentReminder(id:String){write("treatment_reminders",JSONArray().apply{treatmentReminders().filterNot{it.id==id}.forEach{put(treatmentReminderToJson(it))}})}
@@ -1153,7 +1156,7 @@ class HealthStore(private val context:Context) {
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
  private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
- private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt)
+ private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
   date=o.getLong("date"),

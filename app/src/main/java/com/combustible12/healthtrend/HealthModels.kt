@@ -230,7 +230,8 @@ data class TreatmentReminder(
  val radiationNumber:Int,
  val text:String,
  val completedAt:Long?=null,
- val createdAt:Long=System.currentTimeMillis()
+ val createdAt:Long=System.currentTimeMillis(),
+ val triggerDate:String=""
 ):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")

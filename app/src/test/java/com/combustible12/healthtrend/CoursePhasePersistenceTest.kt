@@ -52,6 +52,12 @@ class CoursePhasePersistenceTest {
   assertEquals("later",nextDueTreatmentReminder(listOf(later,earlier),3,setOf("earlier"))?.id)
   assertNull(nextDueTreatmentReminder(listOf(earlier.copy(completedAt=3),later.copy(completedAt=4)),9))
  }
+ @Test fun dateReminderTriggersOnOrAfterItsDateWithoutRadiotherapy(){
+  val dated=TreatmentReminder(id="dated",radiationNumber=0,text="普通日期提醒",createdAt=3,triggerDate="2026-10-30")
+  assertNull(nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,10,29)))
+  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,10,30))?.id)
+  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,11,1))?.id)
+ }
  @Test fun duplicateCourseDateIsRejectedWithoutChangingExistingRecord(){
   val store=HealthStore(context)
   val first=CourseRecord(date=java.time.LocalDate.of(2026,10,27).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="原记录",titleAuto=false,noteText="保留")
@@ -64,7 +70,11 @@ class CoursePhasePersistenceTest {
  @Test fun treatmentReminderPersistsSeparatelyFromCourseRecords(){
   val store=HealthStore(context);val reminder=TreatmentReminder(radiationNumber=12,text="找主任做检查")
   store.saveTreatmentReminder(reminder)
+  val dated=TreatmentReminder(radiationNumber=0,text="普通日期事项",triggerDate="2026-10-30")
+  store.saveTreatmentReminder(dated)
   assertTrue(store.courseRecords().isEmpty())
-  assertEquals("找主任做检查",HealthStore(context).treatmentReminders().single().text)
+  val restored=HealthStore(context).treatmentReminders()
+  assertEquals("找主任做检查",restored.first{it.id==reminder.id}.text)
+  assertEquals("2026-10-30",restored.first{it.id==dated.id}.triggerDate)
  }
 }
