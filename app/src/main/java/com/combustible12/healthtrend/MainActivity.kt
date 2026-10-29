@@ -770,7 +770,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
      "CTCAE v5.0 分级：${grade.label}"+grade.reason?.let{"（$it）"}.orEmpty(),
      color=Ink,fontSize=13.sp,fontWeight=FontWeight.Bold
     )
-    Text("建议：${grade.advice}",color=Muted,fontSize=13.sp)
+    grade.advice?.let{Text(it,color=Muted,fontSize=13.sp)}
    }
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{

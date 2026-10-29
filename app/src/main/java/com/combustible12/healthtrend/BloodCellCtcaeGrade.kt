@@ -4,7 +4,7 @@ internal data class BloodCellCtcaeGrade(
  val grade:Int?,
  val label:String,
  val reason:String?=null,
- val advice:String
+ val advice:String?=null
 )
 
 /**
@@ -19,7 +19,7 @@ internal fun bloodCellCtcaeV5Grade(result:LabResult):BloodCellCtcaeGrade? {
   "HGB"->"g/L"
   else->return null
  }
- fun unable(reason:String)=BloodCellCtcaeGrade(null,"无法判定",reason,bloodCellCtcaeAdvice(key,null))
+ fun unable(reason:String)=BloodCellCtcaeGrade(null,"暂时无法分级",reason)
  if(result.comparator.isNotBlank())return unable("结果带比较符号")
  if('?' in result.referenceRaw||result.reportFlag.length>1)return unable("参考范围不完整")
  val normalized=UnitNormalizer.normalize(key,result.value,result.unitAtTest)
@@ -41,20 +41,20 @@ internal fun bloodCellCtcaeV5Grade(result:LabResult):BloodCellCtcaeGrade? {
  return BloodCellCtcaeGrade(grade,"G$grade",advice=bloodCellCtcaeAdvice(key,grade))
 }
 
-private fun bloodCellCtcaeAdvice(key:String,grade:Int?):String {
- if(grade==null)return "请先核对原报告的数值、单位和正常下限，必要时咨询治疗团队。"
- if(grade==0)return "无需因本项分级额外处理，按原计划复查。"
- val urgent=when(key){
-  "WBC","NEUT#"->"体温达到 38℃或出现寒战等感染表现时，立即联系治疗团队或就医。"
-  "PLT"->"出现出血不止、黑便、血尿或剧烈头痛时，立即就医。"
-  "HGB"->"出现气促、胸痛、明显头晕或晕厥时，立即就医。"
-  else->"症状明显或迅速加重时，及时就医。"
+private fun bloodCellCtcaeAdvice(key:String,grade:Int):String {
+ if(grade==0)return "建议：无"
+ if(grade==1)return when(key){
+  "WBC","NEUT#"->"建议：轻度降低。38℃或寒战等，就医。"
+  "PLT"->"建议：轻度降低。出血不止、黑便、血尿或剧烈头痛时，就医。"
+  "HGB"->"建议：轻度降低。出现气促、胸痛、明显头晕或晕厥时，就医。"
+  else->"建议：轻度降低。"
  }
- return when(grade){
-  1->"轻度降低，按原计划复查。$urgent"
-  2->"尽快联系治疗团队，确认复查时间和后续治疗安排。$urgent"
-  3->"当天联系治疗团队；是否延迟或调整治疗、采取支持处理，由医生评估。$urgent"
-  else->"立即联系治疗团队。$urgent"
+ if(grade==2)return "处理：复查血常规。"
+ return when(key){
+  "WBC","NEUT#"->"可能处理：升白针、抗感染或调整治疗。"
+  "PLT"->"可能处理：输注血小板或调整治疗。"
+  "HGB"->if(grade==3)"可能处理：输血。" else "急救。"
+  else->""
  }
 }
 
