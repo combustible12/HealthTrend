@@ -19,3 +19,9 @@
 - 用户确认：港维护使用白底，与下方病程卡片左右边缘对齐；高度与上方放疗日筛选按钮一致。
 - CourseRecords.kt：复用时间线的横向偏移、尾部留白和22dp轴列缩进；港维护与分类筛选共用32dp高度，移除维护行上下撑高的padding。日期计算、持久化与已维护动作不变。
 - CourseNavigationTest 增加实际页面的左右边缘和筛选按钮等高断言；已完成源码与尺寸链审查，尚未运行Android设备测试，不宣称实机验收。未修改发布配置。
+
+## 2026-10-28 输入控件硬约束修复
+
+- 新增唯一共享 `AppInputField`：标题固定在输入区外，输入区使用实色背景，所有状态的边框和底部指示线透明。
+- 清除 MainActivity、CourseRecords、Editors、Updates 中残留的 `OutlinedTextField`，业务页面禁止直接调用 Material `TextField`。
+- 新增静态脚本与 JVM 回归测试；主分支检查和正式发布均会拒绝重新引入线框或绕过共享组件的提交。

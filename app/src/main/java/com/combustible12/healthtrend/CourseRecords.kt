@@ -459,7 +459,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},onOpenWeightTrend)
     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    }
-   OutlinedTextField(record.symptomText,{record=record.copy(symptomText=it)},modifier=Modifier.fillMaxWidth(),minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   AppInputField(record.symptomText,{record=record.copy(symptomText=it)},minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}})
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
    if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
@@ -472,7 +472,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{i->viewingKind="medicine";viewingIndex=i},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Notes,"备注")
-   OutlinedTextField(record.noteText,{record=record.copy(noteText=it)},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+   AppInputField(record.noteText,{record=record.copy(noteText=it)},minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
    if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{i->viewingKind="note";viewingIndex=i},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -524,7 +524,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    }){Text("设置提醒")}
   }
   if(active){
-   OutlinedTextField(record.reminderText,{onChange(record.copy(reminderText=it,reminderCompletedAt=null))},Modifier.fillMaxWidth(),label={Text("提醒内容")},singleLine=true)
+   AppInputField(record.reminderText,{onChange(record.copy(reminderText=it,reminderCompletedAt=null))},label="提醒内容",singleLine=true)
    Surface(onClick={
     val initial=runCatching{LocalDate.parse(record.reminderDate)}.getOrElse{LocalDate.now()}
     android.app.DatePickerDialog(context,{_,year,month,day->onChange(record.copy(reminderDate=LocalDate.of(year,month+1,day).toString(),reminderCompletedAt=null))},initial.year,initial.monthValue-1,initial.dayOfMonth).show()
@@ -544,7 +544,7 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
  val query=value.trim()
  val suggestions=options.filter{it!=query&&(query.isBlank()||it.contains(query,ignoreCase=true))}.take(5)
  Column(Modifier.fillMaxWidth()){
-  OutlinedTextField(value,onChange,modifier=Modifier.fillMaxWidth().onFocusChanged{focused=it.isFocused},singleLine=minLines==1,minLines=minLines,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}},colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+  AppInputField(value,onChange,singleLine=minLines==1,minLines=minLines,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}},onFocusedChange={focused=it})
   if(focused&&suggestions.isNotEmpty())Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(bottomStart=12.dp,bottomEnd=12.dp),color=Color.White,shadowElevation=3.dp){
    Column{suggestions.forEachIndexed{index,option->
     Text(option,Modifier.fillMaxWidth().clickable{onChange(option)}.padding(horizontal=14.dp,vertical=11.dp),maxLines=2,overflow=TextOverflow.Ellipsis)
@@ -557,7 +557,7 @@ internal fun CourseRecord.isReminderDue(today:LocalDate)=reminderText.isNotBlank
 @Composable private fun CourseDateField(value:String,onChange:(String)->Unit){
  val context=LocalContext.current
  Box(Modifier.fillMaxWidth()){
-  OutlinedTextField(value,{},Modifier.fillMaxWidth(),placeholder={Text("选择日期")},trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true,colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,disabledContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent))
+  AppInputField(value,{},placeholder={Text("选择日期")},trailingIcon={Icon(Icons.Outlined.CalendarMonth,null)},readOnly=true,singleLine=true)
   Box(Modifier.matchParentSize().clickable{
    val initial=runCatching{LocalDate.parse(value)}.getOrElse{LocalDate.now()}
    android.app.DatePickerDialog(context,{_,year,month,day->
@@ -651,7 +651,7 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
      }
     }}
    }
-   OutlinedTextField(name,{name=it},label={Text("新分类名称")},singleLine=true,modifier=Modifier.fillMaxWidth(),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Color.White,unfocusedContainerColor=Color.White,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent,errorBorderColor=Color.Transparent))
+   AppInputField(name,{name=it},label="新分类名称",singleLine=true)
    TextButton({draft=draft+candidate;name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&candidate !in draft){Text("添加分类")}
   }
  },confirmButton={TextButton({update(draft);close()}){Text("完成")}})

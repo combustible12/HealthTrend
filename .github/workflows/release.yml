@@ -42,6 +42,8 @@ jobs:
           gradle-version: '8.9'
       - name: Verify signing key recovery
         run: java ci/VerifySigning.java
+      - name: Enforce borderless input design
+        run: python3 ci/check_ui_design_rules.py
       - name: Verify final release regression tests
         # User explicitly requested this version be published without more tests.
         if: env.HEALTHTREND_VERSION_CODE != '2026102402'

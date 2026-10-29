@@ -171,8 +171,7 @@ private fun URI(s:String)=java.net.URI(s)
  if(archiveOpen){ArchivedReports(store,archiveRevision,{archiveOpen=false},{restoreEvent=it});return}
  Screen(m,"我的","本地记录 · HealthTrend ${BuildConfig.VERSION_NAME}"){
   Paper{if(editPatient){
-   val fieldColors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent)
-   @Composable fun PatientField(label:String,value:String,onChange:(String)->Unit,readOnly:Boolean=false){Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(label,color=Muted,fontSize=12.sp);OutlinedTextField(value,onChange,modifier=Modifier.fillMaxWidth(),readOnly=readOnly,singleLine=label!="备注",minLines=if(label=="备注")2 else 1,colors=fieldColors)}}
+   @Composable fun PatientField(label:String,value:String,onChange:(String)->Unit,readOnly:Boolean=false){AppInputField(value,onChange,label=label,readOnly=readOnly,singleLine=label!="备注",minLines=if(label=="备注")2 else 1,containerColor=Warm)}
    PatientField("姓名",patient.name,{patient=patient.copy(name=it)})
    PatientField("出生日期（YYYY-MM-DD）",patient.birthDate,{patient=patient.copy(birthDate=it)})
    val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years.toString()}.getOrDefault("")
@@ -247,7 +246,7 @@ private fun URI(s:String)=java.net.URI(s)
     TextButton({showAuth=!showAuth}){Text("私有仓库访问设置",color=Muted)}
    }
    if(showAuth){
-    OutlinedTextField(token,{token=it},label={Text("GitHub 访问令牌")},visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth(),singleLine=true)
+    AppInputField(token,{token=it},label="GitHub 访问令牌",visualTransformation=PasswordVisualTransformation(),singleLine=true)
     TextButton({try{credentials.save(token);status="访问设置已保存";showAuth=false}catch(e:Exception){error("访问设置保存失败")}}){Text("保存设置")}
    }
    Button({
@@ -289,7 +288,7 @@ private fun URI(s:String)=java.net.URI(s)
      options.forEach{option->FilterChip(selected=value==option,onClick={onSelect(option)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=if(label=="ABO")SelectedTint else Warm),label={Text(option.ifEmpty{"未填写"},fontWeight=if(value==option)FontWeight.SemiBold else FontWeight.Normal)})}
     }
    }
-   OutlinedTextField(value=draft.testedDate,onValueChange={draft=draft.copy(testedDate=it)},placeholder={Text("检测日期 YYYY-MM-DD")},singleLine=true,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Warm,unfocusedContainerColor=Warm,disabledContainerColor=Warm,errorContainerColor=Warm,focusedBorderColor=Color.Transparent,unfocusedBorderColor=Color.Transparent,disabledBorderColor=Color.Transparent,errorBorderColor=Color.Transparent))
+   AppInputField(value=draft.testedDate,onValueChange={draft=draft.copy(testedDate=it)},placeholder={Text("检测日期 YYYY-MM-DD")},singleLine=true,containerColor=Warm)
    Choice("ABO",draft.abo,listOf("","A","B","AB","O")){draft=draft.copy(abo=it)}
    Choice("Rh(D)",draft.rhD,listOf("","阳性","阴性")){draft=draft.copy(rhD=it)}
    Choice("Rh(C)",draft.rhC,listOf("","阳性","阴性")){draft=draft.copy(rhC=it)}

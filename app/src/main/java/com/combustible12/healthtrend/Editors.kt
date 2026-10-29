@@ -483,7 +483,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
   EntryKind.MEDICAL->{RememberedField(e.hospital,{e=e.copy(hospital=it)},"医院",remember(store){store.rememberedHospitals()});Field(e.category,{e=e.copy(category=it)},"分类（诊断、影像、出院等）")}
   EntryKind.MEDICATION->{Field(e.dose,{e=e.copy(dose=it)},"每次剂量（注明单位）");Field(e.frequency,{e=e.copy(frequency=it)},"用药频率 / 时间");Field(e.route,{e=e.copy(route=it)},"使用方式");Field(end,{end=it},"结束时间（选填）YYYY-MM-DD HH:mm")}
  }
- OutlinedTextField(e.note,{e=e.copy(note=it)},label={Text("备注 / 详细记录")},modifier=Modifier.fillMaxWidth(),minLines=3,trailingIcon={if(e.note.isNotEmpty())IconButton({e=e.copy(note="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
+ AppInputField(e.note,{e=e.copy(note=it)},label="备注 / 详细记录",minLines=3,trailingIcon={if(e.note.isNotEmpty())IconButton({e=e.copy(note="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
  PhotoInputButtons(photoInput,!busy,"相册添加照片")
  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
  e.images.forEachIndexed{i,u->Row(verticalAlignment=Alignment.CenterVertically){TextButton({viewingImage=i}){Text("查看第 ${i+1} 张原图")};IconButton({pendingImageReplace=i;replaceInput.gallery()},enabled=!busy){Icon(Icons.Outlined.Edit,"更换图片")};IconButton({pendingImageRemoval=i}){Icon(Icons.Outlined.Close,"移除图片")}}}
