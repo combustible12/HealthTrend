@@ -6,7 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -95,14 +94,7 @@ private fun pulseValueColor(value:Int?):Color=when{
  }
 }
 @Composable private fun CompactPressureField(value:String,onValueChange:(String)->Unit,modifier:Modifier=Modifier,hint:String="",fill:Color=Color.White,ink:Color=Ink){
- Box(modifier.height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(fill).padding(horizontal=5.dp),contentAlignment=Alignment.Center){
-  BasicTextField(value,onValueChange,modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=17.sp,color=ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center),decorationBox={inner->
-   Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
-    if(value.isEmpty()&&hint.isNotBlank())Text(hint,fontSize=12.sp,color=Muted)
-    inner()
-   }
-  })
- }
+ AppCompactInput(value,onValueChange,modifier,hint,fill,androidx.compose.ui.text.TextStyle(fontSize=17.sp,color=ink,textAlign=androidx.compose.ui.text.style.TextAlign.Center))
 }
 private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  value==null->Color(0xFFF2F2F2)
@@ -160,15 +152,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
     IconButton(add){Icon(Icons.Outlined.Add,"新增病程记录",tint=Accent)}
    }
    Spacer(Modifier.height(12.dp))
-   Row(Modifier.fillMaxWidth().padding(top=6.dp).height(36.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
-    Icon(Icons.Outlined.Search,null,tint=Muted,modifier=Modifier.size(20.dp))
-    Spacer(Modifier.width(10.dp))
-    Box(Modifier.weight(1f),contentAlignment=Alignment.CenterStart){
-     if(search.isEmpty())Text("搜索病程记录",fontSize=14.sp,color=Muted)
-     BasicTextField(search,{search=it},modifier=Modifier.fillMaxWidth(),singleLine=true,textStyle=androidx.compose.ui.text.TextStyle(fontSize=14.sp,color=Ink))
-    }
-    if(search.isNotEmpty())IconButton({search=""},modifier=Modifier.size(28.dp)){Icon(Icons.Outlined.Clear,"清空搜索",modifier=Modifier.size(18.dp))}
-   }
+   AppSearchField(search,{search=it},"搜索病程记录",Modifier.fillMaxWidth().padding(top=6.dp),height=36.dp,showSearchIcon=true,shape=RoundedCornerShape(12.dp))
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}

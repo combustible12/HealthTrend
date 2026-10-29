@@ -914,6 +914,6 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 
 ## 2026-10-28 输入控件设计规则回归
 
-- `UiDesignRuleTest` 枚举业务 Kotlin 源码，拒绝任何 `OutlinedTextField`，并拒绝业务文件绕过 `AppInputField` 直接调用 Material `TextField`。
-- 静态发布检查同时确认共享组件保留外部字段标题及透明的聚焦、未聚焦、禁用、错误指示线。
-- 本轮行为范围仅为输入控件视觉和发布守卫；数据保存、提醒逻辑及医疗规则不变。
+- `UiDesignRuleTest` 枚举业务 Kotlin 源码，拒绝 OutlinedTextField、Material TextField、业务层 BasicTextField、OutlinedButton、OutlinedCard、BorderStroke、Modifier.border，并要求每个 FilterChip 明确 `border=null`。
+- 静态发布检查确认公共输入直接基于 `BasicTextField`，不存在 TextFieldDefaults 或透明 Material 指示线，并输出违规文件与行号。
+- `AppInputFieldTest` 覆盖外部标签、输入与聚焦、错误状态和禁用状态；数据保存、提醒逻辑及医疗规则不变。

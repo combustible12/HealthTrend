@@ -22,6 +22,6 @@
 
 ## 2026-10-28 输入控件硬约束修复
 
-- 新增唯一共享 `AppInputField`：标题固定在输入区外，输入区使用实色背景，所有状态的边框和底部指示线透明。
-- 清除 MainActivity、CourseRecords、Editors、Updates 中残留的 `OutlinedTextField`，业务页面禁止直接调用 Material `TextField`。
-- 新增静态脚本与 JVM 回归测试；主分支检查和正式发布均会拒绝重新引入线框或绕过共享组件的提交。
+- 统一输入体系改为直接基于 `BasicTextField` 构建，不再使用 Material `TextField` 及透明指示线；标题固定在输入区外，正常、聚焦、错误和禁用状态都不生成边框。
+- MainActivity、CourseRecords、Editors、Updates、ImageDocuments 的普通输入、搜索、紧凑数值和行内编辑均接入同一基础组件；清除描边按钮，并补齐 FilterChip 的 `border=null`。
+- 静态脚本、JVM 回归和 Compose UI 用例同步覆盖；主分支检查和正式发布会按文件与行号拒绝禁用组件、业务层直接 BasicTextField、描边按钮及筛选边框。

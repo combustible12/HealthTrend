@@ -24,7 +24,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -389,7 +388,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
  TreatmentReminderPanel(reminders,saveReminder,deleteReminder)
  }
- if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){BasicTextField(pastedText,{pastedText=it},modifier=Modifier.fillMaxWidth().heightIn(min=220.dp).background(Color.White,RoundedCornerShape(14.dp)).padding(14.dp),textStyle=LocalTextStyle.current.copy(color=Ink,fontSize=16.sp))}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
+ if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){AppInputField(pastedText,{pastedText=it},minHeight=220.dp,minLines=8)}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }
 @Composable private fun TreatmentReminderPanel(reminders:List<TreatmentReminder>,save:(TreatmentReminder)->Unit,delete:(String)->Unit){
  var editing by remember{mutableStateOf<TreatmentReminder?>(null)}
@@ -541,7 +540,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
   Row(Modifier.horizontalScroll(categoryScroll)){trendCategories.forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-  BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(48.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(8.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("查找指标",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
+  AppSearchField(query,{query=it},"查找指标",height=48.dp,shape=RoundedCornerShape(8.dp))
   if(category=="体重"&&query.isBlank()){
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({editingWeight=null;weightText="";val now=java.time.ZonedDateTime.now();weightDate=now.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));weightTime=now.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
@@ -701,16 +700,7 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
       Text("记录时间",fontSize=12.sp,color=Muted)
       ClockTimeSelector(weightTime,{weightTime=it},Modifier.fillMaxWidth().padding(top=6.dp))
      }
-     Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=16.dp,vertical=12.dp)){
-      Text("体重 kg",fontSize=12.sp,color=Muted)
-      BasicTextField(
-       value=weightText,
-       onValueChange={weightText=it.filter{ch->ch.isDigit()||ch=='.'}},
-       modifier=Modifier.fillMaxWidth().padding(top=6.dp),
-       singleLine=true,
-       textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink)
-      )
-     }
+     AppInputField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label="体重 kg",singleLine=true)
     }
    },
    confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();val time=runCatching{java.time.LocalTime.parse(weightTime,java.time.format.DateTimeFormatter.ofPattern("H:mm"))}.getOrNull();if(kg!=null&&kg>0&&day!=null&&time!=null){val at=day.atTime(time).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg,courseRecordIds=editingWeight?.courseRecordIds.orEmpty()));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},

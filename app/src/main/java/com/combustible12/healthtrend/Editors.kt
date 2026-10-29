@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -58,20 +57,14 @@ val LocalPageVisible=staticCompositionLocalOf{true}
  }}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White
-@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(5.dp)){Text(label,fontSize=13.sp,color=Ink,modifier=Modifier.padding(start=10.dp));Row(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(start=14.dp,end=4.dp),verticalAlignment=Alignment.CenterVertically){BasicTextField(value,onChange,Modifier.weight(1f).padding(vertical=16.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink));if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}}}}
+@Composable fun Field(value:String,onChange:(String)->Unit,label:String,m:Modifier=Modifier){AppInputField(value,onChange,m,label=label,singleLine=true,trailingIcon={if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空$label")}})}
 @Composable fun DataSearchField(value:String,onChange:(String)->Unit,hint:String){
- Row(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(start=14.dp,end=4.dp),verticalAlignment=Alignment.CenterVertically){
-  Box(Modifier.weight(1f).padding(vertical=14.dp)){
-   if(value.isEmpty())Text(hint,color=Muted,fontSize=14.sp)
-   BasicTextField(value,onChange,Modifier.fillMaxWidth(),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink))
-  }
-  if(value.isNotEmpty())IconButton({onChange("")}){Icon(Icons.Outlined.Clear,"清空搜索")}
- }
+ AppSearchField(value,onChange,hint)
 }
 @Composable fun RememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,m:Modifier=Modifier){
  val saved=options.map{it.trim()}.filter{it.isNotBlank()}.distinct()
  Column(m.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp)){
-  if(saved.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){saved.forEach{option->FilterChip(selected=value.trim()==option,onClick={onChange(option)},label={Text(option)},modifier=Modifier.padding(end=8.dp))}}
+  if(saved.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){saved.forEach{option->FilterChip(selected=value.trim()==option,onClick={onChange(option)},label={Text(option)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Field(value,onChange,label)
  }
 }
@@ -197,7 +190,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
    }
   }
   run{
-   OutlinedButton({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth()){Text("+ 添加遗漏指标")}
+   Button({val added=DraftRow();d=d.copy(rows=d.rows+added);editing=added.id},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("+ 添加遗漏指标")}
    Spacer(Modifier.height(12.dp))
   }
  }
@@ -403,7 +396,7 @@ fun updateOcrMetadata(d:ReportDraft,field:String,value:String):ReportDraft=when(
  if(templateOnly)Field(r.trendMeaning,{edit(r.copy(trendMeaning=it))},"趋势说明（箭头在前）")
  if(!templateOnly)Field(r.text,{edit(r.copy(text=it))},"结果（支持 <、>、阴性等）")
  if(lockMetadata){Text("${r.unit.ifBlank{"单位未录入"}} · 参考 ${r.rangeRaw().ifBlank{"未录入"}}",color=Muted)}else{
-  if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp))}}
+  if(unitOptions.isNotEmpty())Row(Modifier.horizontalScroll(rememberScrollState())){unitOptions.forEach{unit->FilterChip(selected=r.unit==unit,onClick={edit(r.copy(unit=unit))},label={Text(unit)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   Field(r.unit,{edit(r.copy(unit=it))},"单位")
   if(LabResultValues.kind(r.text)!=LabValueKind.NUMBER){Field(r.referenceRaw,{edit(r.copy(referenceRaw=it,low="",high=""))},"参考结果（如阴性、未检出，可留空）")}else Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Field(r.low,{edit(r.copy(low=it))},"参考下限",Modifier.weight(1f));Field(r.high,{edit(r.copy(high=it))},"参考上限",Modifier.weight(1f))}
  }

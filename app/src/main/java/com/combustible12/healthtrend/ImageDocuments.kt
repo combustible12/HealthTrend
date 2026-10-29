@@ -29,7 +29,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -335,7 +334,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  Screen(m,"图片资料",spacing=7.dp){
   PhotoInputButtons(photoInput,!busy,"相册导入")
   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-  BasicTextField(query,{query=it},Modifier.fillMaxWidth().height(32.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=14.sp,color=Ink),decorationBox={inner->Row(Modifier.fillMaxSize().background(Color.White,RoundedCornerShape(16.dp)).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){if(query.isEmpty())Text("搜索图片中的文字",fontSize=14.sp,color=Muted);inner()};if(query.isNotEmpty())Icon(Icons.Outlined.Clear,"清空搜索",Modifier.size(18.dp).clickable{query=""},tint=Muted)}})
+  AppSearchField(query,{query=it},"搜索图片中的文字",height=32.dp,shape=RoundedCornerShape(16.dp))
   if(query.isNotBlank()){
    if(hits.isEmpty())Paper{Text("没有找到相关内容")}
    hits.forEach{hit->Paper(Modifier.clickable{open(hit.document,hit.page.pageIndex,hit.blockIndexes)}){Text("${hit.document.title} · 第 ${hit.page.pageIndex+1} 张",fontWeight=FontWeight.Bold);Text(hit.context,fontSize=13.sp,maxLines=3,overflow=TextOverflow.Ellipsis);if(hit.page.indexStatus==ImageIndexStatus.FAILED)Text("本页文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
@@ -411,7 +410,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
     Modifier.weight(1f).height(44.dp).background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=12.dp),
     verticalAlignment=Alignment.CenterVertically
    ){
-    BasicTextField(
+    AppInlineInput(
      value=document.title,
      onValueChange={document=document.copy(title=it)},
      modifier=Modifier.weight(1f),
@@ -465,7 +464,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  if(showNoteEditor)AlertDialog(
   onDismissRequest={showNoteEditor=false},
   title={Text("资料说明")},
-  text={Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=14.dp,vertical=12.dp)){Text("说明文字",fontSize=12.sp,color=Muted);BasicTextField(noteDraft,{noteDraft=it},Modifier.fillMaxWidth().padding(top=6.dp),minLines=6,maxLines=12,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink))}},
+  text={AppInputField(noteDraft,{noteDraft=it},label="说明文字",minLines=6,maxLines=12)},
   confirmButton={TextButton({
    val value=noteDraft.trim();val old=document.pages.firstOrNull{it.isTextPage()}
    val pages=when{value.isBlank()->document.pages.filterNot{it.isTextPage()};old==null->listOf(textPage(value))+document.pages;else->document.pages.map{if(it.id==old.id)it.copy(fullText=value)else it}}
@@ -479,10 +478,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
   onDismissRequest={showLinkEditor=false},
   title={Text(if(page.sourceUrl.isBlank())"添加文章链接" else "图片来源链接")},
   text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-   Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(12.dp)).padding(horizontal=14.dp,vertical=12.dp)){
-    Text("公众号文章 / 网页链接",fontSize=12.sp,color=Muted)
-    BasicTextField(value=linkDraft,onValueChange={linkDraft=it},modifier=Modifier.fillMaxWidth().padding(top=6.dp),singleLine=true,textStyle=LocalTextStyle.current.copy(fontSize=16.sp,color=Ink),decorationBox={inner->Box{if(linkDraft.isBlank())Text("https://mp.weixin.qq.com/...",color=Muted);inner()}})
-   }
+   AppInputField(value=linkDraft,onValueChange={linkDraft=it},label="公众号文章 / 网页链接",placeholder={Text("https://mp.weixin.qq.com/...",color=Muted)},singleLine=true,isError=linkDraft.isNotBlank()&&!linkDraft.trim().let{it.startsWith("https://")||it.startsWith("http://")})
    if(linkDraft.isNotBlank()&&!linkDraft.trim().let{it.startsWith("https://")||it.startsWith("http://")})Text("请输入 http:// 或 https:// 开头的链接",fontSize=12.sp,color=Bad)
   }},
   confirmButton={TextButton({

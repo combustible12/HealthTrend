@@ -193,7 +193,7 @@ private fun URI(s:String)=java.net.URI(s)
      Text(if(backupBusy)"正在备份…" else "备份到文件")
     }
     if(backupBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
-    OutlinedButton({restoreLauncher.launch(arrayOf("application/zip","application/octet-stream"))},enabled=!backupBusy,modifier=Modifier.fillMaxWidth()){Text("选择备份 ZIP 并验证 / 恢复")}
+    Button({restoreLauncher.launch(arrayOf("application/zip","application/octet-stream"))},enabled=!backupBusy,modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Accent)){Text("选择备份 ZIP 并验证 / 恢复")}
     Text("恢复仅限空白安装，不覆盖已有报告或病程；请把 ZIP 再复制一份到其他安全位置。",color=Muted,fontSize=12.sp)
     if(backupStatus.isNotBlank())Text(backupStatus,color=Muted,fontSize=12.sp)
    }

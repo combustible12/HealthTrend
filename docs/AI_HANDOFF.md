@@ -22,5 +22,6 @@
 ## 2026-10-28 输入控件全局规则交接
 
 - 用户已多次确认：任何页面不得出现线框输入框、焦点描边、底部指示线或文字压在边框上的浮动标签。
-- 所有业务输入必须调用 `AppInputField`；字段名由组件固定绘制在实色输入区外部左上方。禁止直接使用 `OutlinedTextField` 或 Material `TextField`。
-- `ci/check_ui_design_rules.py` 已接入变更检查和发布流程；`UiDesignRuleTest` 同步验证源码，违规提交必须阻止发布。
+- 所有业务输入必须调用 `AppInputField`、`AppSearchField`、`AppCompactInput` 或 `AppInlineInput`；这些组件统一落到 `AppInputField.kt` 内唯一的 `BasicTextField` 基础实现。禁止业务层直接使用任何 TextField 变体。
+- 禁止 OutlinedButton、OutlinedCard、BorderStroke、Modifier.border；FilterChip 必须 `border=null`。原生 DatePickerDialog/TimePickerDialog 是功能型系统选择器的明确例外。
+- `ci/check_ui_design_rules.py` 已接入变更检查和发布流程并报告文件/行号；`UiDesignRuleTest` 与 `AppInputFieldTest` 同步验证源码约束及普通、聚焦、错误、禁用输入行为。
