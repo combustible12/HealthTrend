@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "7682229ce9265ad4e585aaf6cc7a3f4c376ec377",
-  "validationMode": "bold-ctcae-grade-and-actionable-metric-specific-guidance",
-  "versionCode": 2026103002,
-  "versionName": "1.0.181"
+  "sourceBaseCommit": "24ded94242dc03dfc5dc03d834f178d76375680b",
+  "validationMode": "concise-ctcae-grade-specific-action-wording",
+  "versionCode": 2026103003,
+  "versionName": "1.0.182"
 }
