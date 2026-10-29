@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "72477f8865cb2e0758aaa657f4a55c7bf59a4b8d",
-  "validationMode": "shared-chemotherapy-growth-factor-marker-color",
-  "versionCode": 2026102909,
-  "versionName": "1.0.177"
+  "sourceBaseCommit": "4ab5468b1e992a73dfc8a404f2c2dd138890fd46",
+  "validationMode": "single-rgba-treatment-event-shape-color",
+  "versionCode": 2026102910,
+  "versionName": "1.0.178"
 }
