@@ -177,10 +177,11 @@ private fun URI(s:String)=java.net.URI(s)
    val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years.toString()}.getOrDefault("")
    PatientField("年龄",age,{},true)
    PatientField("性别",patient.sex,{patient=patient.copy(sex=it)})
+   PatientField("身高 cm",patient.heightCm,{patient=patient.copy(heightCm=sanitizeProfileHeight(it))})
    PatientField("血型（ABO / Rh，例如 A型 Rh阳性）",patient.bloodType,{patient=patient.copy(bloodType=it)})
    PatientField("备注",patient.note,{patient=patient.copy(note=it)})
    Row{TextButton({patient=store.patientProfile();editPatient=false}){Text("取消")};Button({try{store.savePatientProfile(patient);patient=store.patientProfile();editPatient=false}catch(e:Exception){error(e.message?:"患者资料保存失败")}}){Text("保存患者资料",color=Color.White)}}
-  }else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years}.getOrNull();Text(listOfNotNull(patient.sex.takeIf{it.isNotBlank()},patient.birthDate.takeIf{it.isNotBlank()},age?.let{"${it}岁"},patient.bloodType.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"可填写姓名、出生日期和性别"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
+  }else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years}.getOrNull();Text(listOfNotNull(patient.sex.takeIf{it.isNotBlank()},patient.birthDate.takeIf{it.isNotBlank()},age?.let{"${it}岁"},patient.heightCm.takeIf{it.isNotBlank()}?.let{"身高 ${it} cm"},patient.bloodType.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"可填写姓名、出生日期、性别和身高"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
   BloodGroupCard(store,error,changed)
   Card(onClick=records,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text("查看报告 ›",color=Muted)}
@@ -204,6 +205,12 @@ private fun URI(s:String)=java.net.URI(s)
   AppUpdateButton(error)
  }
 
+}
+
+private fun sanitizeProfileHeight(input:String):String{
+ val filtered=input.replace(',','.').replace('，','.').filter{it.isDigit()||it=='.'}
+ val dot=filtered.indexOf('.')
+ return if(dot<0)filtered.take(3) else filtered.take(dot).take(3)+"."+filtered.drop(dot+1).filter(Char::isDigit).take(1)
 }
 
 /** Browse immutable replacement snapshots, never resolve them through the active report ID. */

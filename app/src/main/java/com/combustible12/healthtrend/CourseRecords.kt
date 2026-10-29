@@ -339,15 +339,17 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
 
 @Composable private fun CourseWeightView(weight:WeightRecord,onOpenTrend:()->Unit){
  Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
-  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend),verticalAlignment=Alignment.CenterVertically){
+  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).semantics{contentDescription="体重模块标题"},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Outlined.MonitorWeight,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text("体重",Modifier.weight(1f),color=Muted,fontSize=13.sp,lineHeight=17.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",Modifier.size(18.dp),tint=Muted)
+  }
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+   listOf("时间","体重","体表面积").forEach{label->Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)}
   }
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
    @Composable fun Value(text:String,description:String){Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFE6E6E6)).semantics{contentDescription=description},contentAlignment=Alignment.Center){Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=Ink,maxLines=1,softWrap=false)}}
    Value(weightTimeText(weight.measuredAtEpochMillis),"体重卡片时间色块")
    Value(courseWeightText(weight.kilograms),"体重卡片数值色块")
-   Box(Modifier.weight(1f),contentAlignment=Alignment.CenterStart){Text("kg",fontSize=12.sp,color=Muted)}
-   Spacer(Modifier.weight(1f))
+   Value(bodySurfaceAreaText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片体表面积色块")
   }
  }
 }
@@ -474,7 +476,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
      TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
     }
-    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},onOpenWeightTrend)
+    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},initialWeight?.heightCmAtMeasurement?:store.patientProfile().heightCm.toDoubleOrNull(),onOpenWeightTrend)
     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
    }
    AppInputField(record.symptomText,{record=record.copy(symptomText=it)},minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}})
@@ -555,9 +557,9 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
 
-@Composable private fun CourseWeightEditor(time:String,onTimeChange:(String)->Unit,value:String,onValueChange:(String)->Unit,onOpenTrend:()->Unit){
+@Composable private fun CourseWeightEditor(time:String,onTimeChange:(String)->Unit,value:String,onValueChange:(String)->Unit,heightCm:Double?,onOpenTrend:()->Unit){
  Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).padding(vertical=2.dp),verticalAlignment=Alignment.CenterVertically){
+  Row(Modifier.fillMaxWidth().clickable(onClick=onOpenTrend).padding(vertical=2.dp).semantics{contentDescription="体重模块标题"},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Outlined.MonitorWeight,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("体重",Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp);Icon(Icons.Outlined.ChevronRight,"打开体重趋势",tint=Muted)
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.Top){
@@ -566,12 +568,26 @@ private fun coursePhaseColors(phase:String)=when(phase){
     ClockTimeSelector(time,onTimeChange,Modifier.fillMaxWidth().semantics{contentDescription="体重记录时间"})
    }
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-    Text("体重 kg",fontSize=11.sp,color=Muted,maxLines=1)
+    Text("体重",fontSize=11.sp,color=Muted,maxLines=1)
     CompactPressureField(value,onValueChange,Modifier.fillMaxWidth().semantics{contentDescription="体重输入色块"},fill=Color.White)
+   }
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+    Text("体表面积",fontSize=11.sp,color=Muted,maxLines=1)
+    Box(Modifier.fillMaxWidth().height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(Color.White).semantics{contentDescription="体重编辑体表面积色块"},contentAlignment=Alignment.Center){
+     Text(bodySurfaceAreaText(heightCm,value.toDoubleOrNull()),fontSize=17.sp,color=Ink,maxLines=1,softWrap=false)
+    }
    }
   }
  }
 }
+
+internal fun bodySurfaceAreaSquareMeters(heightCm:Double?,kilograms:Double?):Double?{
+ if(heightCm==null||kilograms==null||!heightCm.isFinite()||!kilograms.isFinite()||heightCm<=0.0||kilograms<=0.0)return null
+ return 0.007184*Math.pow(heightCm,0.725)*Math.pow(kilograms,0.425)
+}
+internal fun bodySurfaceAreaText(heightCm:Double?,kilograms:Double?):String=bodySurfaceAreaSquareMeters(heightCm,kilograms)?.let{
+ java.math.BigDecimal.valueOf(it).setScale(3,java.math.RoundingMode.HALF_UP).toPlainString()
+}?:"—"
 
 internal fun sanitizeWeightInput(input:String):String{
  val filtered=input.replace(',','.').replace('，','.').filter{it.isDigit()||it=='.'}

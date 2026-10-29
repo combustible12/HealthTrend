@@ -139,7 +139,7 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
     it.medicineImages.isNotEmpty()||it.noteImages.isNotEmpty()
   }
   val patient=store.patientProfile()
-  val hasProfile=!store.bloodGroupProfile().isEmpty||patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()
+  val hasProfile=!store.bloodGroupProfile().isEmpty||patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()||patient.heightCm.isNotBlank()
   val hasOwnedImages=listOf(File(context.filesDir,"sources"),File(context.filesDir,"image-documents/images")).any{dir->dir.walkTopDown().any{it.isFile}}
   val hasDictionaryState=store.hasRestoreProtectedConfiguration()
   require(existing==0&&!hasDictionaryState&&!hasProfile&&!hasOwnedImages&&ImageDocumentStore(context).all().isEmpty()){"当前设备已有报告或病程资料。为防止覆盖，禁止直接恢复；请在空白安装环境中恢复"}

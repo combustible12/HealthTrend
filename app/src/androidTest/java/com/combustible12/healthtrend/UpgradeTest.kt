@@ -11,8 +11,9 @@ class UpgradeTest{
   assertEquals(1,store.latestTemplate("原医院","血常规")!!.version)
   // Upgrading an installation with no patient profile must not synthesize demographics or disturb clinical data.
   assertEquals(PatientProfile(),store.patientProfile())
-  store.savePatientProfile(PatientProfile("患者甲","1972-05-06","女","升级后录入"))
+  store.savePatientProfile(PatientProfile("患者甲","1972-05-06","女","升级后录入",heightCm="152"))
   assertEquals("1972-05-06",HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).patientProfile().birthDate)
+  assertEquals("152",HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).patientProfile().heightCm)
   val originalReportTime=report.testedAtEpochMillis
   assertEquals(originalReportTime,HealthStore(InstrumentationRegistry.getInstrumentation().targetContext).reports().single().testedAtEpochMillis)
   store.updateValue(report.id,report.results.single().id,120.0)

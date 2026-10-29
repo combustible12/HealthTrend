@@ -41,4 +41,21 @@ class WeightCoursePersistenceTest {
   store.setWeightForCourse("course-only",at,null)
   assertTrue(store.weightRecords().isEmpty())
  }
+ @Test fun heightIsSnapshottedPerWeightAndProfileChangesDoNotRewriteHistory(){
+  val store=HealthStore(context)
+  val first=LocalDate.of(2026,10,26).atTime(8,15).atZone(zone).toInstant().toEpochMilli()
+  val second=LocalDate.of(2026,10,27).atTime(8,15).atZone(zone).toInstant().toEpochMilli()
+  store.saveWeight(WeightRecord(measuredAtEpochMillis=first,kilograms=49.4))
+  assertNull(store.weightRecords().single().heightCmAtMeasurement)
+
+  store.savePatientProfile(PatientProfile(heightCm="152"))
+  assertEquals(152.0,store.weightRecords().single().heightCmAtMeasurement!!,0.0)
+  assertEquals("1.439",bodySurfaceAreaText(store.weightRecords().single().heightCmAtMeasurement,49.4))
+
+  store.savePatientProfile(PatientProfile(heightCm="160"))
+  assertEquals(152.0,store.weightRecords().single().heightCmAtMeasurement!!,0.0)
+  store.saveWeight(WeightRecord(measuredAtEpochMillis=second,kilograms=49.4))
+  assertEquals(152.0,store.weightRecords().single{it.measuredAtEpochMillis==first}.heightCmAtMeasurement!!,0.0)
+  assertEquals(160.0,store.weightRecords().single{it.measuredAtEpochMillis==second}.heightCmAtMeasurement!!,0.0)
+ }
 }

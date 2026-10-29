@@ -235,7 +235,7 @@ data class TreatmentReminder(
  val triggerDate:String="",
  val triggerTime:String="09:00"
 ):java.io.Serializable
-data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String=""):java.io.Serializable
+data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String="",val heightCm:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
 data class MedicalRecord(val title:String,val hospital:String,val occurredAtEpochMillis:Long,val category:String,val sourceImageUri:String?)
 
@@ -307,5 +307,6 @@ data class WeightRecord(
  val id:String=newId(),
  val measuredAtEpochMillis:Long=System.currentTimeMillis(),
  val kilograms:Double,
- val courseRecordIds:List<String> = emptyList()
+ val courseRecordIds:List<String> = emptyList(),
+ val heightCmAtMeasurement:Double? = null
 ):java.io.Serializable

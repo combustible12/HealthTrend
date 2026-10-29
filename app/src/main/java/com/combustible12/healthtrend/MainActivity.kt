@@ -737,7 +737,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
      AppInputField(weightText,{weightText=it.filter{ch->ch.isDigit()||ch=='.'}},label="体重 kg",singleLine=true)
     }
    },
-   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();val time=runCatching{java.time.LocalTime.parse(weightTime,java.time.format.DateTimeFormatter.ofPattern("H:mm"))}.getOrNull();if(kg!=null&&kg>0&&day!=null&&time!=null){val at=day.atTime(time).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg,courseRecordIds=editingWeight?.courseRecordIds.orEmpty()));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},
+   confirmButton={TextButton({val kg=weightText.toDoubleOrNull();val day=runCatching{java.time.LocalDate.parse(weightDate.replace('/','-'))}.getOrNull();val time=runCatching{java.time.LocalTime.parse(weightTime,java.time.format.DateTimeFormatter.ofPattern("H:mm"))}.getOrNull();if(kg!=null&&kg>0&&day!=null&&time!=null){val at=day.atTime(time).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();store.saveWeight(WeightRecord(id=editingWeight?.id?:newId(),measuredAtEpochMillis=at,kilograms=kg,courseRecordIds=editingWeight?.courseRecordIds.orEmpty(),heightCmAtMeasurement=editingWeight?.heightCmAtMeasurement));weightVersion++;editingWeight=null;showWeight=false}}){Text("保存")}},
    dismissButton={Row { if(editingWeight!=null)TextButton({deletingWeight=editingWeight;showWeight=false}){Text("删除",color=Bad)};TextButton({editingWeight=null;showWeight=false}){Text("取消")} }}
   )
   if(showWeightDatePicker){

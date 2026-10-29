@@ -152,8 +152,13 @@ class HealthStore(private val context:Context) {
  }
  fun bloodGroupProfile():BloodGroupProfile=BloodGroupProfile.fromJson(prefs.getString("blood_group_profile",null))
  @Synchronized fun saveBloodGroupProfile(p:BloodGroupProfile){check(prefs.edit().putString("blood_group_profile",p.validated().toJson().toString()).commit()){"血型保存失败"}}
- fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"),o.optString("bloodType"))}.getOrDefault(PatientProfile()) }
- @Synchronized fun savePatientProfile(p:PatientProfile){val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim()).put("bloodType",p.bloodType.trim());check(prefs.edit().putString("patient_profile",o.toString()).commit())}
+ fun patientProfile():PatientProfile { val raw=prefs.getString("patient_profile",null)?:return PatientProfile();return runCatching{val o=JSONObject(raw);PatientProfile(o.optString("name"),o.optString("birthDate"),o.optString("sex"),o.optString("note"),o.optString("bloodType"),o.optString("heightCm"))}.getOrDefault(PatientProfile()) }
+ @Synchronized fun savePatientProfile(p:PatientProfile){
+  val height=p.heightCm.trim();require(height.isBlank()||height.toDoubleOrNull()?.let{it>0.0&&it.isFinite()}==true){"身高格式不正确"}
+  val o=JSONObject().put("name",p.name.trim()).put("birthDate",p.birthDate.trim()).put("sex",p.sex.trim()).put("note",p.note.trim()).put("bloodType",p.bloodType.trim()).put("heightCm",height)
+  check(prefs.edit().putString("patient_profile",o.toString()).commit())
+  height.toDoubleOrNull()?.let(::backfillMissingWeightHeightSnapshots)
+ }
  @Synchronized fun reports():List<LabReport>{
   migrateDistributionWidthHistoryIfNeeded()
   migrateDimerBasisHistoryIfNeeded()
@@ -1004,13 +1009,18 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteEntry(id:String){write("entries",JSONArray().apply{entries().filterNot{it.id==id}.forEach{put(entryToJson(it))}})}
  private fun legacyCourseWeightOwner(id:String)=Regex("^course:(.+):weight$").matchEntire(id)?.groupValues?.get(1)
  private fun WeightRecord.linkedCourseIds()=(courseRecordIds+listOfNotNull(legacyCourseWeightOwner(id))).distinct()
- private fun weightRecordToJson(r:WeightRecord)=JSONObject().put("id",r.id).put("date",r.measuredAtEpochMillis).put("kg",r.kilograms).put("courseIds",JSONArray(r.courseRecordIds))
- @Synchronized fun weightRecords()=rows(read("weights")){o->WeightRecord(o.getString("id"),o.getLong("date"),o.getDouble("kg"),o.optJSONArray("courseIds")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())}.sortedWith(compareBy<WeightRecord>{it.measuredAtEpochMillis}.thenBy{it.id})
+ private fun weightRecordToJson(r:WeightRecord)=JSONObject().put("id",r.id).put("date",r.measuredAtEpochMillis).put("kg",r.kilograms).put("courseIds",JSONArray(r.courseRecordIds)).apply{r.heightCmAtMeasurement?.let{put("heightCm",it)}}
+ @Synchronized fun weightRecords()=rows(read("weights")){o->WeightRecord(o.getString("id"),o.getLong("date"),o.getDouble("kg"),o.optJSONArray("courseIds")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList(),if(o.has("heightCm")&&!o.isNull("heightCm"))o.optDouble("heightCm").takeIf{it>0.0&&it.isFinite()}else null)}.sortedWith(compareBy<WeightRecord>{it.measuredAtEpochMillis}.thenBy{it.id})
+ @Synchronized private fun backfillMissingWeightHeightSnapshots(heightCm:Double){
+  val records=weightRecords();if(records.none{it.heightCmAtMeasurement==null})return
+  write("weights",JSONArray().apply{records.forEach{put(weightRecordToJson(if(it.heightCmAtMeasurement==null)it.copy(heightCmAtMeasurement=heightCm) else it))}})
+ }
  @Synchronized fun saveWeight(record:WeightRecord){
   require(record.kilograms>0&&record.kilograms.isFinite())
   val current=weightRecords()
   val replaced=current.filter{it.id==record.id||it.measuredAtEpochMillis==record.measuredAtEpochMillis}
-  val saved=record.copy(courseRecordIds=(record.courseRecordIds+replaced.flatMap{it.linkedCourseIds()}).distinct())
+  val snapshot=record.heightCmAtMeasurement?:replaced.firstNotNullOfOrNull{it.heightCmAtMeasurement}?:patientProfile().heightCm.toDoubleOrNull()
+  val saved=record.copy(courseRecordIds=(record.courseRecordIds+replaced.flatMap{it.linkedCourseIds()}).distinct(),heightCmAtMeasurement=snapshot)
   write("weights",JSONArray().apply{(current.filterNot{it.id==record.id||it.measuredAtEpochMillis==record.measuredAtEpochMillis}+saved).sortedWith(compareBy<WeightRecord>{it.measuredAtEpochMillis}.thenBy{it.id}).forEach{put(weightRecordToJson(it))}})
  }
  private fun courseWeightId(courseRecordId:String)="course:$courseRecordId:weight"

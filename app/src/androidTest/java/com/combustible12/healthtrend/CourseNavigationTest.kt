@@ -47,7 +47,7 @@ class CourseNavigationTest {
   val summary=compose.onNodeWithText("脉搏 94 次/分   血压 118/76 mmHg")
   summary.performScrollTo().assertIsDisplayed()
   val add=compose.onNode(hasClickAction() and hasText("添加一组血压-脉搏"))
-  val weight=compose.onNodeWithText("体重")
+  val weight=compose.onNodeWithContentDescription("体重模块标题")
   val weightInput=compose.onNodeWithContentDescription("体重输入色块")
   val symptoms=compose.onNodeWithText("症状")
   symptoms.performScrollTo()
@@ -90,18 +90,22 @@ class CourseNavigationTest {
  }
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
-  val store=HealthStore(context);store.saveCourseRecord(initial)
+  val store=HealthStore(context);store.saveCourseRecord(initial);store.savePatientProfile(PatientProfile(heightCm="165"))
   var savedWeight:Double?=null;var savedAt:Long?=null;var openedTrend=0
   compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{_,weight,at->savedWeight=weight;savedAt=at},{},{_,_->},{openedTrend++})}}
-  val weightTitle=compose.onNodeWithText("体重").performScrollTo().assertIsDisplayed()
+  val weightTitle=compose.onNodeWithContentDescription("体重模块标题").performScrollTo().assertIsDisplayed()
   val symptoms=compose.onNodeWithText("症状").performScrollTo().assertIsDisplayed()
   assertTrue(weightTitle.fetchSemanticsNode().boundsInRoot.top<symptoms.fetchSemanticsNode().boundsInRoot.top)
   compose.onNode(hasSetTextAction() and hasAnyAncestor(hasContentDescription("体重输入色块")),useUnmergedTree=true).performTextInput("61.5")
   compose.onAllNodesWithText("时间").assertCountEquals(2)
   val timeBlock=compose.onNodeWithContentDescription("体重记录时间").fetchSemanticsNode().boundsInRoot
   val weightBlock=compose.onNodeWithContentDescription("体重输入色块").fetchSemanticsNode().boundsInRoot
-  assertEquals(timeBlock.height,weightBlock.height,1f)
-  compose.onNodeWithText("体重 kg").assertIsDisplayed()
+  val bsaBlock=compose.onNodeWithContentDescription("体重编辑体表面积色块").fetchSemanticsNode().boundsInRoot
+  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f)
+  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f)
+  compose.onNodeWithText("体重 kg").assertDoesNotExist()
+  compose.onNodeWithText("体表面积").assertIsDisplayed()
+  compose.onNodeWithText("1.676").assertIsDisplayed()
   weightTitle.performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
   compose.onNodeWithText("保存记录").performClick()
@@ -110,21 +114,25 @@ class CourseNavigationTest {
  @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){
   val at=java.time.LocalDate.of(2026,10,26).atTime(8,20).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
   val initial=CourseRecord(date=at,title="当天病程")
-  val store=HealthStore(context);store.setWeightForCourse(initial.id,at,62.3)
+  val store=HealthStore(context);store.savePatientProfile(PatientProfile(heightCm="165"));store.setWeightForCourse(initial.id,at,62.3)
   var openedTrend=0
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->},{openedTrend++})}}
   compose.onNodeWithText("62.3").assertIsDisplayed()
-  compose.onNodeWithText("kg").assertIsDisplayed()
+  compose.onNodeWithText("kg").assertDoesNotExist()
+  compose.onNodeWithText("体表面积").assertIsDisplayed()
+  compose.onNodeWithText("1.685").assertIsDisplayed()
   val timeBlock=compose.onNodeWithContentDescription("体重卡片时间色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val weightBlock=compose.onNodeWithContentDescription("体重卡片数值色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(timeBlock.height,weightBlock.height,1f)
-  compose.onNodeWithText("体重").performClick()
+  val bsaBlock=compose.onNodeWithContentDescription("体重卡片体表面积色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f)
+  assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f)
+  compose.onNodeWithContentDescription("体重模块标题").performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
  }
  @Test fun editorWeightTitleNavigatesThroughAppToExistingWeightTrend(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithContentDescription("新增病程记录").performClick()
-  compose.onNodeWithText("体重").performScrollTo().performClick()
+  compose.onNodeWithContentDescription("体重模块标题").performScrollTo().performClick()
   compose.onNodeWithText("+ 记录体重").assertIsDisplayed()
   compose.onNodeWithText("暂无体重记录").assertIsDisplayed()
  }

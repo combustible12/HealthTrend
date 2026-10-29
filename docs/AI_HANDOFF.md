@@ -29,3 +29,9 @@
 - 2026-10-29 起不再提供病程检查提醒：不要恢复 CourseReminderEditor、CourseReminderDialog 或 reminderDate 触发。模型/JSON 中旧 reminder 字段仅用于历史备份兼容。
 - 唯一业务提醒是导入页 TreatmentReminder，可按放疗次数或 triggerDate + triggerTime 触发。旧日期数据缺失时间时固定迁移为 09:00。`nextDueTreatmentReminder` 选择 completedAt 为空、本次前台未稍后，且日期时间已到/已逾期或目标次数不高于当前最高“放N”的记录；日期项按日期时间优先，再处理放疗次数项。日期模式另由 `TreatmentReminderNotifications` 使用普通 `AlarmManager.setAndAllowWhileIdle` 发送系统通知；不得改成后台常驻、轮询或要求精确闹钟权限。所有保存/完成/恢复/删除必须经过 HealthStore，以同步系统任务。
 - 升白针是 CourseRecord.growthFactorInjection 的明确治疗事件，不是新的阶段，也不应继续解析新备注。旧 JSON 缺少字段时可由 legacyGrowthFactorInjectionNote 一次性迁移，随后写回。连续注射段只取首日。趋势传递必须使用 TrendEventLayer：化疗三角与升白针圆点直接使用同一 TrendEventShapeColor（完整 RGBA），两类竖线样式完全一致，只以三角和圆点区分；升白针不得新增横轴日期文字。
+## 2026-10-29 当前施工：病程体重增加 BSA
+
+- 用户选择“我的”新增身高，并进一步明确：修改身高后既有历史记录绝不能变化。
+- `PatientProfile.heightCm` 通过原 `patient_profile` JSON 向后兼容保存；`WeightRecord.heightCmAtMeasurement` 冻结每条体重的身高。新记录取当前身高，旧记录首次填写身高时只补一次，后续患者身高变化不回写。
+- 病程卡和编辑页按该条快照使用 DuBois `0.007184 × H^0.725 × W^0.425` 派生三位小数，缺资料显示 `—`，不单独存 BSA。
+- 两处均为时间/体重/体表面积三等分，卡片保持 26dp、编辑页保持 `(38 × 2/3)dp`；`kg` 已移除。需完成本轮编译/回归后再更新状态；当前未发布。
