@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "068625156f28b49adff25dd4a6a6d1b9ba94eb87",
-  "validationMode": "remove-course-reminder-keep-treatment-count-reminders",
-  "versionCode": 2026102904,
-  "versionName": "1.0.172"
+  "sourceBaseCommit": "c0d5f82b46eb27a60dfb5ebc5400d47c2c2694b2",
+  "validationMode": "import-reminders-support-radiotherapy-count-or-date",
+  "versionCode": 2026102905,
+  "versionName": "1.0.173"
 }
