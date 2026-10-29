@@ -22,7 +22,10 @@ class AppInputFieldTest {
   }}}
   listOf("普通输入","错误输入","禁用输入").forEach{compose.onNodeWithText(it).assertIsDisplayed()}
   val normal=compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("normal")))
-  normal.performClick().assertIsFocused().performTextInput("123").assertTextContains("123")
+  normal.performClick()
+  normal.assertIsFocused()
+  normal.performTextInput("123")
+  normal.assertTextContains("123")
   compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("disabled"))).assertIsNotEnabled()
  }
 }
