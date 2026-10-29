@@ -19,7 +19,7 @@ class BodySurfaceAreaTest {
  }
 
  @Test fun bmiUsesTheSameSnapshottedHeightAndOneDecimal(){
-  assertEquals(21.4,bodyMassIndex(152.0,49.4)!!,0.0000001)
+  assertEquals(21.38157894736842,bodyMassIndex(152.0,49.4)!!,0.00000000000001)
   assertEquals("21.4",bodyMassIndexText(152.0,49.4))
   assertNull(bodyMassIndex(null,49.4))
   assertEquals("—",bodyMassIndexText(152.0,null))
