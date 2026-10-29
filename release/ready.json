@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "087ecf989d58f2f65e2af40a9ea6cf11fa84e370",
-  "validationMode": "course-bmi-height-snapshot-ctcae-detail-and-compact-label-spacing",
-  "versionCode": 2026103001,
-  "versionName": "1.0.180"
+  "sourceBaseCommit": "7682229ce9265ad4e585aaf6cc7a3f4c376ec377",
+  "validationMode": "bold-ctcae-grade-and-actionable-metric-specific-guidance",
+  "versionCode": 2026103002,
+  "versionName": "1.0.181"
 }
