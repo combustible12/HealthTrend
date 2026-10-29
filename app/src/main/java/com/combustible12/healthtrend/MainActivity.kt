@@ -73,6 +73,7 @@ val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399)
 val TrendEventLineColor=TreatmentMarkerGray
 const val TrendEventLineAlpha=.28f
+val TrendEventShapeColor=TreatmentMarkerGray.copy(alpha=.38f)
 enum class TrendEventKind { CHEMOTHERAPY,GROWTH_FACTOR_INJECTION }
 data class TrendEventLayer(val kind:TrendEventKind,val dates:List<Long>)
 data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventLayers:List<TrendEventLayer>)
@@ -943,10 +944,10 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
    treatmentEvents.forEach{event->
     Column(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-22.dp.toPx()).roundToInt(),0)}.width(44.dp).semantics{contentDescription="化疗日期 ${trendShortDate(event.epochMillis)}"},horizontalAlignment=Alignment.CenterHorizontally){
      Text(trendShortDate(event.epochMillis),fontSize=9.sp,lineHeight=10.sp,color=TreatmentMarkerGray.copy(alpha=.72f),maxLines=1)
-     Canvas(Modifier.width(10.dp).height(6.dp)){val triangle=Path().apply{moveTo(0f,0f);lineTo(size.width,0f);lineTo(size.width/2f,size.height);close()};drawPath(triangle,TreatmentMarkerGray.copy(alpha=.38f))}
+     Canvas(Modifier.width(10.dp).height(6.dp)){val triangle=Path().apply{moveTo(0f,0f);lineTo(size.width,0f);lineTo(size.width/2f,size.height);close()};drawPath(triangle,TrendEventShapeColor)}
     }
    }
-   injectionEvents.forEach{event->Canvas(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-3.dp.toPx()).roundToInt(),15.dp.toPx().roundToInt())}.size(6.dp).semantics{contentDescription="升白针日期 ${trendShortDate(event.epochMillis)}"}){drawCircle(TrendEventLineColor.copy(alpha=.72f))}}
+   injectionEvents.forEach{event->Canvas(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-3.dp.toPx()).roundToInt(),15.dp.toPx().roundToInt())}.size(6.dp).semantics{contentDescription="升白针日期 ${trendShortDate(event.epochMillis)}"}){drawCircle(TrendEventShapeColor)}}
    timeline.forEachIndexed{slot,date->
     val pointIndex=pointBySlot[slot]?:-1
     val groupWidth=groupWidths[slot]
@@ -1041,7 +1042,7 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
        }
       }
       treatmentEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx())}
-      injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(TrendEventLineColor.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
+      injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(TrendEventShapeColor,3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
        val slopes=monotoneTrendSlopes(indices.map{plotted[it]})
