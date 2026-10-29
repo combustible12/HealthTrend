@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "078e07e3c5dc1358169c827afa4784a28fc63807",
-  "validationMode": "basictextfield-borderless-ui-test-compatible-regression",
-  "versionCode": 2026102902,
-  "versionName": "1.0.170"
+  "sourceBaseCommit": "878a4b43946b8654a32945ef4771ebfe7ab54ede",
+  "validationMode": "borderless-components-and-course-calendar-navigation",
+  "versionCode": 2026102903,
+  "versionName": "1.0.171"
 }
