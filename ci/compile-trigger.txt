@@ -59,3 +59,4 @@
 2026-10-28 keep landscape trend dialog inside safe drawing bounds
 2026-10-28 center landscape trend card with full non-scrolling chart
 2026-10-29 Android system notifications for date-and-time reminders
+2026-10-29 growth factor injection trend event layers
