@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "73bc72d96ff87a2bc0d0ffa5f95fb5a599163ef3",
-  "validationMode": "activity-root-centered-trend-preview-visibility-fix-release-regression",
-  "versionCode": 2026102808,
-  "versionName": "1.0.168"
+  "sourceBaseCommit": "bcf83fc5b9b8408454f4b1802263fa6d254b344a",
+  "validationMode": "borderless-input-global-rule-and-release-guard",
+  "versionCode": 2026102901,
+  "versionName": "1.0.169"
 }
