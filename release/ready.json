@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "fadb1eabfd244b665182be3426152fed845f81fc",
-  "validationMode": "basictextfield-borderless-component-system-regression",
+  "sourceBaseCommit": "078e07e3c5dc1358169c827afa4784a28fc63807",
+  "validationMode": "basictextfield-borderless-ui-test-compatible-regression",
   "versionCode": 2026102902,
   "versionName": "1.0.170"
 }
