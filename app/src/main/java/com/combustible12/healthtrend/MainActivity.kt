@@ -765,7 +765,13 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
    Text(dateText(r.testedAtEpochMillis),color=Muted);Text(r.hospitalKey.ifBlank{"医院未录入"},fontWeight=FontWeight.Medium)
    ResultValueUnit(x.textValue,x.unitAtTest)
    Text("当次参考：${qualitativeDisplayText(x.referenceRaw.ifBlank{rangeText(x.referenceLowAtTest,x.referenceHighAtTest)})} · ${x.resultStatusLabel()}",color=Muted)
-   bloodCellCtcaeV5Display(x)?.let{Text(it,color=Muted,fontSize=13.sp)}
+   bloodCellCtcaeV5Grade(x)?.let{grade->
+    Text(
+     "CTCAE v5.0 分级：${grade.label}"+grade.reason?.let{"（$it）"}.orEmpty(),
+     color=Ink,fontSize=13.sp,fontWeight=FontWeight.Bold
+    )
+    Text("建议：${grade.advice}",color=Muted,fontSize=13.sp)
+   }
    if(editing)Field(editValue,{editValue=it},"结果")
   }},confirmButton={Row{
    if(editing)TextButton({try{if(LabResultValues.valid(editValue)){store.updateResultText(r.id,x.id,editValue);textRevision++;resultChanged();val persisted=store.reports().first{it.id==r.id};selected=persisted to persisted.results.first{it.id==x.id};editing=false}}catch(e:Exception){imageError=e.message?:"保存失败"}},enabled=LabResultValues.valid(editValue)){Text("保存")}
