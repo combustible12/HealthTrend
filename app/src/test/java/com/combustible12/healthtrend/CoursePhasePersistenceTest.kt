@@ -72,6 +72,18 @@ class CoursePhasePersistenceTest {
   assertEquals(listOf(first.id),store.courseRecords().map{it.id})
   assertEquals("保留",store.courseRecords().single().noteText)
  }
+ @Test fun growthFactorInjectionPersistsAndLegacyNoteMigratesOnce(){
+  val store=HealthStore(context)
+  val marked=CourseRecord(title="升白针记录",growthFactorInjection=true)
+  store.saveCourseRecord(marked)
+  assertTrue(HealthStore(context).courseRecords().single().growthFactorInjection)
+
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"legacy-injection","date":2,"phase":"恢复期","title":"","titleAuto":true,"noteText":"打升白针","symptomImages":[],"checkImages":[],"medicineImages":[],"noteImages":[]}]""").commit()
+  val migrated=HealthStore(context).courseRecords().single()
+  assertTrue(migrated.growthFactorInjection)
+  val stored=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).getString("course_records","").orEmpty()
+  assertTrue(stored.contains("\"growthFactorInjection\":true"))
+ }
  @Test fun treatmentReminderPersistsSeparatelyFromCourseRecords(){
   val store=HealthStore(context);val reminder=TreatmentReminder(radiationNumber=12,text="找主任做检查")
   store.saveTreatmentReminder(reminder)

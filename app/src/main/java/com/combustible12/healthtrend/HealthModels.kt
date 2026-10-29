@@ -223,7 +223,8 @@ data class CourseRecord(
  val noteImages:List<String> = emptyList(),
  val createdAt:Long=System.currentTimeMillis(),
  val updatedAt:Long=System.currentTimeMillis(),
- val titleAuto:Boolean=true
+ val titleAuto:Boolean=true,
+ val growthFactorInjection:Boolean=false
 ):java.io.Serializable
 data class TreatmentReminder(
  val id:String=newId(),

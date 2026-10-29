@@ -1034,7 +1034,14 @@ class HealthStore(private val context:Context) {
   saveWeight(target.copy(measuredAtEpochMillis=epochMillis,kilograms=kilograms,courseRecordIds=(target.linkedCourseIds()+current?.linkedCourseIds().orEmpty()+courseRecordId).distinct()))
  }
  @Synchronized fun deleteWeight(id:String){write("weights",JSONArray().apply{weightRecords().filterNot{it.id==id}.forEach{put(weightRecordToJson(it))}})}
- @Synchronized fun courseRecords()=rows(read("course_records"),::courseRecordFromJson).sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
+ @Synchronized fun courseRecords():List<CourseRecord>{
+  val source=read("course_records")
+  val records=rows(source,::courseRecordFromJson)
+  if((0 until source.length()).any{!source.getJSONObject(it).has("growthFactorInjection")}){
+   write("course_records",JSONArray().apply{records.forEach{put(courseRecordToJson(it))}})
+  }
+  return records.sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
+ }
  @Synchronized fun saveCourseRecord(record:CourseRecord){
   val all=courseRecords();val previous=all.firstOrNull{it.id==record.id}
   val zone=java.time.ZoneId.systemDefault();val targetDay=java.time.Instant.ofEpochMilli(record.date).atZone(zone).toLocalDate()
@@ -1163,7 +1170,7 @@ class HealthStore(private val context:Context) {
  private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
- private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt)
+ private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection)
  private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate).put("triggerTime",r.triggerTime)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
@@ -1188,7 +1195,8 @@ class HealthStore(private val context:Context) {
   noteImages=o.optJSONArray("noteImages").stringList(),
   createdAt=o.optLong("createdAt",o.getLong("date")),
   updatedAt=o.optLong("updatedAt",o.getLong("date")),
-  titleAuto=o.optBoolean("titleAuto",o.optString("title").isBlank())
+  titleAuto=o.optBoolean("titleAuto",o.optString("title").isBlank()),
+  growthFactorInjection=if(o.has("growthFactorInjection"))o.optBoolean("growthFactorInjection") else legacyGrowthFactorInjectionNote(o.optString("noteText"))
  )
 }
 /** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */

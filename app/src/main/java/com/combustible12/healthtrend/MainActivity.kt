@@ -70,8 +70,10 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
-val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399)
-data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventDates:List<Long>)
+val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399);val GrowthFactorMarker=Color(0xFF596572)
+enum class TrendEventKind { CHEMOTHERAPY,GROWTH_FACTOR_INJECTION }
+data class TrendEventLayer(val kind:TrendEventKind,val dates:List<Long>)
+data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventLayers:List<TrendEventLayer>)
 private fun hospitalColorMap(keys:List<String>,abnormal:Boolean):Map<String,Color> =
  keys.mapIndexed{slot,key->trendHospitalKey(key) to Color(hospitalPaletteArgb(slot,abnormal))}.toMap()
 private val stamp=DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -323,7 +325,7 @@ class MainActivity:ComponentActivity(){
   reportInfo=viewerReportId?.let{id->reports.firstOrNull{it.id==id}},
   removalMessage=if(viewerReportId!=null)"仅删除这份报告中的图片关联，不影响检查数据和趋势。" else "仅从这条病程记录移除当前图片，不影响其他内容。"
  )
- trendPreview?.let{preview->TrendPreviewDialog(preview.points,preview.color,preview.referenceBands,preview.segmentKeys,preview.segmentColors,preview.metricKey,{trendPreview=null},preview.referenceNotes,preview.timelineDates,preview.eventDates)}
+ trendPreview?.let{preview->TrendPreviewDialog(preview.points,preview.color,preview.referenceBands,preview.segmentKeys,preview.segmentColors,preview.metricKey,{trendPreview=null},preview.referenceNotes,preview.timelineDates,preview.eventLayers)}
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
 }
@@ -539,6 +541,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
  val globalAbnormalHospitalColors=hospitalColorMap(globalHospitalRows,true)
  val weights=remember(weightVersion,revision){store.weightRecords()}
  val chemotherapyDates=remember(revision){chemotherapyEventDates(store.courseRecords())}
+ val growthFactorDates=remember(revision){growthFactorInjectionEventDates(store.courseRecords())}
  val fixedTrendCategories=listOf("血常规","肝功能","肾功能","尿常规","凝血功能","电解质及肾功能","肿瘤标志物","甲状腺功能","传染病筛查","粪便常规","体重")
   val trendCategories=fixedTrendCategories+reports.map{it.reportType}.distinct().filterNot{it in fixedTrendCategories||it=="SCC"}
  val categoryScroll=rememberScrollState()
@@ -597,6 +600,11 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
    val cutoff=when(range){"近3月"->System.currentTimeMillis()-90L*86400000L;"近6月"->System.currentTimeMillis()-183L*86400000L;"近1年"->System.currentTimeMillis()-365L*86400000L;else->Long.MIN_VALUE}
    val points=list.filter{it.first.testedAtEpochMillis>=cutoff}.sortedWith(compareBy<Pair<LabReport,LabResult>>{it.first.testedAtEpochMillis}.thenBy{it.first.id}.thenBy{it.second.id})
    val treatmentDates=chemotherapyDates.filter{it>=cutoff}
+   val injectionDates=growthFactorDates.filter{it>=cutoff}
+   val eventLayers=listOf(
+    TrendEventLayer(TrendEventKind.CHEMOTHERAPY,treatmentDates),
+    TrendEventLayer(TrendEventKind.GROWTH_FACTOR_INJECTION,injectionDates)
+   ).filter{it.dates.isNotEmpty()}
    if(points.isEmpty())return@forEach
    val latest=points.last().second
    val latestStatus=latest.status()
@@ -637,7 +645,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
       metricKey=labDisplayTitle(latest.rawName,latest.metricKey),
       referenceNotes=series.map{it.second.trendRangeEstimateText()}.filter{it.isNotBlank()}.distinct(),
       timelineDates=trendTimelineDates(activeReports,series.map{it.first},cutoff),
-      eventDates=treatmentDates
+      eventLayers=eventLayers
      ))
     }
     Box(Modifier.fillMaxWidth()){
@@ -685,7 +693,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
       valueColors=compatiblePoints.mapIndexed{i,(_,result)->if(result.status()==ResultStatus.UNKNOWN)Muted else pointHospitalColors[i]},
       // Include reports without this metric so a missed measurement breaks the curve.
       timelineDates=trendTimelineDates(activeReports,compatiblePoints.map{it.first},cutoff),
-      eventDates=treatmentDates,
+      eventLayers=eventLayers,
       onShowPreview={trendFocus.clearFocus();openOverallPreview(compatiblePoints)}
      )
     }
@@ -850,7 +858,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  drawPath(second,to,style=Stroke(strokeWidth))
 }
 
-@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},linePointIndices:List<Int>?=null,stackEqualDates:Boolean=false,eventDates:List<Long> = emptyList(),onShowPreview:()->Unit={}){
+@Composable fun Spark(points:List<Pair<Long,Double>>,color:Color,referenceLow:Double?=null,referenceHigh:Double?=null,referenceBands:List<Pair<Double?,Double?>> = emptyList(),segmentKeys:List<String> = emptyList(),segmentColors:List<Color> = emptyList(),onPointClick:((Int)->Unit)?=null,metricKey:String="",pointDescriptions:List<String> = emptyList(),valueLabels:List<String> = emptyList(),valueColors:List<Color> = emptyList(),timelineDates:List<Long> = points.map{it.first},linePointIndices:List<Int>?=null,stackEqualDates:Boolean=false,eventLayers:List<TrendEventLayer> = emptyList(),onShowPreview:()->Unit={}){
  val layout=trendTimeline(points,timelineDates,stackEqualDates)
  val timeline=layout.dates
  val pointSlots=layout.pointSlots
@@ -889,7 +897,9 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
  val allBands=referenceBands+listOf(referenceLow to referenceHigh)
  val plotHeightPx=with(density){plotHeight.toPx()}
  val geometry=trendGeometry(points,timelineDates,segmentKeys,allBands,centered.map{with(density){it.toPx()}},plotHeightPx,stackEqualDates)
- val treatmentEvents=trendEventPositions(eventDates,timeline,centered.map{with(density){it.toPx()}})
+ val positionedEvents=eventLayers.associate{it.kind to trendEventPositions(it.dates,timeline,centered.map{center->with(density){center.toPx()}})}
+ val treatmentEvents=positionedEvents[TrendEventKind.CHEMOTHERAPY].orEmpty()
+ val injectionEvents=positionedEvents[TrendEventKind.GROWTH_FACTOR_INJECTION].orEmpty()
  val treatmentLineTop=with(density){24.dp.toPx()}
  fun pointPosition(index:Int)=geometry.points[index].let{Offset(it.x,it.y)}
  Box(Modifier.fillMaxWidth().horizontalScroll(scroll)){
@@ -919,6 +929,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      referenceLow!=null->{val bottom=y(referenceLow);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
     treatmentEvents.forEach{event->drawLine(TreatmentMarkerGray.copy(alpha=.28f),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
+    injectionEvents.forEach{event->drawLine(GrowthFactorMarker.copy(alpha=.46f),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
     val plotted=points.indices.map(::pointPosition)
     val segments=linePointIndices?.let{selected->
      val valid=selected.filter{it in points.indices}
@@ -933,6 +944,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      Canvas(Modifier.width(10.dp).height(6.dp)){val triangle=Path().apply{moveTo(0f,0f);lineTo(size.width,0f);lineTo(size.width/2f,size.height);close()};drawPath(triangle,TreatmentMarkerGray.copy(alpha=.38f))}
     }
    }
+   injectionEvents.forEach{event->Canvas(Modifier.offset{androidx.compose.ui.unit.IntOffset((event.x-3.dp.toPx()).roundToInt(),15.dp.toPx().roundToInt())}.size(6.dp).semantics{contentDescription="升白针日期 ${trendShortDate(event.epochMillis)}"}){drawCircle(GrowthFactorMarker.copy(alpha=.72f))}}
    timeline.forEachIndexed{slot,date->
     val pointIndex=pointBySlot[slot]?:-1
     val groupWidth=groupWidths[slot]
@@ -945,14 +957,14 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
   }
  }
 }
-@Composable internal fun TrendPreviewAxis(points:List<Pair<Long,Double>>,timelineDates:List<Long>,eventDates:List<Long>){
+@Composable internal fun TrendPreviewAxis(points:List<Pair<Long,Double>>,timelineDates:List<Long>,eventLayers:List<TrendEventLayer>){
  if(points.isEmpty())return
  BoxWithConstraints(Modifier.fillMaxWidth().height(18.dp)){
   val density=LocalDensity.current
   val widthPx=with(density){maxWidth.toPx()}
   val layout=trendTimeline(points,timelineDates)
   val centers=layout.dates.indices.map{i->if(layout.dates.size==1)widthPx/2 else 8f+(widthPx-16f)*i/(layout.dates.size-1)}
-  val events=trendEventPositions(eventDates,layout.dates,centers)
+  val events=trendEventPositions(eventLayers.firstOrNull{it.kind==TrendEventKind.CHEMOTHERAPY}?.dates.orEmpty(),layout.dates,centers)
   Text(trendShortDate(points.first().first),Modifier.align(Alignment.CenterStart),fontSize=10.sp,color=Muted)
   Text(trendShortDate(points.last().first),Modifier.align(Alignment.CenterEnd),fontSize=10.sp,color=Muted)
   val endpoints=setOf(trendShortDate(points.first().first),trendShortDate(points.last().first))
@@ -982,7 +994,7 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
 }
 internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
  then(if(landscape)Modifier.fillMaxWidth(.88f).fillMaxHeight(.82f) else Modifier)
-@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventDates:List<Long> = emptyList()){
+@Composable fun TrendPreviewDialog(points:List<Pair<Long,Double>>,color:Color,referenceBands:List<Pair<Double?,Double?>>,segmentKeys:List<String>,segmentColors:List<Color> = emptyList(),metricKey:String,onDismiss:()->Unit,referenceNotes:List<String> = emptyList(),timelineDates:List<Long> = points.map{it.first},eventLayers:List<TrendEventLayer> = emptyList()){
  val context=LocalContext.current
  val activity=remember(context){context.findActivity()}
  val originalOrientation=remember(activity){activity?.requestedOrientation?:ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED}
@@ -1007,7 +1019,8 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
       val layout=trendTimeline(points,timelineDates)
       val centers=layout.dates.indices.map{i->if(layout.dates.size==1)size.width/2 else 8f+(size.width-16f)*i/(layout.dates.size-1)}
       val geometry=trendGeometry(points,timelineDates,segmentKeys,referenceBands,centers,size.height)
-      val treatmentEvents=trendEventPositions(eventDates,layout.dates,centers)
+      val treatmentEvents=trendEventPositions(eventLayers.firstOrNull{it.kind==TrendEventKind.CHEMOTHERAPY}?.dates.orEmpty(),layout.dates,centers)
+      val injectionEvents=trendEventPositions(eventLayers.firstOrNull{it.kind==TrendEventKind.GROWTH_FACTOR_INJECTION}?.dates.orEmpty(),layout.dates,centers)
       fun y(v:Double)=geometry.scale.y(v,size.height)
       if(referenceBands.size==points.size){
        points.indices.forEach{i->
@@ -1026,6 +1039,7 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
        }
       }
       treatmentEvents.forEach{event->drawLine(TreatmentMarkerGray.copy(alpha=.28f),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx())}
+      injectionEvents.forEach{event->drawLine(GrowthFactorMarker.copy(alpha=.46f),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(GrowthFactorMarker.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
        val slopes=monotoneTrendSlopes(indices.map{plotted[it]})
@@ -1040,7 +1054,7 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
        drawCircle(segmentColors.getOrNull(i)?:color,4.dp.toPx(),p)
       }
      }
-     TrendPreviewAxis(points,timelineDates,eventDates)
+     TrendPreviewAxis(points,timelineDates,eventLayers)
     }
     TextButton({restoreOrientation();onDismiss()},Modifier.align(Alignment.End)){Text("关闭")}
     }

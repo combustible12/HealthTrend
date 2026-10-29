@@ -247,7 +247,19 @@ internal fun chemotherapyEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneI
   .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
 }
 
-internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
+internal fun legacyGrowthFactorInjectionNote(note:String):Boolean{
+ val normalized=note.replace(Regex("\\s+"),"")
+ if("升白针" !in normalized)return false
+ return listOf("未打升白针","没打升白针","不打升白针","不用升白针","无需升白针","计划打升白针","准备打升白针","考虑打升白针","可能打升白针").none{it in normalized}
+}
+
+internal fun growthFactorInjectionEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneId.systemDefault()):List<Long>{
+ val dates=records.filter{it.growthFactorInjection}.map{courseLocalDate(it.date)}.distinct().sorted()
+ return dates.filterIndexed{index,date->index==0||date!=dates[index-1].plusDays(1)}
+  .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
+}
+
+internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&!growthFactorInjection&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
 
 internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
@@ -440,6 +452,8 @@ private fun coursePhaseColors(phase:String)=when(phase){
    }
    Text("阶段",fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase,title="",titleAuto=true)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+   Text("治疗事件",fontWeight=FontWeight.Medium)
+   Row{FilterChip(selected=record.growthFactorInjection,onClick={record=record.copy(growthFactorInjection=!record.growthFactorInjection)},label={Text("升白针")},leadingIcon=if(record.growthFactorInjection){{Icon(Icons.Outlined.Vaccines,null,Modifier.size(18.dp))}}else null,border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=Color(0xFFE3E8ED)))}
    CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
    CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
    Column(verticalArrangement=Arrangement.spacedBy(7.dp)){

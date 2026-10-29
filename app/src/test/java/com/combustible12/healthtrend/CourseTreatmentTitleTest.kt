@@ -77,4 +77,20 @@ class CourseTreatmentTitleTest {
   assertEquals(listOf(day("2026-10-10"),day("2026-10-20")),chemotherapyEventDates(records))
  }
 
+ @Test fun consecutiveGrowthFactorInjectionsUseOnlyFirstDayAsTrendEvent(){
+  val records=listOf(
+   record("2026-10-15","恢复期").copy(growthFactorInjection=true),
+   record("2026-10-22","恢复期").copy(growthFactorInjection=true),
+   record("2026-10-23","恢复期").copy(growthFactorInjection=true),
+   record("2026-10-24","恢复期").copy(growthFactorInjection=true)
+  )
+  assertEquals(listOf(day("2026-10-15"),day("2026-10-22")),growthFactorInjectionEventDates(records))
+ }
+
+ @Test fun legacyGrowthFactorNoteRequiresAnAdministeredStatement(){
+  assertEquals(true,legacyGrowthFactorInjectionNote("今天打升白针"))
+  assertEquals(false,legacyGrowthFactorInjectionNote("计划打升白针"))
+  assertEquals(false,legacyGrowthFactorInjectionNote("未打升白针"))
+ }
+
 }

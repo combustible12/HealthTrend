@@ -79,6 +79,15 @@ class CourseNavigationTest {
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertEquals(initial,saved)}
  }
+ @Test fun courseEditorSavesExplicitGrowthFactorInjectionMarker(){
+  val initial=CourseRecord(title="升白针标记")
+  val store=HealthStore(context);store.saveCourseRecord(initial)
+  var saved:CourseRecord?=null
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_->saved=record},{},{_,_->})}}
+  compose.onNodeWithText("升白针").performScrollTo().assertIsDisplayed().performClick()
+  compose.onNodeWithText("保存记录").performClick()
+  compose.runOnIdle{assertTrue(saved?.growthFactorInjection==true)}
+ }
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
   val store=HealthStore(context);store.saveCourseRecord(initial)
