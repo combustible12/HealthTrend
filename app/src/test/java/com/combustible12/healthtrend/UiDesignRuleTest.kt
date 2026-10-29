@@ -12,8 +12,8 @@ class UiDesignRuleTest {
   assertTrue(sources.isNotEmpty())
   sources.forEach{file->
    val text=file.readText()
-   assertFalse("OutlinedTextField" in text,"${file.name} reintroduced a forbidden outlined field")
-   if(file.name!="AppInputField.kt")assertFalse(Regex("(?<![A-Za-z])TextField\\s*\\(").containsMatchIn(text),"${file.name} bypassed AppInputField")
+   assertFalse("${file.name} reintroduced a forbidden outlined field","OutlinedTextField" in text)
+   if(file.name!="AppInputField.kt")assertFalse("${file.name} bypassed AppInputField",Regex("(?<![A-Za-z])TextField\\s*\\(").containsMatchIn(text))
   }
   val component=File(sourceRoot,"AppInputField.kt").readText()
   assertTrue("focusedIndicatorColor=Color.Transparent" in component)
