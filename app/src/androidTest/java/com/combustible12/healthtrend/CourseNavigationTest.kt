@@ -20,6 +20,7 @@ class CourseNavigationTest {
   val store=HealthStore(context)
   store.saveCoursePhases(listOf("放疗日"))
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->})}}
+  compose.onNodeWithContentDescription("按日期查看病程记录").assertIsDisplayed()
   val bar=compose.onNodeWithContentDescription("港维护色块").fetchSemanticsNode().boundsInRoot
   val card=compose.onNode(hasClickAction() and hasAnyDescendant(hasText("布局核对",substring=true))).fetchSemanticsNode().boundsInRoot
   val filter=compose.onNode(hasText("放疗日") and hasClickAction()).fetchSemanticsNode().boundsInRoot

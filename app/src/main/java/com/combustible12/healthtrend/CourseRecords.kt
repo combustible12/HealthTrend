@@ -134,21 +134,39 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  view:(List<String>,Int)->Unit,
  openWeightTrend:()->Unit={}
 ){
+ val context=LocalContext.current
  var phases by remember{mutableStateOf(store.coursePhases())}
  var managingPhases by rememberSaveable{mutableStateOf(false)}
  var phaseError by remember{mutableStateOf<String?>(null)}
  var filter by rememberSaveable{mutableStateOf("全部")}
  var search by rememberSaveable{mutableStateOf("")}
+ var requestedRecordId by remember{mutableStateOf<String?>(null)}
+ var dateLookupMessage by remember{mutableStateOf<String?>(null)}
  val query=search.trim()
  val shown=records.filter{record->
   (query.isNotBlank()||filter=="全部"||record.phase==filter)&&DataSearch.course(query,record)
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
+ LaunchedEffect(requestedRecordId,shown.map{it.id}){
+  val id=requestedRecordId?:return@LaunchedEffect
+  val index=shown.indexOfFirst{it.id==id}
+  if(index>=0){listState.animateScrollToItem(index);requestedRecordId=null}
+ }
+ fun pickCourseDate(){
+  val initial=records.firstOrNull()?.let{courseLocalDate(it.date)}?:LocalDate.now()
+  android.app.DatePickerDialog(context,{_,year,month,day->
+   val selected=LocalDate.of(year,month+1,day)
+   val target=courseRecordForDate(records,selected)
+   if(target==null)dateLookupMessage="${selected.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))} 没有病程记录"
+   else{filter="全部";search="";requestedRecordId=target.id}
+  },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
+ }
  Box(modifier.fillMaxSize()){
   Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
    Spacer(Modifier.height(12.dp))
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Text("病程记录",modifier=Modifier.weight(1f).pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
+    IconButton(::pickCourseDate){Icon(Icons.Outlined.CalendarMonth,"按日期查看病程记录",tint=Accent)}
     IconButton(add){Icon(Icons.Outlined.Add,"新增病程记录",tint=Accent)}
    }
    Spacer(Modifier.height(12.dp))
@@ -180,7 +198,10 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   runCatching{store.saveCoursePhases(updated)}.onSuccess{phases=store.coursePhases();if(filter!="全部"&&filter !in phases)filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
+ dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}
 }
+
+internal fun courseRecordForDate(records:List<CourseRecord>,date:LocalDate):CourseRecord?=records.firstOrNull{courseLocalDate(it.date)==date}
 
 internal val chemotherapyCoursePhases=setOf("化疗","化疗日","放化")
 private val radiotherapyCoursePhases=setOf("放疗","放疗日","放化")

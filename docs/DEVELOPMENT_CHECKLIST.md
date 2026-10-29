@@ -25,3 +25,4 @@
 - 统一输入体系改为直接基于 `BasicTextField` 构建，不再使用 Material `TextField` 及透明指示线；标题固定在输入区外，正常、聚焦、错误和禁用状态都不生成边框。
 - MainActivity、CourseRecords、Editors、Updates、ImageDocuments 的普通输入、搜索、紧凑数值和行内编辑均接入同一基础组件；清除描边按钮，并补齐 FilterChip 的 `border=null`。
 - 静态脚本、JVM 回归和 Compose UI 用例同步覆盖；主分支检查和正式发布会按文件与行号拒绝禁用组件、业务层直接 BasicTextField、描边按钮及筛选边框。
+- 病程标题栏新增日期查看入口：原生日期选择器按本地日期匹配记录，命中后重置筛选并滚动到对应卡片；未命中仅提示，不触发新增流程。
