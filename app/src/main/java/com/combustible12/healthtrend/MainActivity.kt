@@ -3,7 +3,10 @@
 package com.combustible12.healthtrend
 
 import android.os.Bundle
+import android.os.Build
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
@@ -87,12 +90,26 @@ fun preserveTimestamp(input:String,original:Long?):Long?=if(original!=null&&inpu
 fun ResultStatus.label()=when(this){ResultStatus.LOW->"偏低";ResultStatus.HIGH->"偏高";ResultStatus.NORMAL->"范围内";ResultStatus.UNKNOWN->"待判断"}
 fun rangeText(low:Double?,high:Double?)=when{low!=null&&high!=null->"$low–$high";low!=null->"≥$low";high!=null->"≤$high";else->"未录入"}
 fun statusColor(s:ResultStatus)=when(s){ResultStatus.LOW,ResultStatus.HIGH->Bad;ResultStatus.NORMAL->Good;else->Muted}
-class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.onCreate(b);enableEdgeToEdge();setContent{MaterialTheme(colorScheme=lightColorScheme(background=Warm,surface=Color.White,primary=Accent,onPrimary=Ink,onSurface=Ink)){App()}}}}
+class MainActivity:ComponentActivity(){
+ private var reminderOpenSequence by mutableIntStateOf(0)
+ override fun onCreate(b:Bundle?){
+  super.onCreate(b)
+  TreatmentReminderNotifications.rescheduleAll(this)
+  if(intent.getBooleanExtra(EXTRA_OPEN_TREATMENT_REMINDERS,false))reminderOpenSequence++
+  enableEdgeToEdge()
+  setContent{MaterialTheme(colorScheme=lightColorScheme(background=Warm,surface=Color.White,primary=Accent,onPrimary=Ink,onSurface=Ink)){App(reminderOpenSequence)}}
+ }
+ override fun onNewIntent(intent:Intent){
+  super.onNewIntent(intent);setIntent(intent)
+  if(intent.getBooleanExtra(EXTRA_OPEN_TREATMENT_REMINDERS,false))reminderOpenSequence++
+ }
+}
 
-@Composable fun App(){
+@Composable fun App(openReminderSequence:Int=0){
  val ctx=LocalContext.current;val store=remember{HealthStore(ctx)};val draftStore=remember{ReportDraftStore(ctx)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf<String?>(null)}
  var tab by rememberSaveable{mutableIntStateOf(2)};var recordsFilter by rememberSaveable{mutableStateOf("全部")}
+ LaunchedEffect(openReminderSequence){if(openReminderSequence>0)tab=0}
  var recordsOpen by rememberSaveable{mutableStateOf(false)};var draftsOpen by rememberSaveable{mutableStateOf(false)};var deleteDraftId by remember{mutableStateOf<String?>(null)}
  var replacementReport by remember{mutableStateOf<LabReport?>(null)};var replacementDraftId by remember{mutableStateOf<String?>(null)};var replacementCandidates by remember{mutableStateOf<List<LabReport>>(emptyList())};var selectedReplacementId by remember{mutableStateOf<String?>(null)}
  var draft by rememberSaveable(stateSaver=diskStateSaver<ReportDraft?>(ctx,"root-report")){mutableStateOf<ReportDraft?>(null)};var report by rememberSaveable(stateSaver=diskStateSaver<LabReport?>(ctx,"root-report-view")){mutableStateOf<LabReport?>(null)}
@@ -311,12 +328,14 @@ class MainActivity:ComponentActivity(){override fun onCreate(b:Bundle?){super.on
  }
 }
 
-internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiationNumber:Int,snoozedIds:Set<String> = emptySet(),today:LocalDate=LocalDate.now()):TreatmentReminder?=
+internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiationNumber:Int,snoozedIds:Set<String> = emptySet(),now:LocalDateTime=LocalDateTime.now()):TreatmentReminder?=
  reminders.filter{reminder->
-  reminder.completedAt==null&&reminder.id !in snoozedIds&&if(reminder.triggerDate.isNotBlank())runCatching{!LocalDate.parse(reminder.triggerDate).isAfter(today)}.getOrDefault(false) else reminder.radiationNumber<=radiationNumber
- }.minWithOrNull(compareBy<TreatmentReminder>{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
+  reminder.completedAt==null&&reminder.id !in snoozedIds&&if(reminder.triggerDate.isNotBlank())runCatching{
+   !LocalDate.parse(reminder.triggerDate).atTime(LocalTime.parse(reminder.triggerTime.ifBlank{"09:00"})).isAfter(now)
+  }.getOrDefault(false) else reminder.radiationNumber<=radiationNumber
+ }.minWithOrNull(compareBy<TreatmentReminder>{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
 
-internal fun treatmentReminderTriggerLabel(reminder:TreatmentReminder):String=if(reminder.triggerDate.isNotBlank())runCatching{LocalDate.parse(reminder.triggerDate).format(DateTimeFormatter.ofPattern("MM/dd"))}.getOrElse{reminder.triggerDate}else "放${reminder.radiationNumber}"
+internal fun treatmentReminderTriggerLabel(reminder:TreatmentReminder):String=if(reminder.triggerDate.isNotBlank())runCatching{"${LocalDate.parse(reminder.triggerDate).format(DateTimeFormatter.ofPattern("MM/dd"))} ${reminder.triggerTime.ifBlank{"09:00"}}"}.getOrElse{reminder.triggerDate}else "放${reminder.radiationNumber}"
 internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(reminder.triggerDate.isNotBlank())runCatching{LocalDate.parse(reminder.triggerDate).let{"${it.monthValue}月${it.dayOfMonth}日提醒"}}.getOrElse{"日期提醒"}else "放${reminder.radiationNumber}提醒"
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",spacing:androidx.compose.ui.unit.Dp=14.dp,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
@@ -396,7 +415,15 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
 @Composable private fun TreatmentReminderEditor(initial:TreatmentReminder,close:()->Unit,save:(TreatmentReminder)->Unit,delete:(String)->Unit){
  val context=LocalContext.current
  var triggerMode by remember(initial.id){mutableStateOf(if(initial.triggerDate.isNotBlank())"日期" else "放疗次数")}
- var number by remember(initial.id){mutableStateOf(initial.radiationNumber.takeIf{it>0}?.toString()?:"1")};var triggerDate by remember(initial.id){mutableStateOf(initial.triggerDate.ifBlank{LocalDate.now().toString()})};var text by remember(initial.id){mutableStateOf(initial.text)}
+ var number by remember(initial.id){mutableStateOf(initial.radiationNumber.takeIf{it>0}?.toString()?:"1")};var triggerDate by remember(initial.id){mutableStateOf(initial.triggerDate.ifBlank{LocalDate.now().toString()})};var triggerTime by remember(initial.id){mutableStateOf(initial.triggerTime.ifBlank{"09:00"})};var text by remember(initial.id){mutableStateOf(initial.text)}
+ var pendingNotificationSave by remember(initial.id){mutableStateOf<TreatmentReminder?>(null)}
+ val notificationPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){
+  pendingNotificationSave?.let(save);pendingNotificationSave=null;close()
+ }
+ fun commit(reminder:TreatmentReminder){
+  val needsPermission=reminder.triggerDate.isNotBlank()&&Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU&&androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED
+  if(needsPermission){pendingNotificationSave=reminder;notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)}else{save(reminder);close()}
+ }
  val existing=initial.text.isNotBlank()
  AlertDialog(onDismissRequest=close,title={Text(if(existing)"编辑提醒" else "添加提醒")},text={Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("放疗次数","日期").forEach{mode->FilterChip(selected=triggerMode==mode,onClick={triggerMode=mode},label={Text(mode)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
@@ -404,9 +431,11 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
   else Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
    Text("提醒日期",fontSize=13.sp,color=Muted)
    Surface(onClick={val initialDate=runCatching{LocalDate.parse(triggerDate)}.getOrElse{LocalDate.now()};android.app.DatePickerDialog(context,{_,year,month,day->triggerDate=LocalDate.of(year,month+1,day).toString()},initialDate.year,initialDate.monthValue-1,initialDate.dayOfMonth).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(runCatching{LocalDate.parse(triggerDate).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}.getOrElse{triggerDate},Modifier.weight(1f));Icon(Icons.Outlined.CalendarMonth,"选择提醒日期",tint=Accent)}}
+   Text("提醒时间",fontSize=13.sp,color=Muted)
+   Surface(onClick={val time=runCatching{LocalTime.parse(triggerTime)}.getOrElse{LocalTime.of(9,0)};android.app.TimePickerDialog(context,{_,hour,minute->triggerTime=LocalTime.of(hour,minute).format(DateTimeFormatter.ofPattern("HH:mm"))},time.hour,time.minute,true).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(triggerTime,Modifier.weight(1f));Icon(Icons.Outlined.Schedule,"选择提醒时间",tint=Accent)}}
   }
   AppInputField(text,{text=it},label="提醒内容",minLines=2)
- }},confirmButton={TextButton({val newNumber=if(triggerMode=="放疗次数")number.toIntOrNull()?:0 else 0;val newDate=if(triggerMode=="日期")triggerDate else "";val sameTrigger=initial.radiationNumber==newNumber&&initial.triggerDate==newDate;save(initial.copy(radiationNumber=newNumber,triggerDate=newDate,text=text,completedAt=if(sameTrigger)initial.completedAt else null));close()},enabled=(triggerMode=="日期"||((number.toIntOrNull()?:0)>0))&&text.isNotBlank()){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({save(initial.copy(completedAt=null));close()}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
+ }},confirmButton={TextButton({val newNumber=if(triggerMode=="放疗次数")number.toIntOrNull()?:0 else 0;val newDate=if(triggerMode=="日期")triggerDate else "";val newTime=if(triggerMode=="日期")triggerTime else initial.triggerTime;val sameTrigger=initial.radiationNumber==newNumber&&initial.triggerDate==newDate&&initial.triggerTime==newTime;commit(initial.copy(radiationNumber=newNumber,triggerDate=newDate,triggerTime=newTime,text=text,completedAt=if(sameTrigger)initial.completedAt else null))},enabled=(triggerMode=="日期"||((number.toIntOrNull()?:0)>0))&&text.isNotBlank()){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({commit(initial.copy(completedAt=null))}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){val heading=ReportNaming.title(r);Text(heading.category,fontWeight=FontWeight.Bold);if(heading.name.isNotBlank())Text(heading.name,fontSize=13.sp,color=Muted)};IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}

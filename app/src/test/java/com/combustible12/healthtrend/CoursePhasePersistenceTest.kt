@@ -53,10 +53,15 @@ class CoursePhasePersistenceTest {
   assertNull(nextDueTreatmentReminder(listOf(earlier.copy(completedAt=3),later.copy(completedAt=4)),9))
  }
  @Test fun dateReminderTriggersOnOrAfterItsDateWithoutRadiotherapy(){
-  val dated=TreatmentReminder(id="dated",radiationNumber=0,text="普通日期提醒",createdAt=3,triggerDate="2026-10-30")
-  assertNull(nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,10,29)))
-  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,10,30))?.id)
-  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,today=java.time.LocalDate.of(2026,11,1))?.id)
+  val dated=TreatmentReminder(id="dated",radiationNumber=0,text="普通日期提醒",createdAt=3,triggerDate="2026-10-30",triggerTime="09:15")
+  assertNull(nextDueTreatmentReminder(listOf(dated),0,now=java.time.LocalDateTime.of(2026,10,29,18,0)))
+  assertNull(nextDueTreatmentReminder(listOf(dated),0,now=java.time.LocalDateTime.of(2026,10,30,9,14)))
+  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,now=java.time.LocalDateTime.of(2026,10,30,9,15))?.id)
+  assertEquals("dated",nextDueTreatmentReminder(listOf(dated),0,now=java.time.LocalDateTime.of(2026,11,1,1,0))?.id)
+  assertEquals(
+   java.time.ZonedDateTime.of(2026,10,30,9,15,0,0,java.time.ZoneId.of("Asia/Shanghai")).toInstant().toEpochMilli(),
+   treatmentReminderTriggerAt(dated,java.time.ZoneId.of("Asia/Shanghai"))
+  )
  }
  @Test fun duplicateCourseDateIsRejectedWithoutChangingExistingRecord(){
   val store=HealthStore(context)
@@ -70,11 +75,12 @@ class CoursePhasePersistenceTest {
  @Test fun treatmentReminderPersistsSeparatelyFromCourseRecords(){
   val store=HealthStore(context);val reminder=TreatmentReminder(radiationNumber=12,text="找主任做检查")
   store.saveTreatmentReminder(reminder)
-  val dated=TreatmentReminder(radiationNumber=0,text="普通日期事项",triggerDate="2026-10-30")
+  val dated=TreatmentReminder(radiationNumber=0,text="普通日期事项",triggerDate="2026-10-30",triggerTime="14:20")
   store.saveTreatmentReminder(dated)
   assertTrue(store.courseRecords().isEmpty())
   val restored=HealthStore(context).treatmentReminders()
   assertEquals("找主任做检查",restored.first{it.id==reminder.id}.text)
   assertEquals("2026-10-30",restored.first{it.id==dated.id}.triggerDate)
+  assertEquals("14:20",restored.first{it.id==dated.id}.triggerTime)
  }
 }

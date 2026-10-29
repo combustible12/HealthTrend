@@ -27,4 +27,4 @@
 - `ci/check_ui_design_rules.py` 已接入变更检查和发布流程并报告文件/行号；`UiDesignRuleTest` 与 `AppInputFieldTest` 同步验证源码约束及普通、聚焦、错误、禁用输入行为。
 - 病程记录标题右侧的日历按钮使用 `courseRecordForDate` 精确按本地日期查找；命中后清空搜索/分类过滤并滚动到卡片，未命中显示提示且不创建记录。
 - 2026-10-29 起不再提供病程检查提醒：不要恢复 CourseReminderEditor、CourseReminderDialog 或 reminderDate 触发。模型/JSON 中旧 reminder 字段仅用于历史备份兼容。
-- 唯一业务提醒是导入页 TreatmentReminder，可按放疗次数或 triggerDate 触发。`nextDueTreatmentReminder` 选择 completedAt 为空、本次前台未稍后，且日期已到/已逾期或目标次数不高于当前最高“放N”的记录；日期项按日期优先，再处理放疗次数项。
+- 唯一业务提醒是导入页 TreatmentReminder，可按放疗次数或 triggerDate + triggerTime 触发。旧日期数据缺失时间时固定迁移为 09:00。`nextDueTreatmentReminder` 选择 completedAt 为空、本次前台未稍后，且日期时间已到/已逾期或目标次数不高于当前最高“放N”的记录；日期项按日期时间优先，再处理放疗次数项。日期模式另由 `TreatmentReminderNotifications` 使用普通 `AlarmManager.setAndAllowWhileIdle` 发送系统通知；不得改成后台常驻、轮询或要求精确闹钟权限。所有保存/完成/恢复/删除必须经过 HealthStore，以同步系统任务。

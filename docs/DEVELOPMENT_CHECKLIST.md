@@ -28,3 +28,4 @@
 - 病程标题栏新增日期查看入口：原生日期选择器按本地日期匹配记录，命中后重置筛选并滚动到对应卡片；未命中仅提示，不触发新增流程。
 - 删除 CourseReminderEditor、病程提醒摘要和 CourseReminderDialog 到期链路；旧 CourseRecord reminder 字段保留序列化兼容但完全休眠。导入页 TreatmentReminder 继续按最高“放N”触发，并用统一选择函数确定最早到期项。
 - TreatmentReminder 增加可选 triggerDate：旧 JSON 缺失时继续作为放疗次数提醒；日期提醒不要求“放N”，到期或逾期仍有效。编辑器以无描边筛选项切换“放疗次数 / 日期”。
+- TreatmentReminder 日期模式同时保存 triggerTime（旧数据默认 09:00）；HealthStore 成功落盘后统一同步 AlarmManager，删除、完成、恢复均由同一入口取消或重建任务。系统通知接收器只读取仍存在且未完成的日期提醒，启动、重启、系统时间/时区改变及应用更新后统一重建。Android 13+ 的 POST_NOTIFICATIONS 权限只在保存日期提醒时请求，不使用精确闹钟特殊权限。
