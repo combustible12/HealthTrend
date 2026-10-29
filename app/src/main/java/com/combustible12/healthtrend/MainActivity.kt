@@ -71,6 +71,8 @@ import java.time.format.DateTimeFormatter
 
 val Warm=Color(0xFFF6F6F6);val Ink=Color(0xFF292927);val Muted=Color(0xFF817E78)
 val Accent=Color(0xFFF28B58);val SelectedTint=Color(0xFFF2ECFF);val Good=Color(0xFF28A957);val Bad=Color(0xFFF04444);val TrendBlue=Color(0xFF3F7FE8);val TreatmentMarkerGray=Color(0xFF8E9399);val GrowthFactorMarker=Color(0xFF596572)
+val TrendEventLineColor=TreatmentMarkerGray
+const val TrendEventLineAlpha=.28f
 enum class TrendEventKind { CHEMOTHERAPY,GROWTH_FACTOR_INJECTION }
 data class TrendEventLayer(val kind:TrendEventKind,val dates:List<Long>)
 data class TrendPreviewRequest(val points:List<Pair<Long,Double>>,val color:Color,val referenceBands:List<Pair<Double?,Double?>>,val segmentKeys:List<String>,val segmentColors:List<Color>,val metricKey:String,val referenceNotes:List<String>,val timelineDates:List<Long>,val eventLayers:List<TrendEventLayer>)
@@ -928,8 +930,8 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHospitalTrendJ
      referenceHigh!=null->{val top=y(referenceHigh);drawLine(Good.copy(alpha=.55f),Offset(0f,top),Offset(size.width,top),1.5.dp.toPx(),pathEffect=dash)}
      referenceLow!=null->{val bottom=y(referenceLow);drawLine(Good.copy(alpha=.55f),Offset(0f,bottom),Offset(size.width,bottom),1.5.dp.toPx(),pathEffect=dash)}
     }
-    treatmentEvents.forEach{event->drawLine(TreatmentMarkerGray.copy(alpha=.28f),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
-    injectionEvents.forEach{event->drawLine(GrowthFactorMarker.copy(alpha=.46f),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
+    treatmentEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
+    injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,treatmentLineTop),Offset(event.x,size.height),1.dp.toPx())}
     val plotted=points.indices.map(::pointPosition)
     val segments=linePointIndices?.let{selected->
      val valid=selected.filter{it in points.indices}
@@ -1038,8 +1040,8 @@ internal fun Modifier.trendPreviewCardSize(landscape:Boolean):Modifier=
 
        }
       }
-      treatmentEvents.forEach{event->drawLine(TreatmentMarkerGray.copy(alpha=.28f),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx())}
-      injectionEvents.forEach{event->drawLine(GrowthFactorMarker.copy(alpha=.46f),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(GrowthFactorMarker.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
+      treatmentEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx())}
+      injectionEvents.forEach{event->drawLine(TrendEventLineColor.copy(alpha=TrendEventLineAlpha),Offset(event.x,0f),Offset(event.x,size.height),1.dp.toPx());drawCircle(GrowthFactorMarker.copy(alpha=.72f),3.dp.toPx(),Offset(event.x,3.dp.toPx()))}
       val plotted=geometry.points.map{Offset(it.x,it.y)}
       geometry.segments.filter{it.size>=2}.forEach{indices->
        val slopes=monotoneTrendSlopes(indices.map{plotted[it]})
