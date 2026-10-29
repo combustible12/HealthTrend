@@ -946,3 +946,4 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - `CourseNavigationTest` 更新为真实三列断言：卡片三块等宽等高且保持既有高度链，编辑页三块等宽等高，`kg` 消失、体表面积标题及实时数值出现。
 - `UpgradeTest` 增加患者身高保存重读，同时保留旧安装无患者资料时的默认对象断言；旧 JSON/旧体重没有新增字段时按空值读取，不改历史报告或体重数值。
 - 主提交 `146f656715155838ae20ca35f93e524111b5b077` 的同步守卫 run 40906803906 成功；Android quick run 40906803894 成功，`compileDebugKotlin`、全量 JVM 回归和 `compileDebugAndroidTestKotlin` 均通过。尚未运行本轮模拟器交互，不冒充手机实机视觉验收；准备发布 1.0.179（2026102911）。
+- 正式发布提交 `d89cc2b2a832d7249d9be8ecf6e4cc4a92b10944`，Publish HealthTrend run 40907441511 / job 123565950104 成功；最终 373 项 JVM 测试 0 失败、0 错误、0 跳过，签名恢复、纯色无描边规则、Release APK 构建与发布全部通过。实际下载 APK 57,067,464 字节，ZIP 完整；包名 `com.combustible12.healthtrend`、versionName `1.0.179`、versionCode `2026102911`；SHA-256 `7a694c16d5483279c901c4a8b693a927571780a8f3f1f806abc6b135989dadfa` 与资产 digest 一致。apksig V2 验证通过，证书 SHA-256 `5acccb7b281fbe2878ff8e62b57e4a1149c82bcf40e3c0b36d8e709c9da95628` 与旧版一致。

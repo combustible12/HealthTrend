@@ -38,3 +38,4 @@
 - 病程卡片与编辑页均已改为时间、体重、体表面积三个等宽色块，移除 `kg`；卡片固定 26dp，编辑页复用原 25.33dp 紧凑输入高度。
 - BSA 由每条记录的冻结身高按 DuBois 公式派生，缺快照/体重不计算。已补公式、三位小数、无效输入、快照历史不变、升级持久化及 Compose 三块等宽等高回归。
 - 主提交 `146f656715155838ae20ca35f93e524111b5b077`：同步守卫 run 40906803906 通过；Android quick run 40906803894 的 `compileDebugKotlin`、全量 JVM 回归和 `compileDebugAndroidTestKotlin` 均通过。准备发布 1.0.179（2026102911）。
+- 正式发布提交 `d89cc2b2a832d7249d9be8ecf6e4cc4a92b10944`，Publish HealthTrend run 40907441511 成功；发布前 373 项 JVM 测试 0 失败、0 错误、0 跳过，签名构建和 GitHub Release 均成功。APK 已下载核验为 57,067,464 字节，SHA-256 `7a694c16d5483279c901c4a8b693a927571780a8f3f1f806abc6b135989dadfa`，包名、1.0.179、2026102911、ZIP 完整性与原 V2 签名均通过。
