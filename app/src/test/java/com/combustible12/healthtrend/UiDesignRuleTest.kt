@@ -1,9 +1,9 @@
 package com.combustible12.healthtrend
 
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class UiDesignRuleTest {
  @Test fun `all app inputs use the borderless shared component`() {
