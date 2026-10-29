@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "c0d5f82b46eb27a60dfb5ebc5400d47c2c2694b2",
-  "validationMode": "import-reminders-support-radiotherapy-count-or-date",
-  "versionCode": 2026102905,
-  "versionName": "1.0.173"
+  "sourceBaseCommit": "68cc8dd2a861548f4748022d3fbcc18e8fc331e7",
+  "validationMode": "date-time-reminders-use-android-system-notifications",
+  "versionCode": 2026102906,
+  "versionName": "1.0.174"
 }
