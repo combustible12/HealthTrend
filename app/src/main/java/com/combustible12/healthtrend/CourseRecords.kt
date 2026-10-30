@@ -132,6 +132,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   Text("脉搏 ${reading.pulse?.toString() ?: "—"} 次/分   血压 ${reading.systolic?.toString() ?: "—"}/${reading.diastolic?.toString() ?: "—"} mmHg",fontSize=13.sp,color=Ink)
  }
 }
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun CourseRecordsPage(
  modifier:Modifier,
  records:List<CourseRecord>,

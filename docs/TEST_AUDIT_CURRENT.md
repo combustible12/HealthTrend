@@ -980,3 +980,4 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 点击“展开全部分类”后，全部用户分类必须可见；“管理”位于最后一项分类下方，点击后打开原“管理分类”界面。
 - 既有 `growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 继续锁定升白针图标位于“全部”左侧，并只筛明确布尔标记。
 - 白底只施加于 `CoursePhaseManager` 的管理和重命名弹窗；病程记录编辑器及共用 `FullPage` 保持原样。
+- 首轮 quick run 41069665102 在 `CourseRecords.kt:191` 因 `FlowRow` 实验 API 缺少 opt-in 编译失败；生产页面已增加局部 `ExperimentalLayoutApi` opt-in，等待重跑确认。
