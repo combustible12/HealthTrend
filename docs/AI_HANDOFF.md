@@ -15,12 +15,13 @@
 - 回归入口为 `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow`；quick run 41070179365 与同步守卫 run 41070189872 均通过，不修改 `release/ready.json`。
 - 用户明确要求发布后，1.0.187（2026103008）由提交 `133794f0e85e27febb40714ccb50d455a2d3326d` 正式发布；run 41071829545 的签名恢复、完整回归、Release APK 构建与上传均成功。APK SHA-256 为 `be5983772a7b295a91852e8418dc3e9da8d271761b1f6ab7d95c00ae198eb38b`。
 
-## 2026-10-30 病程分类展开排版修正交接（已快速验证、未发布）
+## 2026-10-30 病程分类展开排版修正交接（已发布 1.0.188）
 
 - 展开筛选必须形成规整网格：所有项固定 58dp × 36dp，升白针图标项不得按内容缩短；行列间距均为 8dp。
 - `courseFilterHeight` 同时控制港维护高度，当前为 36dp，继续保持二者等高。
 - “管理”仍只在展开态出现并位于标签下方，但使用 32dp 紧凑高度、无额外顶距；不得恢复普通 48dp 按钮造成的视觉空白。
 - 回归继续位于 `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow`；quick run 41073629630 与同步守卫 run 41073649706 均通过，不修改 `release/ready.json`。
+- 用户明确要求发布后，1.0.188（2026103009）由提交 `6a81900872a8fb94589ea7ef2c31b670aab3215c` 正式发布；run 41075016588 的签名恢复、382 项 JVM 回归、Release APK 构建与上传均成功。APK SHA-256 为 `00aaa56e0822946ab76d418f43361696664472d5673afbe92f5bf74ae2d15918`。
 
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
