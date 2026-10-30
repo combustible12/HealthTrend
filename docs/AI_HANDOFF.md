@@ -6,13 +6,14 @@
 - 卡片逐日筛选与趋势事件降噪规则分开：连续多日只要每张卡已明确标记，就都显示；趋势图仍只取连续段首日。
 - `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 同时验证位置和筛选结果；快速验证 run 41048644449 与同步守卫 run 41048661815 均通过，不修改 `release/ready.json`。
 
-## 2026-10-30 病程分类展开与标签管理白底交接（已快速验证、未发布）
+## 2026-10-30 病程分类展开与标签管理白底交接（已发布 1.0.187）
 
 - 病程首页分类区域使用无滚动的 `FlowRow`：折叠时限制一行，展开时显示全部标签；右侧按钮负责展开/收起。
 - “管理”只在展开状态显示，并位于标签区域下方；原 `CoursePhaseManager` 的排序、重命名和删除行为不变。
 - `growthFactorInjectionFilter` 必须继续固定为第一项且不进入 `phaseDefinitions`，只筛 `CourseRecord.growthFactorInjection`。
 - `CoursePhaseManager` 的管理和重命名 `AlertDialog` 显式使用 `Color.White`；不要改变 `CourseRecordEditor` 或共用 `FullPage` 的底色。
 - 回归入口为 `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow`；quick run 41070179365 与同步守卫 run 41070189872 均通过，不修改 `release/ready.json`。
+- 用户明确要求发布后，1.0.187（2026103008）由提交 `133794f0e85e27febb40714ccb50d455a2d3326d` 正式发布；run 41071829545 的签名恢复、完整回归、Release APK 构建与上传均成功。APK SHA-256 为 `be5983772a7b295a91852e8418dc3e9da8d271761b1f6ab7d95c00ae198eb38b`。
 
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
