@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "24ded94242dc03dfc5dc03d834f178d76375680b",
-  "validationMode": "concise-ctcae-grade-specific-action-wording",
-  "versionCode": 2026103003,
-  "versionName": "1.0.182"
+  "sourceBaseCommit": "9c5abfdcf60f5c8a4423177cfeaac4167d0c099c",
+  "validationMode": "course-growth-factor-icon-and-editable-phase-labels",
+  "versionCode": 2026103004,
+  "versionName": "1.0.183"
 }
