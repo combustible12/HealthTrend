@@ -61,6 +61,8 @@ import androidx.compose.animation.fadeOut
 private val courseFilterHeight=32.dp
 
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
+private val idealHealthValueFill=Color(0xFFCFF3E0)
+private val nonIdealHealthValueFill=Color(0xFFFFDCE2)
 /** A high reading in either component determines the higher risk category. */
 internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic>=140||diastolic>=90->3
@@ -68,11 +70,16 @@ internal fun bloodPressureBand(systolic:Int,diastolic:Int):Int=when{
  systolic<90||diastolic<60->0
  else->1
 }
-private fun pulseValueColor(value:Int?):Color=when{
- value==null->Color(0xFFE5F8ED)
- value in 60..100->Color(0xFFCFF3E0)
- else->Color(0xFFFFDCE2)
+internal fun healthStatusFillColor(isIdeal:Boolean?,neutral:Color):Color=when(isIdeal){
+ true->idealHealthValueFill
+ false->nonIdealHealthValueFill
+ null->neutral
 }
+private fun pulseValueColor(value:Int?):Color=healthStatusFillColor(value?.let{it in 60..100},Color(0xFFE5F8ED))
+internal fun idealAdultBmiStatus(heightCm:Double?,kilograms:Double?):Boolean?=
+ bodyMassIndex(heightCm,kilograms)?.let{it>=18.5&&it<24.0}
+internal fun bmiValueColor(heightCm:Double?,kilograms:Double?,neutral:Color):Color=
+ healthStatusFillColor(idealAdultBmiStatus(heightCm,kilograms),neutral)
 @Composable private fun PressureReadingView(time:String,systolic:Int?,diastolic:Int?,pulse:Int?=null,showHeader:Boolean=true){
  Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
   if(showHeader) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
@@ -354,10 +361,10 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
     listOf("时间","kg","BMI","体表 m²").forEach{label->Text(label,Modifier.weight(1f),fontSize=11.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.Center,maxLines=1)}
    }
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
-    @Composable fun Value(text:String,description:String){Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFFE6E6E6)).semantics{contentDescription=description},contentAlignment=Alignment.Center){Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=Ink,maxLines=1,softWrap=false)}}
+    @Composable fun Value(text:String,description:String,fill:Color=Color(0xFFE6E6E6)){Box(Modifier.weight(1f).height(26.dp).clip(RoundedCornerShape(9.dp)).background(fill).semantics{contentDescription=description},contentAlignment=Alignment.Center){Text(text,fontSize=12.sp,fontWeight=FontWeight.Bold,color=Ink,maxLines=1,softWrap=false)}}
     Value(weightTimeText(weight.measuredAtEpochMillis),"体重卡片时间色块")
     Value(courseWeightText(weight.kilograms),"体重卡片数值色块")
-    Value(bodyMassIndexText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片BMI色块")
+    Value(bodyMassIndexText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片BMI色块",bmiValueColor(weight.heightCmAtMeasurement,weight.kilograms,Color(0xFFE6E6E6)))
     Value(bodySurfaceAreaText(weight.heightCmAtMeasurement,weight.kilograms),"体重卡片体表面积色块")
    }
   }
@@ -588,7 +595,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    }
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
     Text("BMI",fontSize=11.sp,color=Muted,maxLines=1)
-    Box(Modifier.fillMaxWidth().height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(Color.White).semantics{contentDescription="体重编辑BMI色块"},contentAlignment=Alignment.Center){
+    Box(Modifier.fillMaxWidth().height((38f*2f/3f).dp).clip(RoundedCornerShape(9.dp)).background(bmiValueColor(heightCm,value.toDoubleOrNull(),Color.White)).semantics{contentDescription="体重编辑BMI色块"},contentAlignment=Alignment.Center){
      Text(bodyMassIndexText(heightCm,value.toDoubleOrNull()),fontSize=17.sp,color=Ink,maxLines=1,softWrap=false)
     }
    }
