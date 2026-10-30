@@ -973,3 +973,12 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 新断言锁定：正常为“建议：无”；G1 为各指标症状提醒；全部 G2 为“处理：复查血常规。”；白细胞/中性粒细胞、血小板与血红蛋白 G3 分别给出升白、输注血小板和输血的“可能处理”文案。
 - 缺正常下限、比较符号结果或不可换算单位统一标记“暂时无法分级”，保留具体 reason，advice 必须为空，界面不得显示空建议行。
 - 本轮不改变任何分级阈值、报告数据、趋势曲线或发布配置；等待同步守卫，Android/Kotlin 编译留到明确发布时执行。
+
+## 2026-10-30 病程分类展开回归（快速验证通过、未发布）
+
+- `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow` 锁定分类区域没有滚动语义，折叠态不显示“管理”。
+- 点击“展开全部分类”后，全部用户分类必须可见；“管理”位于最后一项分类下方，点击后打开原“管理分类”界面。
+- 既有 `growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 继续锁定升白针图标位于“全部”左侧，并只筛明确布尔标记。
+- 白底只施加于 `CoursePhaseManager` 的管理和重命名弹窗；病程记录编辑器及共用 `FullPage` 保持原样。
+- 首轮 quick run 41069665102 在 `CourseRecords.kt:191` 因 `FlowRow` 实验 API 缺少 opt-in 编译失败；生产页面已增加局部 `ExperimentalLayoutApi` opt-in，并由后续重跑确认。
+- 修正后 quick run 41070179365 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41070189872 通过。未运行设备端交互测试，不宣称实机视觉验收。
