@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "af072d845ceaed3bb568f469ba5fa085ef679f3e",
-  "validationMode": "course-growth-factor-injection-filter",
-  "versionCode": 2026103006,
-  "versionName": "1.0.185"
+  "sourceBaseCommit": "e76e2e691f875181a302eb389691d55564ed3e28",
+  "validationMode": "course-growth-factor-filter-first",
+  "versionCode": 2026103007,
+  "versionName": "1.0.186"
 }
