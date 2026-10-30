@@ -88,6 +88,16 @@ class CourseNavigationTest {
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertTrue(saved?.growthFactorInjection==true)}
  }
+ @Test fun growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards(){
+  val marked=CourseRecord(title="已标记升白针",phase="放疗",growthFactorInjection=true)
+  val unmarked=CourseRecord(title="未标记普通卡",phase="观察",date=marked.date-86_400_000L)
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(marked,unmarked),HealthStore(context),{},{},{},{_,_->})}}
+  compose.onNodeWithText("已标记升白针",substring=true).assertExists()
+  compose.onNodeWithText("未标记普通卡",substring=true).assertExists()
+  compose.onNodeWithContentDescription("筛选升白针记录").performClick()
+  compose.onNodeWithText("已标记升白针",substring=true).assertExists()
+  compose.onNodeWithText("未标记普通卡",substring=true).assertDoesNotExist()
+ }
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
   val store=HealthStore(context);store.saveCourseRecord(initial);store.savePatientProfile(PatientProfile(heightCm="165"))

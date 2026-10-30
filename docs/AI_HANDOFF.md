@@ -1,3 +1,10 @@
+## 2026-10-30 病程升白针筛选交接（施工中，未发布）
+
+- `growthFactorInjectionFilter` 是病程筛选行的固定内部键，不得写入 `CourseRecord.phase` 或 `course_phase_labels`。
+- 图标标签只筛 `CourseRecord.growthFactorInjection`；不要复用 `legacyGrowthFactorInjectionNote`，旧备注兼容仍仅发生在既有一次性迁移中。
+- 卡片逐日筛选与趋势事件降噪规则分开：连续多日只要每张卡已明确标记，就都显示；趋势图仍只取连续段首日。
+- 相关交互回归在 `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards`；待快速云端验证，不修改 `release/ready.json`。
+
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
 - `CourseRecords.kt` 的 `healthStatusFillColor` 是脉搏与 BMI 共用色源：理想 `#CFF3E0`，非理想 `#FFDCE2`；不得另建近似色。
