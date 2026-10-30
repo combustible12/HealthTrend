@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "9c5abfdcf60f5c8a4423177cfeaac4167d0c099c",
-  "validationMode": "course-growth-factor-icon-and-editable-phase-labels",
-  "versionCode": 2026103004,
-  "versionName": "1.0.183"
+  "sourceBaseCommit": "5d6e026ba8dfadd40c3e29031982fd8d9e7a5ff5",
+  "validationMode": "course-bmi-pulse-palette",
+  "versionCode": 2026103005,
+  "versionName": "1.0.184"
 }
