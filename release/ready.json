@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "7cb7a06bc2430d56c6d934bf667cbcce173fcb7e",
-  "validationMode": "course-filter-equal-grid-spacing",
-  "versionCode": 2026103009,
-  "versionName": "1.0.188"
+  "sourceBaseCommit": "c1e6c73242eb05d506cba049175fc71794388b3d",
+  "validationMode": "course-filter-full-labels-32dp",
+  "versionCode": 2026103010,
+  "versionName": "1.0.189"
 }
