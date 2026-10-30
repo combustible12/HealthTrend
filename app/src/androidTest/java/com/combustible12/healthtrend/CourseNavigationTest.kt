@@ -94,7 +94,9 @@ class CourseNavigationTest {
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(marked,unmarked),HealthStore(context),{},{},{},{_,_->})}}
   compose.onNodeWithText("已标记升白针",substring=true).assertExists()
   compose.onNodeWithText("未标记普通卡",substring=true).assertExists()
-  compose.onNodeWithContentDescription("筛选升白针记录").performClick()
+  val injectionFilter=compose.onNodeWithContentDescription("筛选升白针记录")
+  assertTrue(injectionFilter.fetchSemanticsNode().boundsInRoot.left<compose.onNodeWithText("全部").fetchSemanticsNode().boundsInRoot.left)
+  injectionFilter.performClick()
   compose.onNodeWithText("已标记升白针",substring=true).assertExists()
   compose.onNodeWithText("未标记普通卡",substring=true).assertDoesNotExist()
  }

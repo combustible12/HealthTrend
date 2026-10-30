@@ -187,8 +187,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    AppSearchField(search,{search=it},"搜索病程记录",Modifier.fillMaxWidth().padding(top=6.dp),height=36.dp,showSearchIcon=true,shape=RoundedCornerShape(12.dp))
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
-    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
     FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
+    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
     }
     TextButton({managingPhases=true}){Text("管理")}
    }
