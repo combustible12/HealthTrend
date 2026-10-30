@@ -983,3 +983,10 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 首轮 quick run 41069665102 在 `CourseRecords.kt:191` 因 `FlowRow` 实验 API 缺少 opt-in 编译失败；生产页面已增加局部 `ExperimentalLayoutApi` opt-in，并由后续重跑确认。
 - 修正后 quick run 41070179365 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41070189872 通过。未运行设备端交互测试，不宣称实机视觉验收。
 - Publish HealthTrend run 41071829545 再次通过正式签名恢复、设计规则、最终 Kotlin/JVM/Android 测试源码、签名 APK 构建及 Release 上传；发布为 1.0.187（2026103008）。
+
+## 2026-10-30 病程分类展开排版回归（快速验证通过、未发布）
+
+- 同一 Compose 用例在展开后抓取升白针、全部及六个用户分类的真实点击色块边界，逐项断言等宽等高。
+- 第一行升白针与第二行观察标签的垂直间距固定为 8dp；管理按钮顶边与最后一行标签底边距离不超过 4dp。
+- 原无横滑、全部标签可见、管理入口可打开及升白针筛选逻辑断言全部保留。
+- quick run 41073629630 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41073649706 通过。未运行设备端截图测试，不冒充实机视觉验收。

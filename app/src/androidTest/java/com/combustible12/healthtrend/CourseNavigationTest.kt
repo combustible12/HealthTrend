@@ -108,9 +108,23 @@ class CourseNavigationTest {
   compose.onNodeWithText("管理").assertDoesNotExist()
   compose.onNodeWithContentDescription("展开全部分类").performClick()
   listOf("化疗","放疗","观察","住院","复查","恢复").forEach{compose.onNodeWithText(it).assertIsDisplayed()}
+  val filterBlocks=listOf(
+   compose.onNode(hasContentDescription("筛选升白针记录") and hasClickAction()),
+   compose.onNode(hasText("全部") and hasClickAction()),
+   compose.onNode(hasText("化疗") and hasClickAction()),
+   compose.onNode(hasText("放疗") and hasClickAction()),
+   compose.onNode(hasText("观察") and hasClickAction()),
+   compose.onNode(hasText("住院") and hasClickAction()),
+   compose.onNode(hasText("复查") and hasClickAction()),
+   compose.onNode(hasText("恢复") and hasClickAction())
+  ).map{it.fetchSemanticsNode().boundsInRoot}
+  filterBlocks.drop(1).forEach{bounds->assertEquals(filterBlocks.first().width,bounds.width,1f);assertEquals(filterBlocks.first().height,bounds.height,1f)}
+  val scale=compose.density.density
+  assertEquals(8f*scale,filterBlocks[4].top-filterBlocks[0].bottom,scale)
   val lastLabel=compose.onNodeWithText("恢复").fetchSemanticsNode().boundsInRoot
   val management=compose.onNodeWithText("管理").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
   assertTrue(management.top>=lastLabel.bottom)
+  assertTrue(management.top-lastLabel.bottom<=4f*scale)
   compose.onNodeWithText("管理").performClick()
   compose.onNodeWithText("管理分类").assertIsDisplayed()
  }

@@ -58,7 +58,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
 
-private val courseFilterHeight=32.dp
+private val courseFilterHeight=36.dp
+private val courseFilterWidth=58.dp
 private const val growthFactorInjectionFilter="__growth_factor_injection__"
 
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
@@ -189,14 +190,14 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    AppSearchField(search,{search=it},"搜索病程记录",Modifier.fillMaxWidth().padding(top=6.dp),height=36.dp,showSearchIcon=true,shape=RoundedCornerShape(12.dp))
    Column(Modifier.fillMaxWidth().semantics{contentDescription="病程分类筛选"}){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     FlowRow(Modifier.weight(1f).padding(vertical=10.dp),maxLines=if(filtersExpanded)Int.MAX_VALUE else 1){
-      FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
-      (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+     FlowRow(Modifier.weight(1f).padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp),maxLines=if(filtersExpanded)Int.MAX_VALUE else 1){
+      FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.width(courseFilterWidth).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
+      (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase),maxLines=1,overflow=TextOverflow.Ellipsis)},modifier=Modifier.width(courseFilterWidth).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
      }
      IconButton({filtersExpanded=!filtersExpanded}){Icon(if(filtersExpanded)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,if(filtersExpanded)"收起全部分类" else "展开全部分类",tint=Accent)}
     }
-    if(filtersExpanded)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
-     TextButton({managingPhases=true}){Icon(Icons.Outlined.Edit,"管理分类",Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text("管理")}
+    if(filtersExpanded)CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+     TextButton({managingPhases=true},Modifier.align(Alignment.End).height(32.dp),contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp)){Icon(Icons.Outlined.Edit,"管理分类",Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text("管理")}
     }
    }
    Row(Modifier.fillMaxWidth().offset(x=(-6).dp).padding(end=8.dp)){
