@@ -1,3 +1,10 @@
+## 2026-10-30 病程分类重命名测试影响（待执行、未发布）
+
+- `CoursePhasePersistenceTest` 验证“放疗”显示名改为“照射”后，持久化标签更新，但历史 `CourseRecord.phase`、标题和备注不被改写。
+- `CourseNavigationTest` 验证从管理分类打开重命名窗口、保存新名称、页面显示更新，并再次核对存储中的稳定治疗身份未变。
+- 既有分类新增、删除、排序和编辑页选择用例保留；无描边静态检查继续覆盖新增输入框。
+- 尚未运行云端 `compileDebugKotlin`、JVM 回归和 `compileDebugAndroidTestKotlin`，不宣称实机视觉验收。
+
 ## 2026-10-28 化疗日期趋势事件层测试影响（待验证、未发布）
 
 - CourseTreatmentTitleTest：实际“化疗/化疗日”和明确“X化1”被识别为化疗事件；普通观察日不误入。

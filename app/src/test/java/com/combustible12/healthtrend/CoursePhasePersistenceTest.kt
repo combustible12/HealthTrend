@@ -32,6 +32,17 @@ class CoursePhasePersistenceTest {
   assertEquals(original,prefs.getString("course_records",null))
   assertEquals("化疗日",HealthStore(context).courseRecords().single().phase)
  }
+ @Test fun renamingCategoryChangesOnlyItsDisplayLabelAndKeepsStableTreatmentIdentity(){
+  val store=HealthStore(context)
+  val record=CourseRecord(title="2化12-放2",phase="放疗",titleAuto=false,noteText="保留")
+  store.saveCourseRecord(record)
+  val definitions=store.coursePhaseDefinitions().map{if(it.key=="放疗")it.copy(label="照射") else it}
+  store.saveCoursePhaseDefinitions(definitions)
+  val restored=HealthStore(context)
+  assertEquals("照射",restored.coursePhaseLabel("放疗"))
+  assertEquals("放疗",restored.courseRecords().single().phase)
+  assertEquals("保留",restored.courseRecords().single().noteText)
+ }
  @Test fun legacyCourseReminderFieldsStayReadableForBackupCompatibility(){
   val store=HealthStore(context)
   val record=CourseRecord(title="2化12-放2",checkText="抽血化验",reminderText="抽血化验",reminderDate="2026-10-23")

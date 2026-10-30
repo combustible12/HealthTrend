@@ -135,7 +135,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  openWeightTrend:()->Unit={}
 ){
  val context=LocalContext.current
- var phases by remember{mutableStateOf(store.coursePhases())}
+ var phaseDefinitions by remember{mutableStateOf(store.coursePhaseDefinitions())}
+ val phases=phaseDefinitions.map{it.key}
  var managingPhases by rememberSaveable{mutableStateOf(false)}
  var phaseError by remember{mutableStateOf<String?>(null)}
  var filter by rememberSaveable{mutableStateOf("全部")}
@@ -144,7 +145,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  var dateLookupMessage by remember{mutableStateOf<String?>(null)}
  val query=search.trim()
  val shown=records.filter{record->
-  (query.isNotBlank()||filter=="全部"||record.phase==filter)&&DataSearch.course(query,record)
+  (query.isNotBlank()||filter=="全部"||record.phase==filter)&&(DataSearch.course(query,record)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(requestedRecordId,shown.map{it.id}){
@@ -173,7 +174,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    AppSearchField(search,{search=it},"搜索病程记录",Modifier.fillMaxWidth().padding(top=6.dp),height=36.dp,showSearchIcon=true,shape=RoundedCornerShape(12.dp))
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
-    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(phase)},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
     }
     TextButton({managingPhases=true}){Text("管理")}
    }
@@ -186,7 +187,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,displayCourseTitle(record,records),store.weightRecordForCourse(record.id),{open(record)},view,openWeightTrend)
+     CourseTimelineCard(record,displayCourseTitle(record,records),store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),{open(record)},view,openWeightTrend)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -194,8 +195,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    }
   }
  }
- if(managingPhases)CoursePhaseManager(phases,{managingPhases=false}){updated->
-  runCatching{store.saveCoursePhases(updated)}.onSuccess{phases=store.coursePhases();if(filter!="全部"&&filter !in phases)filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
+ if(managingPhases)CoursePhaseManager(phaseDefinitions,{managingPhases=false}){updated->
+  runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
  dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}
@@ -296,7 +297,7 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
  }
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,weight:WeightRecord?,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -317,7 +318,7 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
      Spacer(Modifier.width(6.dp))
      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
        if(record.growthFactorInjection)Icon(Icons.Outlined.Vaccines,"当天已打升白针",Modifier.size(18.dp),tint=phaseColors.second)
-       Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(record.phase,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
+       Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
     }
     Column{
@@ -412,7 +413,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
 
 @Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?,Double?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={}){
  val context=LocalContext.current
- val coursePhases=remember{store.coursePhases()}
+ val coursePhases=remember{store.coursePhaseDefinitions()}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
  var date by rememberSaveable{mutableStateOf(if(exists)courseEditorDate(initial.date) else "")}
@@ -466,7 +467,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     if(match==null)date=candidate else if(match.isBlankCourseCard()&&store.weightRecordForCourse(match.id)==null)onOpenExisting(match) else duplicateRecord=match
    }
    Text("阶段",fontWeight=FontWeight.Medium)
-   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+record.phase).filter{it.isNotBlank()}.distinct().forEach{phase->FilterChip(record.phase==phase,{record=record.copy(phase=phase,title="",titleAuto=true)},label={Text(phase)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    Text("治疗事件",fontWeight=FontWeight.Medium)
    Row{FilterChip(selected=record.growthFactorInjection,onClick={record=record.copy(growthFactorInjection=!record.growthFactorInjection)},label={Text("升白针")},leadingIcon=if(record.growthFactorInjection){{Icon(Icons.Outlined.Vaccines,null,Modifier.size(18.dp))}}else null,border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=Color(0xFFE3E8ED)))}
    CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
@@ -655,25 +656,27 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
 }
 
 
-@Composable private fun CoursePhaseManager(phases:List<String>,close:()->Unit,update:(List<String>)->Unit){
+@Composable private fun CoursePhaseManager(phases:List<CoursePhaseDefinition>,close:()->Unit,update:(List<CoursePhaseDefinition>)->Unit){
  var name by rememberSaveable{mutableStateOf("")}
  var draft by remember{mutableStateOf(phases)}
+ var renaming by remember{mutableStateOf<CoursePhaseDefinition?>(null)}
+ var renameText by rememberSaveable{mutableStateOf("")}
  val rowHeight=with(LocalDensity.current){56.dp.toPx()}
  val candidate=name.trim()
  AlertDialog(onDismissRequest=close,title={Text("管理分类")},text={
   Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("拖动左侧手柄排序，完成后保存。删除分类不会删除已有病程记录。",fontSize=12.sp,color=Muted)
    Column{
-    draft.forEach{phase->key(phase){
-     val colors=coursePhaseColors(phase)
+    draft.forEach{phase->key(phase.key){
+     val colors=coursePhaseColors(phase.key)
      Row(Modifier.fillMaxWidth().height(56.dp),verticalAlignment=Alignment.CenterVertically){
-      Icon(Icons.Outlined.DragHandle,"拖动排序：$phase",tint=Muted,modifier=Modifier.size(48.dp).pointerInput(phase){
+      Icon(Icons.Outlined.DragHandle,"拖动排序：${phase.label}",tint=Muted,modifier=Modifier.size(48.dp).pointerInput(phase.key){
        var distance=0f
        detectVerticalDragGestures(onDragStart={distance=0f},onDragEnd={distance=0f},onDragCancel={distance=0f}){change,amount->
         change.consume()
         distance+=amount
         while(kotlin.math.abs(distance)>rowHeight/2f){
-         val from=draft.indexOf(phase)
+         val from=draft.indexOfFirst{it.key==phase.key}
          val direction=if(distance>0)1 else -1
          val to=from+direction
          if(from<0||to !in draft.indices){distance=0f;break}
@@ -684,13 +687,18 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
       })
       Box(Modifier.size(10.dp).background(colors.second,CircleShape))
       Spacer(Modifier.width(10.dp))
-      Text(phase,Modifier.weight(1f))
-      IconButton({draft=draft-phase}){Icon(Icons.Outlined.Delete,"删除分类：$phase",tint=Bad)}
+      Text(phase.label,Modifier.weight(1f).clickable{renaming=phase;renameText=phase.label})
+      IconButton({renaming=phase;renameText=phase.label}){Icon(Icons.Outlined.Edit,"重命名分类：${phase.label}",tint=Muted)}
+      IconButton({draft=draft.filterNot{it.key==phase.key}}){Icon(Icons.Outlined.Delete,"删除分类：${phase.label}",tint=Bad)}
      }
     }}
    }
    AppInputField(name,{name=it},label="新分类名称",singleLine=true)
-   TextButton({draft=draft+candidate;name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&candidate !in draft){Text("添加分类")}
+   TextButton({draft=draft+CoursePhaseDefinition(candidate,candidate);name=""},enabled=candidate.isNotBlank()&&candidate!="全部"&&draft.none{it.key==candidate||it.label==candidate}){Text("添加分类")}
   }
  },confirmButton={TextButton({update(draft);close()}){Text("完成")}})
+ renaming?.let{target->
+  val renamed=renameText.trim()
+  AlertDialog(onDismissRequest={renaming=null},title={Text("重命名分类")},text={AppInputField(renameText,{renameText=it},label="分类名称",singleLine=true)},confirmButton={TextButton({draft=draft.map{if(it.key==target.key)it.copy(label=renamed) else it};renaming=null},enabled=renamed.isNotBlank()&&renamed!="全部"&&draft.none{it.key!=target.key&&it.label==renamed}){Text("保存")}},dismissButton={TextButton({renaming=null}){Text("取消")}})
+ }
 }

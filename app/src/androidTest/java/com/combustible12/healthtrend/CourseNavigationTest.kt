@@ -179,6 +179,22 @@ class CourseNavigationTest {
   compose.onNodeWithText("放疗日").performScrollTo().performClick()
   compose.onNodeWithText("化疗日").assertDoesNotExist()
  }
+ @Test fun categoryLabelCanBeRenamedWithoutChangingStoredTreatmentIdentity(){
+  val store=HealthStore(context)
+  store.saveCourseRecord(CourseRecord(title="分类改名核对",phase="放疗",titleAuto=false))
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("管理").performClick()
+  compose.onNodeWithContentDescription("重命名分类：放疗").performClick()
+  compose.onNodeWithText("分类名称").assertIsDisplayed()
+  compose.onAllNodes(hasSetTextAction()).onLast().performTextReplacement("照射")
+  compose.onNodeWithText("保存").performClick()
+  compose.onNodeWithText("完成").performClick()
+  compose.onNodeWithText("照射",useUnmergedTree=true).assertIsDisplayed()
+  compose.runOnIdle{
+   assertEquals("照射",HealthStore(context).coursePhaseLabel("放疗"))
+   assertEquals("放疗",HealthStore(context).courseRecords().first{it.title=="分类改名核对"}.phase)
+  }
+ }
  @Test fun categoriesSupportRepeatedDragBeforeSaving(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("管理").performClick()

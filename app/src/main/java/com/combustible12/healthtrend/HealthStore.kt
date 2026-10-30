@@ -8,6 +8,8 @@ import java.io.File
 
 @Volatile var debugLog:String=""
 
+data class CoursePhaseDefinition(val key:String,val label:String)
+
 /** Keep both pieces of evidence visible when a report code and Chinese name disagree. */
 internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):String {
  val explicit=canonicalMetricKey(explicitInput)
@@ -51,9 +53,32 @@ class HealthStore(private val context:Context) {
   check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
   return migrated
  }
+ private fun coursePhaseLabels():Map<String,String>{
+  val source=prefs.getString("course_phase_labels","{}")?:"{}"
+  val json=runCatching{JSONObject(source)}.getOrElse{JSONObject()}
+  return json.keys().asSequence().associateWith{key->json.optString(key,key).trim().ifBlank{key}}
+ }
+ fun coursePhaseLabel(phase:String):String=coursePhaseLabels()[phase]?:phase
+ fun coursePhaseDefinitions():List<CoursePhaseDefinition> = coursePhases().map{CoursePhaseDefinition(it,coursePhaseLabel(it))}
+ @Synchronized fun saveCoursePhaseDefinitions(definitions:List<CoursePhaseDefinition>){
+  val cleaned=definitions.map{CoursePhaseDefinition(it.key.trim(),it.label.trim())}
+  require(cleaned.all{it.key.isNotBlank()&&it.label.isNotBlank()&&it.label!="全部"}){"分类名称不能为空或“全部”"}
+  require(cleaned.map{it.key}.distinct().size==cleaned.size){"分类标识重复"}
+  require(cleaned.map{it.label}.distinct().size==cleaned.size){"分类名称不能重复"}
+  val labels=JSONObject().apply{
+   coursePhaseLabels().forEach{(key,label)->put(key,label)}
+   cleaned.forEach{put(it.key,it.label)}
+  }
+  check(prefs.edit()
+   .putString("course_phases",JSONArray(cleaned.map{it.key}).toString())
+   .putString("course_phase_labels",labels.toString())
+   .putBoolean("course_phase_combined_migrated",true)
+   .putInt("schema",2)
+   .commit()){"分类保存失败，请检查设备存储空间"}
+ }
  fun saveCoursePhases(phases:List<String>){
-  write("course_phases",JSONArray(phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()))
-  check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
+  val cleaned=phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()
+  saveCoursePhaseDefinitions(cleaned.map{CoursePhaseDefinition(it,it)})
  }
  fun portMaintenanceLastDate():String?=prefs.getString("port_maintenance_last_date",null)?.takeIf{value->
   runCatching{java.time.LocalDate.parse(value)}.isSuccess
