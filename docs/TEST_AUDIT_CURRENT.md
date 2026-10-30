@@ -992,9 +992,10 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - quick run 41073629630 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41073649706 通过。未运行设备端截图测试，不冒充实机视觉验收。
 - Publish HealthTrend run 41075016588 再次通过签名恢复、设计规则、最终 Kotlin/JVM/Android 测试源码、签名 APK 构建及 Release 上传；382 项 JVM 测试 0 失败、0 错误、0 跳过，发布为 1.0.188（2026103009）。
 
-## 2026-10-30 病程筛选文字完整性与原高度回归（快速验证通过、未发布）
+## 2026-10-30 病程筛选文字完整性与原高度回归（正式发布通过）
 
 - 展开用例继续按完整文本查询“全部、化疗、放疗、观察、住院、复查、恢复”；生产代码移除 `Ellipsis` 和 Material `FilterChip` 内边距来源。
 - 八个色块等宽等高断言保留，并新增真实高度必须为 32dp；港维护等高断言继续覆盖联动高度。
 - 8dp 行距、管理按钮距离、无横滑和升白针筛选逻辑均不得回退。
 - quick run 41077138859 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41077161625 通过。未运行设备端截图测试，不冒充实机视觉验收。
+- Publish HealthTrend run 41078187276 再次通过签名恢复、设计规则、最终 Kotlin/JVM/Android 测试源码、签名 APK 构建及 Release 上传；382 项 JVM 测试 0 失败、0 错误、0 跳过，发布为 1.0.189（2026103010）。
