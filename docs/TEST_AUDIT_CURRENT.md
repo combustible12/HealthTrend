@@ -1,3 +1,9 @@
+## 2026-10-30 病程升白针筛选测试影响（已快速验证、未发布）
+
+- `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 使用一张 `growthFactorInjection=true` 和一张未标记卡片，验证打针图标标签存在且点击后只保留明确标记卡片。
+- 既有卡片右上角逐日打针图标、编辑页保存布尔标记及趋势连续日期只取首日测试保留，防止筛选功能混入显示或趋势逻辑。
+- run 41044493870 已通过 `compileDebugKotlin`、全部 `testDebugUnitTest` 与 `compileDebugAndroidTestKotlin`；同步守卫 run 41044509281 通过。未运行 Android 设备视觉验收，不修改发布配置。
+
 ## 2026-10-30 病程 BMI 配色测试影响（已快速验证、未发布）
 
 - `BodySurfaceAreaTest.bmiHealthFillUsesTheSameGreenAndPinkAsPulseStatus` 验证共用浅绿/浅粉色、BMI 18.5 下边界包含、24.0 上边界排除，以及缺失值保持调用页中性色。

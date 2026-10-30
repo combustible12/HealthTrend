@@ -59,6 +59,7 @@ import androidx.compose.animation.fadeOut
 
 
 private val courseFilterHeight=32.dp
+private const val growthFactorInjectionFilter="__growth_factor_injection__"
 
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
 private val idealHealthValueFill=Color(0xFFCFF3E0)
@@ -152,7 +153,12 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  var dateLookupMessage by remember{mutableStateOf<String?>(null)}
  val query=search.trim()
  val shown=records.filter{record->
-  (query.isNotBlank()||filter=="全部"||record.phase==filter)&&(DataSearch.course(query,record)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
+  val matchesFilter=when{
+   filter==growthFactorInjectionFilter->record.growthFactorInjection
+   query.isNotBlank()||filter=="全部"->true
+   else->record.phase==filter
+  }
+  matchesFilter&&(DataSearch.course(query,record)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(requestedRecordId,shown.map{it.id}){
@@ -182,6 +188,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
     (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+    FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
     }
     TextButton({managingPhases=true}){Text("管理")}
    }
@@ -203,7 +210,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   }
  }
  if(managingPhases)CoursePhaseManager(phaseDefinitions,{managingPhases=false}){updated->
-  runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
+  runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter!=growthFactorInjectionFilter&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
  dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}

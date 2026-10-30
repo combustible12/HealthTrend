@@ -67,3 +67,4 @@
 2026-10-29 growth factor injection trend event layers
 2026-10-30 editable course phase labels with stable treatment identity; quick compile and tests only
 2026-10-30 BMI ideal-range green and non-ideal pink matching pulse colors; quick compile and tests only
+2026-10-30 fixed growth-factor injection icon filter in course category row; quick compile and tests only
