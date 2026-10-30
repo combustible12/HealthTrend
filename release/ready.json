@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "a6f6b1549291d78d306586e9a4d150f1c63a74c2",
-  "validationMode": "course-filter-expand-white-phase-manager",
-  "versionCode": 2026103008,
-  "versionName": "1.0.187"
+  "sourceBaseCommit": "7cb7a06bc2430d56c6d934bf667cbcce173fcb7e",
+  "validationMode": "course-filter-equal-grid-spacing",
+  "versionCode": 2026103009,
+  "versionName": "1.0.188"
 }
