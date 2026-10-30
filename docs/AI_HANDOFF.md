@@ -23,6 +23,13 @@
 - 回归继续位于 `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow`；quick run 41073629630 与同步守卫 run 41073649706 均通过，不修改 `release/ready.json`。
 - 用户明确要求发布后，1.0.188（2026103009）由提交 `6a81900872a8fb94589ea7ef2c31b670aab3215c` 正式发布；run 41075016588 的签名恢复、382 项 JVM 回归、Release APK 构建与上传均成功。APK SHA-256 为 `00aaa56e0822946ab76d418f43361696664472d5673afbe92f5bf74ae2d15918`。
 
+## 2026-10-30 病程筛选文字裁切与高度回退交接（待快速验证、未发布）
+
+- 1.0.188 的 58dp 固定宽度与 Material `FilterChip` 内边距冲突，两个汉字被 `Ellipsis` 裁掉；当前改为自有 `CourseFilterBlock`，不要恢复 Material 默认内边距。
+- 色块固定 58dp × 32dp，文字 14sp 单行完整居中；升白针图标使用同一容器，八个色块继续等宽等高。
+- 港维护继续复用 32dp `courseFilterHeight`；8dp 行列间距和管理入口紧贴规则不变。
+- 回归位于 `CourseNavigationTest`，等待快速工作流，不修改 `release/ready.json`。
+
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
 - `CourseRecords.kt` 的 `healthStatusFillColor` 是脉搏与 BMI 共用色源：理想 `#CFF3E0`，非理想 `#FFDCE2`；不得另建近似色。

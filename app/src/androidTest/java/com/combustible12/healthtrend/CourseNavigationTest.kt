@@ -120,6 +120,7 @@ class CourseNavigationTest {
   ).map{it.fetchSemanticsNode().boundsInRoot}
   filterBlocks.drop(1).forEach{bounds->assertEquals(filterBlocks.first().width,bounds.width,1f);assertEquals(filterBlocks.first().height,bounds.height,1f)}
   val scale=compose.density.density
+  assertEquals(32f*scale,filterBlocks.first().height,scale)
   assertEquals(8f*scale,filterBlocks[4].top-filterBlocks[0].bottom,scale)
   val lastLabel=compose.onNodeWithText("恢复").fetchSemanticsNode().boundsInRoot
   val management=compose.onNodeWithText("管理").assertIsDisplayed().fetchSemanticsNode().boundsInRoot

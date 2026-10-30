@@ -72,3 +72,4 @@
 2026-10-30 expand all course filters without horizontal scrolling and use a white phase manager; quick compile and tests only
 2026-10-30 rerun course filter expansion after local FlowRow experimental API opt-in
 2026-10-30 make expanded course filters equal-sized with spacing and move management directly below
+2026-10-30 restore 32dp course filters and remove Material padding that clipped two-character labels
