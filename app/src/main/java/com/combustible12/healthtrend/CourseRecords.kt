@@ -58,9 +58,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
 
-private val courseFilterHeight=36.dp
+private val courseFilterHeight=32.dp
 private val courseFilterWidth=58.dp
 private const val growthFactorInjectionFilter="__growth_factor_injection__"
+
+@Composable private fun CourseFilterBlock(selected:Boolean,onClick:()->Unit,content:@Composable ()->Unit){
+ Box(Modifier.width(courseFilterWidth).height(courseFilterHeight).clip(RoundedCornerShape(10.dp)).background(if(selected)SelectedTint else Color.White).clickable(onClick=onClick),contentAlignment=Alignment.Center){content()}
+}
 
 private val pressureColors=listOf(Color(0xFF2587C9),Color(0xFF218A50),Color(0xFFA96B08),Color(0xFFD9434E))
 private val idealHealthValueFill=Color(0xFFCFF3E0)
@@ -191,8 +195,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    Column(Modifier.fillMaxWidth().semantics{contentDescription="病程分类筛选"}){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
      FlowRow(Modifier.weight(1f).padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp),maxLines=if(filtersExpanded)Int.MAX_VALUE else 1){
-      FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.width(courseFilterWidth).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
-      (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase),maxLines=1,overflow=TextOverflow.Ellipsis)},modifier=Modifier.width(courseFilterWidth).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+      CourseFilterBlock(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter}){Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))}
+      (listOf("全部")+phases).forEach{phase->CourseFilterBlock(filter==phase,{filter=phase}){Text(if(phase=="全部")phase else store.coursePhaseLabel(phase),fontSize=14.sp,maxLines=1,softWrap=false)}}
      }
      IconButton({filtersExpanded=!filtersExpanded}){Icon(if(filtersExpanded)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,if(filtersExpanded)"收起全部分类" else "展开全部分类",tint=Accent)}
     }
