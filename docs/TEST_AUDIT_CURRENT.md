@@ -2,7 +2,7 @@
 
 - `BodySurfaceAreaTest.bmiHealthFillUsesTheSameGreenAndPinkAsPulseStatus` 验证共用浅绿/浅粉色、BMI 18.5 下边界包含、24.0 上边界排除，以及缺失值保持调用页中性色。
 - `CourseRecords.kt` 的编辑页和病程卡片均调用被测试的 `bmiValueColor`，卡片/编辑页原有等宽等高断言继续保留。
-- run 41036817669 已通过 `compileDebugKotlin`、全部 `testDebugUnitTest` 与 `compileDebugAndroidTestKotlin`；本轮未运行 Android 设备视觉验收，不修改发布配置。
+- run 41037294093 已通过 `compileDebugKotlin`、全部 `testDebugUnitTest` 与 `compileDebugAndroidTestKotlin`；同步守卫 run 41037301572 通过。本轮未运行 Android 设备视觉验收，不修改发布配置。
 
 ## 2026-10-30 病程分类重命名测试影响（待执行、未发布）
 

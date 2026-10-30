@@ -3,7 +3,7 @@
 - `CourseRecords.kt` 的 `healthStatusFillColor` 是脉搏与 BMI 共用色源：理想 `#CFF3E0`，非理想 `#FFDCE2`；不得另建近似色。
 - `idealAdultBmiStatus` 只对有效 BMI 判断 `18.5 ≤ BMI < 24.0`；无有效身高/体重返回空状态。
 - 编辑页空状态继续白色，病程卡片空状态继续灰色；只有 BMI 一列着色，时间、体重与体表面积不变，四列尺寸和字号不变。
-- `BodySurfaceAreaTest`、Debug Kotlin 编译、全部 JVM 回归和 Android 测试源码编译已在 run 41036817669 通过；未运行完整设备视觉验收，不修改 `release/ready.json`。
+- `BodySurfaceAreaTest`、Debug Kotlin 编译、全部 JVM 回归和 Android 测试源码编译已在 run 41037294093 通过；同步守卫 run 41037301572 通过。未运行完整设备视觉验收，不修改 `release/ready.json`。
 
 ## 2026-10-30 病程分类显示名称交接（待验证、未发布）
 
