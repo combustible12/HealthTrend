@@ -6,6 +6,14 @@
 - 卡片逐日筛选与趋势事件降噪规则分开：连续多日只要每张卡已明确标记，就都显示；趋势图仍只取连续段首日。
 - `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 同时验证位置和筛选结果；快速验证 run 41048644449 与同步守卫 run 41048661815 均通过，不修改 `release/ready.json`。
 
+## 2026-10-30 病程分类展开与标签管理白底交接（待快速验证、未发布）
+
+- 病程首页分类区域使用无滚动的 `FlowRow`：折叠时限制一行，展开时显示全部标签；右侧按钮负责展开/收起。
+- “管理”只在展开状态显示，并位于标签区域下方；原 `CoursePhaseManager` 的排序、重命名和删除行为不变。
+- `growthFactorInjectionFilter` 必须继续固定为第一项且不进入 `phaseDefinitions`，只筛 `CourseRecord.growthFactorInjection`。
+- `CoursePhaseManager` 的管理和重命名 `AlertDialog` 显式使用 `Color.White`；不要改变 `CourseRecordEditor` 或共用 `FullPage` 的底色。
+- 回归入口为 `CourseNavigationTest.courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow`；等待快速工作流，不修改 `release/ready.json`。
+
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
 - `CourseRecords.kt` 的 `healthStatusFillColor` 是脉搏与 BMI 共用色源：理想 `#CFF3E0`，非理想 `#FFDCE2`；不得另建近似色。

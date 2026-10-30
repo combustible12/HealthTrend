@@ -146,6 +146,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  var phaseDefinitions by remember{mutableStateOf(store.coursePhaseDefinitions())}
  val phases=phaseDefinitions.map{it.key}
  var managingPhases by rememberSaveable{mutableStateOf(false)}
+ var filtersExpanded by rememberSaveable{mutableStateOf(false)}
  var phaseError by remember{mutableStateOf<String?>(null)}
  var filter by rememberSaveable{mutableStateOf("全部")}
  var search by rememberSaveable{mutableStateOf("")}
@@ -185,12 +186,17 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    }
    Spacer(Modifier.height(12.dp))
    AppSearchField(search,{search=it},"搜索病程记录",Modifier.fillMaxWidth().padding(top=6.dp),height=36.dp,showSearchIcon=true,shape=RoundedCornerShape(12.dp))
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical=10.dp)){
-    FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
-    (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+   Column(Modifier.fillMaxWidth().semantics{contentDescription="病程分类筛选"}){
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
+     FlowRow(Modifier.weight(1f).padding(vertical=10.dp),maxLines=if(filtersExpanded)Int.MAX_VALUE else 1){
+      FilterChip(filter==growthFactorInjectionFilter,{filter=growthFactorInjectionFilter},label={Icon(Icons.Outlined.Vaccines,"筛选升白针记录",Modifier.size(18.dp))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))
+      (listOf("全部")+phases).forEach{phase->FilterChip(filter==phase,{filter=phase},label={Text(if(phase=="全部")phase else store.coursePhaseLabel(phase))},modifier=Modifier.padding(end=8.dp).height(courseFilterHeight),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}
+     }
+     IconButton({filtersExpanded=!filtersExpanded}){Icon(if(filtersExpanded)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,if(filtersExpanded)"收起全部分类" else "展开全部分类",tint=Accent)}
     }
-    TextButton({managingPhases=true}){Text("管理")}
+    if(filtersExpanded)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
+     TextButton({managingPhases=true}){Icon(Icons.Outlined.Edit,"管理分类",Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text("管理")}
+    }
    }
    Row(Modifier.fillMaxWidth().offset(x=(-6).dp).padding(end=8.dp)){
     Spacer(Modifier.width(22.dp))
@@ -677,7 +683,7 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
  var renameText by rememberSaveable{mutableStateOf("")}
  val rowHeight=with(LocalDensity.current){56.dp.toPx()}
  val candidate=name.trim()
- AlertDialog(onDismissRequest=close,title={Text("管理分类")},text={
+ AlertDialog(onDismissRequest=close,containerColor=Color.White,title={Text("管理分类")},text={
   Column(Modifier.heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("拖动左侧手柄排序，完成后保存。删除分类不会删除已有病程记录。",fontSize=12.sp,color=Muted)
    Column{
@@ -713,6 +719,6 @@ private fun courseDateMillis(value:String,original:Long):Long?=runCatching{
  },confirmButton={TextButton({update(draft);close()}){Text("完成")}})
  renaming?.let{target->
   val renamed=renameText.trim()
-  AlertDialog(onDismissRequest={renaming=null},title={Text("重命名分类")},text={AppInputField(renameText,{renameText=it},label="分类名称",singleLine=true)},confirmButton={TextButton({draft=draft.map{if(it.key==target.key)it.copy(label=renamed) else it};renaming=null},enabled=renamed.isNotBlank()&&renamed!="全部"&&draft.none{it.key!=target.key&&it.label==renamed}){Text("保存")}},dismissButton={TextButton({renaming=null}){Text("取消")}})
+  AlertDialog(onDismissRequest={renaming=null},containerColor=Color.White,title={Text("重命名分类")},text={AppInputField(renameText,{renameText=it},label="分类名称",singleLine=true)},confirmButton={TextButton({draft=draft.map{if(it.key==target.key)it.copy(label=renamed) else it};renaming=null},enabled=renamed.isNotBlank()&&renamed!="全部"&&draft.none{it.key!=target.key&&it.label==renamed}){Text("保存")}},dismissButton={TextButton({renaming=null}){Text("取消")}})
  }
 }

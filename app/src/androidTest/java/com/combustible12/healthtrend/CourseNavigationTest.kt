@@ -100,6 +100,20 @@ class CourseNavigationTest {
   compose.onNodeWithText("已标记升白针",substring=true).assertExists()
   compose.onNodeWithText("未标记普通卡",substring=true).assertDoesNotExist()
  }
+ @Test fun courseFiltersExpandWithoutHorizontalScrollingAndShowManagementBelow(){
+  val store=HealthStore(context)
+  store.saveCoursePhases(listOf("化疗","放疗","观察","住院","复查","恢复"))
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(CourseRecord(title="展开筛选")),store,{},{},{},{_,_->})}}
+  compose.onNodeWithContentDescription("病程分类筛选").assert(hasScrollAction().not())
+  compose.onNodeWithText("管理").assertDoesNotExist()
+  compose.onNodeWithContentDescription("展开全部分类").performClick()
+  listOf("化疗","放疗","观察","住院","复查","恢复").forEach{compose.onNodeWithText(it).assertIsDisplayed()}
+  val lastLabel=compose.onNodeWithText("恢复").fetchSemanticsNode().boundsInRoot
+  val management=compose.onNodeWithText("管理").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+  assertTrue(management.top>=lastLabel.bottom)
+  compose.onNodeWithText("管理").performClick()
+  compose.onNodeWithText("管理分类").assertIsDisplayed()
+ }
  @Test fun courseEditorWeightIsAboveSymptomsAndSavesAsKilograms(){
   val initial=CourseRecord(title="体重记录")
   val store=HealthStore(context);store.saveCourseRecord(initial);store.savePatientProfile(PatientProfile(heightCm="165"))
