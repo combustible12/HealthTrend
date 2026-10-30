@@ -1,3 +1,9 @@
+## 2026-10-30 病程 BMI 配色测试影响（已快速验证、未发布）
+
+- `BodySurfaceAreaTest.bmiHealthFillUsesTheSameGreenAndPinkAsPulseStatus` 验证共用浅绿/浅粉色、BMI 18.5 下边界包含、24.0 上边界排除，以及缺失值保持调用页中性色。
+- `CourseRecords.kt` 的编辑页和病程卡片均调用被测试的 `bmiValueColor`，卡片/编辑页原有等宽等高断言继续保留。
+- run 41036817669 已通过 `compileDebugKotlin`、全部 `testDebugUnitTest` 与 `compileDebugAndroidTestKotlin`；本轮未运行 Android 设备视觉验收，不修改发布配置。
+
 ## 2026-10-30 病程分类重命名测试影响（待执行、未发布）
 
 - `CoursePhasePersistenceTest` 验证“放疗”显示名改为“照射”后，持久化标签更新，但历史 `CourseRecord.phase`、标题和备注不被改写。
