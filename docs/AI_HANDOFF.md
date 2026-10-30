@@ -1,10 +1,10 @@
-## 2026-10-30 病程升白针筛选位置修正交接（待快速验证、未发布）
+## 2026-10-30 病程升白针筛选位置修正交接（已快速验证、未发布）
 
 - `growthFactorInjectionFilter` 是病程筛选行的固定内部键，不得写入 `CourseRecord.phase` 或 `course_phase_labels`。
 - 打针图标标签必须固定渲染在“全部”之前，不能追加到用户分类列表末尾，也不进入“管理分类”；这是为了打开页面直接可见、无需横滑。
 - 图标标签只筛 `CourseRecord.growthFactorInjection`；不要复用 `legacyGrowthFactorInjectionNote`，旧备注兼容仍仅发生在既有一次性迁移中。
 - 卡片逐日筛选与趋势事件降噪规则分开：连续多日只要每张卡已明确标记，就都显示；趋势图仍只取连续段首日。
-- `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 同时验证位置和筛选结果；本轮待重新快速验证，不修改 `release/ready.json`。
+- `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 同时验证位置和筛选结果；快速验证 run 41048644449 与同步守卫 run 41048661815 均通过，不修改 `release/ready.json`。
 
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
