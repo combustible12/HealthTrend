@@ -40,8 +40,8 @@ class DataSearchTest {
   assertEquals("123.00",row.textValue)
  }
  @Test fun courseAndEntriesIncludeNumericAndDateFields(){
-  val course=CourseRecord(date=at,phase="恢复期",title="合成记录",systolic=128,diastolic=79,pulse=73,additionalPressures=listOf(BloodPressureReading("21:30",132,81,75)),treatmentText="输液港换药",medicineText="合成药")
-  for(q in listOf("2001/01/02","恢复期","128/79","73","132/81","75","21:30","输液港换药","合成药"))assertTrue(q,DataSearch.course(q,course))
+  val course=CourseRecord(date=at,phase="恢复期",title="合成记录",systolic=128,diastolic=79,pulse=73,additionalPressures=listOf(BloodPressureReading("21:30",132,81,75)),treatmentText="输液港换药",medicineText="合成药",dietText="晚饭面和鸡蛋")
+  for(q in listOf("2001/01/02","恢复期","128/79","73","132/81","75","21:30","输液港换药","合成药","晚饭面和鸡蛋"))assertTrue(q,DataSearch.course(q,course))
   val entry=HealthEntry(kind=EntryKind.MEDICATION,title="合成药品",occurredAtEpochMillis=at,dose="2片",route="口服",note="饭后")
   for(q in listOf("合成药品","2001/01/02","2片","口服","饭后"))assertTrue(q,DataSearch.entry(q,entry))
   assertTrue(DataSearch.weight("61.5",WeightRecord(measuredAtEpochMillis=at,kilograms=61.5)))

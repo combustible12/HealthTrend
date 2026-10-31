@@ -88,6 +88,19 @@ class CourseNavigationTest {
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertTrue(saved?.growthFactorInjection==true)}
  }
+ @Test fun dietEditorAppearsBetweenMedicineAndNotesWithPhotoActions(){
+  val initial=CourseRecord(title="饮食条目")
+  val store=HealthStore(context);store.saveCourseRecord(initial)
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{_,_,_,_->},{},{_,_->})}}
+  compose.onNodeWithText("饮食").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("相册添加饮食图片").assertIsDisplayed()
+  compose.onNodeWithText("备注").performScrollTo().assertIsDisplayed()
+  val medicine=compose.onNodeWithText("药品 / 取药").fetchSemanticsNode().boundsInRoot
+  val diet=compose.onNodeWithText("饮食").fetchSemanticsNode().boundsInRoot
+  val notes=compose.onNodeWithText("备注").fetchSemanticsNode().boundsInRoot
+  assertTrue(medicine.top<diet.top)
+  assertTrue(diet.top<notes.top)
+ }
  @Test fun growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards(){
   val marked=CourseRecord(title="已标记升白针",phase="放疗",growthFactorInjection=true)
   val unmarked=CourseRecord(title="未标记普通卡",phase="观察",date=marked.date-86_400_000L)
