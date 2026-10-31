@@ -1008,9 +1008,10 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - 快速验证 run 41151370843 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41151343756 通过。
 - 正式发布首次执行时两项旧 `CatalogueStorageRoundTripTest` 因 Robolectric Maven 运行包下载失败中止，未构建或上传 APK；同一 run 41151682053 重跑后 383 项 JVM 测试全部通过，签名 APK 构建和 Release 上传成功。未运行设备端截图，不宣称实机视觉验收。
 
-## 2026-10-31 病程饮食条目回归（快速验证通过）
+## 2026-10-31 病程饮食条目回归（正式发布通过）
 
 - `CoursePhasePersistenceTest.dietTextAndImagesPersistWhileLegacyRecordsDefaultToEmpty` 验证饮食文字和两张图片完整往返，并验证旧版 JSON 缺少饮食字段时安全读为空。
 - `DataSearchTest.courseAndEntriesIncludeNumericAndDateFields` 新增饮食文字查询；`CourseTreatmentTitleTest` 锁定饮食文字或图片会使自动病程卡不再被判为空。
 - `CourseNavigationTest.dietEditorAppearsBetweenMedicineAndNotesWithPhotoActions` 锁定饮食位于药品与备注之间，并显示独立相册按钮。
 - 源码审查确认饮食分支覆盖新增、替换、预览、删除、移动和查看器内相册/拍照追加；run 41156505877 已通过 Kotlin 编译、全部 JVM 回归和 Android 测试源码编译，同步守卫 run 41156498851 通过。未运行设备端截图，不宣称实机视觉验收。
+- 正式发布 run 41157429112 再次通过签名恢复、无描边规则、384 项 JVM 回归、签名 APK 构建与 Release 上传；0 失败、0 错误、0 跳过，发布为 1.0.191（2026103102）。
