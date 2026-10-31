@@ -1000,9 +1000,10 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - quick run 41077138859 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41077161625 通过。未运行设备端截图测试，不冒充实机视觉验收。
 - Publish HealthTrend run 41078187276 再次通过签名恢复、设计规则、最终 Kotlin/JVM/Android 测试源码、签名 APK 构建及 Release 上传；382 项 JVM 测试 0 失败、0 错误、0 跳过，发布为 1.0.189（2026103010）。
 
-## 2026-10-31 病程治疗条目回归（待云端执行）
+## 2026-10-31 病程治疗条目回归（正式发布通过）
 
 - `CoursePhasePersistenceTest.treatmentTextAndImagesPersistWhileLegacyRecordsDefaultToEmpty` 验证治疗文字和两张图片完整往返，并验证旧版病程 JSON 缺少治疗字段时安全读为空。
 - `DataSearchTest.courseAndEntriesIncludeNumericAndDateFields` 新增“输液港换药”查询，锁定治疗文字进入病程搜索。
 - 源码审查确认治疗分支覆盖新增、替换、预览、删除、移动和查看器内相册/拍照追加；病程卡片展示顺序为检查、治疗、药品。
-- `ci/check_ui_design_rules.py` 与 `git diff --check` 已通过；当前环境无 Gradle wrapper，Kotlin/JVM/Android 测试源码编译等待云端快速验证，不宣称实机视觉验收。
+- 快速验证 run 41151370843 已通过 `compileDebugKotlin`、全部 JVM 回归和 `compileDebugAndroidTestKotlin`；同步守卫 run 41151343756 通过。
+- 正式发布首次执行时两项旧 `CatalogueStorageRoundTripTest` 因 Robolectric Maven 运行包下载失败中止，未构建或上传 APK；同一 run 41151682053 重跑后 383 项 JVM 测试全部通过，签名 APK 构建和 Release 上传成功。未运行设备端截图，不宣称实机视觉验收。
