@@ -31,6 +31,14 @@
 - 回归位于 `CourseNavigationTest`；quick run 41077138859 与同步守卫 run 41077161625 均通过，不修改 `release/ready.json`。
 - 用户明确要求发布后，1.0.189（2026103010）由提交 `2deb752fe60fd2cb02e57265d936888bdcfb302a` 正式发布；run 41078187276 的签名恢复、382 项 JVM 回归、Release APK 构建与上传均成功。APK SHA-256 为 `f279029a03c72838287690779ca12d7645ff512766c15a9cb7a8f3f72c866d41`。
 
+## 2026-10-31 病程治疗条目交接（待云端验证、未发布）
+
+- 病程编辑页在“检查”和“药品 / 取药”之间新增“治疗”，包含独立多行输入框、相册添加治疗图片、直接拍照及缩略图。
+- `CourseRecord.treatmentText` 与 `treatmentImages` 独立持久化；旧 JSON 缺少字段时读为空，不改写检查、药品或备注。
+- 治疗图片已接入编辑页和病程卡片的预览、更换、追加、拍照、排序及移除链路；卡片显示顺序固定为检查、治疗、药品。
+- 病程搜索、空白自动卡判断及备份恢复前的非空保护均包含治疗内容。`CoursePhasePersistenceTest` 覆盖新字段往返和旧数据兼容，`DataSearchTest` 覆盖治疗文字搜索。
+- 本地设计规则与 diff 检查通过；当前环境没有 Gradle wrapper，尚待云端 Kotlin/JVM/Android 测试源码编译，不修改 `release/ready.json`。
+
 ## 2026-10-30 病程 BMI 配色交接（已快速验证，未发布）
 
 - `CourseRecords.kt` 的 `healthStatusFillColor` 是脉搏与 BMI 共用色源：理想 `#CFF3E0`，非理想 `#FFDCE2`；不得另建近似色。

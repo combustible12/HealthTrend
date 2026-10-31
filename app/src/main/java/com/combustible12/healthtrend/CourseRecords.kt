@@ -286,7 +286,7 @@ internal fun growthFactorInjectionEventDates(records:List<CourseRecord>,zone:Zon
   .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
 }
 
-internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&!growthFactorInjection&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
+internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&!growthFactorInjection&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&treatmentText.isBlank()&&treatmentImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
 
 internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
@@ -363,6 +363,7 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
     if(weight!=null)CourseWeightView(weight,openWeightTrend)
     if(record.symptomText.isNotBlank()||record.symptomImages.isNotEmpty())CourseSection(Icons.Outlined.MonitorHeart,"症状",record.symptomText,record.symptomImages,view)
     if(record.checkText.isNotBlank()||record.checkImages.isNotEmpty())CourseSection(Icons.Outlined.FactCheck,"检查",record.checkText,record.checkImages,view)
+    if(record.treatmentText.isNotBlank()||record.treatmentImages.isNotEmpty())CourseSection(Icons.Outlined.MedicalServices,"治疗",record.treatmentText,record.treatmentImages,view)
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view)
    }
@@ -455,7 +456,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  var viewingKind by rememberSaveable{mutableStateOf<String?>(null)}
  var viewingIndex by rememberSaveable{mutableIntStateOf(0)}
  val scope=rememberCoroutineScope()
- fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"symptom"->record.copy(symptomImages=record.symptomImages+owned);"check"->record.copy(checkImages=record.checkImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
+ fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"symptom"->record.copy(symptomImages=record.symptomImages+owned);"check"->record.copy(checkImages=record.checkImages+owned);"treatment"->record.copy(treatmentImages=record.treatmentImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val replaceInput=rememberPhotoInput({uris->
   val target=pendingImageReplace
   pendingImageReplace=null
@@ -463,16 +464,18 @@ private fun coursePhaseColors(phase:String)=when(phase){
    val owned=withContext(Dispatchers.IO){store.ownImage(uris.first())}
    val (kind,index)=target
    fun replaced(items:List<String>):List<String>{require(index in items.indices);return items.toMutableList().also{it[index]=owned}}
-   record=when(kind){"symptom"->record.copy(symptomImages=replaced(record.symptomImages));"check"->record.copy(checkImages=replaced(record.checkImages));"medicine"->record.copy(medicineImages=replaced(record.medicineImages));else->record.copy(noteImages=replaced(record.noteImages))}
+   record=when(kind){"symptom"->record.copy(symptomImages=replaced(record.symptomImages));"check"->record.copy(checkImages=replaced(record.checkImages));"treatment"->record.copy(treatmentImages=replaced(record.treatmentImages));"medicine"->record.copy(medicineImages=replaced(record.medicineImages));else->record.copy(noteImages=replaced(record.noteImages))}
   }catch(e:Exception){error="更换图片失败：${e.message}"}finally{busy=false}}}
  },{error=it})
  val symptomInput=rememberPhotoInput({addImages("symptom",it)},{error=it})
  val checkInput=rememberPhotoInput({addImages("check",it)},{error=it})
+ val treatmentInput=rememberPhotoInput({addImages("treatment",it)},{error=it})
  val medicineInput=rememberPhotoInput({addImages("medicine",it)},{error=it})
  val noteInput=rememberPhotoInput({addImages("note",it)},{error=it})
  val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
+ val rememberedTreatments=remember(remembered){remembered.map{it.treatmentText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date)
  val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
@@ -526,6 +529,10 @@ private fun coursePhaseColors(phase:String)=when(phase){
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
+   CourseEditorHeading(Icons.Outlined.MedicalServices,"治疗")
+   CourseRememberedField(record.treatmentText,{record=record.copy(treatmentText=it)},"治疗内容",rememberedTreatments,2)
+   PhotoInputButtons(treatmentInput,!busy,"相册添加治疗图片")
+   if(record.treatmentImages.isNotEmpty())CourseThumbnails(record.treatmentImages,{i->viewingKind="treatment";viewingIndex=i},{i->pendingImageRemoval="treatment" to i},{i->pendingImageReplace="treatment" to i;replaceInput.gallery()})
    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
@@ -540,7 +547,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  }
  val activeViewingKind=viewingKind
  if(activeViewingKind!=null){
-  val currentImages=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"medicine"->record.medicineImages;else->record.noteImages}
+  val currentImages=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"treatment"->record.treatmentImages;"medicine"->record.medicineImages;else->record.noteImages}
   if(currentImages.isNotEmpty())SourceViewer(
    currentImages,
    {viewingKind=null},
@@ -548,22 +555,22 @@ private fun coursePhaseColors(phase:String)=when(phase){
    onReplace={i->pendingImageReplace=activeViewingKind to i;replaceInput.gallery()},
    onRemove={i->
     fun removed(items:List<String>)=items.filterIndexed{j,_->j!=i}
-    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=removed(record.symptomImages));"check"->record.copy(checkImages=removed(record.checkImages));"medicine"->record.copy(medicineImages=removed(record.medicineImages));else->record.copy(noteImages=removed(record.noteImages))}
-    val next=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"medicine"->record.medicineImages;else->record.noteImages}
+    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=removed(record.symptomImages));"check"->record.copy(checkImages=removed(record.checkImages));"treatment"->record.copy(treatmentImages=removed(record.treatmentImages));"medicine"->record.copy(medicineImages=removed(record.medicineImages));else->record.copy(noteImages=removed(record.noteImages))}
+    val next=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"treatment"->record.treatmentImages;"medicine"->record.medicineImages;else->record.noteImages}
     if(next.isEmpty())viewingKind=null else viewingIndex=i.coerceAtMost(next.lastIndex)
    },
    onMove={from,to->
     fun moved(items:List<String>):List<String>{if(from !in items.indices||to !in items.indices)return items;return items.toMutableList().also{val item=it.removeAt(from);it.add(to,item)}}
-    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=moved(record.symptomImages));"check"->record.copy(checkImages=moved(record.checkImages));"medicine"->record.copy(medicineImages=moved(record.medicineImages));else->record.copy(noteImages=moved(record.noteImages))}
+    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=moved(record.symptomImages));"check"->record.copy(checkImages=moved(record.checkImages));"treatment"->record.copy(treatmentImages=moved(record.treatmentImages));"medicine"->record.copy(medicineImages=moved(record.medicineImages));else->record.copy(noteImages=moved(record.noteImages))}
     viewingIndex=to
    },
-   onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"medicine"->medicineInput.gallery();else->noteInput.gallery()}},
-   onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"medicine"->medicineInput.camera();else->noteInput.camera()}},
+   onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"treatment"->treatmentInput.gallery();"medicine"->medicineInput.gallery();else->noteInput.gallery()}},
+   onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"treatment"->treatmentInput.camera();"medicine"->medicineInput.camera();else->noteInput.camera()}},
    removalMessage="仅修改当前病程编辑草稿，取消编辑不会更改已保存的原图。"
   )
  }
- if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=when(kind){"symptom"->record.copy(symptomImages=record.symptomImages.filterIndexed{j,_->j!=index});"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
- if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、药品、备注及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
+ if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=when(kind){"symptom"->record.copy(symptomImages=record.symptomImages.filterIndexed{j,_->j!=index});"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"treatment"->record.copy(treatmentImages=record.treatmentImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
+ if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、治疗、药品、备注及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
  duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;onOpenExisting(existing)}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
 }
 
