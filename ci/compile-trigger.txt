@@ -74,3 +74,4 @@
 2026-10-30 make expanded course filters equal-sized with spacing and move management directly below
 2026-10-30 restore 32dp course filters and remove Material padding that clipped two-character labels
 2026-10-31 course treatment text, gallery, camera, persistence, search, and image lifecycle; quick compile and tests only
+2026-10-31 course diet text, gallery, camera, persistence, search, blank-card, and image lifecycle; quick compile and tests only
