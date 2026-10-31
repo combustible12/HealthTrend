@@ -58,6 +58,8 @@ class CourseTreatmentTitleTest {
  @Test fun blankAutoCardHasNoUserContent(){
   assertEquals(true,record("2026-10-28","放疗").copy(title="2化15-放7").isBlankCourseCard())
   assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",noteText="已记录").isBlankCourseCard())
+  assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",dietText="晚饭：面和鸡蛋").isBlankCourseCard())
+  assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",dietImages=listOf("file:///diet.jpg")).isBlankCourseCard())
  }
  @Test fun chemotherapyEventsUseActualTreatmentDaysOnly(){
   val first=record("2026-10-10","化疗")

@@ -45,6 +45,19 @@ class CoursePhasePersistenceTest {
   assertEquals("",legacy.treatmentText)
   assertTrue(legacy.treatmentImages.isEmpty())
  }
+ @Test fun dietTextAndImagesPersistWhileLegacyRecordsDefaultToEmpty(){
+  val store=HealthStore(context)
+  val record=CourseRecord(title="饮食记录",dietText="晚饭：面和鸡蛋",dietImages=listOf("file:///diet-1.jpg","file:///diet-2.jpg"))
+  store.saveCourseRecord(record)
+  val restored=HealthStore(context).courseRecords().single()
+  assertEquals("晚饭：面和鸡蛋",restored.dietText)
+  assertEquals(listOf("file:///diet-1.jpg","file:///diet-2.jpg"),restored.dietImages)
+
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"legacy-diet","date":1,"phase":"观察","title":"旧病程","symptomImages":[],"checkImages":[],"treatmentImages":[],"medicineImages":[],"noteImages":[]}]""").commit()
+  val legacy=HealthStore(context).courseRecords().single()
+  assertEquals("",legacy.dietText)
+  assertTrue(legacy.dietImages.isEmpty())
+ }
  @Test fun renamingCategoryChangesOnlyItsDisplayLabelAndKeepsStableTreatmentIdentity(){
   val store=HealthStore(context)
   val record=CourseRecord(title="2化12-放2",phase="放疗",titleAuto=false,noteText="保留")

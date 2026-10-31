@@ -150,9 +150,9 @@ class MainActivity:ComponentActivity(){
     val owned=withContext(kotlinx.coroutines.Dispatchers.IO){store.ownImage(uri)}
     val current=store.courseRecords().firstOrNull{it.id==courseId}?:error("病程记录不存在")
     fun changed(items:List<String>)=items.toMutableList().also{require(index in it.indices);it[index]=owned}
-    val updated=when(courseKind){"symptom"->current.copy(symptomImages=changed(current.symptomImages));"check"->current.copy(checkImages=changed(current.checkImages));"treatment"->current.copy(treatmentImages=changed(current.treatmentImages));"medicine"->current.copy(medicineImages=changed(current.medicineImages));else->current.copy(noteImages=changed(current.noteImages))}
+    val updated=when(courseKind){"symptom"->current.copy(symptomImages=changed(current.symptomImages));"check"->current.copy(checkImages=changed(current.checkImages));"treatment"->current.copy(treatmentImages=changed(current.treatmentImages));"medicine"->current.copy(medicineImages=changed(current.medicineImages));"diet"->current.copy(dietImages=changed(current.dietImages));else->current.copy(noteImages=changed(current.noteImages))}
     store.saveCourseRecord(updated);revision++
-    viewer=when(courseKind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=index
+    viewer=when(courseKind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;"diet"->updated.dietImages;else->updated.noteImages};viewerStart=index
    }catch(e:Exception){error="更换图片失败：${e.message}"}finally{attachingReportImage=false}}
   }
   if(uri!=null&&id!=null&&index!=null&&!attachingReportImage){
@@ -189,9 +189,9 @@ class MainActivity:ComponentActivity(){
    }else if(courseId!=null&&kind!=null){
     val owned=withContext(kotlinx.coroutines.Dispatchers.IO){uris.map{store.ownImage(it)}}
     val current=store.courseRecords().firstOrNull{it.id==courseId}?:error("病程记录不存在")
-    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages+owned);"check"->current.copy(checkImages=current.checkImages+owned);"treatment"->current.copy(treatmentImages=current.treatmentImages+owned);"medicine"->current.copy(medicineImages=current.medicineImages+owned);else->current.copy(noteImages=current.noteImages+owned)}
+    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages+owned);"check"->current.copy(checkImages=current.checkImages+owned);"treatment"->current.copy(treatmentImages=current.treatmentImages+owned);"medicine"->current.copy(medicineImages=current.medicineImages+owned);"diet"->current.copy(dietImages=current.dietImages+owned);else->current.copy(noteImages=current.noteImages+owned)}
     store.saveCourseRecord(updated);revision++
-    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=(viewer?.lastIndex?:0).coerceAtLeast(0)
+    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;"diet"->updated.dietImages;else->updated.noteImages};viewerStart=(viewer?.lastIndex?:0).coerceAtLeast(0)
    }
   }catch(e:Exception){error="图片保存失败：${e.message}"}finally{attachingReportImage=false}}}
  },{error=it})
@@ -226,7 +226,7 @@ class MainActivity:ComponentActivity(){
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
    },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++},requestedCategory=trendCategoryRequest,onRequestedCategoryConsumed={trendCategoryRequest=null},showPreview={trendPreview=it})
-    2->CourseRecordsPage(m,courseRecords,store,{courseRecord=it},{courseRecord=CourseRecord(date=0L,title="")},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.treatmentImages==images||it.medicineImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.treatmentImages->"treatment";it.medicineImages->"medicine";it.noteImages->"note";else->null}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1})
+    2->CourseRecordsPage(m,courseRecords,store,{courseRecord=it},{courseRecord=CourseRecord(date=0L,title="")},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;viewerCourseRecordId=courseRecords.firstOrNull{it.symptomImages==images||it.checkImages==images||it.treatmentImages==images||it.medicineImages==images||it.dietImages==images||it.noteImages==images}?.id;viewerCourseKind=courseRecords.firstOrNull{it.id==viewerCourseRecordId}?.let{when(images){it.symptomImages->"symptom";it.checkImages->"check";it.treatmentImages->"treatment";it.medicineImages->"medicine";it.dietImages->"diet";it.noteImages->"note";else->null}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
   }
@@ -302,9 +302,9 @@ class MainActivity:ComponentActivity(){
    val id=viewerCourseRecordId!!;val kind=viewerCourseKind!!
    change{
     val current=store.courseRecords().first{it.id==id}
-    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages.filterIndexed{i,_->i!=index});"check"->current.copy(checkImages=current.checkImages.filterIndexed{i,_->i!=index});"treatment"->current.copy(treatmentImages=current.treatmentImages.filterIndexed{i,_->i!=index});"medicine"->current.copy(medicineImages=current.medicineImages.filterIndexed{i,_->i!=index});else->current.copy(noteImages=current.noteImages.filterIndexed{i,_->i!=index})}
+    val updated=when(kind){"symptom"->current.copy(symptomImages=current.symptomImages.filterIndexed{i,_->i!=index});"check"->current.copy(checkImages=current.checkImages.filterIndexed{i,_->i!=index});"treatment"->current.copy(treatmentImages=current.treatmentImages.filterIndexed{i,_->i!=index});"medicine"->current.copy(medicineImages=current.medicineImages.filterIndexed{i,_->i!=index});"diet"->current.copy(dietImages=current.dietImages.filterIndexed{i,_->i!=index});else->current.copy(noteImages=current.noteImages.filterIndexed{i,_->i!=index})}
     store.saveCourseRecord(updated)
-    val images=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;else->updated.noteImages}
+    val images=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;"diet"->updated.dietImages;else->updated.noteImages}
     if(images.isEmpty()){viewer=null;viewerCourseRecordId=null;viewerCourseKind=null}else{viewer=images;viewerStart=index.coerceAtMost(images.lastIndex)}
    }
   }}else null,
@@ -318,9 +318,9 @@ class MainActivity:ComponentActivity(){
    change{
     val current=store.courseRecords().first{it.id==id}
     fun moved(items:List<String>):List<String>{if(from !in items.indices||to !in items.indices)return items;return items.toMutableList().also{val item=it.removeAt(from);it.add(to,item)}}
-    val updated=when(kind){"symptom"->current.copy(symptomImages=moved(current.symptomImages));"check"->current.copy(checkImages=moved(current.checkImages));"treatment"->current.copy(treatmentImages=moved(current.treatmentImages));"medicine"->current.copy(medicineImages=moved(current.medicineImages));else->current.copy(noteImages=moved(current.noteImages))}
+    val updated=when(kind){"symptom"->current.copy(symptomImages=moved(current.symptomImages));"check"->current.copy(checkImages=moved(current.checkImages));"treatment"->current.copy(treatmentImages=moved(current.treatmentImages));"medicine"->current.copy(medicineImages=moved(current.medicineImages));"diet"->current.copy(dietImages=moved(current.dietImages));else->current.copy(noteImages=moved(current.noteImages))}
     store.saveCourseRecord(updated)
-    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;else->updated.noteImages};viewerStart=to
+    viewer=when(kind){"symptom"->updated.symptomImages;"check"->updated.checkImages;"treatment"->updated.treatmentImages;"medicine"->updated.medicineImages;"diet"->updated.dietImages;else->updated.noteImages};viewerStart=to
    }
   }}else null,
   onAdd=if(viewerReportId!=null||viewerCourseRecordId!=null){{viewerAddInput.gallery()}}else null,

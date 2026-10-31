@@ -221,6 +221,8 @@ data class CourseRecord(
  val reminderCompletedAt:Long?=null,
  val medicineText:String="",
  val medicineImages:List<String> = emptyList(),
+ val dietText:String="",
+ val dietImages:List<String> = emptyList(),
  val noteText:String="",
  val noteImages:List<String> = emptyList(),
  val createdAt:Long=System.currentTimeMillis(),

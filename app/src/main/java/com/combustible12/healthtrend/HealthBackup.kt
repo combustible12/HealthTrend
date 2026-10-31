@@ -134,9 +134,9 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
  @Synchronized fun restoreIntoEmpty(uri:Uri):Preview {
   val existing=store.reports().size+store.entries().size+store.weightRecords().size+store.courseRecords().count{
    it.title.isNotBlank()||it.symptomText.isNotBlank()||it.checkText.isNotBlank()||it.treatmentText.isNotBlank()||
-    it.medicineText.isNotBlank()||it.noteText.isNotBlank()||
+    it.medicineText.isNotBlank()||it.dietText.isNotBlank()||it.noteText.isNotBlank()||
     it.symptomImages.isNotEmpty()||it.checkImages.isNotEmpty()||
-    it.treatmentImages.isNotEmpty()||it.medicineImages.isNotEmpty()||it.noteImages.isNotEmpty()
+    it.treatmentImages.isNotEmpty()||it.medicineImages.isNotEmpty()||it.dietImages.isNotEmpty()||it.noteImages.isNotEmpty()
   }
   val patient=store.patientProfile()
   val hasProfile=!store.bloodGroupProfile().isEmpty||patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()||patient.heightCm.isNotBlank()
