@@ -214,6 +214,8 @@ data class CourseRecord(
  val symptomImages:List<String> = emptyList(),
  val checkText:String="",
  val checkImages:List<String> = emptyList(),
+ val treatmentText:String="",
+ val treatmentImages:List<String> = emptyList(),
  val reminderText:String="",
  val reminderDate:String="",
  val reminderCompletedAt:Long?=null,

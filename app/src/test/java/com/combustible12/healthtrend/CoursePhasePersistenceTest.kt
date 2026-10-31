@@ -32,6 +32,19 @@ class CoursePhasePersistenceTest {
   assertEquals(original,prefs.getString("course_records",null))
   assertEquals("化疗日",HealthStore(context).courseRecords().single().phase)
  }
+ @Test fun treatmentTextAndImagesPersistWhileLegacyRecordsDefaultToEmpty(){
+  val store=HealthStore(context)
+  val record=CourseRecord(title="治疗记录",treatmentText="输液港换药",treatmentImages=listOf("file:///treatment-1.jpg","file:///treatment-2.jpg"))
+  store.saveCourseRecord(record)
+  val restored=HealthStore(context).courseRecords().single()
+  assertEquals("输液港换药",restored.treatmentText)
+  assertEquals(listOf("file:///treatment-1.jpg","file:///treatment-2.jpg"),restored.treatmentImages)
+
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"legacy-treatment","date":1,"phase":"观察","title":"旧病程","symptomImages":[],"checkImages":[],"medicineImages":[],"noteImages":[]}]""").commit()
+  val legacy=HealthStore(context).courseRecords().single()
+  assertEquals("",legacy.treatmentText)
+  assertTrue(legacy.treatmentImages.isEmpty())
+ }
  @Test fun renamingCategoryChangesOnlyItsDisplayLabelAndKeepsStableTreatmentIdentity(){
   val store=HealthStore(context)
   val record=CourseRecord(title="2化12-放2",phase="放疗",titleAuto=false,noteText="保留")
