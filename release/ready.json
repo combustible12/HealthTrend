@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "f03a04d9e155c27c65a8852c0f36ea7894f2104c",
-  "validationMode": "course-diet-section",
-  "versionCode": 2026103102,
-  "versionName": "1.0.191"
+  "sourceBaseCommit": "d17cf023b5e8bef79863b4a620d681fb03ffbcd3",
+  "validationMode": "course-templates-custom-sections",
+  "versionCode": 2026110101,
+  "versionName": "1.0.192"
 }
