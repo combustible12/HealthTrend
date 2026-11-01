@@ -10,6 +10,8 @@ import java.io.File
 
 data class CoursePhaseDefinition(val key:String,val label:String)
 
+internal val fixedCourseSectionIds=listOf("symptom","check","treatment","medicine","diet","note")
+
 /** Keep both pieces of evidence visible when a report code and Chinese name disagree. */
 internal fun reconciledMetricIdentity(explicitInput:String,namedInput:String):String {
  val explicit=canonicalMetricKey(explicitInput)
@@ -80,6 +82,53 @@ class HealthStore(private val context:Context) {
   val cleaned=phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()
   saveCoursePhaseDefinitions(cleaned.map{CoursePhaseDefinition(it,it)})
  }
+ @Synchronized fun courseSectionDefinitions():List<CourseSectionDefinition> = rows(read("course_section_definitions")){o->
+  CourseSectionDefinition(o.getString("id"),o.optString("title").trim(),o.optBoolean("hidden"),o.optLong("createdAt",0L))
+ }.filter{it.id.isNotBlank()&&it.title.isNotBlank()&&it.id !in fixedCourseSectionIds}.distinctBy{it.id}
+ @Synchronized fun saveCourseSectionDefinitions(definitions:List<CourseSectionDefinition>){
+  val cleaned=definitions.map{it.copy(title=it.title.trim())}
+  require(cleaned.all{it.id.isNotBlank()&&it.id !in fixedCourseSectionIds&&it.title.isNotBlank()}){"板块标题不能为空"}
+  require(cleaned.map{it.id}.distinct().size==cleaned.size){"板块标识重复"}
+  require(cleaned.map{it.title}.distinct().size==cleaned.size){"板块标题不能重复"}
+  write("course_section_definitions",JSONArray().apply{cleaned.forEach{item->put(JSONObject().put("id",item.id).put("title",item.title).put("hidden",item.hidden).put("createdAt",item.createdAt))}})
+ }
+ @Synchronized fun addCourseSection(title:String):CourseSectionDefinition{
+  val clean=title.trim();require(clean.isNotBlank()){"请填写板块标题"}
+  val all=courseSectionDefinitions();require(all.none{it.title==clean}){"已经有同名板块"}
+  return CourseSectionDefinition(title=clean).also{saveCourseSectionDefinitions(all+it)}
+ }
+ @Synchronized fun removeOrHideCourseSection(id:String):Boolean{
+  val all=courseSectionDefinitions();val target=all.firstOrNull{it.id==id}?:return false
+  val hasHistory=courseRecords().any{record->record.customSections.any{it.sectionId==id&&(it.text.isNotBlank()||it.images.isNotEmpty())}}
+  if(hasHistory)saveCourseSectionDefinitions(all.map{if(it.id==id)it.copy(hidden=true) else it})
+  else{
+   saveCourseSectionDefinitions(all.filterNot{it.id==id})
+   write("course_text_templates",JSONArray().apply{allCourseTextTemplates().filterNot{it.sectionId==id}.forEach{put(courseTextTemplateToJson(it))}})
+  }
+  return hasHistory
+ }
+ @Synchronized fun courseTextTemplates(sectionId:String):List<CourseTextTemplate> = rows(read("course_text_templates")){o->
+  CourseTextTemplate(o.getString("id"),o.getString("sectionId"),o.optString("name"),o.optString("text"),o.optBoolean("default"),o.optLong("updatedAt",0L))
+ }.filter{it.sectionId==sectionId}.sortedWith(compareByDescending<CourseTextTemplate>{it.isDefault}.thenByDescending{it.updatedAt})
+ private fun allCourseTextTemplates():List<CourseTextTemplate> = rows(read("course_text_templates")){o->
+  CourseTextTemplate(o.getString("id"),o.getString("sectionId"),o.optString("name"),o.optString("text"),o.optBoolean("default"),o.optLong("updatedAt",0L))
+ }
+ @Synchronized fun saveCourseTextTemplate(template:CourseTextTemplate,makeDefault:Boolean=template.isDefault){
+  val name=template.name.trim();val content=template.text
+  require(template.sectionId.isNotBlank()&&name.isNotBlank()&&content.isNotBlank()){"模板名称和内容不能为空"}
+  val current=allCourseTextTemplates()
+  val saved=template.copy(name=name,isDefault=makeDefault,updatedAt=System.currentTimeMillis())
+  val next=(current.filterNot{it.id==saved.id}.map{if(makeDefault&&it.sectionId==saved.sectionId)it.copy(isDefault=false) else it}+saved)
+  write("course_text_templates",JSONArray().apply{next.forEach{put(courseTextTemplateToJson(it))}})
+ }
+ @Synchronized fun setDefaultCourseTextTemplate(sectionId:String,id:String){
+  val current=allCourseTextTemplates();require(current.any{it.id==id&&it.sectionId==sectionId}){"模板不存在"}
+  write("course_text_templates",JSONArray().apply{current.forEach{template->put(courseTextTemplateToJson(if(template.sectionId==sectionId)template.copy(isDefault=template.id==id) else template))}})
+ }
+ @Synchronized fun deleteCourseTextTemplate(id:String){
+  write("course_text_templates",JSONArray().apply{allCourseTextTemplates().filterNot{it.id==id}.forEach{put(courseTextTemplateToJson(it))}})
+ }
+ fun defaultCourseText(sectionId:String):String=courseTextTemplates(sectionId).firstOrNull{it.isDefault}?.text.orEmpty()
  fun portMaintenanceLastDate():String?=prefs.getString("port_maintenance_last_date",null)?.takeIf{value->
   runCatching{java.time.LocalDate.parse(value)}.isSuccess
  }
@@ -94,7 +143,7 @@ class HealthStore(private val context:Context) {
  private fun write(key:String,a:JSONArray){
   // A durable rollback checkpoint is written BEFORE changing critical datasets.
   // Never restore automatically: doing so could overwrite newer confirmed data.
-  if(key in setOf("reports","course_records","treatment_reminders","templates","metric_standard_ranges","report_identity_links")){
+  if(key in setOf("reports","course_records","treatment_reminders","templates","metric_standard_ranges","report_identity_links","course_section_definitions","course_text_templates")){
    val previous=prefs.getString(key,null)
    if(previous!=null && previous!=a.toString()){
     val safety=context.getSharedPreferences("healthtrend_safety_snapshots",Context.MODE_PRIVATE)
@@ -1082,7 +1131,7 @@ class HealthStore(private val context:Context) {
   val zone=java.time.ZoneId.systemDefault();val targetDay=java.time.Instant.ofEpochMilli(record.date).atZone(zone).toLocalDate()
   val previousDay=previous?.let{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()}
   if(previous==null||previousDay!=targetDay)require(all.none{it.id!=record.id&&java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==targetDay}){"该日期已有病程记录"}
-  val saved=record.copy(createdAt=previous?.createdAt?:record.createdAt,updatedAt=System.currentTimeMillis())
+  val saved=record.copy(createdAt=previous?.createdAt?:record.createdAt,updatedAt=System.currentTimeMillis(),userEdited=true)
   write("course_records",JSONArray().apply{(all.filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
  }
  @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
@@ -1189,9 +1238,9 @@ class HealthStore(private val context:Context) {
  }
  internal fun hasRestoreProtectedConfiguration():Boolean = listOf(
   "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
-  "report_identity_links","report_replacement_archive","trend_identity_mappings"
+  "report_identity_links","report_replacement_archive","trend_identity_mappings","course_section_definitions","course_text_templates"
  ).any{read(it).length()>0}
- fun exportBackup():String=JSONObject().put("schema",3).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ fun exportBackup():String=JSONObject().put("schema",4).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("reportName",r.reportName?:JSONObject.NULL).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("referenceRaw",it.referenceRaw).put("reportFlag",it.reportFlag).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
@@ -1205,7 +1254,8 @@ class HealthStore(private val context:Context) {
  private fun templateFromJson(o:JSONObject)=HospitalLabTemplate(o.getString("hospital"),o.getString("type"),o.getInt("version"),o.getBoolean("confirmed"),rows(o.getJSONArray("fields")){x->LabFieldTemplate(x.getString("key"),x.getString("name"),displayLabUnit(x.getString("unit")),x.doubleOrNull("low"),x.doubleOrNull("high"),x.optString("trendMeaning").ifBlank{metricPurpose(x.getString("key")).orEmpty()})},o.optString("system"))
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
- private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("treatmentText",r.treatmentText).put("treatmentImages",JSONArray(r.treatmentImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("dietText",r.dietText).put("dietImages",JSONArray(r.dietImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection)
+ private fun courseTextTemplateToJson(t:CourseTextTemplate)=JSONObject().put("id",t.id).put("sectionId",t.sectionId).put("name",t.name).put("text",t.text).put("default",t.isDefault).put("updatedAt",t.updatedAt)
+ private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("treatmentText",r.treatmentText).put("treatmentImages",JSONArray(r.treatmentImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("dietText",r.dietText).put("dietImages",JSONArray(r.dietImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("customSections",JSONArray().apply{r.customSections.forEach{put(JSONObject().put("sectionId",it.sectionId).put("text",it.text).put("images",JSONArray(it.images)))}}).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection).put("userEdited",r.userEdited)
  private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate).put("triggerTime",r.triggerTime)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
@@ -1232,10 +1282,12 @@ class HealthStore(private val context:Context) {
   dietImages=o.optJSONArray("dietImages").stringList(),
   noteText=o.optString("noteText"),
   noteImages=o.optJSONArray("noteImages").stringList(),
+  customSections=o.optJSONArray("customSections")?.let{a->(0 until a.length()).mapNotNull{index->a.optJSONObject(index)?.let{x->CourseSectionContent(x.optString("sectionId"),x.optString("text"),x.optJSONArray("images").stringList())}}.filter{it.sectionId.isNotBlank()}.distinctBy{it.sectionId}}?:emptyList(),
   createdAt=o.optLong("createdAt",o.getLong("date")),
   updatedAt=o.optLong("updatedAt",o.getLong("date")),
   titleAuto=o.optBoolean("titleAuto",o.optString("title").isBlank()),
-  growthFactorInjection=if(o.has("growthFactorInjection"))o.optBoolean("growthFactorInjection") else legacyGrowthFactorInjectionNote(o.optString("noteText"))
+  growthFactorInjection=if(o.has("growthFactorInjection"))o.optBoolean("growthFactorInjection") else legacyGrowthFactorInjectionNote(o.optString("noteText")),
+  userEdited=o.optBoolean("userEdited",o.optLong("updatedAt",o.getLong("date"))!=o.optLong("createdAt",o.getLong("date")))
  )
 }
 /** A confirmed template fills fields omitted by OCR, while explicit report data always wins. */
