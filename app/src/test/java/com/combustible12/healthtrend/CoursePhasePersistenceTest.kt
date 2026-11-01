@@ -58,6 +58,62 @@ class CoursePhasePersistenceTest {
   assertEquals("",legacy.dietText)
   assertTrue(legacy.dietImages.isEmpty())
  }
+ @Test fun customSectionsPersistWithoutChangingLegacyFixedFields(){
+  val store=HealthStore(context)
+  val definition=store.addCourseSection("睡眠")
+  val record=CourseRecord(title="自定义板块",noteText="原备注",customSections=listOf(CourseSectionContent(definition.id,"睡了七小时",listOf("file:///sleep.jpg"))))
+  store.saveCourseRecord(record)
+  val restored=HealthStore(context).courseRecords().single()
+  assertEquals("原备注",restored.noteText)
+  assertEquals("睡了七小时",restored.courseSectionText(definition.id))
+  assertEquals(listOf("file:///sleep.jpg"),restored.courseSectionImages(definition.id))
+
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"legacy-custom","date":1,"phase":"观察","title":"旧病程","symptomImages":[],"checkImages":[],"treatmentImages":[],"medicineImages":[],"dietImages":[],"noteImages":[]}]""").commit()
+  assertTrue(HealthStore(context).courseRecords().single().customSections.isEmpty())
+ }
+ @Test fun courseTextTemplatesKeepOneExplicitDefaultPerSection(){
+  val store=HealthStore(context)
+  val first=CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚：")
+  val second=CourseTextTemplate(sectionId="diet",name="清淡饮食",text="清淡：")
+  store.saveCourseTextTemplate(first,makeDefault=true)
+  store.saveCourseTextTemplate(second,makeDefault=true)
+  val restored=HealthStore(context).courseTextTemplates("diet")
+  assertEquals(1,restored.count{it.isDefault})
+  assertEquals(second.id,restored.single{it.isDefault}.id)
+  assertEquals("清淡：",HealthStore(context).defaultCourseText("diet"))
+  store.deleteCourseTextTemplate(second.id)
+  assertEquals("",store.defaultCourseText("diet"))
+  assertFalse(store.courseTextTemplates("diet").single().isDefault)
+ }
+ @Test fun pristineBlankCardReceivesDefaultsButSavedOrExistingContentIsNeverOverwritten(){
+  val store=HealthStore(context)
+  store.saveCourseTextTemplate(CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚："),makeDefault=true)
+  val blank=CourseRecord(title="",titleAuto=true)
+  assertEquals("早：\n午：\n晚：",blank.withDefaultCourseTemplates(store).dietText)
+  assertEquals("当天已填写",blank.copy(dietText="当天已填写").withDefaultCourseTemplates(store).dietText)
+  assertEquals("",blank.copy(userEdited=true).withDefaultCourseTemplates(store).dietText)
+ }
+ @Test fun customSectionRenameOrderAndHistoricalRemovalAreNonDestructive(){
+  val store=HealthStore(context)
+  val sleep=store.addCourseSection("睡眠")
+  val bowel=store.addCourseSection("排便")
+  store.saveCourseSectionDefinitions(listOf(bowel,sleep.copy(title="睡眠情况")))
+  assertEquals(listOf("排便","睡眠情况"),HealthStore(context).courseSectionDefinitions().map{it.title})
+  store.saveCourseRecord(CourseRecord(customSections=listOf(CourseSectionContent(sleep.id,"七小时"))))
+  assertTrue(store.removeOrHideCourseSection(sleep.id))
+  assertTrue(store.courseSectionDefinitions().first{it.id==sleep.id}.hidden)
+  assertEquals("七小时",store.courseRecords().single().courseSectionText(sleep.id))
+  assertFalse(store.removeOrHideCourseSection(bowel.id))
+  assertTrue(store.courseSectionDefinitions().none{it.id==bowel.id})
+ }
+ @Test fun exportBackupIncludesCourseSectionConfigurationAndTemplates(){
+  val store=HealthStore(context);val definition=store.addCourseSection("睡眠")
+  store.saveCourseTextTemplate(CourseTextTemplate(sectionId=definition.id,name="默认",text="时长："),true)
+  val backup=org.json.JSONObject(store.exportBackup())
+  assertEquals(4,backup.getInt("schema"))
+  assertEquals("睡眠",backup.getJSONArray("courseSectionDefinitions").getJSONObject(0).getString("title"))
+  assertEquals("时长：",backup.getJSONArray("courseTextTemplates").getJSONObject(0).getString("text"))
+ }
  @Test fun renamingCategoryChangesOnlyItsDisplayLabelAndKeepsStableTreatmentIdentity(){
   val store=HealthStore(context)
   val record=CourseRecord(title="2化12-放2",phase="放疗",titleAuto=false,noteText="保留")
