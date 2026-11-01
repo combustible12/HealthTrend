@@ -292,7 +292,7 @@ internal fun CourseRecord.courseSectionText(sectionId:String):String=when(sectio
  "symptom"->symptomText;"check"->checkText;"treatment"->treatmentText;"medicine"->medicineText;"diet"->dietText;"note"->noteText
  else->customSections.firstOrNull{it.sectionId==sectionId}?.text.orEmpty()
 }
-internal fun CourseRecord.courseSectionImages(sectionId:String):List<String>=when(sectionId){
+internal fun CourseRecord.courseSectionImages(sectionId:String):List<String> = when(sectionId){
  "symptom"->symptomImages;"check"->checkImages;"treatment"->treatmentImages;"medicine"->medicineImages;"diet"->dietImages;"note"->noteImages
  else->customSections.firstOrNull{it.sectionId==sectionId}?.images.orEmpty()
 }
