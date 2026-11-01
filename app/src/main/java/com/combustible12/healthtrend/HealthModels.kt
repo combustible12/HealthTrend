@@ -200,6 +200,28 @@ data class HealthEntry(
 ):java.io.Serializable
 data class BloodPressureReading(val time:String="",val systolic:Int?=null,val diastolic:Int?=null,val pulse:Int?=null):java.io.Serializable
 
+data class CourseSectionContent(
+ val sectionId:String,
+ val text:String="",
+ val images:List<String> = emptyList()
+):java.io.Serializable
+
+data class CourseSectionDefinition(
+ val id:String=newId(),
+ val title:String,
+ val hidden:Boolean=false,
+ val createdAt:Long=System.currentTimeMillis()
+):java.io.Serializable
+
+data class CourseTextTemplate(
+ val id:String=newId(),
+ val sectionId:String,
+ val name:String,
+ val text:String,
+ val isDefault:Boolean=false,
+ val updatedAt:Long=System.currentTimeMillis()
+):java.io.Serializable
+
 data class CourseRecord(
  val id:String=newId(),
  val date:Long=System.currentTimeMillis(),
@@ -225,10 +247,12 @@ data class CourseRecord(
  val dietImages:List<String> = emptyList(),
  val noteText:String="",
  val noteImages:List<String> = emptyList(),
+ val customSections:List<CourseSectionContent> = emptyList(),
  val createdAt:Long=System.currentTimeMillis(),
  val updatedAt:Long=System.currentTimeMillis(),
  val titleAuto:Boolean=true,
- val growthFactorInjection:Boolean=false
+ val growthFactorInjection:Boolean=false,
+ val userEdited:Boolean=false
 ):java.io.Serializable
 data class TreatmentReminder(
  val id:String=newId(),

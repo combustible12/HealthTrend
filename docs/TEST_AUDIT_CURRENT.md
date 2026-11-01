@@ -1015,3 +1015,12 @@ V1.0 必测范围限定为：无医院模板导入/保存、身份冲突人工�
 - `CourseNavigationTest.dietEditorAppearsBetweenMedicineAndNotesWithPhotoActions` 锁定饮食位于药品与备注之间，并显示独立相册按钮。
 - 源码审查确认饮食分支覆盖新增、替换、预览、删除、移动和查看器内相册/拍照追加；run 41156505877 已通过 Kotlin 编译、全部 JVM 回归和 Android 测试源码编译，同步守卫 run 41156498851 通过。未运行设备端截图，不宣称实机视觉验收。
 - 正式发布 run 41157429112 再次通过签名恢复、无描边规则、384 项 JVM 回归、签名 APK 构建与 Release 上传；0 失败、0 错误、0 跳过，发布为 1.0.191（2026103102）。
+
+## 2026-11-01 病程文字模板与自定义板块回归（快速验证通过、未发布）
+
+- `CoursePhasePersistenceTest` 覆盖自定义板块文字/图片往返、旧 JSON 默认空、单板块唯一默认模板、删除默认模板后不随机回退、空白卡预填与已编辑卡不覆盖。
+- 同一测试覆盖板块稳定 ID、改名/排序不改历史内容、有历史时删除转隐藏、无历史时安全删除，以及导出备份包含板块定义和模板。
+- `DataSearchTest` 覆盖自定义板块标题及文字搜索；`CourseTreatmentTitleTest` 锁定自定义内容使自动卡不再判空。
+- `CourseNavigationTest` 覆盖默认饮食模板自动出现、固定板块模板入口，以及编辑页内添加完整自定义文字/图片板块。
+- 图片生产链路统一使用 `courseSectionImages/withCourseSectionImages`，固定板块和自定义板块共用替换、追加、排序和移除路径，避免自定义图片落入备注兜底。
+- 首轮 quick run 41270031848 精确发现 `List<String>=` 被词法解析为 `>=` 的 Kotlin 泛型间距错误，未将失败候选合并；修正后 run 41270278448 的 `compileDebugKotlin`、全部 JVM 回归与 `compileDebugAndroidTestKotlin` 均通过。未运行设备截图，不宣称实机视觉验收。

@@ -158,6 +158,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  var search by rememberSaveable{mutableStateOf("")}
  var requestedRecordId by remember{mutableStateOf<String?>(null)}
  var dateLookupMessage by remember{mutableStateOf<String?>(null)}
+ val sectionDefinitions=remember(records){store.courseSectionDefinitions()}
+ val sectionTitles=sectionDefinitions.associate{it.id to it.title}
  val query=search.trim()
  val shown=records.filter{record->
   val matchesFilter=when{
@@ -165,7 +167,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    query.isNotBlank()||filter=="全部"->true
    else->record.phase==filter
   }
-  matchesFilter&&(DataSearch.course(query,record)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
+  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(requestedRecordId,shown.map{it.id}){
@@ -213,7 +215,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,displayCourseTitle(record,records),store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),{open(record)},view,openWeightTrend)
+     CourseTimelineCard(record,displayCourseTitle(record,records),store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -286,7 +288,30 @@ internal fun growthFactorInjectionEventDates(records:List<CourseRecord>,zone:Zon
   .map{date->date.atStartOfDay(zone).toInstant().toEpochMilli()}
 }
 
-internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&!growthFactorInjection&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&treatmentText.isBlank()&&treatmentImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&dietText.isBlank()&&dietImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()
+internal fun CourseRecord.courseSectionText(sectionId:String):String=when(sectionId){
+ "symptom"->symptomText;"check"->checkText;"treatment"->treatmentText;"medicine"->medicineText;"diet"->dietText;"note"->noteText
+ else->customSections.firstOrNull{it.sectionId==sectionId}?.text.orEmpty()
+}
+internal fun CourseRecord.courseSectionImages(sectionId:String):List<String> = when(sectionId){
+ "symptom"->symptomImages;"check"->checkImages;"treatment"->treatmentImages;"medicine"->medicineImages;"diet"->dietImages;"note"->noteImages
+ else->customSections.firstOrNull{it.sectionId==sectionId}?.images.orEmpty()
+}
+internal fun CourseRecord.withCourseSectionText(sectionId:String,value:String):CourseRecord=when(sectionId){
+ "symptom"->copy(symptomText=value);"check"->copy(checkText=value);"treatment"->copy(treatmentText=value);"medicine"->copy(medicineText=value);"diet"->copy(dietText=value);"note"->copy(noteText=value)
+ else->copy(customSections=customSections.filterNot{it.sectionId==sectionId}+(customSections.firstOrNull{it.sectionId==sectionId}?:CourseSectionContent(sectionId)).copy(text=value))
+}
+internal fun CourseRecord.withCourseSectionImages(sectionId:String,value:List<String>):CourseRecord=when(sectionId){
+ "symptom"->copy(symptomImages=value);"check"->copy(checkImages=value);"treatment"->copy(treatmentImages=value);"medicine"->copy(medicineImages=value);"diet"->copy(dietImages=value);"note"->copy(noteImages=value)
+ else->copy(customSections=customSections.filterNot{it.sectionId==sectionId}+(customSections.firstOrNull{it.sectionId==sectionId}?:CourseSectionContent(sectionId)).copy(images=value))
+}
+internal fun CourseRecord.isBlankCourseCard():Boolean = titleAuto&&!growthFactorInjection&&symptomText.isBlank()&&systolic==null&&diastolic==null&&pulse==null&&additionalPressures.isEmpty()&&symptomImages.isEmpty()&&checkText.isBlank()&&checkImages.isEmpty()&&treatmentText.isBlank()&&treatmentImages.isEmpty()&&medicineText.isBlank()&&medicineImages.isEmpty()&&dietText.isBlank()&&dietImages.isEmpty()&&noteText.isBlank()&&noteImages.isEmpty()&&customSections.all{it.text.isBlank()&&it.images.isEmpty()}
+internal fun CourseRecord.withDefaultCourseTemplates(store:HealthStore):CourseRecord{
+ if(!isBlankCourseCard()||userEdited)return this
+ return (fixedCourseSectionIds+store.courseSectionDefinitions().filterNot{it.hidden}.map{it.id}).fold(this){current,id->
+  val template=store.defaultCourseText(id)
+  if(template.isBlank()||current.courseSectionText(id).isNotBlank())current else current.withCourseSectionText(id,template)
+ }
+}
 
 internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
@@ -323,7 +348,7 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
  }
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -367,6 +392,10 @@ internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalD
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view)
     if(record.dietText.isNotBlank()||record.dietImages.isNotEmpty())CourseSection(Icons.Outlined.Restaurant,"饮食",record.dietText,record.dietImages,view)
     if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view)
+    val knownIds=customDefinitions.map{it.id}.toSet()
+    (customDefinitions.map{definition->definition to record.customSections.firstOrNull{it.sectionId==definition.id}}+
+     record.customSections.filterNot{it.sectionId in knownIds}.map{CourseSectionDefinition(it.sectionId,"已隐藏板块",hidden=true) to it})
+     .forEach{(definition,content)->if(content!=null&&(content.text.isNotBlank()||content.images.isNotEmpty()))CourseSection(Icons.Outlined.ViewAgenda,definition.title,content.text,content.images,view)}
    }
   }
  }
@@ -443,7 +472,11 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhaseDefinitions()}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
- var record by rememberSaveable(initial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(initial)}
+ val seededInitial=remember(initial.id,initial.updatedAt){initial.withDefaultCourseTemplates(store)}
+ var record by rememberSaveable(seededInitial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(seededInitial)}
+ var customDefinitions by remember{mutableStateOf(store.courseSectionDefinitions())}
+ var templateSection by remember{mutableStateOf<Pair<String,String>?>(null)}
+ var managingSections by remember{mutableStateOf(false)}
  var date by rememberSaveable{mutableStateOf(if(exists)courseEditorDate(initial.date) else "")}
  var duplicateRecord by remember{mutableStateOf<CourseRecord?>(null)}
  val initialWeight=remember(initial.id){store.weightRecordForCourse(initial.id)}
@@ -456,8 +489,9 @@ private fun coursePhaseColors(phase:String)=when(phase){
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var viewingKind by rememberSaveable{mutableStateOf<String?>(null)}
  var viewingIndex by rememberSaveable{mutableIntStateOf(0)}
+ var customImageTarget by remember{mutableStateOf<String?>(null)}
  val scope=rememberCoroutineScope()
- fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=when(target){"symptom"->record.copy(symptomImages=record.symptomImages+owned);"check"->record.copy(checkImages=record.checkImages+owned);"treatment"->record.copy(treatmentImages=record.treatmentImages+owned);"medicine"->record.copy(medicineImages=record.medicineImages+owned);"diet"->record.copy(dietImages=record.dietImages+owned);else->record.copy(noteImages=record.noteImages+owned)}}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
+ fun addImages(target:String,uris:List<Uri>){if(uris.isEmpty())return;busy=true;scope.launch{try{val owned=withContext(Dispatchers.IO){uris.map{store.ownImage(it)}};record=record.withCourseSectionImages(target,record.courseSectionImages(target)+owned)}catch(e:Exception){error="图片保存失败：${e.message}"}finally{busy=false}}}
  val replaceInput=rememberPhotoInput({uris->
   val target=pendingImageReplace
   pendingImageReplace=null
@@ -465,7 +499,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
    val owned=withContext(Dispatchers.IO){store.ownImage(uris.first())}
    val (kind,index)=target
    fun replaced(items:List<String>):List<String>{require(index in items.indices);return items.toMutableList().also{it[index]=owned}}
-   record=when(kind){"symptom"->record.copy(symptomImages=replaced(record.symptomImages));"check"->record.copy(checkImages=replaced(record.checkImages));"treatment"->record.copy(treatmentImages=replaced(record.treatmentImages));"medicine"->record.copy(medicineImages=replaced(record.medicineImages));"diet"->record.copy(dietImages=replaced(record.dietImages));else->record.copy(noteImages=replaced(record.noteImages))}
+   record=record.withCourseSectionImages(kind,replaced(record.courseSectionImages(kind)))
   }catch(e:Exception){error="更换图片失败：${e.message}"}finally{busy=false}}}
  },{error=it})
  val symptomInput=rememberPhotoInput({addImages("symptom",it)},{error=it})
@@ -474,12 +508,15 @@ private fun coursePhaseColors(phase:String)=when(phase){
  val medicineInput=rememberPhotoInput({addImages("medicine",it)},{error=it})
  val dietInput=rememberPhotoInput({addImages("diet",it)},{error=it})
  val noteInput=rememberPhotoInput({addImages("note",it)},{error=it})
+ val customInput=rememberPhotoInput({uris->customImageTarget?.let{addImages(it,uris)}},{error=it})
  val remembered=remember(initial.id){store.courseRecords().sortedByDescending{it.updatedAt}}
  val rememberedTitles=remember(remembered){remembered.map{it.title}.filter{it.isNotBlank()}.distinctBy(::courseTitleMemoryKey)}
+ val rememberedSymptoms=remember(remembered){remembered.map{it.symptomText}.filter{it.isNotBlank()}.distinct()}
  val rememberedChecks=remember(remembered){remembered.map{it.checkText}.filter{it.isNotBlank()}.distinct()}
  val rememberedTreatments=remember(remembered){remembered.map{it.treatmentText}.filter{it.isNotBlank()}.distinct()}
  val rememberedMedicines=remember(remembered){remembered.map{it.medicineText}.filter{it.isNotBlank()}.distinct()}
  val rememberedDiets=remember(remembered){remembered.map{it.dietText}.filter{it.isNotBlank()}.distinct()}
+ val rememberedNotes=remember(remembered){remembered.map{it.noteText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date)
  val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
  val editorTitle=if(record.titleAuto)automaticTitle else record.title
@@ -523,38 +560,48 @@ private fun coursePhaseColors(phase:String)=when(phase){
      TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
     }
     CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},heightText,{heightText=sanitizeHeightInput(it)},onOpenWeightTrend)
-    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状")
+    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状"){CourseTemplateButton{templateSection="symptom" to "症状"}}
    }
-   AppInputField(record.symptomText,{record=record.copy(symptomText=it)},minLines=2,trailingIcon={if(record.symptomText.isNotEmpty())IconButton({record=record.copy(symptomText="")}){Icon(Icons.Outlined.Clear,"清空症状")}})
+   CourseRememberedField(record.symptomText,{record=record.copy(symptomText=it)},"症状内容",rememberedSymptoms,2)
    PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
    if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.FactCheck,"检查")
+   CourseEditorHeading(Icons.Outlined.FactCheck,"检查"){CourseTemplateButton{templateSection="check" to "检查"}}
    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.MedicalServices,"治疗")
+   CourseEditorHeading(Icons.Outlined.MedicalServices,"治疗"){CourseTemplateButton{templateSection="treatment" to "治疗"}}
    CourseRememberedField(record.treatmentText,{record=record.copy(treatmentText=it)},"治疗内容",rememberedTreatments,2)
    PhotoInputButtons(treatmentInput,!busy,"相册添加治疗图片")
    if(record.treatmentImages.isNotEmpty())CourseThumbnails(record.treatmentImages,{i->viewingKind="treatment";viewingIndex=i},{i->pendingImageRemoval="treatment" to i},{i->pendingImageReplace="treatment" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药")
+   CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药"){CourseTemplateButton{templateSection="medicine" to "药品 / 取药"}}
    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{i->viewingKind="medicine";viewingIndex=i},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Restaurant,"饮食")
+   CourseEditorHeading(Icons.Outlined.Restaurant,"饮食"){CourseTemplateButton{templateSection="diet" to "饮食"}}
    CourseRememberedField(record.dietText,{record=record.copy(dietText=it)},"饮食内容",rememberedDiets,2)
    PhotoInputButtons(dietInput,!busy,"相册添加饮食图片")
    if(record.dietImages.isNotEmpty())CourseThumbnails(record.dietImages,{i->viewingKind="diet";viewingIndex=i},{i->pendingImageRemoval="diet" to i},{i->pendingImageReplace="diet" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Notes,"备注")
-   AppInputField(record.noteText,{record=record.copy(noteText=it)},minLines=3,trailingIcon={if(record.noteText.isNotEmpty())IconButton({record=record.copy(noteText="")}){Icon(Icons.Outlined.Clear,"清空备注")}})
+   CourseEditorHeading(Icons.Outlined.Notes,"备注"){CourseTemplateButton{templateSection="note" to "备注"}}
+   CourseRememberedField(record.noteText,{record=record.copy(noteText=it)},"备注内容",rememberedNotes,3)
    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
    if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{i->viewingKind="note";viewingIndex=i},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
+   customDefinitions.filter{definition->!definition.hidden||record.courseSectionText(definition.id).isNotBlank()||record.courseSectionImages(definition.id).isNotEmpty()}.forEach{definition->key(definition.id){
+    CourseEditorHeading(Icons.Outlined.ViewAgenda,definition.title){CourseTemplateButton{templateSection=definition.id to definition.title}}
+    val options=remember(remembered,definition.id){remembered.map{it.courseSectionText(definition.id)}.filter{it.isNotBlank()}.distinct()}
+    CourseRememberedField(record.courseSectionText(definition.id),{value->record=record.withCourseSectionText(definition.id,value)},"${definition.title}内容",options,2)
+    val input=remember(definition.id,customInput){PhotoInput({customImageTarget=definition.id;customInput.gallery()},{customImageTarget=definition.id;customInput.camera()})}
+    PhotoInputButtons(input,!busy,"相册添加${definition.title}图片")
+    val images=record.courseSectionImages(definition.id)
+    if(images.isNotEmpty())CourseThumbnails(images,{i->viewingKind=definition.id;viewingIndex=i},{i->pendingImageRemoval=definition.id to i},{i->pendingImageReplace=definition.id to i;replaceInput.gallery()})
+   }}
+   FilledTonalButton({managingSections=true},Modifier.fillMaxWidth()){Icon(Icons.Outlined.Add,null);Spacer(Modifier.width(6.dp));Text("添加 / 管理板块")}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
    if(error.isNotBlank())Text(error,color=Bad)
   }
  }
  val activeViewingKind=viewingKind
  if(activeViewingKind!=null){
-  val currentImages=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"treatment"->record.treatmentImages;"medicine"->record.medicineImages;"diet"->record.dietImages;else->record.noteImages}
+  val currentImages=record.courseSectionImages(activeViewingKind)
   if(currentImages.isNotEmpty())SourceViewer(
    currentImages,
    {viewingKind=null},
@@ -562,23 +609,25 @@ private fun coursePhaseColors(phase:String)=when(phase){
    onReplace={i->pendingImageReplace=activeViewingKind to i;replaceInput.gallery()},
    onRemove={i->
     fun removed(items:List<String>)=items.filterIndexed{j,_->j!=i}
-    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=removed(record.symptomImages));"check"->record.copy(checkImages=removed(record.checkImages));"treatment"->record.copy(treatmentImages=removed(record.treatmentImages));"medicine"->record.copy(medicineImages=removed(record.medicineImages));"diet"->record.copy(dietImages=removed(record.dietImages));else->record.copy(noteImages=removed(record.noteImages))}
-    val next=when(activeViewingKind){"symptom"->record.symptomImages;"check"->record.checkImages;"treatment"->record.treatmentImages;"medicine"->record.medicineImages;"diet"->record.dietImages;else->record.noteImages}
+    record=record.withCourseSectionImages(activeViewingKind,removed(record.courseSectionImages(activeViewingKind)))
+    val next=record.courseSectionImages(activeViewingKind)
     if(next.isEmpty())viewingKind=null else viewingIndex=i.coerceAtMost(next.lastIndex)
    },
    onMove={from,to->
     fun moved(items:List<String>):List<String>{if(from !in items.indices||to !in items.indices)return items;return items.toMutableList().also{val item=it.removeAt(from);it.add(to,item)}}
-    record=when(activeViewingKind){"symptom"->record.copy(symptomImages=moved(record.symptomImages));"check"->record.copy(checkImages=moved(record.checkImages));"treatment"->record.copy(treatmentImages=moved(record.treatmentImages));"medicine"->record.copy(medicineImages=moved(record.medicineImages));"diet"->record.copy(dietImages=moved(record.dietImages));else->record.copy(noteImages=moved(record.noteImages))}
+    record=record.withCourseSectionImages(activeViewingKind,moved(record.courseSectionImages(activeViewingKind)))
     viewingIndex=to
    },
-   onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"treatment"->treatmentInput.gallery();"medicine"->medicineInput.gallery();"diet"->dietInput.gallery();else->noteInput.gallery()}},
-   onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"treatment"->treatmentInput.camera();"medicine"->medicineInput.camera();"diet"->dietInput.camera();else->noteInput.camera()}},
+   onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"treatment"->treatmentInput.gallery();"medicine"->medicineInput.gallery();"diet"->dietInput.gallery();"note"->noteInput.gallery();else->{customImageTarget=activeViewingKind;customInput.gallery()}}},
+   onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"treatment"->treatmentInput.camera();"medicine"->medicineInput.camera();"diet"->dietInput.camera();"note"->noteInput.camera();else->{customImageTarget=activeViewingKind;customInput.camera()}}},
    removalMessage="仅修改当前病程编辑草稿，取消编辑不会更改已保存的原图。"
   )
  }
- if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=when(kind){"symptom"->record.copy(symptomImages=record.symptomImages.filterIndexed{j,_->j!=index});"check"->record.copy(checkImages=record.checkImages.filterIndexed{j,_->j!=index});"treatment"->record.copy(treatmentImages=record.treatmentImages.filterIndexed{j,_->j!=index});"medicine"->record.copy(medicineImages=record.medicineImages.filterIndexed{j,_->j!=index});"diet"->record.copy(dietImages=record.dietImages.filterIndexed{j,_->j!=index});else->record.copy(noteImages=record.noteImages.filterIndexed{j,_->j!=index})};pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
- if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、治疗、药品、饮食、备注及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
+ if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=record.withCourseSectionImages(kind,record.courseSectionImages(kind).filterIndexed{j,_->j!=index});pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
+ if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、治疗、药品、饮食、备注、自定义板块及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
  duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;onOpenExisting(existing)}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
+ templateSection?.let{(sectionId,title)->CourseTemplateDialog(sectionId,title,record.courseSectionText(sectionId),store,{value->record=record.withCourseSectionText(sectionId,value)},{templateSection=null})}
+ if(managingSections)CourseSectionManager(customDefinitions,store,{managingSections=false},{updated->customDefinitions=updated})
 }
 
 @Composable private fun CourseRememberedField(value:String,onChange:(String)->Unit,label:String,options:List<String>,minLines:Int=1){
@@ -609,7 +658,63 @@ private fun coursePhaseColors(phase:String)=when(phase){
  }
 }
 
-@Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String){Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp)}}
+@Composable private fun CourseEditorHeading(icon:androidx.compose.ui.graphics.vector.ImageVector,title:String,trailing:@Composable RowScope.()->Unit={}){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Icon(icon,null,tint=Accent);Spacer(Modifier.width(8.dp));Text(title,Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp);trailing()}}
+
+@Composable private fun CourseTemplateButton(open:()->Unit){
+ CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+  TextButton(open,Modifier.height(32.dp),contentPadding=PaddingValues(horizontal=8.dp,vertical=0.dp)){Icon(Icons.Outlined.Bookmarks,"文字模板",Modifier.size(17.dp));Spacer(Modifier.width(3.dp));Text("模板",fontSize=13.sp)}
+ }
+}
+
+@Composable private fun CourseTemplateDialog(sectionId:String,sectionTitle:String,currentText:String,store:HealthStore,onApply:(String)->Unit,onClose:()->Unit){
+ var templates by remember(sectionId){mutableStateOf(store.courseTextTemplates(sectionId))}
+ var editing by remember{mutableStateOf<CourseTextTemplate?>(null)}
+ var creating by remember{mutableStateOf(false)}
+ var pendingApply by remember{mutableStateOf<CourseTextTemplate?>(null)}
+ fun reload(){templates=store.courseTextTemplates(sectionId)}
+ fun apply(template:CourseTextTemplate){store.setDefaultCourseTextTemplate(sectionId,template.id);onApply(template.text);onClose()}
+ AlertDialog(
+  onDismissRequest=onClose,
+  title={Text("$sectionTitle · 模板")},
+  text={Column(Modifier.fillMaxWidth().heightIn(max=420.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   if(templates.isEmpty())Text("还没有保存模板",color=Muted)
+   templates.forEach{template->
+    Surface(Modifier.fillMaxWidth().clickable{if(currentText.isBlank()||currentText==template.text)apply(template) else pendingApply=template},shape=RoundedCornerShape(12.dp),color=if(template.isDefault)SelectedTint else Color(0xFFF4F1EE)){
+     Row(Modifier.fillMaxWidth().padding(start=12.dp,top=8.dp,bottom=8.dp),verticalAlignment=Alignment.CenterVertically){
+      Column(Modifier.weight(1f)){Text(template.name,fontWeight=FontWeight.Medium);Text(template.text,maxLines=2,overflow=TextOverflow.Ellipsis,fontSize=13.sp,color=Muted);if(template.isDefault)Text("当前默认",fontSize=11.sp,color=Accent)}
+      IconButton({editing=template}){Icon(Icons.Outlined.Edit,"编辑模板",tint=Accent)}
+      IconButton({store.deleteCourseTextTemplate(template.id);reload()}){Icon(Icons.Outlined.Delete,"删除模板",tint=Bad)}
+     }
+    }
+   }
+  }},
+  confirmButton={TextButton({creating=true},enabled=currentText.isNotBlank()){Text("保存当前内容为模板")}},
+  dismissButton={TextButton(onClose){Text("关闭")}}
+ )
+ if(creating||editing!=null){
+  val target=editing
+  var name by remember(target?.id,creating){mutableStateOf(target?.name?:"$sectionTitle 模板")}
+  var content by remember(target?.id,creating){mutableStateOf(target?.text?:currentText)}
+  AlertDialog(onDismissRequest={creating=false;editing=null},title={Text(if(target==null)"保存模板" else "编辑模板")},text={Column(verticalArrangement=Arrangement.spacedBy(10.dp)){Text("模板名称",fontSize=13.sp,color=Muted);AppInputField(name,{name=it},singleLine=true);Text("模板内容",fontSize=13.sp,color=Muted);AppInputField(content,{content=it},minLines=3)}},confirmButton={Button({store.saveCourseTextTemplate((target?:CourseTextTemplate(sectionId=sectionId,name=name,text=content)).copy(name=name,text=content),makeDefault=true);reload();creating=false;editing=null}){Text("保存并设为默认",color=Color.White)}},dismissButton={TextButton({creating=false;editing=null}){Text("取消")}})
+ }
+ pendingApply?.let{template->AlertDialog(onDismissRequest={pendingApply=null},title={Text("替换当前内容？")},text={Text("当前输入框已有内容。套用模板会替换当前草稿，不会修改其他日期记录。")},confirmButton={TextButton({pendingApply=null;apply(template)}){Text("替换")}},dismissButton={TextButton({pendingApply=null}){Text("取消")}})}
+}
+
+@Composable private fun CourseSectionManager(initial:List<CourseSectionDefinition>,store:HealthStore,onClose:()->Unit,onChanged:(List<CourseSectionDefinition>)->Unit){
+ var definitions by remember{mutableStateOf(initial)}
+ var title by remember{mutableStateOf("")}
+ var renaming by remember{mutableStateOf<CourseSectionDefinition?>(null)}
+ var message by remember{mutableStateOf<String?>(null)}
+ fun reload(){definitions=store.courseSectionDefinitions();onChanged(definitions)}
+ fun save(next:List<CourseSectionDefinition>){runCatching{store.saveCourseSectionDefinitions(next)}.onSuccess{reload()}.onFailure{message=it.message?:"板块保存失败"}}
+ AlertDialog(onDismissRequest=onClose,title={Text("添加 / 管理板块")},text={Column(Modifier.fillMaxWidth().heightIn(max=480.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){AppInputField(title,{title=it},Modifier.weight(1f),singleLine=true,placeholder={Text("输入新板块标题")});FilledTonalButton({runCatching{store.addCourseSection(title)}.onSuccess{title="";reload()}.onFailure{message=it.message?:"添加失败"}},enabled=title.isNotBlank()){Text("添加")}}
+  if(definitions.isEmpty())Text("还没有自定义板块",color=Muted)
+  definitions.forEachIndexed{index,definition->Surface(Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),color=Color(0xFFF4F1EE)){Row(Modifier.fillMaxWidth().padding(start=12.dp),verticalAlignment=Alignment.CenterVertically){Text(definition.title,Modifier.weight(1f),color=if(definition.hidden)Muted else Ink);IconButton({if(index>0){val next=definitions.toMutableList();val item=next.removeAt(index);next.add(index-1,item);save(next)}}){Icon(Icons.Outlined.KeyboardArrowUp,"上移",tint=if(index>0)Accent else Muted)};IconButton({if(index<definitions.lastIndex){val next=definitions.toMutableList();val item=next.removeAt(index);next.add(index+1,item);save(next)}}){Icon(Icons.Outlined.KeyboardArrowDown,"下移",tint=if(index<definitions.lastIndex)Accent else Muted)};IconButton({save(definitions.map{if(it.id==definition.id)it.copy(hidden=!it.hidden) else it})}){Icon(if(definition.hidden)Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,if(definition.hidden)"恢复板块" else "隐藏板块",tint=Accent)};IconButton({renaming=definition}){Icon(Icons.Outlined.Edit,"重命名板块",tint=Accent)};IconButton({val hidden=store.removeOrHideCourseSection(definition.id);reload();if(hidden)message="该板块已有历史内容，已改为隐藏，历史记录仍保留。"}){Icon(Icons.Outlined.Delete,"删除板块",tint=Bad)}}}}
+ }},confirmButton={TextButton(onClose){Text("完成")}})
+ renaming?.let{definition->var value by remember(definition.id){mutableStateOf(definition.title)};AlertDialog(onDismissRequest={renaming=null},title={Text("修改板块标题")},text={AppInputField(value,{value=it},singleLine=true)},confirmButton={Button({save(definitions.map{if(it.id==definition.id)it.copy(title=value.trim()) else it});renaming=null},enabled=value.isNotBlank()){Text("保存",color=Color.White)}},dismissButton={TextButton({renaming=null}){Text("取消")}})}
+ message?.let{value->AlertDialog(onDismissRequest={message=null},title={Text("板块管理")},text={Text(value)},confirmButton={TextButton({message=null}){Text("知道了")}})}
+}
 
 @Composable private fun CourseWeightEditor(time:String,onTimeChange:(String)->Unit,value:String,onValueChange:(String)->Unit,heightText:String,onHeightChange:(String)->Unit,onOpenTrend:()->Unit){
  val heightCm=heightText.toDoubleOrNull()

@@ -136,7 +136,8 @@ class HealthBackup(private val context:Context,private val store:HealthStore) {
    it.title.isNotBlank()||it.symptomText.isNotBlank()||it.checkText.isNotBlank()||it.treatmentText.isNotBlank()||
     it.medicineText.isNotBlank()||it.dietText.isNotBlank()||it.noteText.isNotBlank()||
     it.symptomImages.isNotEmpty()||it.checkImages.isNotEmpty()||
-    it.treatmentImages.isNotEmpty()||it.medicineImages.isNotEmpty()||it.dietImages.isNotEmpty()||it.noteImages.isNotEmpty()
+    it.treatmentImages.isNotEmpty()||it.medicineImages.isNotEmpty()||it.dietImages.isNotEmpty()||it.noteImages.isNotEmpty()||
+    it.customSections.any{section->section.text.isNotBlank()||section.images.isNotEmpty()}
   }
   val patient=store.patientProfile()
   val hasProfile=!store.bloodGroupProfile().isEmpty||patient.name.isNotBlank()||patient.birthDate.isNotBlank()||patient.note.isNotBlank()||patient.sex.isNotBlank()||patient.bloodType.isNotBlank()||patient.heightCm.isNotBlank()
