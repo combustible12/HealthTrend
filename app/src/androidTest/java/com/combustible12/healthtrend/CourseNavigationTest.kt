@@ -101,6 +101,23 @@ class CourseNavigationTest {
   assertTrue(medicine.top<diet.top)
   assertTrue(diet.top<notes.top)
  }
+ @Test fun defaultDietTemplateSeedsOnlyPristineEditorAndTemplateButtonsAreAvailable(){
+  val store=HealthStore(context)
+  store.saveCourseTextTemplate(CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚："),true)
+  compose.setContent{MaterialTheme{CourseRecordEditor(CourseRecord(title=""),store,{},{_,_,_,_->},{},{_,_->})}}
+  compose.onNodeWithText("早：\n午：\n晚：").performScrollTo().assertIsDisplayed()
+  assertTrue(compose.onAllNodesWithText("模板").fetchSemanticsNodes().size>=6)
+ }
+ @Test fun customSectionCanBeAddedInsideEditorWithTextAndPhotoActions(){
+  val store=HealthStore(context)
+  compose.setContent{MaterialTheme{CourseRecordEditor(CourseRecord(title=""),store,{},{_,_,_,_->},{},{_,_->})}}
+  compose.onNodeWithText("添加 / 管理板块").performScrollTo().performClick()
+  compose.onNodeWithText("输入新板块标题").performTextInput("睡眠")
+  compose.onNodeWithText("添加").performClick()
+  compose.onNodeWithText("完成").performClick()
+  compose.onNodeWithText("睡眠").performScrollTo().assertIsDisplayed()
+  compose.onNodeWithText("相册添加睡眠图片").assertIsDisplayed()
+ }
  @Test fun growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards(){
   val marked=CourseRecord(title="已标记升白针",phase="放疗",growthFactorInjection=true)
   val unmarked=CourseRecord(title="未标记普通卡",phase="观察",date=marked.date-86_400_000L)
