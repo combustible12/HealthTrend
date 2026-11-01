@@ -75,3 +75,4 @@
 2026-10-30 restore 32dp course filters and remove Material padding that clipped two-character labels
 2026-10-31 course treatment text, gallery, camera, persistence, search, and image lifecycle; quick compile and tests only
 2026-10-31 course diet text, gallery, camera, persistence, search, blank-card, and image lifecycle; quick compile and tests only
+2026-11-01 persistent course text templates and user-defined text/photo sections; quick compile and tests only, no release
