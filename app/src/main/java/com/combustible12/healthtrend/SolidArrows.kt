@@ -44,15 +44,15 @@ internal object SolidArrows {
                 // Keep the original icon slot. The visible outline is 10⅔ by 6⅔.
                 path(fill = SolidColor(Color.Black)) {
                     moveTo(12f, 8.6667f)
-                    cubicTo(12.28f, 8.6667f, 12.51f, 8.80f, 12.72f, 9.06f)
+                    curveTo(12.28f, 8.6667f, 12.51f, 8.80f, 12.72f, 9.06f)
                     lineTo(17.13f, 14.23f)
-                    cubicTo(17.27f, 14.40f, 17.3333f, 14.54f, 17.3333f, 14.70f)
-                    cubicTo(17.3333f, 15.08f, 17.04f, 15.3333f, 16.63f, 15.3333f)
+                    curveTo(17.27f, 14.40f, 17.3333f, 14.54f, 17.3333f, 14.70f)
+                    curveTo(17.3333f, 15.08f, 17.04f, 15.3333f, 16.63f, 15.3333f)
                     lineTo(7.37f, 15.3333f)
-                    cubicTo(6.96f, 15.3333f, 6.6667f, 15.08f, 6.6667f, 14.70f)
-                    cubicTo(6.6667f, 14.54f, 6.73f, 14.40f, 6.87f, 14.23f)
+                    curveTo(6.96f, 15.3333f, 6.6667f, 15.08f, 6.6667f, 14.70f)
+                    curveTo(6.6667f, 14.54f, 6.73f, 14.40f, 6.87f, 14.23f)
                     lineTo(11.28f, 9.06f)
-                    cubicTo(11.49f, 8.80f, 11.72f, 8.6667f, 12f, 8.6667f)
+                    curveTo(11.49f, 8.80f, 11.72f, 8.6667f, 12f, 8.6667f)
                     close()
                 }
             }

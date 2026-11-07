@@ -6,6 +6,7 @@ import org.junit.Assert.*
 class CourseCalendarTest {
     @Test fun navigationTrianglesShareTheInjectionMarkerTintAndInlineGraphic() {
         assertEquals(TrendEventShapeColor, SolidArrows.Tint)
+        assertEquals(SolidArrows.Up.viewportWidth, SolidArrows.Right.viewportWidth)
         val label = SolidArrows.inlineLabel("左 ", " 右")
         assertEquals("左 ▸ 右", label.text)
         val annotation = label.getStringAnnotations(2, 3).single()
