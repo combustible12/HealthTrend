@@ -258,7 +258,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
      }
      CourseTimelineCard(record,title,primaryLabel,store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},linkedLabels,remindersByDate[courseLocalDate(record.date)].orEmpty())
     }
-    if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(SolidArrows.Up,null,tint=SolidArrows.Tint);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
+    if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Text("回到顶部")}}}
     }
     LazyScrollProgressRail(listState,Modifier.align(Alignment.CenterEnd).offset(x=16.dp).padding(top=8.dp,bottom=8.dp).width(10.dp).fillMaxHeight())
    }

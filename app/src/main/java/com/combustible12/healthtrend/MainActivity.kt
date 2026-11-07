@@ -397,7 +397,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
  Box(m.fillMaxSize()){
   Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(spacing)){
    Spacer(Modifier.height(6.dp));if(title.isNotBlank())Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
-   if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null,tint=SolidArrows.Tint);Spacer(Modifier.width(6.dp));Text("回到顶部")}
+   if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Text("回到顶部")}
    Spacer(Modifier.height(12.dp))
   }
   ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=20.dp,bottom=20.dp,end=2.dp).width(24.dp).fillMaxHeight())
@@ -407,7 +407,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 @Composable fun ScrollablePageColumn(modifier:Modifier=Modifier,padding:PaddingValues=PaddingValues(0.dp),arrangement:Arrangement.Vertical=Arrangement.Top,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(modifier){
-  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null,tint=SolidArrows.Tint);Spacer(Modifier.width(6.dp));Text("回到顶部")}}
+  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Text("回到顶部")}}
   ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=12.dp,bottom=12.dp,end=2.dp).width(24.dp).fillMaxHeight())
  }
 }
@@ -729,6 +729,9 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
      "参考范围: ${qualitativeDisplayText(range)} $unit".trim()+x.trendRangeEstimateText().takeIf{it.isNotBlank()}?.let{" · $it"}.orEmpty()
     }.distinct()
     val hospitalRows=points.map{trendHospitalKey(it.first.hospitalKey)}.distinct()
+    val latestHospital = trendHospitalKey(points.last().first.hospitalKey)
+    var hospitalsExpanded by remember(card, range) { mutableStateOf(false) }
+    val displayedHospitals = if (hospitalsExpanded) listOf(latestHospital) + hospitalRows.filter { it != latestHospital } else listOf(latestHospital)
     val hasHistoricalAbnormal=trendHasHistoricalAbnormal(list.map{it.second})
     val hospitalColors=if(hasHistoricalAbnormal)globalAbnormalHospitalColors else globalNormalHospitalColors
     val pointHospitalColors=compatiblePoints.map{(report,result)->hospitalColors.getValue(trendHospitalKey(report.hospitalKey))}
@@ -748,8 +751,13 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
     Box(Modifier.fillMaxWidth()){
      Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(2.dp)){
       rangeDisplayRows.forEach{text->TrendReferenceText(text)}
-      hospitalRows.forEach{hospital->
-       Row(verticalAlignment=Alignment.CenterVertically){
+      displayedHospitals.forEach { hospital ->
+       val toggle = if (hospital == latestHospital && hospitalRows.size > 1) {
+        Modifier.clickable(onClickLabel = if (hospitalsExpanded) "收起医院" else "展开全部医院") {
+         hospitalsExpanded = !hospitalsExpanded
+        }
+       } else Modifier
+       Row(modifier = toggle, verticalAlignment = Alignment.CenterVertically) {
         Canvas(Modifier.size(8.dp).semantics{contentDescription="医院图例 $hospital"}){drawCircle(hospitalColors.getValue(hospital))}
         Spacer(Modifier.width(6.dp))
         Text(hospital,color=Muted,fontSize=11.sp,lineHeight=14.sp,maxLines=1)

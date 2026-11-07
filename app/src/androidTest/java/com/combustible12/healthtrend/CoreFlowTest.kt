@@ -22,6 +22,24 @@ class CoreFlowTest{
  @get:Rule val compose=createAndroidComposeRule<MainActivity>()
  private val context:Context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",0).edit().clear().commit();context.getSharedPreferences("healthtrend_safety_snapshots",0).edit().clear().commit();compose.activityRule.scenario.recreate()}
+ @Test fun hospitalLegendTogglesFromTheLatestReport() {
+  val store = HealthStore(context)
+  val rows = ReportParser.parse("HGB 120 g/L 113-151")
+  for ((day, hospital) in listOf("图例甲医院", "图例乙医院", "图例甲医院").withIndex()) {
+   val template = store.confirmTemplate(hospital, "血常规", rows)
+   store.saveReport(store.buildReport(hospital, "血常规", 1000L + day, emptyList(), rows, template))
+  }
+  compose.activityRule.scenario.recreate()
+  compose.onNodeWithText("趋势", useUnmergedTree = true).performClick()
+  val latest = compose.onNodeWithText("图例甲医院")
+  val earlier = compose.onNodeWithText("图例乙医院")
+  latest.performScrollTo()
+  earlier.assertDoesNotExist()
+  latest.performClick()
+  earlier.assertExists()
+  latest.performClick()
+  earlier.assertDoesNotExist()
+ }
  @Test fun rememberedHospitalReusesConfirmedProjectsUnitsAndMissingRanges(){
   val store=HealthStore(context)
   val confirmed=ReportParser.parse("WBC 白细胞 4.35 3.5-9.5 10^9/L\n#NEUT 中性粒细胞计数 5.77 2.0-7.0 10^9/L")
