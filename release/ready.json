@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "dc93382bfade691769d91985c2b0903459af751f",
-  "validationMode": "bold-today-import-actions-compact-trend-filters",
-  "versionCode": 2026110709,
-  "versionName": "1.0.201"
+  "sourceBaseCommit": "c9532a47152bd957199f8cd7fd2a0768a76205d1",
+  "validationMode": "calendar-navigation-trend-category-order-and-data-isolation",
+  "versionCode": 2026110710,
+  "versionName": "1.0.202"
 }
