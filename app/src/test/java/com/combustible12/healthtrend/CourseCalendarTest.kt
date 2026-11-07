@@ -4,11 +4,12 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class CourseCalendarTest {
-    @Test fun inlineNavigationTriangleUsesTheSameLightGrayAsControls() {
+    @Test fun navigationTrianglesShareTheInjectionMarkerTintAndInlineGraphic() {
+        assertEquals(TrendEventShapeColor, SolidArrows.Tint)
         val label = SolidArrows.inlineLabel("左 ", " 右")
-        val span = label.spanStyles.single()
-        assertEquals("▸", label.text.substring(span.start, span.end))
-        assertEquals(androidx.compose.ui.graphics.Color(0xFFB0B0B0), span.item.color)
+        assertEquals("左 ▸ 右", label.text)
+        val annotation = label.getStringAnnotations(2, 3).single()
+        assertEquals(SolidArrows.inlineContent.keys.single(), annotation.item)
     }
 
     @Test fun simultaneousTreatmentsKeepAllFourKindsWithoutDuplicates() {

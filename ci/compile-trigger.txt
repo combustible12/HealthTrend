@@ -31,3 +31,4 @@ Purple calendar today text
 2026-11-07 check expandable trend categories and directional icons
 2026-11-07 verify neutral light-gray triangles
 2026-11-07 run import and dictionary safety baseline with synthetic data
+2026-11-07 verify rounded navigation triangles and collapsible hospital legend

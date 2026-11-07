@@ -1,35 +1,60 @@
 package com.combustible12.healthtrend
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.group
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 
 internal object SolidArrows {
-    val Tint = Color(0xFFB0B0B0)
-    val DisabledTint = Color(0xFFD6D6D6)
+    val Tint get() = TrendEventShapeColor
+    val DisabledTint get() = Tint.copy(alpha = Tint.alpha * .55f)
 
-    fun inlineLabel(before: String, after: String = "") = androidx.compose.ui.text.buildAnnotatedString {
+    private const val InlineId = "direction-right"
+    fun inlineLabel(before: String, after: String = "") = buildAnnotatedString {
         append(before)
-        pushStyle(androidx.compose.ui.text.SpanStyle(color = Tint))
-        append("▸")
-        pop()
+        appendInlineContent(InlineId, "▸")
         append(after)
     }
 
-    val Up = triangle("Up", 12f, 7f, 20f, 17f, 4f, 17f)
-    val Down = triangle("Down", 12f, 17f, 4f, 7f, 20f, 7f)
-    val Left = triangle("Left", 7f, 12f, 17f, 4f, 17f, 20f)
-    val Right = triangle("Right", 17f, 12f, 7f, 20f, 7f, 4f)
+    val inlineContent = mapOf(
+        InlineId to InlineTextContent(Placeholder(.8.em, 1.em, PlaceholderVerticalAlign.TextCenter)) {
+            Icon(Right, null, Modifier.fillMaxSize(), tint = Tint)
+        }
+    )
 
-    private fun triangle(name: String, x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float) =
+    val Up = triangle("Up", 0f)
+    val Right = triangle("Right", 90f)
+    val Down = triangle("Down", 180f)
+    val Left = triangle("Left", 270f)
+
+    private fun triangle(name: String, rotation: Float) =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
-            path(fill = SolidColor(Tint)) {
-                moveTo(x1, y1)
-                lineTo(x2, y2)
-                lineTo(x3, y3)
-                close()
+            group(rotate = rotation, pivotX = 12f, pivotY = 12f) {
+                // Keep the original icon slot. The visible outline is 10⅔ by 6⅔.
+                path(fill = SolidColor(Color.Black)) {
+                    moveTo(12f, 8.6667f)
+                    cubicTo(12.28f, 8.6667f, 12.51f, 8.80f, 12.72f, 9.06f)
+                    lineTo(17.13f, 14.23f)
+                    cubicTo(17.27f, 14.40f, 17.3333f, 14.54f, 17.3333f, 14.70f)
+                    cubicTo(17.3333f, 15.08f, 17.04f, 15.3333f, 16.63f, 15.3333f)
+                    lineTo(7.37f, 15.3333f)
+                    cubicTo(6.96f, 15.3333f, 6.6667f, 15.08f, 6.6667f, 14.70f)
+                    cubicTo(6.6667f, 14.54f, 6.73f, 14.40f, 6.87f, 14.23f)
+                    lineTo(11.28f, 9.06f)
+                    cubicTo(11.49f, 8.80f, 11.72f, 8.6667f, 12f, 8.6667f)
+                    close()
+                }
             }
         }.build()
 }
