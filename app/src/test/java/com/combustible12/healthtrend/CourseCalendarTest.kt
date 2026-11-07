@@ -16,7 +16,8 @@ class CourseCalendarTest {
     }
     @Test fun chemotherapyElapsedDaysDoNotMarkEveryDayAsTreatment() {
         assertTrue(calendarTreatments(CourseRecord(title = "3化18", phase = "观察"), emptyList(), false).isEmpty())
-        assertEquals(listOf(CalendarTreatment.RADIOTHERAPY), calendarTreatments(CourseRecord(title = "3化18-放19", phase = "观察"), emptyList(), false))
+        assertTrue(calendarTreatments(CourseRecord(title = "3化18-放19", phase = "观察"), emptyList(), false).isEmpty())
+        assertEquals(listOf(CalendarTreatment.RADIOTHERAPY), calendarTreatments(CourseRecord(title = "3化18-放19", phase = "放疗"), emptyList(), false))
     }
     @Test fun movingScheduledTreatmentsRemovesTheirOldDateDots() {
         val reminder = TreatmentReminder(radiationNumber = 0, text = "", purpose = ReminderPurpose.FOLLOW_UP)

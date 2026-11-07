@@ -38,7 +38,7 @@ internal fun calendarTreatments(record: CourseRecord?, reminders: List<Treatment
     val phase = record?.phase.orEmpty()
     return buildList {
         if (chemotherapyDay) add(CalendarTreatment.CHEMOTHERAPY)
-        if (phase in setOf("放疗", "放疗日", "放化") || Regex("""(?:^|-)放\d+(?:-|$)""").containsMatchIn(title))
+        if (phase in setOf("放疗", "放疗日", "放化"))
             add(CalendarTreatment.RADIOTHERAPY)
         if (phase == "后装" || title.contains("后装") || reminders.any { it.purpose == ReminderPurpose.BRACHYTHERAPY })
             add(CalendarTreatment.BRACHYTHERAPY)
