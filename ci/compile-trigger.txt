@@ -4,3 +4,4 @@
 2026-11-07 check autosaving course editor
 2026-11-07 verify course save status and retry
 2026-11-07 verify historical blank course cards
+2026-11-07 verify legacy course edits preserve existing fields

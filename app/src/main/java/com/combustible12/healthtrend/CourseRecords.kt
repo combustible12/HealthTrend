@@ -270,6 +270,15 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
 internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):String=
  if(record.titleAuto)record.title.ifBlank{automaticCourseTitle(record,records)} else record.title
 
+internal fun courseEditorRecordForDate(record:CourseRecord,date:Long,original:CourseRecord?,history:List<CourseRecord>):CourseRecord {
+ val dated=record.copy(date=date)
+ if(original!=null && original.date==date && original.phase==record.phase &&
+    original.title==record.title && original.titleAuto==record.titleAuto)return dated
+ if(record.titleAuto)return dated.copy(title=automaticCourseTitle(dated.copy(title=""),history))
+ if(record.phase in radiotherapyCoursePhases && Regex("""放\d+""").find(record.title)==null)return dated.copy(phase="观察")
+ return dated
+}
+
 internal fun chemotherapyEventDates(records:List<CourseRecord>,zone:ZoneId=ZoneId.systemDefault()):List<Long>{
  val treatmentDay=Regex("""(?:^|-)\d+化1(?:-|$)""")
  val dates=records.filter{record->
@@ -526,8 +535,9 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val rememberedDiets=remember(remembered){remembered.map{it.dietText}.filter{it.isNotBlank()}.distinct()}
  val rememberedNotes=remember(remembered){remembered.map{it.noteText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date)
- val automaticTitle=selectedDate?.let{automaticCourseTitle(record.copy(date=it,title="",titleAuto=true),remembered)}.orEmpty()
- val editorTitle=if(record.titleAuto)automaticTitle else record.title
+ val original=remember(initial.id){initial.takeIf{exists}}
+ val editedRecord=selectedDate?.let{courseEditorRecordForDate(record,it,original,remembered)}
+ val editorTitle=editedRecord?.let{displayCourseTitle(it,remembered)} ?: record.title
  val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val heightCm=heightText.toDoubleOrNull()
  val validHeight=heightText.isBlank()||(heightCm!=null&&heightCm>0&&heightCm.isFinite())
  val validWeight=(weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null))&&validHeight
@@ -559,8 +569,7 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
   if(draft==lastWritten){saveFailure=null;return true}
   return try {
    if(valid){
-    val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
-    onSave(saved,kilograms,if(kilograms==null)null else weightAt,if(kilograms==null)null else heightCm)
+    onSave(checkNotNull(editedRecord),kilograms,if(kilograms==null)null else weightAt,if(kilograms==null)null else heightCm)
     store.storeCourseEditorDraft(slot,null)
     if(slot!=record.id)store.storeCourseEditorDraft(record.id,null)
     committed=true

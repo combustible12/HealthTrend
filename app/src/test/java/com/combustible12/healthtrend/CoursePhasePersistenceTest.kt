@@ -14,6 +14,25 @@ import org.robolectric.annotation.Config
 class CoursePhasePersistenceTest {
  private val context get()=RuntimeEnvironment.getApplication()
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun editingLegacyNotePreservesStoredTitlePhaseImagesAndOtherDays(){
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val first="""{"id":"legacy-a","date":86400000,"phase":"观察","title":"旧标题","titleAuto":true,"symptomText":"原症状","symptomImages":["file:///old.jpg"],"growthFactorInjection":true}"""
+  val second="""{"id":"legacy-b","date":259200000,"phase":"放疗","title":"历史手写","titleAuto":false,"noteText":"第二天"}"""
+  prefs.edit().putString("course_records","[$first,$second]").commit()
+  val store=HealthStore(context)
+  val history=store.courseRecords()
+  for(original in history){
+   val changed=original.copy(noteText="只改备注")
+   val saved=courseEditorRecordForDate(changed,changed.date,original,history)
+   assertEquals(changed,saved)
+   val other=store.courseRecords().single{it.id!=original.id}
+   store.saveCourseRecord(saved)
+   val reopened=HealthStore(context).courseRecords()
+   val actual=reopened.single{it.id==original.id}
+   assertEquals(changed.copy(updatedAt=actual.updatedAt,userEdited=true),actual)
+   assertEquals(other,reopened.single{it.id==other.id})
+  }
+ }
  @Test fun customPhasesPersistAndEmptyListDoesNotRestoreDeletedDefaults(){
   val store=HealthStore(context)
   assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他"),store.coursePhases())
