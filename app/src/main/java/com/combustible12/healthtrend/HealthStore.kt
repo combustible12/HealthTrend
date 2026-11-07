@@ -32,6 +32,13 @@ class HealthStore(private val context:Context) {
   if(keys!=previous)write("trend_hospital_palette",JSONArray(keys))
   return keys
  }
+ internal fun trendCategoryOrder():List<String>{
+  val saved=read("trend_category_order")
+  return (0 until saved.length()).map{saved.getString(it)}
+ }
+ @Synchronized internal fun saveTrendCategoryOrder(order:List<String>){
+  write("trend_category_order",JSONArray(order))
+ }
  internal fun trendCardOrder(primary:Boolean):List<String>{
   val saved=read(if(primary)"trend_card_order_primary" else "trend_card_order_other")
   return (0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()}.distinct()
@@ -1303,7 +1310,7 @@ class HealthStore(private val context:Context) {
    .putString("custom_metrics",custom.toString()).commit()){"词典保存失败"}
  }
  internal fun hasRestoreProtectedConfiguration():Boolean = portHistory().latest != null || prefs.contains("course_process_settings") || listOf(
-  "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
+  "trend_category_order","templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
   "report_identity_links","report_replacement_archive","trend_identity_mappings","course_section_definitions","course_text_templates"
  ).any{read(it).length()>0}
  fun exportBackup():String=JSONObject().put("schema",4).put("portHistory",prefs.getString("port_history",null)?.let { JSONObject(it) }).put("portMaintenanceLastDate",portMaintenanceLastDate()).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("treatmentReminders",read("treatment_reminders")).put("coursePhases",read("course_phases")).put("courseProcessSettings",prefs.getString("course_process_settings",null)?.let{JSONObject(it)}).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()

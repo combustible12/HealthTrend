@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -92,9 +90,9 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
         Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("病程日历", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                IconButton({ changeMonth(-1) }) { Icon(Icons.Outlined.ChevronLeft, "上个月") }
+                IconButton({ changeMonth(-1) }) { Icon(SolidArrows.Left, "上个月") }
                 Text("${month.year}年${month.monthValue}月", fontSize = 14.sp)
-                IconButton({ changeMonth(1) }) { Icon(Icons.Outlined.ChevronRight, "下个月") }
+                IconButton({ changeMonth(1) }) { Icon(SolidArrows.Right, "下个月") }
             }
             Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 CalendarTreatment.values().forEach { treatment ->

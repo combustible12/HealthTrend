@@ -206,6 +206,7 @@ class CoreFlowTest{
   compose.onNodeWithText("保存").performClick()
   compose.onNodeWithText("趋势",useUnmergedTree=true).performClick()
   compose.onNodeWithText("血常规").assertExists()
+  compose.onNodeWithContentDescription("展开趋势分类").performClick()
   compose.onNodeWithText("肝功能").assertExists()
   compose.onNodeWithText("肾功能").assertExists()
   compose.onNodeWithText("肿瘤标志物").assertExists()

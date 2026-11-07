@@ -302,7 +302,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
     Column(Modifier.heightIn(max=220.dp).verticalScroll(rememberScrollState())){
      savedAliases.forEach{(name,key)->
       Row(verticalAlignment=Alignment.CenterVertically){
-       Text("$name → $key",modifier=Modifier.weight(1f),fontSize=13.sp)
+       Text("$name ▸ $key",modifier=Modifier.weight(1f),fontSize=13.sp)
        TextButton({aliasInput=name;aliasKeyInput=key;aliasError="";editingAliasOriginal=name}){Text("修改")}
        TextButton({store.deleteMetricAlias(name);if(editingAliasOriginal==name){editingAliasOriginal=null;aliasInput="";aliasKeyInput=""};aliasRevision++}){Text("删除")}
       }

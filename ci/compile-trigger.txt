@@ -28,3 +28,4 @@ Purple calendar today text
 2026-11-07 verify reminder alignment with course card detail rows
 2026-11-07 verify reminder search, trend navigation and image search
 2026-11-07 verify per-tab browsing state
+2026-11-07 check expandable trend categories and directional icons

@@ -31,7 +31,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.*
@@ -381,7 +380,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val page=document.pages[pageIndex];val currentBlock=matches.getOrNull(matchPosition)?.let{page.blocks.getOrNull(it)}
  val previous={if(pageIndex>0){pageIndex--;matches=emptyList();matchPosition=0}}
  val next={if(pageIndex<document.pages.lastIndex){pageIndex++;matches=emptyList();matchPosition=0}}
- FullPage("图片资料",close,hidden=immersive,navigationIcon=Icons.Outlined.ArrowBack,bottom={if(!immersive)Column{
+ FullPage("图片资料",close,hidden=immersive,navigationIcon=SolidArrows.Left,bottom={if(!immersive)Column{
   if(matches.isNotEmpty())Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){TextButton({matchPosition=(matchPosition-1).coerceAtLeast(0)},enabled=matchPosition>0){Text("上一个")};Text("${matchPosition+1}/${matches.size}");TextButton({matchPosition=(matchPosition+1).coerceAtMost(matches.lastIndex)},enabled=matchPosition<matches.lastIndex){Text("下一个")}}
   LazyRow(Modifier.fillMaxWidth().height(58.dp),state=thumbnailState,horizontalArrangement=Arrangement.spacedBy(5.dp),contentPadding=PaddingValues(horizontal=2.dp)){itemsIndexed(document.pages){index,item->ImagePageThumbnail(item,index==pageIndex,{pageIndex=index;matches=emptyList();matchPosition=0},Modifier.width(47.dp).fillMaxHeight())}}
   Row(Modifier.fillMaxWidth().padding(top=18.dp,bottom=6.dp),verticalAlignment=Alignment.CenterVertically){
@@ -545,7 +544,7 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
  val gridState=rememberLazyGridState();val scope=rememberCoroutineScope()
  var draggingId by remember{mutableStateOf<String?>(null)};var dragOffset by remember{mutableStateOf(Offset.Zero)}
  var pendingFrom by remember{mutableIntStateOf(-1)};var pendingTo by remember{mutableIntStateOf(-1)}
- FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=Icons.Outlined.ArrowBack){m->
+ FullPage("全部图片 · ${document.pages.size} 张",onClose,navigationIcon=SolidArrows.Left){m->
   LazyVerticalGrid(columns=GridCells.Fixed(3),state=gridState,modifier=m.padding(horizontal=12.dp),contentPadding=PaddingValues(vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
    gridItemsIndexed(document.pages,key={_,item->item.id}){index,item->Column(verticalArrangement=Arrangement.spacedBy(4.dp),modifier=Modifier.graphicsLayer{if(draggingId==item.id){translationX=dragOffset.x;translationY=dragOffset.y;alpha=.88f}}){
     val dragModifier=if(item.isTextPage())Modifier else Modifier.pointerInput(item.id,document.pages.size){
