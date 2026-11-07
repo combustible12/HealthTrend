@@ -227,7 +227,7 @@ class MainActivity:ComponentActivity(){
     courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
      ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
    },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++},requestedCategory=trendCategoryRequest,onRequestedCategoryConsumed={trendCategoryRequest=null},showPreview={trendPreview=it})
-    2->CourseRecordsPage(m,courseRecords,store,{courseEditorSection=null;courseRecord=it},{courseEditorSection=null;courseRecord=CourseRecord(date=0L,title="",initialSectionTemplates=defaultCourseSectionTexts(store))},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;val owner=courseRecords.firstOrNull{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).any{record.courseSectionImages(it)==images}};viewerCourseRecordId=owner?.id;viewerCourseKind=owner?.let{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).firstOrNull{record.courseSectionImages(it)==images}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1},openSection={record,section->courseEditorSection=section;courseRecord=record})
+    2->CourseRecordsPage(m,courseRecords,store,{courseEditorSection=null;courseRecord=it},{courseEditorSection=null;courseRecord=CourseRecord(date=0L,title="",initialSectionTemplates=defaultCourseSectionTexts(store))},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;val owner=courseRecords.firstOrNull{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).any{record.courseSectionImages(it)==images}};viewerCourseRecordId=owner?.id;viewerCourseKind=owner?.let{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).firstOrNull{record.courseSectionImages(it)==images}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1},openSection={record,section->courseEditorSection=section;courseRecord=record},reminders=treatmentReminders)
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
   }
@@ -303,6 +303,7 @@ class MainActivity:ComponentActivity(){
   TreatmentReminderDialog(dueTreatmentReminder,
    onLater={postpone(System.currentTimeMillis()+60*60_000L)},
    onTomorrow={postpone(LocalDate.now().plusDays(1).atTime(9,0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())},
+   onReschedule={day->change{store.saveTreatmentReminder(dueTreatmentReminder.rescheduledFollowUp(day))}},
    onComplete={change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis(),snoozedUntil=null))}})
  }
  }
@@ -346,6 +347,11 @@ class MainActivity:ComponentActivity(){
  trendPreview?.let{preview->TrendPreviewDialog(preview.points,preview.color,preview.referenceBands,preview.segmentKeys,preview.segmentColors,preview.metricKey,{trendPreview=null},preview.referenceNotes,preview.timelineDates,preview.eventLayers)}
  if(error!=null)AlertDialog(onDismissRequest={error=null},title={Text("操作未完成")},text={Text(error!!)},confirmButton={TextButton({error=null}){Text("知道了")}})
  }
+}
+
+internal fun TreatmentReminder.rescheduledFollowUp(day:LocalDate):TreatmentReminder {
+ require(purpose==ReminderPurpose.FOLLOW_UP)
+ return copy(triggerDate=day.toString(),snoozedUntil=null,completedAt=null)
 }
 
 internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiationNumber:Int,snoozedIds:Set<String> = emptySet(),now:LocalDateTime=LocalDateTime.now()):TreatmentReminder?=
@@ -398,7 +404,8 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
   }
  }
 }
-@Composable private fun TreatmentReminderDialog(reminder:TreatmentReminder,onLater:()->Unit,onTomorrow:()->Unit,onComplete:()->Unit){
+@Composable private fun TreatmentReminderDialog(reminder:TreatmentReminder,onLater:()->Unit,onTomorrow:()->Unit,onReschedule:(LocalDate)->Unit,onComplete:()->Unit){
+ val context=LocalContext.current
  Dialog(onDismissRequest=onLater){
   Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
    Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=30.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(18.dp)){
@@ -408,6 +415,15 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
     Button(onComplete,Modifier.fillMaxWidth().height(54.dp)){Text("已完成",fontSize=17.sp,color=Color.White)}
     TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后提醒（1 小时后）",color=Muted)}
     TextButton(onTomorrow,Modifier.fillMaxWidth()){Text("明天提醒（09:00）",color=Muted)}
+    if(reminder.purpose==ReminderPurpose.FOLLOW_UP){
+     TextButton({
+      val firstDay=LocalDate.now().plusDays(1)
+      android.app.DatePickerDialog(context,{_,year,month,day->onReschedule(LocalDate.of(year,month+1,day))},
+       firstDay.year,firstDay.monthValue-1,firstDay.dayOfMonth).apply{
+       datePicker.minDate=firstDay.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+      }.show()
+     },Modifier.fillMaxWidth()){Text("改期提醒（选日期）")}
+    }
    }
   }
  }

@@ -151,7 +151,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  remove:(CourseRecord)->Unit,
  view:(List<String>,Int)->Unit,
  openWeightTrend:()->Unit={},
- openSection:(CourseRecord,String)->Unit={ record,_->open(record) }
+ openSection:(CourseRecord,String)->Unit={ record,_->open(record) },
+ reminders:List<TreatmentReminder> = emptyList()
 ){
  val context=LocalContext.current
  var phaseDefinitions by remember{mutableStateOf(store.coursePhaseDefinitions())}
@@ -167,13 +168,17 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  val sectionTitles=sectionDefinitions.associate{it.id to it.title}
  val query=search.trim()
  val cardRecords=remember(records,sectionDefinitions){records.map { it.withDefaultCourseTemplates() }}
+ val reviewDates=remember(reminders){followUpDates(reminders)}
+ val reviewPhase=phaseDefinitions.firstOrNull{it.key=="复查"||it.label=="复查"}
+ val reviewLabel=reviewPhase?.label?:"复查"
  val shown=cardRecords.filter{record->
+  val hasReview=courseLocalDate(record.date) in reviewDates
   val matchesFilter=when{
    filter==growthFactorInjectionFilter->record.growthFactorInjection
    query.isNotBlank()||filter=="全部"->true
-   else->record.phase==filter
+   else->record.phase==filter || (hasReview && filter==reviewPhase?.key)
   }
-  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true))
+  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true) || (hasReview && reviewLabel.contains(query,ignoreCase=true)))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(requestedRecordId,shown.map{it.id}){
@@ -218,7 +223,9 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     CourseTimelineCard(record,displayCourseTitle(record,records),store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)})
+     val hasReview=courseLocalDate(record.date) in reviewDates
+     val title=followUpCardTitle(displayCourseTitle(record,records),hasReview)
+     CourseTimelineCard(record,title,store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},reviewLabel.takeIf{hasReview && store.coursePhaseLabel(record.phase)!=it})
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -232,6 +239,12 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
  dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}
 }
+
+internal fun followUpDates(reminders:List<TreatmentReminder>):Set<LocalDate> =
+ reminders.filter{it.purpose==ReminderPurpose.FOLLOW_UP}.mapNotNull{runCatching{LocalDate.parse(it.triggerDate)}.getOrNull()}.toSet()
+
+internal fun followUpCardTitle(title:String,hasReview:Boolean):String =
+ if(hasReview && !title.contains("复查"))listOf(title,"复查").filter{it.isNotBlank()}.joinToString(" · ") else title
 
 internal fun courseRecordForDate(records:List<CourseRecord>,date:LocalDate):CourseRecord?=records.firstOrNull{courseLocalDate(it.date)==date}
 
@@ -361,7 +374,7 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
  }
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit){
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit,reviewLabel:String?){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -382,6 +395,9 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
      Spacer(Modifier.width(6.dp))
      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
        if(record.growthFactorInjection)Icon(Icons.Outlined.Vaccines,"当天已打升白针",Modifier.clickable{onSection("injection")}.size(18.dp),tint=phaseColors.second)
+       if(reviewLabel!=null)Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){
+        Text(reviewLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)
+       }
        Surface(modifier=Modifier.clickable{onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
     }

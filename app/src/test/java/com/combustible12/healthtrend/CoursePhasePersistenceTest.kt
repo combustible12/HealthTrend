@@ -51,6 +51,27 @@ class CoursePhasePersistenceTest {
   assertEquals(ReminderPurpose.GENERAL,store.treatmentReminders().single{it.id=="old"}.purpose)
   assertEquals(history,prefs.getString("course_records",null))
  }
+ @Test fun reschedulingFollowUpMovesOnlyItsOwnCardMarkerAndAlarm(){
+  val store=HealthStore(context)
+  val originalDay=java.time.LocalDate.of(2031,5,3)
+  val newDay=originalDay.plusDays(4)
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val raw="""[{"id":"old","title":"医院复查","phase":"复查","date":1}]"""
+  prefs.edit().putString("course_records",raw).commit()
+  val reminder=TreatmentReminder(radiationNumber=0,text="MRI",triggerDate=originalDay.toString(),triggerTime="10:00",purpose=ReminderPurpose.FOLLOW_UP,snoozedUntil=1)
+  store.saveTreatmentReminder(reminder)
+  store.saveTreatmentReminder(reminder.rescheduledFollowUp(newDay))
+  val saved=HealthStore(context).treatmentReminders().single()
+  assertEquals(reminder.id,saved.id)
+  assertNull(saved.snoozedUntil)
+  assertEquals(setOf(newDay),followUpDates(listOf(saved)))
+  assertNull(nextDueTreatmentReminder(listOf(saved),0,now=originalDay.atTime(10,0)))
+  assertEquals(saved,nextDueTreatmentReminder(listOf(saved),0,now=newDay.atTime(10,0)))
+  assertEquals("2化35 · 复查",followUpCardTitle("2化35",true))
+  assertEquals("医院复查",followUpCardTitle("医院复查",false))
+  assertEquals(setOf(originalDay,newDay),followUpDates(listOf(saved,reminder.copy(id="another"))))
+  assertEquals(raw,prefs.getString("course_records",null))
+ }
  @Test fun customPhasesPersistAndEmptyListDoesNotRestoreDeletedDefaults(){
   val store=HealthStore(context)
   assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他","复查"),store.coursePhases())
