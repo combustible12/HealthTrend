@@ -303,7 +303,7 @@ class MainActivity:ComponentActivity(){
   TreatmentReminderDialog(dueTreatmentReminder,
    onLater={postpone(System.currentTimeMillis()+60*60_000L)},
    onTomorrow={postpone(LocalDate.now().plusDays(1).atTime(9,0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())},
-   onReschedule={day->change{store.saveTreatmentReminder(dueTreatmentReminder.rescheduledFollowUp(day))}},
+   onReschedule={day->change{store.saveTreatmentReminder(dueTreatmentReminder.rescheduledDatedReminder(day))}},
    onComplete={change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis(),snoozedUntil=null))}})
  }
  }
@@ -349,8 +349,8 @@ class MainActivity:ComponentActivity(){
  }
 }
 
-internal fun TreatmentReminder.rescheduledFollowUp(day:LocalDate):TreatmentReminder {
- require(purpose==ReminderPurpose.FOLLOW_UP)
+internal fun TreatmentReminder.rescheduledDatedReminder(day:LocalDate):TreatmentReminder {
+ require(purpose==ReminderPurpose.FOLLOW_UP || purpose==ReminderPurpose.BRACHYTHERAPY)
  return copy(triggerDate=day.toString(),snoozedUntil=null,completedAt=null)
 }
 
@@ -415,7 +415,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
     Button(onComplete,Modifier.fillMaxWidth().height(54.dp)){Text("已完成",fontSize=17.sp,color=Color.White)}
     TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后提醒（1 小时后）",color=Muted)}
     TextButton(onTomorrow,Modifier.fillMaxWidth()){Text("明天提醒（09:00）",color=Muted)}
-    if(reminder.purpose==ReminderPurpose.FOLLOW_UP){
+    if(reminder.purpose==ReminderPurpose.FOLLOW_UP || reminder.purpose==ReminderPurpose.BRACHYTHERAPY){
      TextButton({
       val firstDay=LocalDate.now().plusDays(1)
       android.app.DatePickerDialog(context,{_,year,month,day->onReschedule(LocalDate.of(year,month+1,day))},

@@ -42,17 +42,20 @@ class HealthStore(private val context:Context) {
   write(key,JSONArray(listOf(cardKey)+trendCardOrder(primary).filterNot{it==cardKey}))
  }
  @Synchronized fun coursePhases():List<String> {
-  val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他","复查")
+  val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他","后装","复查")
   val saved=if(prefs.contains("course_phases"))read("course_phases") else JSONArray(defaults)
   val phases=(0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
   val combinedDone=prefs.getBoolean("course_phase_combined_migrated",false)
+  val brachytherapyDone=prefs.getBoolean("course_phase_brachytherapy_migrated",false)
   val followUpDone=prefs.getBoolean("course_phase_follow_up_migrated",false)
-  if(combinedDone && followUpDone)return phases
+  if(combinedDone && brachytherapyDone && followUpDone)return phases
   val updated=phases.toMutableList()
   if(!combinedDone && "放化" !in updated)updated.add("放化")
+  if(!brachytherapyDone && "后装" !in updated && updated.none{coursePhaseLabel(it)=="后装"})updated.add("后装")
   if(!followUpDone && "复查" !in updated && updated.none{coursePhaseLabel(it)=="复查"})updated.add("复查")
   check(prefs.edit().putString("course_phases",JSONArray(updated).toString())
    .putBoolean("course_phase_combined_migrated",true)
+   .putBoolean("course_phase_brachytherapy_migrated",true)
    .putBoolean("course_phase_follow_up_migrated",true).commit()){"分类保存失败，请检查设备存储空间"}
   return updated
  }
@@ -76,6 +79,7 @@ class HealthStore(private val context:Context) {
    .putString("course_phases",JSONArray(cleaned.map{it.key}).toString())
    .putString("course_phase_labels",labels.toString())
    .putBoolean("course_phase_combined_migrated",true)
+   .putBoolean("course_phase_brachytherapy_migrated",true)
    .putBoolean("course_phase_follow_up_migrated",true)
    .putInt("schema",2)
    .commit()){"分类保存失败，请检查设备存储空间"}

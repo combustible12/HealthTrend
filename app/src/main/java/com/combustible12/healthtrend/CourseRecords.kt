@@ -168,17 +168,22 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  val sectionTitles=sectionDefinitions.associate{it.id to it.title}
  val query=search.trim()
  val cardRecords=remember(records,sectionDefinitions){records.map { it.withDefaultCourseTemplates() }}
- val reviewDates=remember(reminders){followUpDates(reminders)}
+ val reminderMarkers=remember(reminders){courseReminderMarkers(reminders)}
  val reviewPhase=phaseDefinitions.firstOrNull{it.key=="复查"||it.label=="复查"}
+ val brachytherapyPhase=phaseDefinitions.firstOrNull{it.key=="后装"||it.label=="后装"}
  val reviewLabel=reviewPhase?.label?:"复查"
+ val brachytherapyLabel=brachytherapyPhase?.label?:"后装"
  val shown=cardRecords.filter{record->
-  val hasReview=courseLocalDate(record.date) in reviewDates
+  val marker=reminderMarkers[courseLocalDate(record.date)]
+  val hasReview=marker?.followUp==true
+  val hasBrachytherapy=marker?.brachytherapyNumbers?.isNotEmpty()==true
   val matchesFilter=when{
    filter==growthFactorInjectionFilter->record.growthFactorInjection
    query.isNotBlank()||filter=="全部"->true
-   else->record.phase==filter || (hasReview && filter==reviewPhase?.key)
+   else->record.phase==filter || (hasReview && filter==reviewPhase?.key) || (hasBrachytherapy && filter==brachytherapyPhase?.key)
   }
-  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true) || (hasReview && reviewLabel.contains(query,ignoreCase=true)))
+  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true) ||
+   (hasReview && reviewLabel.contains(query,ignoreCase=true)) || (hasBrachytherapy && brachytherapyLabel.contains(query,ignoreCase=true)))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(requestedRecordId,shown.map{it.id}){
@@ -223,9 +228,14 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
-     val hasReview=courseLocalDate(record.date) in reviewDates
-     val title=followUpCardTitle(displayCourseTitle(record,records),hasReview)
-     CourseTimelineCard(record,title,store.coursePhaseLabel(record.phase),store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},reviewLabel.takeIf{hasReview && store.coursePhaseLabel(record.phase)!=it})
+     val marker=reminderMarkers[courseLocalDate(record.date)]
+     val title=reminderLinkedCardTitle(displayCourseTitle(record,records),marker)
+     val primaryLabel=store.coursePhaseLabel(record.phase)
+     val linkedLabels=buildList{
+      if(marker?.brachytherapyNumbers?.isNotEmpty()==true && primaryLabel!=brachytherapyLabel)add(brachytherapyLabel)
+      if(marker?.followUp==true && primaryLabel!=reviewLabel)add(reviewLabel)
+     }
+     CourseTimelineCard(record,title,primaryLabel,store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},linkedLabels)
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -240,11 +250,24 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}
 }
 
-internal fun followUpDates(reminders:List<TreatmentReminder>):Set<LocalDate> =
- reminders.filter{it.purpose==ReminderPurpose.FOLLOW_UP}.mapNotNull{runCatching{LocalDate.parse(it.triggerDate)}.getOrNull()}.toSet()
+internal data class CourseReminderMarker(val followUp:Boolean=false,val brachytherapyNumbers:List<Int> = emptyList())
 
-internal fun followUpCardTitle(title:String,hasReview:Boolean):String =
- if(hasReview && !title.contains("复查"))listOf(title,"复查").filter{it.isNotBlank()}.joinToString(" · ") else title
+internal fun courseReminderMarkers(reminders:List<TreatmentReminder>):Map<LocalDate,CourseReminderMarker> =
+ reminders.mapNotNull{reminder->runCatching{LocalDate.parse(reminder.triggerDate)}.getOrNull()?.let{it to reminder}}
+  .groupBy({it.first},{it.second}).mapValues{(_,items)->CourseReminderMarker(
+   followUp=items.any{it.purpose==ReminderPurpose.FOLLOW_UP},
+   brachytherapyNumbers=items.filter{it.purpose==ReminderPurpose.BRACHYTHERAPY}.map{it.brachytherapyNumber}.filter{it>0}.distinct().sorted()
+  )}
+
+internal fun reminderLinkedCardTitle(title:String,marker:CourseReminderMarker?):String {
+ var result=title
+ marker?.brachytherapyNumbers.orEmpty().forEach{number->
+  val label="后装$number"
+  if(!Regex("(?:^|-)后装$number(?:-|$)").containsMatchIn(result))result=listOf(result,label).filter{it.isNotBlank()}.joinToString("-")
+ }
+ if(marker?.followUp==true && !result.contains("复查"))result=listOf(result,"复查").filter{it.isNotBlank()}.joinToString(" · ")
+ return result
+}
 
 internal fun courseRecordForDate(records:List<CourseRecord>,date:LocalDate):CourseRecord?=records.firstOrNull{courseLocalDate(it.date)==date}
 
@@ -374,7 +397,7 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
  }
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit,reviewLabel:String?){
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit,linkedLabels:List<String>){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -395,9 +418,9 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
      Spacer(Modifier.width(6.dp))
      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
        if(record.growthFactorInjection)Icon(Icons.Outlined.Vaccines,"当天已打升白针",Modifier.clickable{onSection("injection")}.size(18.dp),tint=phaseColors.second)
-       if(reviewLabel!=null)Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){
-        Text(reviewLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)
-       }
+       linkedLabels.forEach{label->Surface(shape=RoundedCornerShape(14.dp),color=phaseColors.first){
+        Text(label,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)
+       }}
        Surface(modifier=Modifier.clickable{onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
     }
