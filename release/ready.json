@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "82b806eabbca95811998d89c58039f53c75fd100",
-  "validationMode": "calendar-month-swipes-and-today-highlight",
-  "versionCode": 2026110708,
-  "versionName": "1.0.200"
+  "sourceBaseCommit": "dc93382bfade691769d91985c2b0903459af751f",
+  "validationMode": "bold-today-import-actions-compact-trend-filters",
+  "versionCode": 2026110709,
+  "versionName": "1.0.201"
 }
