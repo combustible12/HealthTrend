@@ -1182,7 +1182,7 @@ class HealthStore(private val context:Context) {
   require(span in 0..3660){"病程日期跨度异常，请检查最早病程日期"}
   val accumulated=current.toMutableList()
   val missing=generateSequence(start.plusDays(1)){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{!it.isAfter(today)&&it !in existingDays}.map{day->
-   val draft=CourseRecord(initialSectionTemplates=templates,date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
+   val draft=CourseRecord(initialSectionTemplates=if(day==today)templates else emptyMap(),date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
    draft.copy(title=automaticCourseTitle(draft,accumulated)).also{accumulated+=it}
   }.toList()
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})

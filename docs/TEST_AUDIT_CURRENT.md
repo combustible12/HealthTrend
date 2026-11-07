@@ -1,3 +1,7 @@
+## 2026-11-07 历史空卡修正
+
+旧空卡不套用当前模板，自动补齐过去日期时保留空白；当日新卡使用建卡时的模板，历史手填内容继续保留。 见 `CoursePhasePersistenceTest.oldBlankCardsAndBackfilledDaysDoNotAcquireTemplates`。
+
 ## 2026-11-07 病程自动保存
 
 病程编辑在内容变化后自动保存。关闭、返回、切到后台时处理最后一次输入；病程编辑页移除底部保存按钮和占位；自动保存成功后顶部短暂提示，写入失败时顶部显示“保存失败”和“重试”，保留当前输入。日期未选或体重等输入尚未填写完整时保存编辑草稿，重开可续填。 回归见 `CoursePhasePersistenceTest`、`CourseNavigationTest`。

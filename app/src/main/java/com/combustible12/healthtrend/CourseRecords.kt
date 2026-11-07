@@ -165,7 +165,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  val sectionDefinitions=remember(records){store.courseSectionDefinitions()}
  val sectionTitles=sectionDefinitions.associate{it.id to it.title}
  val query=search.trim()
- val cardRecords=remember(records,sectionDefinitions){records.map { it.withDefaultCourseTemplates(store) }}
+ val cardRecords=remember(records,sectionDefinitions){records.map { it.withDefaultCourseTemplates() }}
  val shown=cardRecords.filter{record->
   val matchesFilter=when{
    filter==growthFactorInjectionFilter->record.growthFactorInjection
@@ -311,9 +311,12 @@ internal fun defaultCourseSectionTexts(store:HealthStore):Map<String,String> =
  (fixedCourseSectionIds + store.courseSectionDefinitions().filterNot { it.hidden }.map { it.id })
   .associateWith(store::defaultCourseText).filterValues { it.isNotBlank() }
 
-internal fun CourseRecord.withDefaultCourseTemplates(store:HealthStore):CourseRecord{
+internal fun CourseRecord.withDefaultCourseTemplates():CourseRecord{
  if(!isBlankCourseCard()||userEdited)return this
- return (initialSectionTemplates ?: defaultCourseSectionTexts(store)).entries.fold(this){current,(id,template)->
+ // Older days generated together on a later launch never had a template selected for that day.
+ if(date>0 && courseLocalDate(createdAt)>courseLocalDate(date))return this
+ val templates=initialSectionTemplates ?: return this
+ return templates.entries.fold(this){current,(id,template)->
   if(template.isBlank()||current.courseSectionText(id).isNotBlank())current else current.withCourseSectionText(id,template)
  }
 }
@@ -476,7 +479,7 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  val slot=remember(initial.id){if(exists)initial.id else "new"}
  val restored=remember(slot){store.courseEditorDraft(slot)}
- val seededInitial=remember(initial.id){initial.withDefaultCourseTemplates(store)}
+ val seededInitial=remember(initial.id){initial.withDefaultCourseTemplates()}
  var record by rememberSaveable(initial.id,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(restored?.record ?: seededInitial)}
  var customDefinitions by remember{mutableStateOf(store.courseSectionDefinitions())}
  var templateSection by remember{mutableStateOf<Pair<String,String>?>(null)}

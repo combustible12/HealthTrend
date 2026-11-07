@@ -119,17 +119,24 @@ class CoursePhasePersistenceTest {
   val card=HealthStore(context).courseRecords().single()
   assertTrue(card.isBlankCourseCard())
   assertTrue(store.removeOrHideCourseSection(custom.id))
-  val displayed=card.withDefaultCourseTemplates(store)
+  val displayed=card.withDefaultCourseTemplates()
   assertEquals(diet.text,displayed.dietText)
   assertEquals("小时：",displayed.courseSectionText(custom.id))
  }
- @Test fun pristineBlankCardReceivesDefaultsButSavedOrExistingContentIsNeverOverwritten(){
+ @Test fun oldBlankCardsAndBackfilledDaysDoNotAcquireTemplates(){
   val store=HealthStore(context)
   store.saveCourseTextTemplate(CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚："),makeDefault=true)
   val blank=CourseRecord(title="",titleAuto=true)
-  assertEquals("早：\n午：\n晚：",blank.withDefaultCourseTemplates(store).dietText)
-  assertEquals("当天已填写",blank.copy(dietText="当天已填写").withDefaultCourseTemplates(store).dietText)
-  assertEquals("",blank.copy(userEdited=true).withDefaultCourseTemplates(store).dietText)
+  assertEquals("",blank.withDefaultCourseTemplates().dietText)
+  val zone=java.time.ZoneId.systemDefault()
+  val yesterday=java.time.LocalDate.now().minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+  val backfilled=blank.copy(date=yesterday,initialSectionTemplates=defaultCourseSectionTexts(store))
+  assertEquals("",backfilled.withDefaultCourseTemplates().dietText)
+  assertEquals("手工补记",backfilled.copy(dietText="手工补记").withDefaultCourseTemplates().dietText)
+  val capturedOnDay=backfilled.copy(createdAt=yesterday)
+  assertEquals("早：\n午：\n晚：",capturedOnDay.withDefaultCourseTemplates().dietText)
+  assertEquals("当天已填写",blank.copy(dietText="当天已填写").withDefaultCourseTemplates().dietText)
+  assertEquals("",blank.copy(userEdited=true).withDefaultCourseTemplates().dietText)
  }
  @Test fun customSectionRenameOrderAndHistoricalRemovalAreNonDestructive(){
   val store=HealthStore(context)
