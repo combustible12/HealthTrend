@@ -192,6 +192,11 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
  LaunchedEffect(calendarCardId,requestedRecordId,shown.map{it.id}){
   val id=calendarCardId?:requestedRecordId?:return@LaunchedEffect
+  if(calendarCardId!=null && records.none{it.id==id}){
+   onCalendarCardShown()
+   dateLookupMessage="当天的病程记录已不存在"
+   return@LaunchedEffect
+  }
   if(calendarCardId!=null && shown.none{it.id==id} && (filter!="全部" || search.isNotEmpty())){
    filter="全部"
    search=""

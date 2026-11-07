@@ -23,3 +23,4 @@ Purple calendar today text
 2026-11-07 compile month swipe and today highlight
 2026-11-07 verify trend filter spacing
 2026-11-07 verify calendar card navigation
+2026-11-07 verify return from calendar card navigation

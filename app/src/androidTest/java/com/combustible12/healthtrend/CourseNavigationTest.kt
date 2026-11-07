@@ -84,7 +84,7 @@ class CourseNavigationTest {
  }
  @Test fun tappingCalendarRecordWithReminderShowsItsCard(){
   val today=java.time.LocalDate.now()
-  val date=today.minusDays(14)
+  val date=today.minusMonths(1).withDayOfMonth(15)
   val store=HealthStore(context)
   store.saveCourseRecord(CourseRecord(date=date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="日历定位测试",titleAuto=false))
   store.saveTreatmentReminder(TreatmentReminder(radiationNumber=0,text="核对资料",triggerDate=date.toString(),completedAt=System.currentTimeMillis()))
@@ -95,6 +95,10 @@ class CourseNavigationTest {
   compose.onNodeWithText("病程记录").assertIsDisplayed()
   compose.onNodeWithText("日历定位测试",substring=true).assertIsDisplayed()
   compose.onNodeWithText("编辑病程记录").assertDoesNotExist()
+  InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+  compose.onNodeWithText("${date.year}年${date.monthValue}月").assertIsDisplayed()
+  compose.onNodeWithText("查看当天病程").assertExists()
+
  }
  @Test fun datedBrachytherapyReminderAppearsOnMatchingCourseCard(){
   val at=java.time.LocalDate.of(2031,5,3).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()

@@ -123,6 +123,8 @@ class MainActivity:ComponentActivity(){
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseEditorSection by rememberSaveable { mutableStateOf<String?>(null) }
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
+ val importPageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+ var returnToCalendar by rememberSaveable{mutableStateOf(false)}
  var calendarCardId by rememberSaveable{mutableStateOf<String?>(null)}
  var trendCategoryRequest by remember{mutableStateOf<String?>(null)}
  var trendPreview by remember{mutableStateOf<TrendPreviewRequest?>(null)}
@@ -205,6 +207,13 @@ class MainActivity:ComponentActivity(){
  LaunchedEffect(Unit){runCatching{store.ensureCourseRecordsThroughToday()}.onSuccess{added->if(added>0)revision++}.onFailure{error="病程日期补齐失败：${it.message}"}}
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
+ LaunchedEffect(tab){
+  if(tab!=2){returnToCalendar=false;calendarCardId=null}
+ }
+ BackHandler(enabled=tab==2 && returnToCalendar && courseRecord==null && viewer==null){
+  returnToCalendar=false
+  tab=0
+ }
  Box(Modifier.fillMaxSize()){
  Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null||trendPreview!=null)Modifier.clearAndSetSemantics{} else Modifier)){
  Scaffold(containerColor=Warm,bottomBar={NavigationBar(containerColor=Color.White){listOf("导入" to Icons.Outlined.Home,"趋势" to Icons.Outlined.ShowChart,"病程" to Icons.Outlined.Timeline,"图片资料" to Icons.Outlined.PhotoLibrary,"她的" to Icons.Outlined.Person).forEachIndexed{i,p->NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(p.second,p.first)},label={Text(p.first,fontSize=11.sp)},alwaysShowLabel=true)}}}){padding->
@@ -222,7 +231,7 @@ class MainActivity:ComponentActivity(){
    )
   }){
   when(tab){
-   0->Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;tab=2}
+   0->importPageState.SaveableStateProvider("import"){Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;returnToCalendar=true;tab=2}}
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{uris->viewerReportId=reports.firstOrNull{r->r.sourceImages.map{it.uri}==uris||r.sourceImages.any{it.uri in uris}}?.id;viewerCourseRecordId=null;viewer=uris},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseEditorSection=null
