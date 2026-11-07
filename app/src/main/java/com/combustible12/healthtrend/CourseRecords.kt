@@ -468,22 +468,26 @@ private fun coursePhaseColors(phase:String)=when(phase){
  Box(modifier.clip(RoundedCornerShape(9.dp)).background(Color(0xFFF0EDEA)),contentAlignment=Alignment.Center){if(bitmap!=null)Image(bitmap!!.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)else Icon(Icons.Outlined.Image,null,tint=Muted)}
 }
 
-@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?,Double?)->Unit,onDelete:()->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={},initialSection:String?=null){
+internal data class CourseEditorDraft(val record:CourseRecord,val date:String,val weight:String,val weightTime:String,val height:String)
+
+@Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?,Double?)->Unit,onDelete:(String)->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={},initialSection:String?=null){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhaseDefinitions()}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
- val seededInitial=remember(initial.id,initial.updatedAt){initial.withDefaultCourseTemplates(store)}
- var record by rememberSaveable(seededInitial,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(seededInitial)}
+ val slot=remember(initial.id){if(exists)initial.id else "new"}
+ val restored=remember(slot){store.courseEditorDraft(slot)}
+ val seededInitial=remember(initial.id){initial.withDefaultCourseTemplates(store)}
+ var record by rememberSaveable(initial.id,stateSaver=diskStateSaver<CourseRecord>(context,"course-record-editor")){mutableStateOf(restored?.record ?: seededInitial)}
  var customDefinitions by remember{mutableStateOf(store.courseSectionDefinitions())}
  var templateSection by remember{mutableStateOf<Pair<String,String>?>(null)}
  var managingSections by remember{mutableStateOf(false)}
- var date by rememberSaveable{mutableStateOf(if(exists)courseEditorDate(initial.date) else "")}
+ var date by rememberSaveable{mutableStateOf(restored?.date ?: if(exists)courseEditorDate(initial.date) else "")}
  var duplicateRecord by remember{mutableStateOf<CourseRecord?>(null)}
  val initialWeight=remember(initial.id){store.weightRecordForCourse(initial.id)}
- var weightText by rememberSaveable(initial.id){mutableStateOf(initialWeight?.kilograms?.let(::courseWeightText).orEmpty())}
- var weightTime by rememberSaveable(initial.id){mutableStateOf(initialWeight?.let{weightTimeText(it.measuredAtEpochMillis)}?:LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))}
+ var weightText by rememberSaveable(initial.id){mutableStateOf(restored?.weight ?: initialWeight?.kilograms?.let(::courseWeightText).orEmpty())}
+ var weightTime by rememberSaveable(initial.id){mutableStateOf(restored?.weightTime ?: initialWeight?.let{weightTimeText(it.measuredAtEpochMillis)}?:LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))}
  val initialHeight=initialWeight?.heightCmAtMeasurement?:store.patientProfile().heightCm.toDoubleOrNull()
- var heightText by rememberSaveable(initial.id){mutableStateOf(initialHeight?.let(::courseHeightText).orEmpty())}
+ var heightText by rememberSaveable(initial.id){mutableStateOf(restored?.height ?: initialHeight?.let(::courseHeightText).orEmpty())}
  var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf("")};var deleting by remember{mutableStateOf(false)}
  var pendingImageRemoval by remember{mutableStateOf<Pair<String,Int>?>(null)}
  var pendingImageReplace by remember{mutableStateOf<Pair<String,Int>?>(null)}
@@ -539,15 +543,54 @@ private fun coursePhaseColors(phase:String)=when(phase){
    located=true
   }
  }
- FullPage(if(exists)"编辑病程记录" else "新增病程记录",onClose,topAction={if(exists)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
-  val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
-  onSave(saved,kilograms,if(kilograms==null)null else weightAt,if(kilograms==null)null else heightCm)
+ val draft=CourseEditorDraft(record,date,weightText,weightTime,heightText)
+ var lastWritten by remember(initial.id){mutableStateOf(restored ?: draft)}
+ var committed by remember(initial.id){mutableStateOf(exists)}
+ fun persist(force:Boolean=false):Boolean {
+  if(busy)return false
+  if(!force && draft==lastWritten)return true
+  return try {
+   if(valid){
+    val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
+    onSave(saved,kilograms,if(kilograms==null)null else weightAt,if(kilograms==null)null else heightCm)
+    store.storeCourseEditorDraft(slot,null)
+    if(slot!=record.id)store.storeCourseEditorDraft(record.id,null)
+    committed=true
+   }else{
+    store.storeCourseEditorDraft(if(committed)record.id else slot,draft)
+   }
+   lastWritten=draft
+   error=""
+   true
+  }catch(e:Exception){error=e.message?:"病程保存失败";false}
+ }
+ fun leave(action:()->Unit){
+  if(persist())action() else android.widget.Toast.makeText(context,if(busy)"正在保存图片" else error,android.widget.Toast.LENGTH_SHORT).show()
+ }
+ LaunchedEffect(draft,busy){
+  if(!busy && draft!=lastWritten){kotlinx.coroutines.delay(400);persist()}
+ }
+ val saveBeforeBackground by rememberUpdatedState { persist() }
+ val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+ DisposableEffect(lifecycle){
+  val observer=androidx.lifecycle.LifecycleEventObserver{_,event->
+   if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP)saveBeforeBackground()
+  }
+  lifecycle.addObserver(observer)
+  onDispose{lifecycle.removeObserver(observer)}
+ }
+ FullPage(if(committed)"编辑病程记录" else "新增病程记录",{leave(onClose)},topAction={if(committed)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
+  if(persist(force=true))android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show()
  },Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
   Column(m.onGloballyPositioned{viewportY=it.positionInRoot().y}.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){candidate->
     val millis=courseDateMillis(candidate,initial.date)
-    val match=millis?.let{target->val day=courseLocalDate(target);store.courseRecords().firstOrNull{it.id!=initial.id&&courseLocalDate(it.date)==day}}
-    if(match==null)date=candidate else if(match.isBlankCourseCard()&&store.weightRecordForCourse(match.id)==null)onOpenExisting(match) else duplicateRecord=match
+    val match=millis?.let{target->val day=courseLocalDate(target);store.courseRecords().firstOrNull{it.id!=record.id&&courseLocalDate(it.date)==day}}
+    if(match==null)date=candidate else if(!committed && match.isBlankCourseCard()&&store.weightRecordForCourse(match.id)==null){
+     if(record==seededInitial && weightText.isBlank()){onOpenExisting(match);return@CourseDateField}
+     record=record.copy(id=match.id,createdAt=match.createdAt)
+     date=candidate
+    } else duplicateRecord=match
    }
    Text("阶段",modifier=anchor("phase"),fontWeight=FontWeight.Medium)
    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
@@ -573,7 +616,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
      TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
     }
-    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},heightText,{heightText=sanitizeHeightInput(it)},onOpenWeightTrend,anchor("weight"))
+    CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},heightText,{heightText=sanitizeHeightInput(it)},{leave(onOpenWeightTrend)},anchor("weight"))
     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状",anchor("symptom")){CourseTemplateButton{templateSection="symptom" to "症状"}}
    }
    CourseRememberedField(record.symptomText,{record=record.copy(symptomText=it)},"症状内容",rememberedSymptoms,2)
@@ -634,12 +677,12 @@ private fun coursePhaseColors(phase:String)=when(phase){
    },
    onAdd={when(activeViewingKind){"symptom"->symptomInput.gallery();"check"->checkInput.gallery();"treatment"->treatmentInput.gallery();"medicine"->medicineInput.gallery();"diet"->dietInput.gallery();"note"->noteInput.gallery();else->{customImageTarget=activeViewingKind;customInput.gallery()}}},
    onAddCamera={when(activeViewingKind){"symptom"->symptomInput.camera();"check"->checkInput.camera();"treatment"->treatmentInput.camera();"medicine"->medicineInput.camera();"diet"->dietInput.camera();"note"->noteInput.camera();else->{customImageTarget=activeViewingKind;customInput.camera()}}},
-   removalMessage="仅修改当前病程编辑草稿，取消编辑不会更改已保存的原图。"
+   removalMessage="移除后会自动保存。"
   )
  }
- if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，取消编辑不会更改已保存的原图。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=record.withCourseSectionImages(kind,record.courseSectionImages(kind).filterIndexed{j,_->j!=index});pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
- if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${courseEditorDate(initial.date)} · ${initial.title.ifBlank{"未填写标题"}}\n删除后原有症状、检查、治疗、药品、饮食、备注、自定义板块及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete()}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
- duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;onOpenExisting(existing)}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
+ if(pendingImageRemoval!=null)AlertDialog(onDismissRequest={pendingImageRemoval=null},title={Text("移除这张图片？")},text={Text("仅从当前病程记录移除，操作后会自动保存。")},confirmButton={TextButton({val (kind,index)=pendingImageRemoval!!;record=record.withCourseSectionImages(kind,record.courseSectionImages(kind).filterIndexed{j,_->j!=index});pendingImageRemoval=null}){Text("移除",color=Bad)}},dismissButton={TextButton({pendingImageRemoval=null}){Text("取消")}})
+ if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("确认删除这一天的病程？")},text={Text("${date} · ${editorTitle.ifBlank{"未填写标题"}}\n删除后原有症状、检查、治疗、药品、饮食、备注、自定义板块及关联图片记录无法在应用内恢复；自动补齐只会生成空白日期卡片。")},confirmButton={TextButton({deleting=false;onDelete(record.id)}){Text("确认永久删除",color=Bad)}},dismissButton={TextButton({deleting=false}){Text("取消")}})
+ duplicateRecord?.let{existing->AlertDialog(onDismissRequest={duplicateRecord=null},title={Text("该日期已有病程记录")},text={Text("${courseEditorDate(existing.date)} 已经有填写内容，不能重复新增。")},confirmButton={TextButton({duplicateRecord=null;leave{onOpenExisting(existing)}}){Text("打开已有记录")}},dismissButton={TextButton({duplicateRecord=null}){Text("取消")}})}
  templateSection?.let{(sectionId,title)->CourseTemplateDialog(sectionId,title,record.courseSectionText(sectionId),store,{value->record=record.withCourseSectionText(sectionId,value)},{templateSection=null})}
  if(managingSections)CourseSectionManager(customDefinitions,store,{managingSections=false},{updated->customDefinitions=updated})
 }

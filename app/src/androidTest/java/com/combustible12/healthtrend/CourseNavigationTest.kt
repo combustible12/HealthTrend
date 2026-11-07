@@ -97,6 +97,21 @@ class CourseNavigationTest {
   compose.onNodeWithText("保存记录").performClick()
   compose.runOnIdle{assertEquals(initial,saved)}
  }
+ @Test fun explicitSaveKeepsEditorOpenAndBackPersistsTheLatestChange(){
+  val store=HealthStore(context)
+  val initial=CourseRecord(title="自动保存核对",titleAuto=false)
+  store.saveCourseRecord(initial)
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("自动保存核对",substring=true).performClick()
+  compose.onNodeWithText("升白针").performScrollTo().performClick()
+  compose.onNodeWithText("保存记录").performClick()
+  compose.onNodeWithText("编辑病程记录").assertIsDisplayed()
+  compose.runOnIdle{assertTrue(store.courseRecords().single{it.id==initial.id}.growthFactorInjection)}
+  compose.onNodeWithText("升白针").performScrollTo().performClick()
+  androidx.test.espresso.Espresso.pressBack()
+  compose.onNodeWithText("病程记录").assertIsDisplayed()
+  compose.runOnIdle{assertFalse(store.courseRecords().single{it.id==initial.id}.growthFactorInjection)}
+ }
  @Test fun courseEditorSavesExplicitGrowthFactorInjectionMarker(){
   val initial=CourseRecord(title="升白针标记")
   val store=HealthStore(context);store.saveCourseRecord(initial)

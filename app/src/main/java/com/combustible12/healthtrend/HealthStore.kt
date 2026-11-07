@@ -1143,6 +1143,20 @@ class HealthStore(private val context:Context) {
   }
   return records.sortedWith(compareByDescending<CourseRecord>{it.date}.thenByDescending{it.updatedAt})
  }
+ internal fun courseEditorDraft(slot:String):CourseEditorDraft? {
+  val json=prefs.getString("course_editor_draft:$slot",null)?.let { JSONObject(it) } ?: return null
+  return CourseEditorDraft(courseRecordFromJson(json.getJSONObject("record")),json.getString("date"),
+   json.getString("weight"),json.getString("weightTime"),json.getString("height"))
+ }
+ internal fun storeCourseEditorDraft(slot:String,draft:CourseEditorDraft?) {
+  val key="course_editor_draft:$slot"
+  if(draft==null && !prefs.contains(key))return
+  val editor=prefs.edit()
+  if(draft==null)editor.remove(key) else editor.putString(key,JSONObject()
+   .put("record",courseRecordToJson(draft.record)).put("date",draft.date)
+   .put("weight",draft.weight).put("weightTime",draft.weightTime).put("height",draft.height).toString())
+  check(editor.commit()){"病程草稿保存失败"}
+ }
  @Synchronized fun saveCourseRecord(record:CourseRecord){
   val all=courseRecords();val previous=all.firstOrNull{it.id==record.id}
   val zone=java.time.ZoneId.systemDefault();val targetDay=java.time.Instant.ofEpochMilli(record.date).atZone(zone).toLocalDate()
@@ -1151,7 +1165,7 @@ class HealthStore(private val context:Context) {
   val saved=record.copy(createdAt=previous?.createdAt?:record.createdAt,updatedAt=System.currentTimeMillis(),userEdited=true)
   write("course_records",JSONArray().apply{(all.filterNot{it.id==saved.id}+saved).forEach{put(courseRecordToJson(it))}})
  }
- @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
+ @Synchronized fun deleteCourseRecord(id:String){storeCourseEditorDraft(id,null);write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
  @Synchronized fun ensureCourseRecordsThroughToday():Int{
   val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
   val templates by lazy { defaultCourseSectionTexts(this) }

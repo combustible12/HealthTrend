@@ -1,3 +1,7 @@
+## 2026-11-07 病程自动保存
+
+病程编辑在内容变化后自动保存。关闭、返回、切到后台时处理最后一次输入；手动保存停留原位。日期未选或体重等输入尚未填写完整时保存编辑草稿，重开可续填。 回归见 `CoursePhasePersistenceTest`、`CourseNavigationTest`。
+
 ## 2026-11-07 提醒推迟
 
 每条治疗提醒可选稍后 1 小时、次日当地时间 09:00 或已完成。点返回或弹窗外按稍后 1 小时处理。推迟截止时间随提醒保存，重新打开、切到前台及系统通知均遵守同一截止时间。 回归覆盖 `CoursePhasePersistenceTest.postponementSurvivesReopeningForBothReminderTypes`。

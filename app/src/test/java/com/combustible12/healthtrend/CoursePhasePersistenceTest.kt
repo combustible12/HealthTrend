@@ -84,6 +84,16 @@ class CoursePhasePersistenceTest {
    assertNull(nextDueTreatmentReminder(listOf(reopened.copy(completedAt=at)),5,now=deadline))
   }
  }
+ @Test fun undatedDraftSurvivesReopeningWithoutCreatingACourseCard(){
+  val store=HealthStore(context)
+  val draft=CourseEditorDraft(CourseRecord(date=0L,noteText="晚餐后散步"),"","61.","08:00","165")
+  store.storeCourseEditorDraft("new",draft)
+  val reopened=HealthStore(context)
+  assertEquals(draft,reopened.courseEditorDraft("new"))
+  assertTrue(reopened.courseRecords().isEmpty())
+  reopened.storeCourseEditorDraft("new",null)
+  assertNull(store.courseEditorDraft("new"))
+ }
  @Test fun courseTextTemplatesKeepOneExplicitDefaultPerSection(){
   val store=HealthStore(context)
   val first=CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚：")
