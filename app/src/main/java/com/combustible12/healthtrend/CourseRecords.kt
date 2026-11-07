@@ -515,14 +515,6 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
        Surface(modifier=Modifier.clickable{onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
     }
-    if(datedReminders.isNotEmpty()){
-     Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
-      datedReminders.forEach{item->
-       val label=if(item.completedAt==null)"提醒" else "提醒（已完成）"
-       Text("$label  ${item.triggerTime.ifBlank{"09:00"}}  ${item.text}",fontSize=14.sp,color=Ink)
-      }
-     }
-    }
     Column(Modifier.clickable{onSection("pressure")}){
      val showPrimary=record.systolic!=null||record.diastolic!=null||record.pulse!=null
      if(showPrimary||record.additionalPressures.isNotEmpty()){
@@ -542,6 +534,13 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
     if(record.treatmentText.isNotBlank()||record.treatmentImages.isNotEmpty())CourseSection(Icons.Outlined.MedicalServices,"治疗",record.treatmentText,record.treatmentImages,view){onSection("treatment")}
     if(record.medicineText.isNotBlank()||record.medicineImages.isNotEmpty())CourseSection(Icons.Outlined.Medication,"药品 / 取药",record.medicineText,record.medicineImages,view){onSection("medicine")}
     if(record.dietText.isNotBlank()||record.dietImages.isNotEmpty())CourseSection(Icons.Outlined.Restaurant,"饮食",record.dietText,record.dietImages,view){onSection("diet")}
+    if(datedReminders.isNotEmpty()){
+     val reminderText=datedReminders.joinToString("\n"){item->
+      val status=if(item.completedAt==null)"" else "（已完成）"
+      "${item.triggerTime.ifBlank{"09:00"}}  ${item.text}$status"
+     }
+     CourseTextRow(Icons.Outlined.Notifications,reminderText,muted=true,iconDescription="提醒")
+    }
     if(record.noteText.isNotBlank()||record.noteImages.isNotEmpty())CourseSection(Icons.Outlined.Notes,"备注",record.noteText,record.noteImages,view){onSection("note")}
     val knownIds=customDefinitions.map{it.id}.toSet()
     (customDefinitions.map{definition->definition to record.customSections.firstOrNull{it.sectionId==definition.id}}+
@@ -589,7 +588,7 @@ private fun coursePhaseColors(phase:String)=when(phase){
  }
 }
 
-@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false){Row(verticalAlignment=Alignment.Top){Icon(icon,null,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)13.sp else 15.sp,lineHeight=if(muted)17.sp else 19.sp)}}
+@Composable private fun CourseTextRow(icon:androidx.compose.ui.graphics.vector.ImageVector,text:String,muted:Boolean=false,iconDescription:String?=null){Row(verticalAlignment=Alignment.Top){Icon(icon,iconDescription,Modifier.size(20.dp),tint=Accent);Spacer(Modifier.width(9.dp));Text(text,Modifier.weight(1f),color=if(muted)Muted else Ink,fontSize=if(muted)13.sp else 15.sp,lineHeight=if(muted)17.sp else 19.sp)}}
 
 @Composable private fun CourseSection(icon:androidx.compose.ui.graphics.vector.ImageVector,label:String,text:String,images:List<String>,view:(List<String>,Int)->Unit,onEdit:()->Unit){
  Column(Modifier.fillMaxWidth().clickable(onClick=onEdit),verticalArrangement=Arrangement.spacedBy(7.dp)){
