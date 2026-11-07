@@ -172,7 +172,8 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  val sectionTitles=sectionDefinitions.associate{it.id to it.title}
  val query=search.trim()
  val cardRecords=remember(records,sectionDefinitions){records.map { it.withDefaultCourseTemplates() }}
- val reminderMarkers=remember(reminders){courseReminderMarkers(reminders)}
+ val remindersByDate=remember(reminders){datedCourseReminders(reminders)}
+ val reminderMarkers=remember(remindersByDate){remindersByDate.mapValues{courseReminderMarker(it.value)}}
  val reviewPhase=phaseDefinitions.firstOrNull{it.key=="复查"||it.label=="复查"}
  val brachytherapyPhase=phaseDefinitions.firstOrNull{it.key=="后装"||it.label=="后装"}
  val reviewLabel=reviewPhase?.label?:"复查"
@@ -255,7 +256,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
       if(marker?.brachytherapyNumbers?.isNotEmpty()==true && primaryLabel!=brachytherapyLabel)add(brachytherapyLabel)
       if(marker?.followUp==true && primaryLabel!=reviewLabel)add(reviewLabel)
      }
-     CourseTimelineCard(record,title,primaryLabel,store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},linkedLabels)
+     CourseTimelineCard(record,title,primaryLabel,store.weightRecordForCourse(record.id),sectionDefinitions,{open(record)},view,openWeightTrend,{section->openSection(record,section)},linkedLabels,remindersByDate[courseLocalDate(record.date)].orEmpty())
     }
     if(listState.canScrollBackward)item(key="back_to_top"){Box(Modifier.fillMaxWidth().padding(top=8.dp,bottom=12.dp),contentAlignment=Alignment.Center){TextButton({scope.launch{listState.animateScrollToItem(0)}}){Icon(Icons.Outlined.VerticalAlignTop,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}}
     }
@@ -320,12 +321,17 @@ private val recordedBrachytherapy = Regex("""(?:^|-)后装\d+(?:-|$)""")
 
 internal data class CourseReminderMarker(val followUp:Boolean=false,val brachytherapyNumbers:List<Int> = emptyList())
 
-internal fun courseReminderMarkers(reminders:List<TreatmentReminder>):Map<LocalDate,CourseReminderMarker> =
+private fun datedCourseReminders(reminders:List<TreatmentReminder>):Map<LocalDate,List<TreatmentReminder>> =
  reminders.mapNotNull{reminder->runCatching{LocalDate.parse(reminder.triggerDate)}.getOrNull()?.let{it to reminder}}
-  .groupBy({it.first},{it.second}).mapValues{(_,items)->CourseReminderMarker(
-   followUp=items.any{it.purpose==ReminderPurpose.FOLLOW_UP},
-   brachytherapyNumbers=items.filter{it.purpose==ReminderPurpose.BRACHYTHERAPY}.map{it.brachytherapyNumber}.filter{it>0}.distinct().sorted()
-  )}
+  .groupBy({it.first},{it.second})
+
+private fun courseReminderMarker(items:List<TreatmentReminder>)=CourseReminderMarker(
+ followUp=items.any{it.purpose==ReminderPurpose.FOLLOW_UP},
+ brachytherapyNumbers=items.filter{it.purpose==ReminderPurpose.BRACHYTHERAPY}.map{it.brachytherapyNumber}.filter{it>0}.distinct().sorted()
+)
+
+internal fun courseReminderMarkers(reminders:List<TreatmentReminder>) =
+ datedCourseReminders(reminders).mapValues{courseReminderMarker(it.value)}
 
 internal fun reminderLinkedCardTitle(title:String,marker:CourseReminderMarker?):String {
  var result=title
@@ -482,7 +488,7 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
  }
 }
 
-@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit,linkedLabels:List<String>){
+@Composable private fun CourseTimelineCard(record:CourseRecord,displayTitle:String,phaseLabel:String,weight:WeightRecord?,customDefinitions:List<CourseSectionDefinition>,onOpen:()->Unit,view:(List<String>,Int)->Unit,openWeightTrend:()->Unit,onSection:(String)->Unit,linkedLabels:List<String>,datedReminders:List<TreatmentReminder>){
  val phaseColors=coursePhaseColors(record.phase)
  Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),verticalAlignment=Alignment.Top){
   Column(Modifier.width(22.dp).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally){
@@ -508,6 +514,14 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
        }}
        Surface(modifier=Modifier.clickable{onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
+    }
+    if(datedReminders.isNotEmpty()){
+     Column(verticalArrangement=Arrangement.spacedBy(2.dp)){
+      datedReminders.forEach{item->
+       val label=if(item.completedAt==null)"提醒" else "提醒（已完成）"
+       Text("$label  ${item.triggerTime.ifBlank{"09:00"}}  ${item.text}",fontSize=14.sp,color=Ink)
+      }
+     }
     }
     Column(Modifier.clickable{onSection("pressure")}){
      val showPrimary=record.systolic!=null||record.diastolic!=null||record.pulse!=null

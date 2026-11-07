@@ -94,6 +94,7 @@ class CourseNavigationTest {
   compose.onNodeWithContentDescription(date.toString()).performScrollTo().performClick()
   compose.onNodeWithText("病程记录").assertIsDisplayed()
   compose.onNodeWithText("日历定位测试",substring=true).assertIsDisplayed()
+  compose.onNodeWithText("提醒（已完成）  09:00  核对资料").assertIsDisplayed()
   compose.onNodeWithText("编辑病程记录").assertDoesNotExist()
   InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
   compose.onNodeWithText("${date.year}年${date.monthValue}月").assertIsDisplayed()
