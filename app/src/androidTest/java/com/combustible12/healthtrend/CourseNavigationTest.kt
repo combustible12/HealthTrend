@@ -38,6 +38,10 @@ class CourseNavigationTest {
   compose.onNodeWithContentDescription("${date.minusDays(1)} 化疗圆点").assertExists()
   compose.onNodeWithContentDescription("${date.minusDays(1)} 放疗圆点").assertExists()
   compose.onNodeWithContentDescription("$date 提醒").assertExists()
+  val reminderBadge=compose.onNodeWithContentDescription("$date 提醒").fetchSemanticsNode().boundsInRoot
+  val calendarDay=compose.onNodeWithContentDescription("$date 有记录或提醒").fetchSemanticsNode().boundsInRoot
+  assertTrue(reminderBadge.center.x>calendarDay.center.x)
+  assertTrue(reminderBadge.center.y<calendarDay.center.y)
   compose.onNodeWithContentDescription("${date.minusDays(1)} 有记录或提醒").performClick()
   compose.runOnIdle{assertEquals(record.id,opened)}
   compose.onNodeWithContentDescription("$date 有记录或提醒").performClick()

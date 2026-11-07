@@ -14,3 +14,5 @@ Compact import and reminder cards; course calendar and header control
 
 Four calendar treatment dots and reminder warning icon
 Reminder badge above date
+
+Calendar light gray background and white dates
