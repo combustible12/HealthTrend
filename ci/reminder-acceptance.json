@@ -1,5 +1,5 @@
 {
-  "requestedAt": "2026-10-24",
-  "scope": "Retry course pressure layout acceptance with KVM enabled after emulator failed before running tests",
-  "revision": 3
+  "requestedAt": "2026-11-07",
+  "scope": "Verify course editor module centering, header alignment and port history on Android 16",
+  "revision": 4
 }
