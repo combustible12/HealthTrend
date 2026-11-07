@@ -1,3 +1,7 @@
+## 2026-11-07 港维护排期
+
+下次港维护日期从左侧维护日期起算 28 个自然日；第 28 天为周六或周日时，提前到同一周的周五。 已更新 `nextPortMaintenanceDate` 和 `CourseTreatmentTitleTest`。
+
 ## 2026-10-30 病程升白针筛选位置修正交接（已快速验证、未发布）
 
 - `growthFactorInjectionFilter` 是病程筛选行的固定内部键，不得写入 `CourseRecord.phase` 或 `course_phase_labels`。

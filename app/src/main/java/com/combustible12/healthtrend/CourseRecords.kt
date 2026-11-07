@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -315,7 +316,15 @@ internal fun CourseRecord.withDefaultCourseTemplates(store:HealthStore):CourseRe
 
 internal fun currentRadiotherapyNumber(records:List<CourseRecord>):Int = records.mapNotNull{record->Regex("放(\\d+)").find(displayCourseTitle(record,records))?.groupValues?.get(1)?.toIntOrNull()}.maxOrNull()?:0
 
-internal fun nextPortMaintenanceDate(lastDate:String):String?=runCatching{LocalDate.parse(lastDate).plusDays(28).toString()}.getOrNull()
+internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
+ val dueDate = LocalDate.parse(lastDate).plusDays(28)
+ val scheduledDate = when (dueDate.dayOfWeek) {
+  DayOfWeek.SATURDAY -> dueDate.minusDays(1)
+  DayOfWeek.SUNDAY -> dueDate.minusDays(2)
+  else -> dueDate
+ }
+ scheduledDate.toString()
+}.getOrNull()
 
 @Composable private fun PortMaintenanceBar(store:HealthStore,modifier:Modifier=Modifier){
  val context=LocalContext.current

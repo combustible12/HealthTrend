@@ -37,8 +37,13 @@ class CourseTreatmentTitleTest {
   assertEquals("2化18",displayCourseTitle(manual,listOf(first,manual)))
  }
 
- @Test fun portMaintenanceAdvancesByTwentyEightDays(){
+ @Test fun portMaintenanceFallsOnTheLatestWeekdayWithinTwentyEightDays(){
   assertEquals("2026-11-11",nextPortMaintenanceDate("2026-10-14"))
+  assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-06"))
+  assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-07"))
+  assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-08"))
+  assertEquals("2027-01-01",nextPortMaintenanceDate("2026-12-04"))
+  assertEquals(null,nextPortMaintenanceDate(""))
  }
 
  @Test fun calendarLookupReturnsOnlyTheSelectedDateCard(){
