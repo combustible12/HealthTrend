@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "a6cb94af789a5a004141fb4756d935e2cd4f822e",
-  "validationMode": "rounded-navigation-arrows-and-latest-hospital-legend",
-  "versionCode": 2026110711,
-  "versionName": "1.0.203"
+  "sourceBaseCommit": "e6f76fd7969b5ff5d860f8bc4cfdeb7d9fc2e5ba",
+  "validationMode": "plain-profile-report-entries",
+  "versionCode": 2026110712,
+  "versionName": "1.0.204"
 }
