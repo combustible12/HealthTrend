@@ -1,6 +1,13 @@
 package com.combustible12.healthtrend
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -68,7 +75,20 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
         monthText = month.plusMonths(delta).toString()
         selectedDate = ""
     }
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Warm)) {
+    val calendarModifier = Modifier.fillMaxWidth().testTag("courseCalendar").pointerInput(month) {
+        val threshold = 40.dp.toPx()
+        var distance = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { distance = 0f },
+            onDragEnd = {
+                when {
+                    distance <= -threshold -> changeMonth(1)
+                    distance >= threshold -> changeMonth(-1)
+                }
+            }
+        ) { _, delta -> distance += delta }
+    }
+    Card(calendarModifier, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Warm)) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("病程日历", Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -107,7 +127,19 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                                 val hasReminder = datedReminders.any { it.completedAt == null }
                                 val marked = treatments.isNotEmpty() || hasReminder
                                 Column(
-                                    Modifier.weight(1f).background(if (selectedDate == key) SelectedTint else Color.Transparent, RoundedCornerShape(8.dp))
+                                    Modifier.weight(1f).drawBehind {
+                                        if (date == today) {
+                                            val side = size.minDimension
+                                            drawRoundRect(
+                                                color = Color(0xFFF1F8FF),
+                                                topLeft = Offset((size.width - side) / 2, (size.height - side) / 2),
+                                                size = Size(side, side),
+                                                cornerRadius = CornerRadius(8.dp.toPx())
+                                            )
+                                        } else if (selectedDate == key) {
+                                            drawRoundRect(SelectedTint, cornerRadius = CornerRadius(8.dp.toPx()))
+                                        }
+                                    }
                                         .clickable {
                                             selectedDate = key
                                             if (record != null && datedReminders.isEmpty()) openCourse(record)

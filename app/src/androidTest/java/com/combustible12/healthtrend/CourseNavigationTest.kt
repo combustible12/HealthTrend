@@ -30,6 +30,16 @@ class CourseNavigationTest {
   compose.onNodeWithText("外照计划次数").assertIsDisplayed()
   compose.onNodeWithText("后装计划次数").assertIsDisplayed()
  }
+ @Test fun horizontalSwipesChangeOneMonthInEachDirection(){
+  val current=java.time.YearMonth.now()
+  val next=current.plusMonths(1)
+  compose.setContent{MaterialTheme{CourseCalendar(emptyList(),emptyList()) {}}}
+  val calendar=compose.onNodeWithTag("courseCalendar")
+  calendar.performTouchInput{swipeLeft()}
+  compose.onNodeWithText("${next.year}年${next.monthValue}月").assertIsDisplayed()
+  calendar.performTouchInput{swipeRight()}
+  compose.onNodeWithText("${current.year}年${current.monthValue}月").assertIsDisplayed()
+ }
  @Test fun calendarTodayUsesPurpleText(){
   compose.setContent{MaterialTheme{CourseCalendar(emptyList(),emptyList()) {}}}
   val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
