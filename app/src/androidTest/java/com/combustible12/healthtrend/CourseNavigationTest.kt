@@ -28,6 +28,9 @@ class CourseNavigationTest {
   compose.onNodeWithContentDescription("打开进程总控").performClick()
   compose.onNodeWithText("化疗天数：关").assertIsDisplayed()
   compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo)).assertCountEquals(2)
+  listOf("外照计划次数", "后装计划次数").forEach { label ->
+   compose.onNodeWithTag("计划进度条 $label", useUnmergedTree = true).assertHeightIsEqualTo(12.dp)
+  }
   compose.onNodeWithText("外照计划次数").assertIsDisplayed()
   compose.onNodeWithText("后装计划次数").assertIsDisplayed()
  }

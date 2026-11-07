@@ -34,3 +34,4 @@ Purple calendar today text
 2026-11-07 verify rounded navigation triangles and collapsible hospital legend
 
 Verify corrected rounded arrow vector builder
+2026-11-08 check course process dialog spacing and progress bar height

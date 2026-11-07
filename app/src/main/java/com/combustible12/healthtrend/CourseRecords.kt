@@ -290,8 +290,10 @@ private val recordedBrachytherapy = Regex("""(?:^|-)后装\d+(?:-|$)""")
   Text("$recorded /",fontSize=14.sp)
   AppCompactInput(total,changeTotal,Modifier.width(54.dp),containerColor=Warm)
  }
- LinearProgressIndicator(progress={if(planned>0)(recorded.toFloat()/planned).coerceIn(0f,1f) else 0f},
-  modifier=Modifier.fillMaxWidth(),color=Color(0xFF76539B),trackColor=SelectedTint)
+ Box(Modifier.fillMaxWidth().height(12.dp).testTag("计划进度条 $label")) {
+  LinearProgressIndicator(progress={if(planned>0)(recorded.toFloat()/planned).coerceIn(0f,1f) else 0f},
+  modifier=Modifier.matchParentSize(),color=Color(0xFF76539B),trackColor=SelectedTint)
+ }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -303,12 +305,12 @@ private val recordedBrachytherapy = Regex("""(?:^|-)后装\d+(?:-|$)""")
  var brachytherapyTotal by rememberSaveable{mutableStateOf(initial.brachytherapyPlannedTotal.toString())}
  AlertDialog(onDismissRequest=close,containerColor=Color.White,title={Text("进程总控")},text={
   CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
-  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
+  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("当前进程",fontWeight=FontWeight.Medium)
-   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(2.67.dp)){
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(5.34.dp)){
     CourseProcessStage.values().forEach{option->FilterChip(stage==option,{stage=option},label={Text(courseProcessStageLabel(option))},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))}
    }
-   FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(2.67.dp)){
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(5.34.dp)){
    FilterChip(chemotherapyDaysEnabled,{chemotherapyDaysEnabled=!chemotherapyDaysEnabled},label={Text(if(chemotherapyDaysEnabled)"化疗天数：开" else "化疗天数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
    FilterChip(radiotherapyEnabled,{radiotherapyEnabled=!radiotherapyEnabled},label={Text(if(radiotherapyEnabled)"外照计数：开" else "外照计数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
    }
