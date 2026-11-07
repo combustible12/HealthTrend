@@ -124,7 +124,8 @@ class MainActivity:ComponentActivity(){
  var courseEditorSection by rememberSaveable { mutableStateOf<String?>(null) }
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
  val importPageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
- var returnToCalendar by rememberSaveable{mutableStateOf(false)}
+ var courseOriginTab by rememberSaveable{mutableStateOf<Int?>(null)}
+ var missingTrendDay by rememberSaveable{mutableStateOf<String?>(null)}
  var calendarCardId by rememberSaveable{mutableStateOf<String?>(null)}
  var trendCategoryRequest by remember{mutableStateOf<String?>(null)}
  var trendPreview by remember{mutableStateOf<TrendPreviewRequest?>(null)}
@@ -208,11 +209,11 @@ class MainActivity:ComponentActivity(){
  fun change(block:()->Unit){try{block();revision++}catch(e:Exception){error=e.message?:"操作失败"}}
  val importer=rememberReportImport({draft=it},{error=it},deliver=!recordsOpen&&draft==null&&report==null&&entry==null&&imageDocument==null&&courseRecord==null&&viewer==null)
  LaunchedEffect(tab){
-  if(tab!=2){returnToCalendar=false;calendarCardId=null}
+  if(tab!=2){courseOriginTab=null;calendarCardId=null}
  }
- BackHandler(enabled=tab==2 && returnToCalendar && courseRecord==null && viewer==null){
-  returnToCalendar=false
-  tab=0
+ BackHandler(enabled=tab==2 && courseOriginTab!=null && courseRecord==null && viewer==null){
+  tab=courseOriginTab?:0
+  courseOriginTab=null
  }
  Box(Modifier.fillMaxSize()){
  Box(Modifier.fillMaxSize().then(if(recordsOpen||draft!=null||report!=null||entry!=null||imageDocument!=null||courseRecord!=null||viewer!=null||trendPreview!=null)Modifier.clearAndSetSemantics{} else Modifier)){
@@ -231,12 +232,12 @@ class MainActivity:ComponentActivity(){
    )
   }){
   when(tab){
-   0->importPageState.SaveableStateProvider("import"){Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;returnToCalendar=true;tab=2}}
+   0->importPageState.SaveableStateProvider("import"){Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;courseOriginTab=0;tab=2}}
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{uris->viewerReportId=reports.firstOrNull{r->r.sourceImages.map{it.uri}==uris||r.sourceImages.any{it.uri in uris}}?.id;viewerCourseRecordId=null;viewer=uris},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
-    courseEditorSection=null
-    courseRecord=courseRecords.firstOrNull{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()==day}
-     ?:CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),title="")
+    val record=courseRecordForDate(courseRecords,day)
+    if(record!=null){calendarCardId=record.id;courseOriginTab=1;tab=2}
+    else missingTrendDay=day.toString()
    },onMainPageSwipe={direction->tab=(tab+direction).coerceIn(0,4)},resultChanged={revision++},requestedCategory=trendCategoryRequest,onRequestedCategoryConsumed={trendCategoryRequest=null},showPreview={trendPreview=it})
     2->CourseRecordsPage(m,courseRecords,store,{courseEditorSection=null;courseRecord=it},{courseEditorSection=null;courseRecord=CourseRecord(date=0L,title="",initialSectionTemplates=defaultCourseSectionTexts(store))},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;val owner=courseRecords.firstOrNull{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).any{record.courseSectionImages(it)==images}};viewerCourseRecordId=owner?.id;viewerCourseKind=owner?.let{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).firstOrNull{record.courseSectionImages(it)==images}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1},openSection={record,section->courseEditorSection=section;courseRecord=record},reminders=treatmentReminders,calendarCardId=calendarCardId,onCalendarCardShown={calendarCardId=null})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
@@ -298,6 +299,16 @@ class MainActivity:ComponentActivity(){
  if(report!=null){val current=reports.firstOrNull{it.id==report!!.id}?:report!!;ReportDetail(current,store,{report=null},{draft=ReportDraft.from(current);report=null},{viewerReportId=current.id;viewer=it},{change{store.deleteReport(current.id);report=null}},{result,value,text->change{store.updateValue(current.id,result.id,value,text)}},{revision++})}
  if(entry!=null)EntryEditor(entry!!,store,{entry=null},{e->change{store.saveEntry(e);entry=null}},{change{store.deleteEntry(entry!!.id);entry=null}},{viewer=it})
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
+ missingTrendDay?.let{dateText->
+  AlertDialog(onDismissRequest={missingTrendDay=null},title={Text("当天没有病程记录")},text={Text(dateText)},
+   confirmButton={TextButton({
+    val day=LocalDate.parse(dateText)
+    val existing=courseRecordForDate(courseRecords,day)
+    missingTrendDay=null
+    if(existing!=null){calendarCardId=existing.id;courseOriginTab=1;tab=2}
+    else{courseEditorSection=null;courseRecord=CourseRecord(date=day.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="")}
+   }){Text("新建病程记录")}},dismissButton={TextButton({missingTrendDay=null}){Text("取消")}})
+ }
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;key(current.id){CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt,heightCm->store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms,heightCm);store.ensureCourseRecordsThroughToday();revision++},{id->change{store.setWeightForCourse(id,current.date,null);store.deleteCourseRecord(id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},onOpenWeightTrend={courseRecord=null;trendCategoryRequest="体重";tab=1},onOpenExisting={existing->courseEditorSection=null;courseRecord=existing},initialSection=courseEditorSection)}}
  val radiationNumber=remember(courseRecords){currentRadiotherapyNumber(courseRecords)}
  val checkedAt=remember(treatmentReminders,radiationNumber,foregroundSequence){System.currentTimeMillis()}

@@ -187,7 +187,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    query.isNotBlank()||filter=="全部"->true
    else->record.phase==filter || (hasReview && filter==reviewPhase?.key) || (hasBrachytherapy && filter==brachytherapyPhase?.key)
   }
-  matchesFilter&&(DataSearch.course(query,record,sectionTitles)||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true) ||
+  matchesFilter&&(DataSearch.course(query,record,sectionTitles,remindersByDate[courseLocalDate(record.date)].orEmpty())||store.coursePhaseLabel(record.phase).contains(query,ignoreCase=true) ||
    (hasReview && reviewLabel.contains(query,ignoreCase=true)) || (hasBrachytherapy && brachytherapyLabel.contains(query,ignoreCase=true)))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()

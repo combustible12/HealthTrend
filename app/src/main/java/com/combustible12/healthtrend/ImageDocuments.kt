@@ -129,6 +129,10 @@ data class ImageSearchHit(
 )
 
 class ImageDocumentStore(private val context:Context){
+ companion object {
+  internal var indexRevision by mutableIntStateOf(0)
+   private set
+ }
  private val file=AtomicFile(File(context.filesDir,"image-documents/index.json"))
 
  @Synchronized fun all():List<ImageDocument>{
@@ -189,9 +193,9 @@ class ImageDocumentStore(private val context:Context){
   val dest=File(dir,newId()+".image");val temp=File(dir,dest.name+".tmp")
   try{context.contentResolver.openInputStream(uri).use{input->requireNotNull(input){"图片无法读取"};temp.outputStream().use{out->input.copyTo(out)}};check(temp.length()>0);check(temp.renameTo(dest));return Uri.fromFile(dest).toString()}finally{temp.delete()}
  }
- fun search(query:String):List<ImageSearchHit>{
+ fun search(query:String,documents:List<ImageDocument> = all()):List<ImageSearchHit>{
   val q=query.trim();if(q.isBlank())return emptyList()
-  return all().flatMap{document->document.pages.mapNotNull{page->
+  return documents.flatMap{document->document.pages.mapNotNull{page->
    val indexes=matchingBlockIndexes(page.blocks,q)
    val pageMatches=indexes.isNotEmpty()||containsSearchText(page.fullText,q);val titleMatches=(DataSearch.matches(q,listOf(document.title,dateText(document.createdAt)))&&page.pageIndex==0)||containsSearchText(page.sourceUrl,q)
    if(!pageMatches&&!titleMatches)null
@@ -200,7 +204,7 @@ class ImageDocumentStore(private val context:Context){
  }
  private fun write(documents:List<ImageDocument>){
   file.baseFile.parentFile?.mkdirs();val stream=file.startWrite()
-  try{stream.bufferedWriter().apply{write(JSONArray().apply{documents.forEach{d->put(documentToJson(d))}}.toString());flush()};file.finishWrite(stream)}catch(t:Throwable){file.failWrite(stream);throw t}
+  try{stream.bufferedWriter().apply{write(JSONArray().apply{documents.forEach{d->put(documentToJson(d))}}.toString());flush()};file.finishWrite(stream);indexRevision++}catch(t:Throwable){file.failWrite(stream);throw t}
  }
  private fun documentToJson(d:ImageDocument)=JSONObject().put("id",d.id).put("title",d.title).put("createdAt",d.createdAt).put("pages",JSONArray().apply{d.pages.forEach{p->put(JSONObject().put("id",p.id).put("uri",p.imageUri).put("page",p.pageIndex).put("width",p.imageWidth).put("height",p.imageHeight).put("text",p.fullText).put("status",p.indexStatus.name).put("hash",p.contentHash).put("sourceUrl",p.sourceUrl).put("rotation",p.rotationDegrees).put("blocks",JSONArray().apply{p.blocks.forEach{b->put(JSONObject().put("text",b.text).put("left",b.left).put("top",b.top).put("right",b.right).put("bottom",b.bottom))}}))}})
  private fun documentFromJson(o:JSONObject)=ImageDocument(o.getString("id"),o.optString("title","未命名图片资料"),o.optLong("createdAt"),o.getJSONArray("pages").let{a->(0 until a.length()).map{i->val p=a.getJSONObject(i);ImagePage(p.getString("id"),p.getString("uri"),p.getInt("page"),p.getInt("width"),p.getInt("height"),p.optString("text"),p.getJSONArray("blocks").let{bs->(0 until bs.length()).map{j->val b=bs.getJSONObject(j);SearchTextBlock(b.getString("text"),b.getInt("left"),b.getInt("top"),b.getInt("right"),b.getInt("bottom"))}},runCatching{ImageIndexStatus.valueOf(p.optString("status"))}.getOrDefault(ImageIndexStatus.FAILED),p.optString("hash"),p.optString("sourceUrl"),p.optInt("rotation",0))}})
@@ -328,20 +332,27 @@ private suspend fun existingImageHashes(context:Context,document:ImageDocument)=
 }
 
 @Composable fun ImageDocumentsPage(m:Modifier,open:(ImageDocument,Int,List<Int>)->Unit){
- val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};var revision by remember{mutableIntStateOf(0)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")};var error by remember{mutableStateOf("")};var query by rememberSaveable{mutableStateOf("")};val scope=rememberCoroutineScope()
- val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);revision++;if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}},{error=it})
- val documents=runCatching{store.all()}.getOrElse{error=it.message.orEmpty();emptyList()};val hits=if(query.isBlank())emptyList()else runCatching{store.search(query)}.getOrDefault(emptyList())
+ val context=LocalContext.current;val store=remember{ImageDocumentStore(context)};var busy by remember{mutableStateOf(false)};var progress by remember{mutableStateOf("")};var error by remember{mutableStateOf("")};var query by rememberSaveable{mutableStateOf("")};val scope=rememberCoroutineScope()
+ val photoInput=rememberPhotoInput({uris->if(uris.isNotEmpty()&&!busy){busy=true;scope.launch{try{val imported=importImagePages(context,store,uris,0,emptySet()){progress=it};require(imported.pages.isNotEmpty()){"所选图片均已重复"};val d=ImageDocument(pages=imported.pages);store.save(d);if(imported.duplicateCount>0)android.widget.Toast.makeText(context,"已跳过 ${imported.duplicateCount} 张重复图片",android.widget.Toast.LENGTH_LONG).show();open(d,0,emptyList())}catch(t:Throwable){if(t is CancellationException)throw t;error="图片资料导入失败：${t.message}"}finally{busy=false;progress=""}}}},{error=it})
+ val directory=remember(store,ImageDocumentStore.indexRevision){runCatching{store.all()}}
+ val documents=directory.getOrDefault(emptyList())
+ val hits=key(ImageDocumentStore.indexRevision,query){
+  produceState<List<ImageSearchHit>?>(null){
+   if(query.isNotBlank())value=withContext(Dispatchers.Default){store.search(query,documents)}
+  }.value
+ }
  Screen(m,"图片资料",spacing=7.dp){
   PhotoInputButtons(photoInput,!busy,"相册导入")
   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
   AppSearchField(query,{query=it},"搜索图片中的文字",height=32.dp,shape=RoundedCornerShape(16.dp))
   if(query.isNotBlank()){
-   if(hits.isEmpty())Paper{Text("没有找到相关内容")}
-   hits.forEach{hit->Paper(Modifier.clickable{open(hit.document,hit.page.pageIndex,hit.blockIndexes)}){Text("${hit.document.title} · 第 ${hit.page.pageIndex+1} 张",fontWeight=FontWeight.Bold);Text(hit.context,fontSize=13.sp,maxLines=3,overflow=TextOverflow.Ellipsis);if(hit.page.indexStatus==ImageIndexStatus.FAILED)Text("本页文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
+   if(hits?.isEmpty()==true && directory.isSuccess)Paper{Text("没有找到相关内容")}
+   hits.orEmpty().forEach{hit->Paper(Modifier.clickable{open(hit.document,hit.page.pageIndex,hit.blockIndexes)}){Text("${hit.document.title} · 第 ${hit.page.pageIndex+1} 张",fontWeight=FontWeight.Bold);Text(hit.context,fontSize=13.sp,maxLines=3,overflow=TextOverflow.Ellipsis);if(hit.page.indexStatus==ImageIndexStatus.FAILED)Text("本页文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}
   }else{
-   if(documents.isEmpty())Paper{Text("还没有图片资料")}
+   if(documents.isEmpty() && directory.isSuccess)Paper{Text("还没有图片资料")}
    documents.forEach{d->Card(Modifier.fillMaxWidth().clickable{open(d,0,emptyList())},shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(horizontal=18.dp,vertical=9.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){Text(d.title,fontWeight=FontWeight.Bold);Text("${d.pages.size} 张 · ${dateText(d.createdAt)}",color=Muted,fontSize=12.sp);val failed=d.pages.count{it.indexStatus==ImageIndexStatus.FAILED};if(failed>0)Text("$failed 张文字未识别 / 待建立索引",color=Accent,fontSize=12.sp)}}}
   }
+  directory.exceptionOrNull()?.let{Text(it.message?:"图片资料读取失败",color=Bad)}
   if(error.isNotBlank())Text(error,color=Bad)
  }
 }
