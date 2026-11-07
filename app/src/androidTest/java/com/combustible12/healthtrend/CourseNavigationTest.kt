@@ -391,6 +391,17 @@ class CourseNavigationTest {
   compose.onNodeWithText("饮食").assertIsDisplayed()
   compose.onNodeWithText("编辑病程记录").assertIsDisplayed()
  }
+ @Test fun switchingTabsRestoresCourseAndImageQueries(){
+  compose.setContent{MaterialTheme{App()}}
+  val input=hasSetTextAction()
+  compose.onNode(input).performTextInput("检查报告")
+  compose.onNodeWithText("图片资料").performClick()
+  compose.onNode(input).performTextInput("化验单")
+  compose.onNodeWithText("病程").performClick()
+  compose.onNode(input).assertTextContains("检查报告")
+  compose.onNodeWithContentDescription("图片资料").performClick()
+  compose.onNode(input).assertTextContains("化验单")
+ }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("病程记录").assertIsDisplayed()

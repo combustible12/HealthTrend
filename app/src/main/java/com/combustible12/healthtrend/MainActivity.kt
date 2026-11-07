@@ -123,7 +123,7 @@ class MainActivity:ComponentActivity(){
  var imageDocument by rememberSaveable(stateSaver=diskStateSaver<ImageDocument?>(ctx,"root-image-document")){mutableStateOf<ImageDocument?>(null)}
  var courseEditorSection by rememberSaveable { mutableStateOf<String?>(null) }
  var courseRecord by rememberSaveable(stateSaver=diskStateSaver<CourseRecord?>(ctx,"root-course-record")){mutableStateOf<CourseRecord?>(null)}
- val importPageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+ val tabState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
  var courseOriginTab by rememberSaveable{mutableStateOf<Int?>(null)}
  var missingTrendDay by rememberSaveable{mutableStateOf<String?>(null)}
  var calendarCardId by rememberSaveable{mutableStateOf<String?>(null)}
@@ -231,8 +231,9 @@ class MainActivity:ComponentActivity(){
     }
    )
   }){
+  tabState.SaveableStateProvider(tab){
   when(tab){
-   0->importPageState.SaveableStateProvider("import"){Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;courseOriginTab=0;tab=2}}
+   0->Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){calendarCardId=it.id;courseOriginTab=0;tab=2}
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{uris->viewerReportId=reports.firstOrNull{r->r.sourceImages.map{it.uri}==uris||r.sourceImages.any{it.uri in uris}}?.id;viewerCourseRecordId=null;viewer=uris},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     val record=courseRecordForDate(courseRecords,day)
@@ -242,6 +243,7 @@ class MainActivity:ComponentActivity(){
     2->CourseRecordsPage(m,courseRecords,store,{courseEditorSection=null;courseRecord=it},{courseEditorSection=null;courseRecord=CourseRecord(date=0L,title="",initialSectionTemplates=defaultCourseSectionTexts(store))},{record->change{store.setWeightForCourse(record.id,record.date,null);store.deleteCourseRecord(record.id);store.ensureCourseRecordsThroughToday()}},{images,index->viewerReportId=null;val owner=courseRecords.firstOrNull{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).any{record.courseSectionImages(it)==images}};viewerCourseRecordId=owner?.id;viewerCourseKind=owner?.let{record->(fixedCourseSectionIds+record.customSections.map{it.sectionId}).firstOrNull{record.courseSectionImages(it)==images}};viewer=images;viewerStart=index},{trendCategoryRequest="体重";tab=1},openSection={record,section->courseEditorSection=section;courseRecord=record},reminders=treatmentReminders,calendarCardId=calendarCardId,onCalendarCardShown={calendarCardId=null})
     3->ImageDocumentsPage(m){document,page,matches->imageDocument=document;imageDocumentPage=if(matches.isNotEmpty()||page!=0)page else rememberedPage(document.id).coerceIn(document.pages.indices);imageDocumentMatches=matches}
     4->Mine(m,store,{error=it},{revision++},{recordsOpen=true})
+  }
   }
   }
  }
