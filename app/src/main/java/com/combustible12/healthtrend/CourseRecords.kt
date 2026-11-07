@@ -546,9 +546,13 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val draft=CourseEditorDraft(record,date,weightText,weightTime,heightText)
  var lastWritten by remember(initial.id){mutableStateOf(restored ?: draft)}
  var committed by remember(initial.id){mutableStateOf(exists)}
- fun persist(force:Boolean=false):Boolean {
+ var saveFailure by remember(initial.id){mutableStateOf<String?>(null)}
+ var notice by remember(initial.id){mutableStateOf("")}
+ var saveSequence by remember(initial.id){mutableIntStateOf(0)}
+ LaunchedEffect(saveSequence){if(saveSequence>0){kotlinx.coroutines.delay(1800);notice=""}}
+ fun persist():Boolean {
   if(busy)return false
-  if(!force && draft==lastWritten)return true
+  if(draft==lastWritten){saveFailure=null;return true}
   return try {
    if(valid){
     val saved=record.copy(date=selectedDate!!,title=editorTitle).let{item->if(!item.titleAuto&&Regex("放\\d+").find(item.title)==null&&item.phase in radiotherapyCoursePhases)item.copy(phase="观察") else item}
@@ -560,12 +564,14 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
     store.storeCourseEditorDraft(if(committed)record.id else slot,draft)
    }
    lastWritten=draft
-   error=""
+   saveFailure=null
+   notice=if(valid)"已保存" else "草稿已保存"
+   saveSequence++
    true
-  }catch(e:Exception){error=e.message?:"病程保存失败";false}
+  }catch(e:Exception){saveFailure=e.message?:"病程保存失败";notice="";false}
  }
  fun leave(action:()->Unit){
-  if(persist())action() else android.widget.Toast.makeText(context,if(busy)"正在保存图片" else error,android.widget.Toast.LENGTH_SHORT).show()
+  if(persist())action() else android.widget.Toast.makeText(context,if(busy)"正在保存图片" else saveFailure,android.widget.Toast.LENGTH_SHORT).show()
  }
  LaunchedEffect(draft,busy){
   if(!busy && draft!=lastWritten){kotlinx.coroutines.delay(400);persist()}
@@ -579,9 +585,13 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
   lifecycle.addObserver(observer)
   onDispose{lifecycle.removeObserver(observer)}
  }
- FullPage(if(committed)"编辑病程记录" else "新增病程记录",{leave(onClose)},topAction={if(committed)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}},bottom={Button({
-  if(persist(force=true))android.widget.Toast.makeText(context,"已保存",android.widget.Toast.LENGTH_SHORT).show()
- },Modifier.fillMaxWidth(),enabled=valid){Text("保存记录",color=Color.White)}}){m->
+ FullPage(if(committed)"编辑病程记录" else "新增病程记录",{leave(onClose)},bottom=null,topAction={
+  if(saveFailure!=null){
+   Text("保存失败",fontSize=13.sp,color=Bad)
+   TextButton(onClick={persist()},enabled=!busy){Text("重试")}
+  }else if(draft==lastWritten&&notice.isNotEmpty())Text(notice,fontSize=13.sp,color=Muted)
+  if(committed)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}
+ }){m->
   Column(m.onGloballyPositioned{viewportY=it.positionInRoot().y}.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){candidate->
     val millis=courseDateMillis(candidate,initial.date)

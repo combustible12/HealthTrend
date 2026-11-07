@@ -83,8 +83,8 @@ class CourseNavigationTest {
   compose.onNodeWithText("60–100").assertExists()
   compose.onNodeWithText("<90\n<60").assertExists()
   compose.onNodeWithText("高压/低压（mmHg），按较高风险档位着色").assertDoesNotExist()
-  compose.onNodeWithText("保存记录").performClick()
-  compose.runOnIdle{assertEquals(initial,saved)}
+  compose.onNodeWithText("保存记录").assertDoesNotExist()
+  compose.runOnIdle{assertNull(saved)}
  }
  @Test fun additionalPressureCanBeAddedAndRemovedWithoutChangingFirstReading(){
   val initial=CourseRecord(title="多组血压",pressureTime="08:30",systolic=118,diastolic=76,pulse=94)
@@ -92,19 +92,37 @@ class CourseNavigationTest {
   var saved:CourseRecord?=null
   compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("添加一组血压-脉搏").performScrollTo().performClick()
+  compose.mainClock.advanceTimeBy(500)
   compose.onNodeWithContentDescription("删除这组血压").performScrollTo().performClick()
   compose.onNodeWithContentDescription("删除这组血压").assertDoesNotExist()
-  compose.onNodeWithText("保存记录").performClick()
+  compose.mainClock.advanceTimeBy(500)
   compose.runOnIdle{assertEquals(initial,saved)}
  }
- @Test fun explicitSaveKeepsEditorOpenAndBackPersistsTheLatestChange(){
+ @Test fun retrySavesTheCurrentInputAfterAWriteFailure(){
+  val store=HealthStore(context)
+  val initial=CourseRecord(title="保存重试")
+  store.saveCourseRecord(initial)
+  var fail=true
+  compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->
+   if(fail)throw IllegalStateException("模拟写入失败")
+   store.saveCourseRecord(record)
+  },{},{_,_->})}}
+  compose.onNodeWithText("升白针").performScrollTo().performClick()
+  compose.mainClock.advanceTimeBy(500)
+  compose.onNodeWithText("保存失败").assertIsDisplayed()
+  compose.runOnIdle{fail=false}
+  compose.onNodeWithText("重试").performClick()
+  compose.onNodeWithText("已保存").assertIsDisplayed()
+  compose.runOnIdle{assertTrue(store.courseRecords().single().growthFactorInjection)}
+ }
+ @Test fun autoSaveKeepsEditorOpenAndBackPersistsTheLatestChange(){
   val store=HealthStore(context)
   val initial=CourseRecord(title="自动保存核对",titleAuto=false)
   store.saveCourseRecord(initial)
   compose.setContent{MaterialTheme{App()}}
   compose.onNodeWithText("自动保存核对",substring=true).performClick()
   compose.onNodeWithText("升白针").performScrollTo().performClick()
-  compose.onNodeWithText("保存记录").performClick()
+  compose.mainClock.advanceTimeBy(500)
   compose.onNodeWithText("编辑病程记录").assertIsDisplayed()
   compose.runOnIdle{assertTrue(store.courseRecords().single{it.id==initial.id}.growthFactorInjection)}
   compose.onNodeWithText("升白针").performScrollTo().performClick()
@@ -118,7 +136,7 @@ class CourseNavigationTest {
   var saved:CourseRecord?=null
   compose.setContent{MaterialTheme{CourseRecordEditor(initial,store,{},{record,_,_,_->saved=record},{},{_,_->})}}
   compose.onNodeWithText("升白针").performScrollTo().assertIsDisplayed().performClick()
-  compose.onNodeWithText("保存记录").performClick()
+  compose.mainClock.advanceTimeBy(500)
   compose.runOnIdle{assertTrue(saved?.growthFactorInjection==true)}
  }
  @Test fun dietEditorAppearsBetweenMedicineAndNotesWithPhotoActions(){
@@ -215,7 +233,7 @@ class CourseNavigationTest {
   compose.onNodeWithText("22.6").assertIsDisplayed()
   weightTitle.performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
-  compose.onNodeWithText("保存记录").performClick()
+  compose.mainClock.advanceTimeBy(500)
   compose.runOnIdle{assertEquals(61.5,savedWeight!!,0.0);assertNotNull(savedAt);assertEquals(165.0,savedHeight!!,0.0)}
  }
  @Test fun savedWeightAppearsOnMatchingCourseCardAndOpensTrend(){

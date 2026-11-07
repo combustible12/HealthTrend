@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 val LocalPageVisible=staticCompositionLocalOf{true}
-@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,topAction:@Composable ()->Unit={},bottom:@Composable ()->Unit={},subtitle:String="",content:@Composable (Modifier)->Unit){
+@Composable fun FullPage(title:String,onClose:()->Unit,hidden:Boolean=false,navigationIcon:ImageVector=Icons.Outlined.Close,topAction:@Composable ()->Unit={},bottom:(@Composable ()->Unit)?={},subtitle:String="",content:@Composable (Modifier)->Unit){
  val active=!hidden&&LocalPageVisible.current
  val focus=LocalFocusManager.current
  BackHandler(enabled=active,onBack=onClose)
@@ -53,7 +53,7 @@ val LocalPageVisible=staticCompositionLocalOf{true}
  Surface(color=Warm,modifier=Modifier.fillMaxSize().then(if(active)Modifier else Modifier.clearAndSetSemantics{})){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回")};Column(Modifier.weight(1f)){Text(title,fontSize=21.sp);if(subtitle.isNotBlank())Text(subtitle,fontSize=13.sp,color=Muted)};topAction()}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
-  Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
+  if(bottom!=null)Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
  }}
 }
 private val ColorWhite=androidx.compose.ui.graphics.Color.White

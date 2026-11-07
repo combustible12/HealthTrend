@@ -2,3 +2,4 @@
 2026-11-07 check course card templates and section navigation
 2026-11-07 verify persistent reminder postponement
 2026-11-07 check autosaving course editor
+2026-11-07 verify course save status and retry
