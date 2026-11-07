@@ -15,6 +15,14 @@ class CourseNavigationTest {
  @get:Rule val compose=createComposeRule()
  private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun completingPortMaintenanceRecordsTodayEvenWhenOverdue(){
+  val store = HealthStore(context)
+  val today = java.time.LocalDate.now()
+  store.savePortMaintenanceLastDate(today.minusDays(35).toString())
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,emptyList(),store,{},{},{},{_,_->})}}
+  compose.onNodeWithText("已维护").performClick()
+  compose.runOnIdle{assertEquals(today.toString(), store.portMaintenanceLastDate())}
+ }
  @Test fun portMaintenanceMatchesCourseCardWidthAndFilterHeight(){
   val initial=CourseRecord(title="布局核对")
   val store=HealthStore(context)

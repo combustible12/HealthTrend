@@ -331,12 +331,15 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
  var lastDate by remember{mutableStateOf(store.portMaintenanceLastDate().orEmpty())}
  val nextDate=nextPortMaintenanceDate(lastDate).orEmpty()
  fun compact(value:String)=runCatching{LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MM/dd"))}.getOrElse{"--/--"}
+ fun recordMaintenance(date: String) {
+  store.savePortMaintenanceLastDate(date)
+  lastDate = date
+ }
  fun pickLastDate(){
   val initial=runCatching{LocalDate.parse(lastDate)}.getOrElse{LocalDate.now()}
   android.app.DatePickerDialog(context,{_,year,month,day->
    val selected=LocalDate.of(year,month+1,day).toString()
-   store.savePortMaintenanceLastDate(selected)
-   lastDate=selected
+   recordMaintenance(selected)
   },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
  }
  Surface(modifier.fillMaxWidth().height(courseFilterHeight).semantics{contentDescription="港维护色块"},shape=RoundedCornerShape(12.dp),color=Color.White){
@@ -349,10 +352,9 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
    Spacer(Modifier.width(8.dp))
    Text(compact(nextDate),fontSize=14.sp,fontWeight=FontWeight.Bold,color=Ink)
    Spacer(Modifier.weight(1f))
-   Text("已维护",Modifier.clickable(enabled=nextDate.isNotBlank()){
-    store.savePortMaintenanceLastDate(nextDate)
-    lastDate=nextDate
-   }.padding(start=12.dp,top=4.dp,bottom=4.dp),fontSize=13.sp,fontWeight=FontWeight.Normal,color=if(nextDate.isNotBlank())Accent else Muted)
+   Text("已维护",Modifier.clickable{
+    recordMaintenance(LocalDate.now().toString())
+   }.padding(start=12.dp,top=4.dp,bottom=4.dp),fontSize=13.sp,fontWeight=FontWeight.Normal,color=Accent)
   }
  }
 }

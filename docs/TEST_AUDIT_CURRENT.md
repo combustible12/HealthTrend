@@ -1,3 +1,7 @@
+## 2026-11-07 港维护完成日期
+
+点击“已维护”时记录手机当天日期，并据此重算下次日期；手动选日期用于补记或纠错。 `CourseNavigationTest` 覆盖逾期点击，`CourseTreatmentTitleTest` 覆盖 11/09 → 12/07。
+
 ## 2026-10-30 病程升白针筛选位置测试影响（已快速验证、未发布）
 
 - `CourseNavigationTest.growthFactorInjectionFilterShowsOnlyExplicitlyMarkedCards` 使用一张 `growthFactorInjection=true` 和一张未标记卡片，先验证打针图标位于“全部”左侧，再验证点击后只保留明确标记卡片。

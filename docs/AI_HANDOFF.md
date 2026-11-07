@@ -1,3 +1,7 @@
+## 2026-11-07 港维护完成日期
+
+点击“已维护”时记录手机当天日期，并据此重算下次日期；手动选日期用于补记或纠错。 `CourseNavigationTest` 覆盖逾期点击，`CourseTreatmentTitleTest` 覆盖 11/09 → 12/07。
+
 ## 2026-11-07 港维护排期
 
 下次港维护日期从左侧维护日期起算 28 个自然日；第 28 天为周六或周日时，提前到同一周的周五。 已更新 `nextPortMaintenanceDate` 和 `CourseTreatmentTitleTest`。

@@ -42,6 +42,7 @@ class CourseTreatmentTitleTest {
   assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-06"))
   assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-07"))
   assertEquals("2026-12-04",nextPortMaintenanceDate("2026-11-08"))
+  assertEquals("2026-12-07",nextPortMaintenanceDate("2026-11-09"))
   assertEquals("2027-01-01",nextPortMaintenanceDate("2026-12-04"))
   assertEquals(null,nextPortMaintenanceDate(""))
  }
