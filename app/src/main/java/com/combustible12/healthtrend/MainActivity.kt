@@ -433,16 +433,13 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 @Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,reminders:List<TreatmentReminder>,saveReminder:(TreatmentReminder)->Unit,deleteReminder:(String)->Unit,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit,courseRecords:List<CourseRecord> = emptyList(),openCourse:(CourseRecord)->Unit = {}){
  var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
  Screen(m,"导入数据","",spacing=7.dp){
- Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){
-  Column(Modifier.padding(horizontal=22.dp,vertical=5.5.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
-   Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold)
-   Button({showPaste=true},Modifier.fillMaxWidth().heightIn(min=36.dp),shape=RoundedCornerShape(18.dp),
-    contentPadding=PaddingValues(horizontal=12.dp,vertical=3.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)}
-   Text("手动录入",Modifier.clickable(enabled=!importer.busy,onClick=importer.manual).padding(horizontal=8.dp,vertical=2.dp),color=Accent)
-   if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-   if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)
-  }
+ Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+  Button({showPaste=true},Modifier.weight(1f).heightIn(min=36.dp),shape=RoundedCornerShape(18.dp),
+   contentPadding=PaddingValues(horizontal=12.dp,vertical=3.dp),enabled=!importer.busy){Text("粘贴数据",color=Color.White)}
+  TextButton(importer.manual,enabled=!importer.busy,contentPadding=PaddingValues(horizontal=8.dp,vertical=2.dp)){Text("手动录入")}
  }
+ if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+ if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)
  TreatmentReminderPanel(reminders,saveReminder,deleteReminder)
  CourseCalendar(courseRecords,reminders,openCourse)
  }

@@ -377,8 +377,15 @@ class CourseNavigationTest {
   assertTrue(add.left>=title.right)
   assertTrue(add.top<title.bottom&&add.bottom>title.top)
   compose.onNodeWithText("导入").performClick()
-  compose.onNodeWithText("粘贴报告数据").assertIsDisplayed()
-  compose.onNodeWithText("手动录入").assertIsDisplayed()
+  compose.onNodeWithText("报告数据").assertDoesNotExist()
+  val paste=compose.onNodeWithText("粘贴数据").assertIsDisplayed()
+  val manual=compose.onNodeWithText("手动录入").assertIsDisplayed()
+  val left=paste.fetchSemanticsNode().boundsInRoot
+  val right=manual.fetchSemanticsNode().boundsInRoot
+  assertTrue(left.right<=right.left && left.top<right.bottom && right.top<left.bottom)
+  paste.performClick()
+  compose.onNodeWithText("进入核对").assertIsDisplayed()
+  compose.onNodeWithText("取消").performClick()
   compose.onNodeWithText("健康记录").assertDoesNotExist()
   compose.onNodeWithText("最近").assertDoesNotExist()
  }
