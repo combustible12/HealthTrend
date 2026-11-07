@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -84,7 +84,7 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), tint = Color(0xFFB66B22))
+                    Icon(Icons.Rounded.Warning, null, Modifier.size(12.dp), tint = Color(0xFFE6A34B))
                     Text("提醒", fontSize = 11.sp, color = Muted)
                 }
             }
@@ -114,12 +114,18 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                                     .heightIn(min = 36.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                             ) {
-                                Text(day.toString(), color = if (date == today) Accent else Ink, fontSize = 14.sp)
+                                Box {
+                                    Text(day.toString(), color = if (date == today) Accent else Ink, fontSize = 14.sp)
+                                    if (hasReminder) Icon(
+                                        Icons.Rounded.Warning, "$key 提醒",
+                                        Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-2).dp).size(10.dp),
+                                        tint = Color(0xFFE6A34B)
+                                    )
+                                }
                                 Row(Modifier.height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
                                     treatments.forEach { treatment ->
                                         Box(Modifier.size(4.dp).background(treatment.color, CircleShape).semantics { contentDescription = "$key ${treatment.label}圆点" })
                                     }
-                                    if (hasReminder) Icon(Icons.Filled.Warning, "$key 提醒", Modifier.size(10.dp), tint = Color(0xFFB66B22))
                                 }
                             }
                         }
