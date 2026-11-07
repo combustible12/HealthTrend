@@ -35,11 +35,28 @@ class CoursePhasePersistenceTest {
  }
  @Test fun customPhasesPersistAndEmptyListDoesNotRestoreDeletedDefaults(){
   val store=HealthStore(context)
-  assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他"),store.coursePhases())
+  assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他","复查"),store.coursePhases())
   store.saveCoursePhases(listOf("放疗日"," 恢复期 ","放疗日","全部",""))
   assertEquals(listOf("放疗日","恢复期"),HealthStore(context).coursePhases())
   store.saveCoursePhases(emptyList())
   assertTrue(HealthStore(context).coursePhases().isEmpty())
+ }
+ @Test fun followUpTagIsAddedOnceWithoutRewritingHistory(){
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val history="""[{"id":"old","date":1,"title":"医院","phase":"观察"}]"""
+  prefs.edit().putString("course_records",history).putString("course_phases","""["观察","住院"]""")
+   .putBoolean("course_phase_combined_migrated",true).commit()
+  val store=HealthStore(context)
+  assertEquals(listOf("观察","住院","复查"),store.coursePhases())
+  store.saveCoursePhases(listOf("住院","观察"))
+  assertEquals(listOf("住院","观察"),HealthStore(context).coursePhases())
+  assertEquals(history,prefs.getString("course_records",null))
+ }
+ @Test fun existingCustomFollowUpLabelKeepsItsKeyAndOrder(){
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  prefs.edit().putString("course_phases","""["custom","观察"]""")
+   .putString("course_phase_labels","""{"custom":"复查"}""").putBoolean("course_phase_combined_migrated",true).commit()
+  assertEquals(listOf("custom","观察"),HealthStore(context).coursePhases())
  }
  @Test fun removingCategoryPreservesEveryStoredRecordField(){
   val store=HealthStore(context)

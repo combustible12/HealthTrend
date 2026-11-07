@@ -617,7 +617,7 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
    }
    Column(anchor("phase"),verticalArrangement=Arrangement.spacedBy(14.dp)){
     Text("阶段",fontWeight=FontWeight.Medium)
-    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=if(phase.key=="复查"||phase.label=="复查") record.copy(phase=phase.key,title=editorTitle,titleAuto=false) else record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    }
    Column(anchor("injection"),verticalArrangement=Arrangement.spacedBy(14.dp)){
     Text("治疗事件",fontWeight=FontWeight.Medium)

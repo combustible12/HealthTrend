@@ -5,3 +5,4 @@
 2026-11-07 verify course save status and retry
 2026-11-07 verify historical blank course cards
 2026-11-07 verify legacy course edits preserve existing fields
+2026-11-07 verify follow-up tag and preservation of historical records

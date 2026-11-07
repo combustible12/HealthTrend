@@ -41,19 +41,20 @@ class HealthStore(private val context:Context) {
   val key=if(primary)"trend_card_order_primary" else "trend_card_order_other"
   write(key,JSONArray(listOf(cardKey)+trendCardOrder(primary).filterNot{it==cardKey}))
  }
- fun coursePhases():List<String> {
-  val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他")
-  if(!prefs.contains("course_phases")){
-   check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
-   return defaults
-  }
-  val saved=read("course_phases")
+ @Synchronized fun coursePhases():List<String> {
+  val defaults=listOf("化疗日","恢复期","观察","放疗","放化","其他","复查")
+  val saved=if(prefs.contains("course_phases"))read("course_phases") else JSONArray(defaults)
   val phases=(0 until saved.length()).map{saved.getString(it)}.filter{it.isNotBlank()&&it!="全部"}.distinct()
-  if(prefs.getBoolean("course_phase_combined_migrated",false))return phases
-  val migrated=if("放化" in phases)phases else phases+"放化"
-  write("course_phases",JSONArray(migrated))
-  check(prefs.edit().putBoolean("course_phase_combined_migrated",true).commit())
-  return migrated
+  val combinedDone=prefs.getBoolean("course_phase_combined_migrated",false)
+  val followUpDone=prefs.getBoolean("course_phase_follow_up_migrated",false)
+  if(combinedDone && followUpDone)return phases
+  val updated=phases.toMutableList()
+  if(!combinedDone && "放化" !in updated)updated.add("放化")
+  if(!followUpDone && "复查" !in updated && updated.none{coursePhaseLabel(it)=="复查"})updated.add("复查")
+  check(prefs.edit().putString("course_phases",JSONArray(updated).toString())
+   .putBoolean("course_phase_combined_migrated",true)
+   .putBoolean("course_phase_follow_up_migrated",true).commit()){"分类保存失败，请检查设备存储空间"}
+  return updated
  }
  private fun coursePhaseLabels():Map<String,String>{
   val source=prefs.getString("course_phase_labels","{}")?:"{}"
@@ -75,6 +76,7 @@ class HealthStore(private val context:Context) {
    .putString("course_phases",JSONArray(cleaned.map{it.key}).toString())
    .putString("course_phase_labels",labels.toString())
    .putBoolean("course_phase_combined_migrated",true)
+   .putBoolean("course_phase_follow_up_migrated",true)
    .putInt("schema",2)
    .commit()){"分类保存失败，请检查设备存储空间"}
  }
