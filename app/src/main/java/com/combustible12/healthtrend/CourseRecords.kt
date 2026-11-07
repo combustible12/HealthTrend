@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -534,13 +535,13 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val editorScroll=rememberScrollState()
  var located by rememberSaveable(initial.id,initialSection){mutableStateOf(false)}
  var viewportCenterY by remember { mutableStateOf<Float?>(null) }
- var headingY by remember(initial.id,initialSection) { mutableStateOf<Float?>(null) }
- fun anchor(id:String):Modifier = if(initialSection==id && !located) Modifier.onGloballyPositioned {
-  headingY=it.positionInRoot().y + editorScroll.value + it.size.height / 2f
- } else Modifier
- LaunchedEffect(initial.id,initialSection,viewportCenterY,headingY){
+ var moduleCenterY by remember(initial.id,initialSection) { mutableStateOf<Float?>(null) }
+ fun anchor(id:String):Modifier = Modifier.testTag("course-editor-section-$id").then(if(initialSection==id && !located) Modifier.onGloballyPositioned {
+  moduleCenterY=it.positionInRoot().y + editorScroll.value + it.size.height / 2f
+ } else Modifier)
+ LaunchedEffect(initial.id,initialSection,viewportCenterY,moduleCenterY){
   val center=viewportCenterY ?: return@LaunchedEffect
-  val target=headingY ?: return@LaunchedEffect
+  val target=moduleCenterY ?: return@LaunchedEffect
   if(!located){
    editorScroll.scrollTo((target-center).roundToInt().coerceIn(0,editorScroll.maxValue))
    located=true
@@ -605,64 +606,86 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
      date=candidate
     } else duplicateRecord=match
    }
-   Text("阶段",modifier=anchor("phase"),fontWeight=FontWeight.Medium)
-   Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-   Text("治疗事件",modifier=anchor("injection"),fontWeight=FontWeight.Medium)
-   Row{FilterChip(selected=record.growthFactorInjection,onClick={record=record.copy(growthFactorInjection=!record.growthFactorInjection)},label={Text("升白针")},leadingIcon=if(record.growthFactorInjection){{Icon(Icons.Outlined.Vaccines,null,Modifier.size(18.dp))}}else null,border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=Color(0xFFE3E8ED)))}
-   CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
-   CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏",anchor("pressure"))
-   Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
-   val ranges=listOf("60–100","<90\\n<60","90–119\\n60–79","120–139\\n80–89","≥140\\n≥90")
-   ranges.forEachIndexed{index,label->
-    Box(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(8.dp)).background(if(index==0)Color(0xFFF4F4F4) else Color(0xFFEAEAEA)),contentAlignment=Alignment.Center){
-     Text(label.replace("\\n","\n"),fontSize=11.sp,lineHeight=14.sp,color=Color(0xFF666666),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
-    }
+   Column(anchor("phase"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    Text("阶段",fontWeight=FontWeight.Medium)
+    Row(Modifier.horizontalScroll(rememberScrollState())){(coursePhases+CoursePhaseDefinition(record.phase,store.coursePhaseLabel(record.phase))).distinctBy{it.key}.filter{it.key.isNotBlank()}.forEach{phase->FilterChip(record.phase==phase.key,{record=record.copy(phase=phase.key,title="",titleAuto=true)},label={Text(phase.label)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
    }
-  }
-    Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
-     PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
-     record.additionalPressures.forEachIndexed{index,reading->
-      PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
+   Column(anchor("injection"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    Text("治疗事件",fontWeight=FontWeight.Medium)
+    Row{FilterChip(selected=record.growthFactorInjection,onClick={record=record.copy(growthFactorInjection=!record.growthFactorInjection)},label={Text("升白针")},leadingIcon=if(record.growthFactorInjection){{Icon(Icons.Outlined.Vaccines,null,Modifier.size(18.dp))}}else null,border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=Color(0xFFE3E8ED)))}
+   }
+   CourseRememberedField(editorTitle,{record=record.copy(title=it,titleAuto=false)},"标题",rememberedTitles)
+   Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+    Column(anchor("pressure"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+     CourseEditorHeading(Icons.Outlined.Favorite,"血压-脉搏")
+     Column(verticalArrangement=Arrangement.spacedBy(7.dp)){
+      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(5.dp)){
+       val ranges=listOf("60–100","<90\\n<60","90–119\\n60–79","120–139\\n80–89","≥140\\n≥90")
+       ranges.forEachIndexed{index,label->
+        Box(Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(8.dp)).background(if(index==0)Color(0xFFF4F4F4) else Color(0xFFEAEAEA)),contentAlignment=Alignment.Center){
+         Text(label.replace("\\n","\n"),fontSize=11.sp,lineHeight=14.sp,color=Color(0xFF666666),textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+        }
+       }
+      }
+      Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
+       PressureReadingEditor(BloodPressureReading(record.pressureTime,record.systolic,record.diastolic,record.pulse),{r->record=record.copy(pressureTime=r.time,systolic=r.systolic,diastolic=r.diastolic,pulse=r.pulse)})
+       record.additionalPressures.forEachIndexed{index,reading->
+        PressureReadingEditor(reading,{r->record=record.copy(additionalPressures=record.additionalPressures.toMutableList().also{it[index]=r})},{record=record.copy(additionalPressures=record.additionalPressures.filterIndexed{i,_->i!=index})})
+       }
+      }
+      CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+       TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
+      }
      }
     }
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
-     TextButton({record=record.copy(additionalPressures=record.additionalPressures+BloodPressureReading(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))))},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp),modifier=Modifier.height(32.dp)){Icon(Icons.Outlined.Add,null,tint=Color(0xFFFF9163));Text("添加一组血压-脉搏",color=Color(0xFFFF9163))}
-    }
     CourseWeightEditor(weightTime,{weightTime=it},weightText,{weightText=sanitizeWeightInput(it)},heightText,{heightText=sanitizeHeightInput(it)},{leave(onOpenWeightTrend)},anchor("weight"))
-    CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状",anchor("symptom")){CourseTemplateButton{templateSection="symptom" to "症状"}}
+    Column(anchor("symptom"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+     CourseEditorHeading(Icons.Outlined.MonitorHeart,"症状"){CourseTemplateButton{templateSection="symptom" to "症状"}}
+     CourseRememberedField(record.symptomText,{record=record.copy(symptomText=it)},"症状内容",rememberedSymptoms,2)
+     PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
+     if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
+    }
    }
-   CourseRememberedField(record.symptomText,{record=record.copy(symptomText=it)},"症状内容",rememberedSymptoms,2)
-   PhotoInputButtons(symptomInput,!busy,"相册添加症状图片")
-   if(record.symptomImages.isNotEmpty())CourseThumbnails(record.symptomImages,{i->viewingKind="symptom";viewingIndex=i},{i->pendingImageRemoval="symptom" to i},{i->pendingImageReplace="symptom" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.FactCheck,"检查",anchor("check")){CourseTemplateButton{templateSection="check" to "检查"}}
-   CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
-   PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
-   if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.MedicalServices,"治疗",anchor("treatment")){CourseTemplateButton{templateSection="treatment" to "治疗"}}
-   CourseRememberedField(record.treatmentText,{record=record.copy(treatmentText=it)},"治疗内容",rememberedTreatments,2)
-   PhotoInputButtons(treatmentInput,!busy,"相册添加治疗图片")
-   if(record.treatmentImages.isNotEmpty())CourseThumbnails(record.treatmentImages,{i->viewingKind="treatment";viewingIndex=i},{i->pendingImageRemoval="treatment" to i},{i->pendingImageReplace="treatment" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药",anchor("medicine")){CourseTemplateButton{templateSection="medicine" to "药品 / 取药"}}
-   CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
-   PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
-   if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{i->viewingKind="medicine";viewingIndex=i},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Restaurant,"饮食",anchor("diet")){CourseTemplateButton{templateSection="diet" to "饮食"}}
-   CourseRememberedField(record.dietText,{record=record.copy(dietText=it)},"饮食内容",rememberedDiets,2)
-   PhotoInputButtons(dietInput,!busy,"相册添加饮食图片")
-   if(record.dietImages.isNotEmpty())CourseThumbnails(record.dietImages,{i->viewingKind="diet";viewingIndex=i},{i->pendingImageRemoval="diet" to i},{i->pendingImageReplace="diet" to i;replaceInput.gallery()})
-   CourseEditorHeading(Icons.Outlined.Notes,"备注",anchor("note")){CourseTemplateButton{templateSection="note" to "备注"}}
-   CourseRememberedField(record.noteText,{record=record.copy(noteText=it)},"备注内容",rememberedNotes,3)
-   PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
-   if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{i->viewingKind="note";viewingIndex=i},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
+   Column(anchor("check"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    CourseEditorHeading(Icons.Outlined.FactCheck,"检查"){CourseTemplateButton{templateSection="check" to "检查"}}
+    CourseRememberedField(record.checkText,{record=record.copy(checkText=it)},"检查内容",rememberedChecks,2)
+    PhotoInputButtons(checkInput,!busy,"相册添加检查图片")
+    if(record.checkImages.isNotEmpty())CourseThumbnails(record.checkImages,{i->viewingKind="check";viewingIndex=i},{i->pendingImageRemoval="check" to i},{i->pendingImageReplace="check" to i;replaceInput.gallery()})
+   }
+   Column(anchor("treatment"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    CourseEditorHeading(Icons.Outlined.MedicalServices,"治疗"){CourseTemplateButton{templateSection="treatment" to "治疗"}}
+    CourseRememberedField(record.treatmentText,{record=record.copy(treatmentText=it)},"治疗内容",rememberedTreatments,2)
+    PhotoInputButtons(treatmentInput,!busy,"相册添加治疗图片")
+    if(record.treatmentImages.isNotEmpty())CourseThumbnails(record.treatmentImages,{i->viewingKind="treatment";viewingIndex=i},{i->pendingImageRemoval="treatment" to i},{i->pendingImageReplace="treatment" to i;replaceInput.gallery()})
+   }
+   Column(anchor("medicine"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    CourseEditorHeading(Icons.Outlined.Medication,"药品 / 取药"){CourseTemplateButton{templateSection="medicine" to "药品 / 取药"}}
+    CourseRememberedField(record.medicineText,{record=record.copy(medicineText=it)},"药品 / 取药内容",rememberedMedicines,2)
+    PhotoInputButtons(medicineInput,!busy,"相册添加药品图片")
+    if(record.medicineImages.isNotEmpty())CourseThumbnails(record.medicineImages,{i->viewingKind="medicine";viewingIndex=i},{i->pendingImageRemoval="medicine" to i},{i->pendingImageReplace="medicine" to i;replaceInput.gallery()})
+   }
+   Column(anchor("diet"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    CourseEditorHeading(Icons.Outlined.Restaurant,"饮食"){CourseTemplateButton{templateSection="diet" to "饮食"}}
+    CourseRememberedField(record.dietText,{record=record.copy(dietText=it)},"饮食内容",rememberedDiets,2)
+    PhotoInputButtons(dietInput,!busy,"相册添加饮食图片")
+    if(record.dietImages.isNotEmpty())CourseThumbnails(record.dietImages,{i->viewingKind="diet";viewingIndex=i},{i->pendingImageRemoval="diet" to i},{i->pendingImageReplace="diet" to i;replaceInput.gallery()})
+   }
+   Column(anchor("note"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+    CourseEditorHeading(Icons.Outlined.Notes,"备注"){CourseTemplateButton{templateSection="note" to "备注"}}
+    CourseRememberedField(record.noteText,{record=record.copy(noteText=it)},"备注内容",rememberedNotes,3)
+    PhotoInputButtons(noteInput,!busy,"相册添加备注图片")
+    if(record.noteImages.isNotEmpty())CourseThumbnails(record.noteImages,{i->viewingKind="note";viewingIndex=i},{i->pendingImageRemoval="note" to i},{i->pendingImageReplace="note" to i;replaceInput.gallery()})
+   }
    customDefinitions.filter{definition->!definition.hidden||record.courseSectionText(definition.id).isNotBlank()||record.courseSectionImages(definition.id).isNotEmpty()}.forEach{definition->key(definition.id){
-    CourseEditorHeading(Icons.Outlined.ViewAgenda,definition.title,anchor(definition.id)){CourseTemplateButton{templateSection=definition.id to definition.title}}
-    val options=remember(remembered,definition.id){remembered.map{it.courseSectionText(definition.id)}.filter{it.isNotBlank()}.distinct()}
-    CourseRememberedField(record.courseSectionText(definition.id),{value->record=record.withCourseSectionText(definition.id,value)},"${definition.title}内容",options,2)
-    val input=remember(definition.id,customInput){PhotoInput({customImageTarget=definition.id;customInput.gallery()},{customImageTarget=definition.id;customInput.camera()})}
-    PhotoInputButtons(input,!busy,"相册添加${definition.title}图片")
-    val images=record.courseSectionImages(definition.id)
-    if(images.isNotEmpty())CourseThumbnails(images,{i->viewingKind=definition.id;viewingIndex=i},{i->pendingImageRemoval=definition.id to i},{i->pendingImageReplace=definition.id to i;replaceInput.gallery()})
+    Column(anchor(definition.id),verticalArrangement=Arrangement.spacedBy(14.dp)){
+     CourseEditorHeading(Icons.Outlined.ViewAgenda,definition.title){CourseTemplateButton{templateSection=definition.id to definition.title}}
+     val options=remember(remembered,definition.id){remembered.map{it.courseSectionText(definition.id)}.filter{it.isNotBlank()}.distinct()}
+     CourseRememberedField(record.courseSectionText(definition.id),{value->record=record.withCourseSectionText(definition.id,value)},"${definition.title}内容",options,2)
+     val input=remember(definition.id,customInput){PhotoInput({customImageTarget=definition.id;customInput.gallery()},{customImageTarget=definition.id;customInput.camera()})}
+     PhotoInputButtons(input,!busy,"相册添加${definition.title}图片")
+     val images=record.courseSectionImages(definition.id)
+     if(images.isNotEmpty())CourseThumbnails(images,{i->viewingKind=definition.id;viewingIndex=i},{i->pendingImageRemoval=definition.id to i},{i->pendingImageReplace=definition.id to i;replaceInput.gallery()})
+    }
    }}
    FilledTonalButton({managingSections=true},Modifier.fillMaxWidth()){Icon(Icons.Outlined.Add,null);Spacer(Modifier.width(6.dp));Text("添加 / 管理板块")}
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())

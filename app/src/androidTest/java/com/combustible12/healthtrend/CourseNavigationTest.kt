@@ -38,13 +38,14 @@ class CourseNavigationTest {
    }
   }
  }
- @Test fun symptomOpensAtEditorViewportCenter(){
+ @Test fun entireSymptomModuleOpensAtEditorViewportCenter(){
   val store=HealthStore(context)
   val record=CourseRecord(symptomText="测试")
   compose.setContent{MaterialTheme{CourseRecordEditor(record,store,{},{_,_,_,_->},{},{_,_->},initialSection="symptom")}}
-  val heading=compose.onNodeWithText("症状").assertIsDisplayed()
+  compose.onNodeWithText("症状").assertIsDisplayed()
+  compose.onNodeWithText("相册添加症状图片").assertIsDisplayed()
   val viewport=compose.onNode(hasScrollAction() and hasAnyDescendant(hasText("症状")))
-  assertEquals(viewport.fetchSemanticsNode().boundsInRoot.center.y,heading.fetchSemanticsNode().boundsInRoot.center.y,compose.density.density*2)
+  assertEquals(viewport.fetchSemanticsNode().boundsInRoot.center.y,compose.onNodeWithTag("course-editor-section-symptom").fetchSemanticsNode().boundsInRoot.center.y,compose.density.density*2)
  }
  @Test fun injectionIconAlignsWithCardHeading(){
   val record=CourseRecord(title="对齐",titleAuto=false,growthFactorInjection=true)
