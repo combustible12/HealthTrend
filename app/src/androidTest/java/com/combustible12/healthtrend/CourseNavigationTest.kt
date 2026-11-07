@@ -15,6 +15,24 @@ class CourseNavigationTest {
  @get:Rule val compose=createComposeRule()
  private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
  @Before fun clear(){context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()}
+ @Test fun processControlShowsCurrentStageAndPlannedCounts(){
+  val store=HealthStore(context)
+  store.saveCourseProcessSettings(CourseProcessSettings(CourseProcessStage.OBSERVATION,false,false,27,5))
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,emptyList(),store,{},{},{},{_,_->})}}
+  compose.onNodeWithText("观察").assertIsDisplayed()
+  compose.onNodeWithText("化疗天数关").assertIsDisplayed()
+  compose.onNodeWithContentDescription("打开进程总控").performClick()
+  compose.onNodeWithText("外照计划次数").assertIsDisplayed()
+  compose.onNodeWithText("后装计划次数").assertIsDisplayed()
+ }
+ @Test fun datedBrachytherapyReminderAppearsOnMatchingCourseCard(){
+  val at=java.time.LocalDate.of(2031,5,3).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+  val record=CourseRecord(date=at,title="2化35",titleAuto=false,phase="观察")
+  val reminder=TreatmentReminder(radiationNumber=0,text="第二次后装",triggerDate="2031-05-03",purpose=ReminderPurpose.BRACHYTHERAPY,brachytherapyNumber=2)
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(record),HealthStore(context),{},{},{},{_,_->},reminders=listOf(reminder))}}
+  compose.onNodeWithText("2化35-后装2",substring=true).assertIsDisplayed()
+  assertTrue(compose.onAllNodesWithText("后装").fetchSemanticsNodes().isNotEmpty())
+ }
  @Test fun completingPortMaintenanceRecordsTodayEvenWhenOverdue(){
   val store = HealthStore(context)
   val today = java.time.LocalDate.now()

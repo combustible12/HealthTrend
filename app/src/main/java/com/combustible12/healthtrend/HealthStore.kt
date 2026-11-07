@@ -88,6 +88,26 @@ class HealthStore(private val context:Context) {
   val cleaned=phases.map{it.trim()}.filter{it.isNotBlank()&&it!="全部"}.distinct()
   saveCoursePhaseDefinitions(cleaned.map{CoursePhaseDefinition(it,it)})
  }
+ fun courseProcessSettings():CourseProcessSettings {
+  val json=prefs.getString("course_process_settings",null)?.let{runCatching{JSONObject(it)}.getOrNull()} ?: return CourseProcessSettings()
+  return CourseProcessSettings(
+   stage=CourseProcessStage.values().firstOrNull{it.name==json.optString("stage")}?:CourseProcessStage.EXTERNAL_BEAM,
+   chemotherapyDaysEnabled=json.optBoolean("chemotherapyDaysEnabled",true),
+   radiotherapyEnabled=json.optBoolean("radiotherapyEnabled",true),
+   radiotherapyPlannedTotal=json.optInt("radiotherapyPlannedTotal",27).coerceAtLeast(1),
+   brachytherapyPlannedTotal=json.optInt("brachytherapyPlannedTotal",5).coerceAtLeast(1)
+  )
+ }
+ @Synchronized fun saveCourseProcessSettings(settings:CourseProcessSettings){
+  require(settings.radiotherapyPlannedTotal>0){"外照计划次数必须大于0"}
+  require(settings.brachytherapyPlannedTotal>0){"后装计划次数必须大于0"}
+  val json=JSONObject().put("stage",settings.stage.name)
+   .put("chemotherapyDaysEnabled",settings.chemotherapyDaysEnabled)
+   .put("radiotherapyEnabled",settings.radiotherapyEnabled)
+   .put("radiotherapyPlannedTotal",settings.radiotherapyPlannedTotal)
+   .put("brachytherapyPlannedTotal",settings.brachytherapyPlannedTotal)
+  check(prefs.edit().putString("course_process_settings",json.toString()).commit()){"进程设置保存失败"}
+ }
  @Synchronized fun courseSectionDefinitions():List<CourseSectionDefinition> = rows(read("course_section_definitions")){o->
   CourseSectionDefinition(o.getString("id"),o.optString("title").trim(),o.optBoolean("hidden"),o.optLong("createdAt",0L))
  }.filter{it.id.isNotBlank()&&it.title.isNotBlank()&&it.id !in fixedCourseSectionIds}.distinctBy{it.id}
@@ -1174,11 +1194,16 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteCourseRecord(id:String){storeCourseEditorDraft(id,null);write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
  @Synchronized fun ensureCourseRecordsThroughToday():Int{
   val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
+  var settings=courseProcessSettings()
+  if(settings.stage==CourseProcessStage.EXTERNAL_BEAM && settings.radiotherapyEnabled && currentRadiotherapyNumber(current)>=settings.radiotherapyPlannedTotal){
+   settings=settings.copy(radiotherapyEnabled=false);saveCourseProcessSettings(settings)
+  }
   val templates by lazy { defaultCourseSectionTexts(this) }
   if(current.isEmpty()){
-   val draft=CourseRecord(initialSectionTemplates=templates,date=today.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(today.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
-   val placeholder=draft.copy(title=automaticCourseTitle(draft,emptyList()))
+   val draft=CourseRecord(initialSectionTemplates=templates,date=today.atStartOfDay(zone).toInstant().toEpochMilli(),phase=automaticCoursePhase(today,settings,emptyList()),title="",titleAuto=true)
+   val placeholder=draft.copy(title=automaticCourseTitle(draft,emptyList(),settings))
    write("course_records",JSONArray().apply{put(courseRecordToJson(placeholder))})
+   if(currentRadiotherapyNumber(listOf(placeholder))>=settings.radiotherapyPlannedTotal)saveCourseProcessSettings(settings.copy(radiotherapyEnabled=false))
    return 1
   }
   val existingDays=current.map{java.time.Instant.ofEpochMilli(it.date).atZone(zone).toLocalDate()}.toSet()
@@ -1188,10 +1213,11 @@ class HealthStore(private val context:Context) {
   require(span in 0..3660){"病程日期跨度异常，请检查最早病程日期"}
   val accumulated=current.toMutableList()
   val missing=generateSequence(start.plusDays(1)){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{!it.isAfter(today)&&it !in existingDays}.map{day->
-   val draft=CourseRecord(initialSectionTemplates=if(day==today)templates else emptyMap(),date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
-   draft.copy(title=automaticCourseTitle(draft,accumulated)).also{accumulated+=it}
+   val draft=CourseRecord(initialSectionTemplates=if(day==today)templates else emptyMap(),date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=automaticCoursePhase(day,settings,accumulated),title="",titleAuto=true)
+   draft.copy(title=automaticCourseTitle(draft,accumulated,settings)).also{accumulated+=it}
   }.toList()
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
+  if(settings.stage==CourseProcessStage.EXTERNAL_BEAM && settings.radiotherapyEnabled && currentRadiotherapyNumber(accumulated)>=settings.radiotherapyPlannedTotal)saveCourseProcessSettings(settings.copy(radiotherapyEnabled=false))
   return missing.size
  }
  @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.optInt("radiationNumber",0),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()),o.optString("triggerDate"),o.optString("triggerTime","09:00"),if(o.isNull("snoozedUntil"))null else o.getLong("snoozedUntil"),ReminderPurpose.values().firstOrNull{it.name==o.optString("purpose")}?:ReminderPurpose.GENERAL,o.optInt("brachytherapyNumber",0))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
@@ -1276,11 +1302,11 @@ class HealthStore(private val context:Context) {
    .putString("metric_preferred_names",preferred.toString())
    .putString("custom_metrics",custom.toString()).commit()){"词典保存失败"}
  }
- internal fun hasRestoreProtectedConfiguration():Boolean = portHistory().latest != null || listOf(
+ internal fun hasRestoreProtectedConfiguration():Boolean = portHistory().latest != null || prefs.contains("course_process_settings") || listOf(
   "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
   "report_identity_links","report_replacement_archive","trend_identity_mappings","course_section_definitions","course_text_templates"
  ).any{read(it).length()>0}
- fun exportBackup():String=JSONObject().put("schema",4).put("portHistory",prefs.getString("port_history",null)?.let { JSONObject(it) }).put("portMaintenanceLastDate",portMaintenanceLastDate()).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ fun exportBackup():String=JSONObject().put("schema",4).put("portHistory",prefs.getString("port_history",null)?.let { JSONObject(it) }).put("portMaintenanceLastDate",portMaintenanceLastDate()).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("treatmentReminders",read("treatment_reminders")).put("coursePhases",read("course_phases")).put("courseProcessSettings",prefs.getString("course_process_settings",null)?.let{JSONObject(it)}).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("reportName",r.reportName?:JSONObject.NULL).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("referenceRaw",it.referenceRaw).put("reportFlag",it.reportFlag).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")

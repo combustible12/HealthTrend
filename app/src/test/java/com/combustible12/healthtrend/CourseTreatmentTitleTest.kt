@@ -74,6 +74,31 @@ class CourseTreatmentTitleTest {
   assertEquals("2化15-放7",automaticCourseTitle(next,listOf(chemotherapy,corrected,next)))
  }
 
+ @Test fun processControlsFutureAutomaticTitlesWithoutRewritingStoredTitles(){
+  val chemotherapy=record("2026-10-14","化疗").copy(title="2化1",titleAuto=false)
+  val radiation=record("2026-11-06","放疗").copy(title="2化24-放27",titleAuto=false)
+  val next=record("2026-11-09","放疗")
+  val stopped=CourseProcessSettings(chemotherapyDaysEnabled=false,radiotherapyEnabled=false,radiotherapyPlannedTotal=27)
+  assertEquals("",automaticCourseTitle(next,listOf(chemotherapy,radiation),stopped))
+  assertEquals("2化24-放27",displayCourseTitle(radiation,listOf(chemotherapy,radiation),stopped))
+  val extended=stopped.copy(chemotherapyDaysEnabled=true,radiotherapyEnabled=true,radiotherapyPlannedTotal=30)
+  assertEquals("放疗",automaticCoursePhase(LocalDate.parse("2026-11-09"),extended,listOf(chemotherapy,radiation)))
+  assertEquals("2化27-放28",automaticCourseTitle(next,listOf(chemotherapy,radiation),extended))
+  assertEquals("观察",automaticCoursePhase(LocalDate.parse("2026-11-09"),extended.copy(radiotherapyPlannedTotal=27),listOf(chemotherapy,radiation)))
+  assertEquals("观察",automaticCoursePhase(LocalDate.parse("2026-11-09"),extended.copy(stage=CourseProcessStage.OBSERVATION),listOf(chemotherapy,radiation)))
+ }
+
+ @Test fun deliberatelyChangedTreatmentTitleUpdatesOnlyThatCardsTreatmentTag(){
+  val original=record("2026-11-09","观察").copy(title="2化27",titleAuto=false,noteText="原备注")
+  val third=courseEditorRecordForDate(original.copy(title="3化1"),original.date,original,listOf(original))
+  assertEquals("化疗",third.phase)
+  assertEquals("原备注",third.noteText)
+  val combined=courseEditorRecordForDate(original.copy(title="3化1-放20"),original.date,original,listOf(original))
+  assertEquals("放化",combined.phase)
+  val hospital=courseEditorRecordForDate(original.copy(phase="放疗",title="医院"),original.date,original,listOf(original))
+  assertEquals("观察",hospital.phase)
+ }
+
  @Test fun blankAutoCardHasNoUserContent(){
   assertEquals(true,record("2026-10-28","放疗").copy(title="2化15-放7").isBlankCourseCard())
   assertEquals(false,record("2026-10-28","放疗").copy(title="2化15-放7",noteText="已记录").isBlankCourseCard())

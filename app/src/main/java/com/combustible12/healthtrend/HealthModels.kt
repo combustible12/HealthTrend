@@ -257,6 +257,16 @@ data class CourseRecord(
 ):java.io.Serializable
 enum class ReminderPurpose { GENERAL, BRACHYTHERAPY, FOLLOW_UP }
 
+enum class CourseProcessStage { EXTERNAL_BEAM, OBSERVATION, BRACHYTHERAPY, FOLLOW_UP }
+
+data class CourseProcessSettings(
+ val stage:CourseProcessStage=CourseProcessStage.EXTERNAL_BEAM,
+ val chemotherapyDaysEnabled:Boolean=true,
+ val radiotherapyEnabled:Boolean=true,
+ val radiotherapyPlannedTotal:Int=27,
+ val brachytherapyPlannedTotal:Int=5
+):java.io.Serializable
+
 data class TreatmentReminder(
  val id:String=newId(),
  val radiationNumber:Int,

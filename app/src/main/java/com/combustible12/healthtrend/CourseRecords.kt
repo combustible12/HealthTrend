@@ -156,8 +156,10 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
 ){
  val context=LocalContext.current
  var phaseDefinitions by remember{mutableStateOf(store.coursePhaseDefinitions())}
+ var processSettings by remember(records){mutableStateOf(store.courseProcessSettings())}
  val phases=phaseDefinitions.map{it.key}
  var managingPhases by rememberSaveable{mutableStateOf(false)}
+ var managingProcess by rememberSaveable{mutableStateOf(false)}
  var filtersExpanded by rememberSaveable{mutableStateOf(false)}
  var phaseError by remember{mutableStateOf<String?>(null)}
  var filter by rememberSaveable{mutableStateOf("全部")}
@@ -223,13 +225,14 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
     }
    }
    PortMaintenanceSection(store)
+   CourseProcessBar(processSettings,currentRadiotherapyNumber(records)){managingProcess=true}
    Spacer(Modifier.height(8.dp))
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
     LazyColumn(Modifier.fillMaxSize().offset(x=(-6).dp).padding(end=8.dp),state=listState,contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
     items(shown,key={it.id}){record->
      val marker=reminderMarkers[courseLocalDate(record.date)]
-     val title=reminderLinkedCardTitle(displayCourseTitle(record,records),marker)
+     val title=reminderLinkedCardTitle(displayCourseTitle(record,records,processSettings),marker)
      val primaryLabel=store.coursePhaseLabel(record.phase)
      val linkedLabels=buildList{
       if(marker?.brachytherapyNumbers?.isNotEmpty()==true && primaryLabel!=brachytherapyLabel)add(brachytherapyLabel)
@@ -246,8 +249,52 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  if(managingPhases)CoursePhaseManager(phaseDefinitions,{managingPhases=false}){updated->
   runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter!=growthFactorInjectionFilter&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
+ if(managingProcess)CourseProcessEditor(processSettings,{managingProcess=false}){updated->
+  store.saveCourseProcessSettings(updated);processSettings=updated;managingProcess=false
+ }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
  dateLookupMessage?.let{message->AlertDialog(onDismissRequest={dateLookupMessage=null},title={Text("没有找到当天卡片")},text={Text(message)},confirmButton={TextButton({dateLookupMessage=null}){Text("知道了")}})}
+}
+
+private fun courseProcessStageLabel(stage:CourseProcessStage)=when(stage){
+ CourseProcessStage.EXTERNAL_BEAM->"外照"
+ CourseProcessStage.OBSERVATION->"观察"
+ CourseProcessStage.BRACHYTHERAPY->"后装"
+ CourseProcessStage.FOLLOW_UP->"结疗复查"
+}
+
+@Composable private fun CourseProcessBar(settings:CourseProcessSettings,completedRadiotherapy:Int,open:()->Unit){
+ Surface(onClick=open,modifier=Modifier.fillMaxWidth().padding(top=8.dp),shape=RoundedCornerShape(14.dp),color=Color.White){
+  Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   Text("进程",fontSize=13.sp,color=Muted)
+   Text(courseProcessStageLabel(settings.stage),fontWeight=FontWeight.Bold)
+   Text(if(settings.chemotherapyDaysEnabled)"化疗天数开" else "化疗天数关",fontSize=12.sp,color=Muted)
+   if(settings.stage==CourseProcessStage.EXTERNAL_BEAM)Text("放${completedRadiotherapy}/${settings.radiotherapyPlannedTotal}",Modifier.weight(1f),fontSize=12.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.End)
+   else Spacer(Modifier.weight(1f))
+   Icon(Icons.Outlined.ChevronRight,"打开进程总控",tint=Muted)
+  }
+ }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable private fun CourseProcessEditor(initial:CourseProcessSettings,close:()->Unit,save:(CourseProcessSettings)->Unit){
+ var stage by rememberSaveable{mutableStateOf(initial.stage)}
+ var chemotherapyDaysEnabled by rememberSaveable{mutableStateOf(initial.chemotherapyDaysEnabled)}
+ var radiotherapyEnabled by rememberSaveable{mutableStateOf(initial.radiotherapyEnabled)}
+ var radiotherapyTotal by rememberSaveable{mutableStateOf(initial.radiotherapyPlannedTotal.toString())}
+ var brachytherapyTotal by rememberSaveable{mutableStateOf(initial.brachytherapyPlannedTotal.toString())}
+ AlertDialog(onDismissRequest=close,containerColor=Color.White,title={Text("进程总控")},text={
+  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   Text("当前进程",fontWeight=FontWeight.Medium)
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    CourseProcessStage.values().forEach{option->FilterChip(stage==option,{stage=option},label={Text(courseProcessStageLabel(option))},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))}
+   }
+   FilterChip(chemotherapyDaysEnabled,{chemotherapyDaysEnabled=!chemotherapyDaysEnabled},label={Text(if(chemotherapyDaysEnabled)"化疗天数：开" else "化疗天数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
+   FilterChip(radiotherapyEnabled,{radiotherapyEnabled=!radiotherapyEnabled},label={Text(if(radiotherapyEnabled)"外照计数：开" else "外照计数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
+   AppInputField(radiotherapyTotal,{radiotherapyTotal=it.filter(Char::isDigit).take(3)},label="外照计划次数",singleLine=true)
+   AppInputField(brachytherapyTotal,{brachytherapyTotal=it.filter(Char::isDigit).take(2)},label="后装计划次数",singleLine=true)
+  }
+ },confirmButton={TextButton({save(CourseProcessSettings(stage,chemotherapyDaysEnabled,radiotherapyEnabled,radiotherapyTotal.toInt(),brachytherapyTotal.toInt()))},enabled=(radiotherapyTotal.toIntOrNull()?:0)>0&&(brachytherapyTotal.toIntOrNull()?:0)>0){Text("保存")}},dismissButton={TextButton(close){Text("取消")}})
 }
 
 internal data class CourseReminderMarker(val followUp:Boolean=false,val brachytherapyNumbers:List<Int> = emptyList())
@@ -276,7 +323,10 @@ private val radiotherapyCoursePhases=setOf("放疗","放疗日","放化")
 
 private fun courseLocalDate(epoch:Long):LocalDate=Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()).toLocalDate()
 
-internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>):String{
+internal fun automaticCoursePhase(day:LocalDate,settings:CourseProcessSettings,records:List<CourseRecord>):String =
+ if(settings.stage==CourseProcessStage.EXTERNAL_BEAM && settings.radiotherapyEnabled && day.dayOfWeek.value<=5 && currentRadiotherapyNumber(records)<settings.radiotherapyPlannedTotal)"放疗" else "观察"
+
+internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>,settings:CourseProcessSettings=CourseProcessSettings()):String{
  val target=courseLocalDate(record.date)
  val rows=(records.filterNot{it.id==record.id}+record).map{it to courseLocalDate(it.date)}
  val chemotherapyDates=rows.filter{(item,date)->item.phase in chemotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().sorted()
@@ -284,7 +334,7 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
  val priorRows=records.filterNot{it.id==record.id}.map{it to courseLocalDate(it.date)}.filter{!it.second.isAfter(target)}
  val chemoPattern=Regex("(\\d+)化(\\d+)")
  val chemoAnchor=priorRows.mapNotNull{(item,date)->chemoPattern.find(item.title)?.let{match->Triple(date,match.groupValues[1].toInt(),match.groupValues[2].toInt())}}.maxByOrNull{it.first}
- val chemotherapy=when{
+ val chemotherapy=if(!settings.chemotherapyDaysEnabled)null else when{
   record.phase in chemotherapyCoursePhases->{
    val cycle=(chemoAnchor?.second?:chemotherapyDates.dropLast(1).size)+1
    "${cycle}化1"
@@ -293,7 +343,7 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
   latestChemotherapy!=null->{val cycle=chemotherapyDates.indexOf(latestChemotherapy)+1;val day=java.time.temporal.ChronoUnit.DAYS.between(latestChemotherapy,target)+1;"${cycle}化${day}"}
   else->null
  }
- val radiotherapy=if(record.phase in radiotherapyCoursePhases){
+ val radiotherapy=if(settings.radiotherapyEnabled && record.phase in radiotherapyCoursePhases){
   val radiationPattern=Regex("放(\\d+)")
   val anchor=priorRows.mapNotNull{(item,date)->radiationPattern.find(item.title)?.groupValues?.get(1)?.toIntOrNull()?.let{date to it}}.maxByOrNull{it.first}
   val count=if(anchor==null)rows.filter{(item,date)->item.phase in radiotherapyCoursePhases&&!date.isAfter(target)}.map{it.second}.distinct().size
@@ -303,15 +353,29 @@ internal fun automaticCourseTitle(record:CourseRecord,records:List<CourseRecord>
  return listOfNotNull(chemotherapy,radiotherapy).joinToString("-")
 }
 
-internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>):String=
- if(record.titleAuto)record.title.ifBlank{automaticCourseTitle(record,records)} else record.title
+internal fun displayCourseTitle(record:CourseRecord,records:List<CourseRecord>,settings:CourseProcessSettings=CourseProcessSettings()):String=
+ if(record.titleAuto)record.title.ifBlank{automaticCourseTitle(record,records,settings)} else record.title
 
-internal fun courseEditorRecordForDate(record:CourseRecord,date:Long,original:CourseRecord?,history:List<CourseRecord>):CourseRecord {
+internal fun courseEditorRecordForDate(record:CourseRecord,date:Long,original:CourseRecord?,history:List<CourseRecord>,settings:CourseProcessSettings=CourseProcessSettings()):CourseRecord {
  val dated=record.copy(date=date)
  if(original!=null && original.date==date && original.phase==record.phase &&
     original.title==record.title && original.titleAuto==record.titleAuto)return dated
- if(record.titleAuto)return dated.copy(title=automaticCourseTitle(dated.copy(title=""),history))
- if(record.phase in radiotherapyCoursePhases && Regex("""放\d+""").find(record.title)==null)return dated.copy(phase="观察")
+ if(record.titleAuto)return dated.copy(title=automaticCourseTitle(dated.copy(title=""),history,settings))
+ val titleChanged=original==null || original.title!=record.title || original.titleAuto!=record.titleAuto
+ if(titleChanged){
+  val chemotherapyDay=Regex("""(?:^|-)\d+化1(?:-|$)""").containsMatchIn(record.title)
+  val radiotherapy=Regex("""(?:^|-)放\d+(?:-|$)""").containsMatchIn(record.title)
+  val brachytherapy=Regex("""(?:^|-)后装\d+(?:-|$)""").containsMatchIn(record.title)
+  val phase=when{
+   chemotherapyDay&&radiotherapy->"放化"
+   chemotherapyDay->"化疗"
+   radiotherapy->"放疗"
+   brachytherapy->"后装"
+   record.phase in chemotherapyCoursePhases||record.phase in radiotherapyCoursePhases||record.phase=="后装"->"观察"
+   else->record.phase
+  }
+  return dated.copy(phase=phase)
+ }
  return dated
 }
 
@@ -525,6 +589,7 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
 @Composable fun CourseRecordEditor(initial:CourseRecord,store:HealthStore,onClose:()->Unit,onSave:(CourseRecord,Double?,Long?,Double?)->Unit,onDelete:(String)->Unit,onView:(List<String>,Int)->Unit,onOpenWeightTrend:()->Unit={},onOpenExisting:(CourseRecord)->Unit={},initialSection:String?=null){
  val context=LocalContext.current
  val coursePhases=remember{store.coursePhaseDefinitions()}
+ val processSettings=remember{store.courseProcessSettings()}
  val exists=remember(initial.id){store.courseRecords().any{it.id==initial.id}}
  val slot=remember(initial.id){if(exists)initial.id else "new"}
  val restored=remember(slot){store.courseEditorDraft(slot)}
@@ -575,8 +640,8 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val rememberedNotes=remember(remembered){remembered.map{it.noteText}.filter{it.isNotBlank()}.distinct()}
  val selectedDate=courseDateMillis(date,initial.date)
  val original=remember(initial.id){initial.takeIf{exists}}
- val editedRecord=selectedDate?.let{courseEditorRecordForDate(record,it,original,remembered)}
- val editorTitle=editedRecord?.let{displayCourseTitle(it,remembered)} ?: record.title
+ val editedRecord=selectedDate?.let{courseEditorRecordForDate(record,it,original,remembered,processSettings)}
+ val editorTitle=editedRecord?.let{displayCourseTitle(it,remembered,processSettings)} ?: record.title
  val kilograms=weightText.toDoubleOrNull();val weightAt=weightDateTimeMillis(date,weightTime);val heightCm=heightText.toDoubleOrNull()
  val validHeight=heightText.isBlank()||(heightCm!=null&&heightCm>0&&heightCm.isFinite())
  val validWeight=(weightText.isBlank()||(kilograms!=null&&kilograms>0&&kilograms.isFinite()&&weightAt!=null))&&validHeight

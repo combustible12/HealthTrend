@@ -82,6 +82,16 @@ class CoursePhasePersistenceTest {
   store.saveCoursePhases(emptyList())
   assertTrue(HealthStore(context).coursePhases().isEmpty())
  }
+ @Test fun processSettingsRoundTripWithoutChangingCourseRecords(){
+  val store=HealthStore(context)
+  val record=CourseRecord(title="2化24-放27",phase="放疗",noteText="历史记录")
+  store.saveCourseRecord(record)
+  val before=store.courseRecords().single()
+  val settings=CourseProcessSettings(CourseProcessStage.BRACHYTHERAPY,true,false,27,5)
+  store.saveCourseProcessSettings(settings)
+  assertEquals(settings,HealthStore(context).courseProcessSettings())
+  assertEquals(before,HealthStore(context).courseRecords().single())
+ }
  @Test fun followUpTagIsAddedOnceWithoutRewritingHistory(){
   val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
   val history="""[{"id":"old","date":1,"title":"医院","phase":"观察"}]"""
