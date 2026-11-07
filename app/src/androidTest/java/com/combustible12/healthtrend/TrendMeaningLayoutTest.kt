@@ -39,6 +39,17 @@ class TrendMeaningLayoutTest {
   node.performClick()
   compose.runOnIdle{assertTrue(clicked)}
  }
+ @Test fun trendFilterRowsHaveCompactVisibleGaps(){
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("趋势").performClick()
+  val category=compose.onNodeWithText("血常规").getUnclippedBoundsInRoot()
+  val focus=compose.onNodeWithText("重点指标").getUnclippedBoundsInRoot()
+  val period=compose.onNodeWithText("近3月").getUnclippedBoundsInRoot()
+  val search=compose.onNodeWithTag("trendMetricSearch").getUnclippedBoundsInRoot()
+  assertEquals(6.5f,(focus.top-category.bottom).value,1f)
+  assertEquals(6.5f,(period.top-focus.bottom).value,1f)
+  assertEquals(5.75f,(search.top-period.bottom).value,1f)
+ }
  @Test fun latestSummaryKeepsPrecisionAndStatusWithoutRepeatingUnit(){
   compose.setContent{MaterialTheme{TrendLatestSummary("10.540","偏高",Bad)}}
   compose.onNodeWithText("10.540").assertIsDisplayed()

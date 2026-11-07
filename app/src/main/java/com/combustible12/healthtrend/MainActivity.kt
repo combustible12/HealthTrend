@@ -53,6 +53,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
@@ -625,10 +626,18 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
   )
  }
  Screen(trendSwipeModifier,"指标趋势",spacing=3.5.dp){
-  Row(Modifier.horizontalScroll(categoryScroll)){trendCategories.forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-  Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-  Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
-  AppSearchField(query,{query=it},"查找指标",height=48.dp,shape=RoundedCornerShape(8.dp))
+  // The former 48 dp chip slots added 8 dp above and below each 32 dp chip.
+  Column(Modifier.fillMaxWidth().padding(top=8.dp)){
+   CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+    Column(verticalArrangement=Arrangement.spacedBy(6.5.dp)){
+     Row(Modifier.horizontalScroll(categoryScroll)){trendCategories.forEach{t->FilterChip(category==t,{category=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+     Row{listOf("重点指标","其他指标").forEach{t->FilterChip(mode==t,{mode=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+     Row(Modifier.horizontalScroll(rememberScrollState())){listOf("近3月","近6月","近1年","全部").forEach{t->FilterChip(range==t,{range=t},label={Text(t)},modifier=Modifier.padding(end=8.dp),border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+    }
+   }
+   Spacer(Modifier.height(5.75.dp))
+  AppSearchField(query,{query=it},"查找指标",modifier=Modifier.testTag("trendMetricSearch"),height=48.dp,shape=RoundedCornerShape(8.dp))
+  }
   if(category=="体重"&&query.isBlank()){
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton({editingWeight=null;weightText="";val now=java.time.ZonedDateTime.now();weightDate=now.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd"));weightTime=now.toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));showWeight=true}){Text("+ 记录体重")}}
    if(weights.isEmpty())Paper{Text("暂无体重记录")} else TrendPaper{
