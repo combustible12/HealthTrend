@@ -19,11 +19,33 @@ class CourseNavigationTest {
   val store=HealthStore(context)
   store.saveCourseProcessSettings(CourseProcessSettings(CourseProcessStage.OBSERVATION,false,false,27,5))
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,emptyList(),store,{},{},{},{_,_->})}}
-  compose.onNodeWithText("观察").assertIsDisplayed()
-  compose.onNodeWithText("化疗天数关").assertIsDisplayed()
+  compose.onNodeWithText("进程总控").assertDoesNotExist()
+  val header=compose.onNodeWithText("病程记录").fetchSemanticsNode().boundsInRoot
+  val control=compose.onNodeWithContentDescription("打开进程总控").fetchSemanticsNode().boundsInRoot
+  assertTrue(control.left>=header.right && control.top<header.bottom && control.bottom>header.top)
   compose.onNodeWithContentDescription("打开进程总控").performClick()
+  compose.onNodeWithText("化疗天数：关").assertIsDisplayed()
   compose.onNodeWithText("外照计划次数").assertIsDisplayed()
   compose.onNodeWithText("后装计划次数").assertIsDisplayed()
+ }
+ @Test fun calendarOpensRecordedDayAndMovesReminderDotAfterRescheduling(){
+  val date=java.time.LocalDate.now().withDayOfMonth(2)
+  val next=date.plusDays(1)
+  val record=CourseRecord(date=date.minusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="手填记录",titleAuto=false)
+  val reminder=androidx.compose.runtime.mutableStateOf(TreatmentReminder(radiationNumber=0,text="复查报告",triggerDate=date.toString()))
+  var opened:String?=null
+  compose.setContent{MaterialTheme{CourseCalendar(listOf(record),listOf(reminder.value)){opened=it.id}}}
+  compose.onNodeWithContentDescription("${date.minusDays(1)} 有记录或提醒").performClick()
+  compose.runOnIdle{assertEquals(record.id,opened)}
+  compose.onNodeWithContentDescription("$date 有记录或提醒").performClick()
+  compose.onNodeWithText("复查报告",substring=true).assertIsDisplayed()
+  compose.runOnIdle{reminder.value=reminder.value.copy(triggerDate=next.toString())}
+  compose.onNodeWithContentDescription(date.toString()).assertExists()
+  compose.onNodeWithContentDescription("$next 有记录或提醒").assertExists()
+  compose.onNodeWithContentDescription("下个月").performClick()
+  compose.onNodeWithContentDescription("$next 有记录或提醒").assertDoesNotExist()
+  compose.onNodeWithContentDescription("上个月").performClick()
+  compose.onNodeWithContentDescription("$next 有记录或提醒").assertExists()
  }
  @Test fun datedBrachytherapyReminderAppearsOnMatchingCourseCard(){
   val at=java.time.LocalDate.of(2031,5,3).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()

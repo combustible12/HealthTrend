@@ -220,7 +220,7 @@ class MainActivity:ComponentActivity(){
    )
   }){
   when(tab){
-   0->Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2})
+   0->Home(m,reports,entries,importer,treatmentReminders,{reminder->change{store.saveTreatmentReminder(reminder)}},{id->change{store.deleteTreatmentReminder(id)}},{kind->if(kind==null)tab=1 else entry=HealthEntry(kind=kind,title="",occurredAtEpochMillis=System.currentTimeMillis())},{report=it},{tab=2},courseRecords){courseEditorSection=null;courseRecord=it}
    1->Trends(m,store,reports,revision,{key,value->change{store.setPrimary(key,value)}},{uris->viewerReportId=reports.firstOrNull{r->r.sourceImages.map{it.uri}==uris||r.sourceImages.any{it.uri in uris}}?.id;viewerCourseRecordId=null;viewer=uris},{r,x,v->change{store.updateValue(r.id,x.id,v)}},{testedAt->
     val zone=java.time.ZoneId.systemDefault();val day=java.time.Instant.ofEpochMilli(testedAt).atZone(zone).toLocalDate()
     courseEditorSection=null
@@ -430,11 +430,12 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 }
 @Composable fun Paper(m:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){Card(modifier=m.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp),content=content)}}
 @Composable fun TrendPaper(content:@Composable ColumnScope.()->Unit){Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(start=18.dp,end=18.dp,top=18.dp,bottom=8.dp),verticalArrangement=Arrangement.spacedBy(4.dp),content=content)}}
-@Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,reminders:List<TreatmentReminder>,saveReminder:(TreatmentReminder)->Unit,deleteReminder:(String)->Unit,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit){
+@Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,reminders:List<TreatmentReminder>,saveReminder:(TreatmentReminder)->Unit,deleteReminder:(String)->Unit,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit,courseRecords:List<CourseRecord> = emptyList(),openCourse:(CourseRecord)->Unit = {}){
  var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
- Screen(m,"导入数据",""){
- Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(22.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
+ Screen(m,"导入数据","",spacing=7.dp){
+ Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(horizontal=22.dp,vertical=11.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
  TreatmentReminderPanel(reminders,saveReminder,deleteReminder)
+ CourseCalendar(courseRecords,reminders,openCourse)
  }
  if(showPaste)AlertDialog(onDismissRequest={showPaste=false},title={Text("数据")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){AppInputField(pastedText,{pastedText=it},minHeight=220.dp,minLines=8)}},confirmButton={TextButton({importer.paste(pastedText);showPaste=false;pastedText=""},enabled=pastedText.isNotBlank()&&!importer.busy){Text("进入核对")}},dismissButton={TextButton({showPaste=false}){Text("取消")}})
 }
@@ -444,11 +445,11 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
  var showCompleted by rememberSaveable{mutableStateOf(false)}
  val pending=reminders.filter{it.completedAt==null};val completed=reminders.filter{it.completedAt!=null}
  Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-  Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Column(Modifier.padding(horizontal=18.dp,vertical=9.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Notifications,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("提醒",Modifier.weight(1f),fontSize=20.sp,fontWeight=FontWeight.Bold);IconButton({adding=true}){Icon(Icons.Outlined.Add,"添加提醒",tint=Accent)}}
    if(pending.isEmpty())Text("暂无待提醒",fontSize=13.sp,color=Muted)
-   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=7.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis);Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}}
-   if(completed.isNotEmpty()){TextButton({showCompleted=!showCompleted},contentPadding=PaddingValues(0.dp)){Text(if(showCompleted)"收起已完成" else "已完成 ${completed.size}",color=Muted)};if(showCompleted)completed.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=6.dp)){Text("${treatmentReminderTriggerLabel(item)} · ${item.text}",color=Muted)}}}
+   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=3.5.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}}
+   if(completed.isNotEmpty()){TextButton({showCompleted=!showCompleted},contentPadding=PaddingValues(0.dp)){Text(if(showCompleted)"收起已完成" else "已完成 ${completed.size}",color=Muted)};if(showCompleted)completed.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=3.dp)){Text("${treatmentReminderTriggerLabel(item)} · ${item.text}",color=Muted)}}}
   }
  }
  val target=editing?:if(adding)TreatmentReminder(radiationNumber=1,text="") else null
@@ -469,15 +470,15 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
   if(needsPermission){pendingNotificationSave=reminder;notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)}else{save(reminder);close()}
  }
  val existing=initial.text.isNotBlank()
- AlertDialog(onDismissRequest=close,title={Text(if(existing)"编辑提醒" else "添加提醒")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)){
+ AlertDialog(onDismissRequest=close,title={Text(if(existing)"编辑提醒" else "添加提醒")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(7.dp)){
   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("放疗次数","日期","后装","复查").forEach{mode->FilterChip(selected=triggerMode==mode,onClick={triggerMode=mode},label={Text(mode)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   if(triggerMode=="放疗次数")AppInputField(number,{number=it.filter(Char::isDigit).take(3)},label="放疗次数",prefix={Text("放")},singleLine=true)
   else Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
    if(triggerMode=="后装")AppInputField(brachyNumber,{brachyNumber=it.filter(Char::isDigit).take(3)},label="后装次数",prefix={Text("第")},singleLine=true)
    Text("提醒日期",fontSize=13.sp,color=Muted)
-   Surface(onClick={val initialDate=runCatching{LocalDate.parse(triggerDate)}.getOrElse{LocalDate.now()};android.app.DatePickerDialog(context,{_,year,month,day->triggerDate=LocalDate.of(year,month+1,day).toString()},initialDate.year,initialDate.monthValue-1,initialDate.dayOfMonth).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(runCatching{LocalDate.parse(triggerDate).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}.getOrElse{triggerDate},Modifier.weight(1f));Icon(Icons.Outlined.CalendarMonth,"选择提醒日期",tint=Accent)}}
+   Surface(onClick={val initialDate=runCatching{LocalDate.parse(triggerDate)}.getOrElse{LocalDate.now()};android.app.DatePickerDialog(context,{_,year,month,day->triggerDate=LocalDate.of(year,month+1,day).toString()},initialDate.year,initialDate.monthValue-1,initialDate.dayOfMonth).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(runCatching{LocalDate.parse(triggerDate).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}.getOrElse{triggerDate},Modifier.weight(1f));Icon(Icons.Outlined.CalendarMonth,"选择提醒日期",tint=Accent)}}
    Text("提醒时间",fontSize=13.sp,color=Muted)
-   Surface(onClick={val time=runCatching{LocalTime.parse(triggerTime)}.getOrElse{LocalTime.of(9,0)};android.app.TimePickerDialog(context,{_,hour,minute->triggerTime=LocalTime.of(hour,minute).format(DateTimeFormatter.ofPattern("HH:mm"))},time.hour,time.minute,true).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(triggerTime,Modifier.weight(1f));Icon(Icons.Outlined.Schedule,"选择提醒时间",tint=Accent)}}
+   Surface(onClick={val time=runCatching{LocalTime.parse(triggerTime)}.getOrElse{LocalTime.of(9,0)};android.app.TimePickerDialog(context,{_,hour,minute->triggerTime=LocalTime.of(hour,minute).format(DateTimeFormatter.ofPattern("HH:mm"))},time.hour,time.minute,true).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(triggerTime,Modifier.weight(1f));Icon(Icons.Outlined.Schedule,"选择提醒时间",tint=Accent)}}
   }
   AppInputField(text,{text=it},label=if(triggerMode=="复查")"复查项目" else "提醒内容",minLines=2)
  }},confirmButton={TextButton({

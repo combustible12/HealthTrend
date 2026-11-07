@@ -206,7 +206,9 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
   Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
    Spacer(Modifier.height(12.dp))
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Text("病程记录",modifier=Modifier.weight(1f).pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
+    Text("病程记录",modifier=Modifier.pointerInput(listState){detectTapGestures(onDoubleTap={scope.launch{listState.animateScrollToItem(0)}})},fontSize=28.sp,fontWeight=FontWeight.Bold)
+    IconButton({managingProcess=true}){Icon(Icons.Outlined.Tune,"打开进程总控",tint=Accent)}
+    Spacer(Modifier.weight(1f))
     IconButton(::pickCourseDate){Icon(Icons.Outlined.CalendarMonth,"按日期查看病程记录",tint=Accent)}
     IconButton(add){Icon(Icons.Outlined.Add,"新增病程记录",tint=Accent)}
    }
@@ -225,7 +227,6 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
     }
    }
    PortMaintenanceSection(store)
-   CourseProcessBar(processSettings,currentRadiotherapyNumber(records)){managingProcess=true}
    Spacer(Modifier.height(8.dp))
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
@@ -249,7 +250,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  if(managingPhases)CoursePhaseManager(phaseDefinitions,{managingPhases=false}){updated->
   runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter!=growthFactorInjectionFilter&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
- if(managingProcess)CourseProcessEditor(processSettings,{managingProcess=false}){updated->
+ if(managingProcess)CourseProcessEditor(processSettings,currentRadiotherapyNumber(records),{managingProcess=false}){updated->
   store.saveCourseProcessSettings(updated);processSettings=updated;managingProcess=false
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
@@ -263,21 +264,8 @@ private fun courseProcessStageLabel(stage:CourseProcessStage)=when(stage){
  CourseProcessStage.FOLLOW_UP->"结疗复查"
 }
 
-@Composable private fun CourseProcessBar(settings:CourseProcessSettings,completedRadiotherapy:Int,open:()->Unit){
- Surface(onClick=open,modifier=Modifier.fillMaxWidth().padding(top=8.dp),shape=RoundedCornerShape(14.dp),color=Color.White){
-  Row(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-   Text("进程",fontSize=13.sp,color=Muted)
-   Text(courseProcessStageLabel(settings.stage),fontWeight=FontWeight.Bold)
-   Text(if(settings.chemotherapyDaysEnabled)"化疗天数开" else "化疗天数关",fontSize=12.sp,color=Muted)
-   if(settings.stage==CourseProcessStage.EXTERNAL_BEAM)Text("放${completedRadiotherapy}/${settings.radiotherapyPlannedTotal}",Modifier.weight(1f),fontSize=12.sp,color=Muted,textAlign=androidx.compose.ui.text.style.TextAlign.End)
-   else Spacer(Modifier.weight(1f))
-   Icon(Icons.Outlined.ChevronRight,"打开进程总控",tint=Muted)
-  }
- }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
-@Composable private fun CourseProcessEditor(initial:CourseProcessSettings,close:()->Unit,save:(CourseProcessSettings)->Unit){
+@Composable private fun CourseProcessEditor(initial:CourseProcessSettings,completedRadiotherapy:Int,close:()->Unit,save:(CourseProcessSettings)->Unit){
  var stage by rememberSaveable{mutableStateOf(initial.stage)}
  var chemotherapyDaysEnabled by rememberSaveable{mutableStateOf(initial.chemotherapyDaysEnabled)}
  var radiotherapyEnabled by rememberSaveable{mutableStateOf(initial.radiotherapyEnabled)}
@@ -291,6 +279,7 @@ private fun courseProcessStageLabel(stage:CourseProcessStage)=when(stage){
    }
    FilterChip(chemotherapyDaysEnabled,{chemotherapyDaysEnabled=!chemotherapyDaysEnabled},label={Text(if(chemotherapyDaysEnabled)"化疗天数：开" else "化疗天数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
    FilterChip(radiotherapyEnabled,{radiotherapyEnabled=!radiotherapyEnabled},label={Text(if(radiotherapyEnabled)"外照计数：开" else "外照计数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
+   if(stage==CourseProcessStage.EXTERNAL_BEAM)Text("已记录外照 ${completedRadiotherapy} 次",fontSize=13.sp,color=Muted)
    AppInputField(radiotherapyTotal,{radiotherapyTotal=it.filter(Char::isDigit).take(3)},label="外照计划次数",singleLine=true)
    AppInputField(brachytherapyTotal,{brachytherapyTotal=it.filter(Char::isDigit).take(2)},label="后装计划次数",singleLine=true)
   }
