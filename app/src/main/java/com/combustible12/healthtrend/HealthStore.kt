@@ -1190,17 +1190,19 @@ class HealthStore(private val context:Context) {
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
   return missing.size
  }
- @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.optInt("radiationNumber",0),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()),o.optString("triggerDate"),o.optString("triggerTime","09:00"),if(o.isNull("snoozedUntil"))null else o.getLong("snoozedUntil"))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
+ @Synchronized fun treatmentReminders():List<TreatmentReminder> = rows(read("treatment_reminders")){o->TreatmentReminder(o.getString("id"),o.optInt("radiationNumber",0),o.getString("text"),if(o.isNull("completedAt"))null else o.getLong("completedAt"),o.optLong("createdAt",System.currentTimeMillis()),o.optString("triggerDate"),o.optString("triggerTime","09:00"),if(o.isNull("snoozedUntil"))null else o.getLong("snoozedUntil"),ReminderPurpose.values().firstOrNull{it.name==o.optString("purpose")}?:ReminderPurpose.GENERAL,o.optInt("brachytherapyNumber",0))}.sortedWith(compareBy<TreatmentReminder>{it.completedAt!=null}.thenBy{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
  @Synchronized fun saveTreatmentReminder(reminder:TreatmentReminder){
   val triggerDate=reminder.triggerDate.trim()
   val triggerTime=reminder.triggerTime.trim().ifBlank{"09:00"}
+  require(reminder.purpose==ReminderPurpose.GENERAL || triggerDate.isNotBlank()){"请选择提醒日期"}
+  require(reminder.purpose!=ReminderPurpose.BRACHYTHERAPY || reminder.brachytherapyNumber>0){"请选择后装次数"}
   if(triggerDate.isBlank())require(reminder.radiationNumber>0){"放疗次数必须大于0"}
   else {
    require(runCatching{java.time.LocalDate.parse(triggerDate)}.isSuccess){"提醒日期无效"}
    require(runCatching{java.time.LocalTime.parse(triggerTime)}.isSuccess){"提醒时间无效"}
   }
   require(reminder.text.isNotBlank()){"请填写提醒内容"}
-  val saved=reminder.copy(radiationNumber=if(triggerDate.isBlank())reminder.radiationNumber else 0,text=reminder.text.trim(),triggerDate=triggerDate,triggerTime=triggerTime)
+  val saved=reminder.copy(brachytherapyNumber=if(reminder.purpose==ReminderPurpose.BRACHYTHERAPY)reminder.brachytherapyNumber else 0,radiationNumber=if(triggerDate.isBlank())reminder.radiationNumber else 0,text=reminder.text.trim(),triggerDate=triggerDate,triggerTime=triggerTime)
   write("treatment_reminders",JSONArray().apply{(treatmentReminders().filterNot{it.id==saved.id}+saved).forEach{put(treatmentReminderToJson(it))}})
   TreatmentReminderNotifications.sync(context,saved)
  }
@@ -1290,7 +1292,7 @@ class HealthStore(private val context:Context) {
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
  private fun courseTextTemplateToJson(t:CourseTextTemplate)=JSONObject().put("id",t.id).put("sectionId",t.sectionId).put("name",t.name).put("text",t.text).put("default",t.isDefault).put("updatedAt",t.updatedAt)
  private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("treatmentText",r.treatmentText).put("treatmentImages",JSONArray(r.treatmentImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("dietText",r.dietText).put("dietImages",JSONArray(r.dietImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("customSections",JSONArray().apply{r.customSections.forEach{put(JSONObject().put("sectionId",it.sectionId).put("text",it.text).put("images",JSONArray(it.images)))}}).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection).put("userEdited",r.userEdited).put("initialSectionTemplates",r.initialSectionTemplates?.let { JSONObject(it) })
- private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate).put("triggerTime",r.triggerTime).put("snoozedUntil",r.snoozedUntil?:JSONObject.NULL)
+ private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate).put("triggerTime",r.triggerTime).put("snoozedUntil",r.snoozedUntil?:JSONObject.NULL).put("purpose",r.purpose.name).put("brachytherapyNumber",r.brachytherapyNumber)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
   date=o.getLong("date"),

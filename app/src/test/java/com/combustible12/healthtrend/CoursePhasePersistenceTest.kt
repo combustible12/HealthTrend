@@ -33,6 +33,24 @@ class CoursePhasePersistenceTest {
    assertEquals(other,reopened.single{it.id==other.id})
   }
  }
+ @Test fun datedBrachytherapyAndFollowUpRemindersPreserveTypeAndLeaveHistoryAlone(){
+  val store=HealthStore(context)
+  val prefs=context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE)
+  val history="""[{"id":"historical","date":1,"title":"医院"}]"""
+  prefs.edit().putString("course_records",history).putString("treatment_reminders","""[{"id":"old","radiationNumber":3,"text":"旧提醒"}]""").commit()
+  val after=java.time.LocalDateTime.of(2031,5,3,10,0)
+  for(purpose in listOf(ReminderPurpose.BRACHYTHERAPY,ReminderPurpose.FOLLOW_UP)){
+   val input=TreatmentReminder(radiationNumber=0,text="检查",triggerDate="2031-05-03",triggerTime="10:00",purpose=purpose,brachytherapyNumber=if(purpose==ReminderPurpose.BRACHYTHERAPY)2 else 0)
+   store.saveTreatmentReminder(input)
+   val saved=HealthStore(context).treatmentReminders().single{it.id==input.id}
+   assertEquals(input,saved)
+   assertNull(nextDueTreatmentReminder(listOf(saved),99,now=after.minusMinutes(1)))
+   assertEquals(saved,nextDueTreatmentReminder(listOf(saved),0,now=after))
+   assertTrue(treatmentReminderTriggerLabel(saved).startsWith(if(purpose==ReminderPurpose.BRACHYTHERAPY)"后装2 " else "复查 "))
+  }
+  assertEquals(ReminderPurpose.GENERAL,store.treatmentReminders().single{it.id=="old"}.purpose)
+  assertEquals(history,prefs.getString("course_records",null))
+ }
  @Test fun customPhasesPersistAndEmptyListDoesNotRestoreDeletedDefaults(){
   val store=HealthStore(context)
   assertEquals(listOf("化疗日","恢复期","观察","放疗","放化","其他","复查"),store.coursePhases())

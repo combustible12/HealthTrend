@@ -255,6 +255,8 @@ data class CourseRecord(
  val userEdited:Boolean=false,
  val initialSectionTemplates:Map<String,String>?=null
 ):java.io.Serializable
+enum class ReminderPurpose { GENERAL, BRACHYTHERAPY, FOLLOW_UP }
+
 data class TreatmentReminder(
  val id:String=newId(),
  val radiationNumber:Int,
@@ -263,7 +265,9 @@ data class TreatmentReminder(
  val createdAt:Long=System.currentTimeMillis(),
  val triggerDate:String="",
  val triggerTime:String="09:00",
- val snoozedUntil:Long?=null
+ val snoozedUntil:Long?=null,
+ val purpose:ReminderPurpose=ReminderPurpose.GENERAL,
+ val brachytherapyNumber:Int=0
 ):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String="",val heightCm:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")

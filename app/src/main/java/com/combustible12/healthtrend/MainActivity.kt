@@ -355,8 +355,13 @@ internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiatio
   }.getOrDefault(false) else reminder.radiationNumber<=radiationNumber
  }.minWithOrNull(compareBy<TreatmentReminder>{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
 
-internal fun treatmentReminderTriggerLabel(reminder:TreatmentReminder):String=if(reminder.triggerDate.isNotBlank())runCatching{"${LocalDate.parse(reminder.triggerDate).format(DateTimeFormatter.ofPattern("MM/dd"))} ${reminder.triggerTime.ifBlank{"09:00"}}"}.getOrElse{reminder.triggerDate}else "放${reminder.radiationNumber}"
-internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(reminder.triggerDate.isNotBlank())runCatching{LocalDate.parse(reminder.triggerDate).let{"${it.monthValue}月${it.dayOfMonth}日提醒"}}.getOrElse{"日期提醒"}else "放${reminder.radiationNumber}提醒"
+private fun reminderPurposeLabel(reminder:TreatmentReminder):String=when(reminder.purpose){
+ ReminderPurpose.BRACHYTHERAPY->"后装${reminder.brachytherapyNumber}"
+ ReminderPurpose.FOLLOW_UP->"复查"
+ ReminderPurpose.GENERAL->""
+}
+internal fun treatmentReminderTriggerLabel(reminder:TreatmentReminder):String=reminderPurposeLabel(reminder).let{if(it.isEmpty()) "" else "$it "} + if(reminder.triggerDate.isNotBlank())runCatching{"${LocalDate.parse(reminder.triggerDate).format(DateTimeFormatter.ofPattern("MM/dd"))} ${reminder.triggerTime.ifBlank{"09:00"}}"}.getOrElse{reminder.triggerDate}else "放${reminder.radiationNumber}"
+internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=reminderPurposeLabel(reminder).let{if(it.isEmpty()) "" else "$it "} + if(reminder.triggerDate.isNotBlank())runCatching{LocalDate.parse(reminder.triggerDate).let{"${it.monthValue}月${it.dayOfMonth}日提醒"}}.getOrElse{"日期提醒"}else "放${reminder.radiationNumber}提醒"
 @Composable fun Screen(m:Modifier,title:String,subtitle:String="",spacing:androidx.compose.ui.unit.Dp=14.dp,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(m.fillMaxSize()){
@@ -433,10 +438,12 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
  val target=editing?:if(adding)TreatmentReminder(radiationNumber=1,text="") else null
  if(target!=null)TreatmentReminderEditor(target,{editing=null;adding=false},save,delete)
 }
+@OptIn(ExperimentalLayoutApi::class)
 @Composable private fun TreatmentReminderEditor(initial:TreatmentReminder,close:()->Unit,save:(TreatmentReminder)->Unit,delete:(String)->Unit){
  val context=LocalContext.current
- var triggerMode by remember(initial.id){mutableStateOf(if(initial.triggerDate.isNotBlank())"日期" else "放疗次数")}
+ var triggerMode by remember(initial.id){mutableStateOf(when(initial.purpose){ReminderPurpose.BRACHYTHERAPY->"后装"; ReminderPurpose.FOLLOW_UP->"复查"; ReminderPurpose.GENERAL->if(initial.triggerDate.isNotBlank())"日期" else "放疗次数"})}
  var number by remember(initial.id){mutableStateOf(initial.radiationNumber.takeIf{it>0}?.toString()?:"1")};var triggerDate by remember(initial.id){mutableStateOf(initial.triggerDate.ifBlank{LocalDate.now().toString()})};var triggerTime by remember(initial.id){mutableStateOf(initial.triggerTime.ifBlank{"09:00"})};var text by remember(initial.id){mutableStateOf(initial.text)}
+ var brachyNumber by rememberSaveable(initial.id){mutableStateOf(initial.brachytherapyNumber.takeIf{it>0}?.toString()?:"1")}
  var pendingNotificationSave by remember(initial.id){mutableStateOf<TreatmentReminder?>(null)}
  val notificationPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){
   pendingNotificationSave?.let(save);pendingNotificationSave=null;close()
@@ -446,17 +453,30 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
   if(needsPermission){pendingNotificationSave=reminder;notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)}else{save(reminder);close()}
  }
  val existing=initial.text.isNotBlank()
- AlertDialog(onDismissRequest=close,title={Text(if(existing)"编辑提醒" else "添加提醒")},text={Column(verticalArrangement=Arrangement.spacedBy(14.dp)){
-  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("放疗次数","日期").forEach{mode->FilterChip(selected=triggerMode==mode,onClick={triggerMode=mode},label={Text(mode)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
+ AlertDialog(onDismissRequest=close,title={Text(if(existing)"编辑提醒" else "添加提醒")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("放疗次数","日期","后装","复查").forEach{mode->FilterChip(selected=triggerMode==mode,onClick={triggerMode=mode},label={Text(mode)},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color.White,selectedContainerColor=SelectedTint))}}
   if(triggerMode=="放疗次数")AppInputField(number,{number=it.filter(Char::isDigit).take(3)},label="放疗次数",prefix={Text("放")},singleLine=true)
   else Column(verticalArrangement=Arrangement.spacedBy(6.dp)){
+   if(triggerMode=="后装")AppInputField(brachyNumber,{brachyNumber=it.filter(Char::isDigit).take(3)},label="后装次数",prefix={Text("第")},singleLine=true)
    Text("提醒日期",fontSize=13.sp,color=Muted)
    Surface(onClick={val initialDate=runCatching{LocalDate.parse(triggerDate)}.getOrElse{LocalDate.now()};android.app.DatePickerDialog(context,{_,year,month,day->triggerDate=LocalDate.of(year,month+1,day).toString()},initialDate.year,initialDate.monthValue-1,initialDate.dayOfMonth).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(runCatching{LocalDate.parse(triggerDate).format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))}.getOrElse{triggerDate},Modifier.weight(1f));Icon(Icons.Outlined.CalendarMonth,"选择提醒日期",tint=Accent)}}
    Text("提醒时间",fontSize=13.sp,color=Muted)
    Surface(onClick={val time=runCatching{LocalTime.parse(triggerTime)}.getOrElse{LocalTime.of(9,0)};android.app.TimePickerDialog(context,{_,hour,minute->triggerTime=LocalTime.of(hour,minute).format(DateTimeFormatter.ofPattern("HH:mm"))},time.hour,time.minute,true).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(triggerTime,Modifier.weight(1f));Icon(Icons.Outlined.Schedule,"选择提醒时间",tint=Accent)}}
   }
-  AppInputField(text,{text=it},label="提醒内容",minLines=2)
- }},confirmButton={TextButton({val newNumber=if(triggerMode=="放疗次数")number.toIntOrNull()?:0 else 0;val newDate=if(triggerMode=="日期")triggerDate else "";val newTime=if(triggerMode=="日期")triggerTime else initial.triggerTime;val sameTrigger=initial.radiationNumber==newNumber&&initial.triggerDate==newDate&&initial.triggerTime==newTime;commit(initial.copy(radiationNumber=newNumber,triggerDate=newDate,triggerTime=newTime,text=text,snoozedUntil=if(sameTrigger)initial.snoozedUntil else null,completedAt=if(sameTrigger)initial.completedAt else null))},enabled=(triggerMode=="日期"||((number.toIntOrNull()?:0)>0))&&text.isNotBlank()){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({commit(initial.copy(completedAt=null,snoozedUntil=null))}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
+  AppInputField(text,{text=it},label=if(triggerMode=="复查")"复查项目" else "提醒内容",minLines=2)
+ }},confirmButton={TextButton({
+  val purpose=when(triggerMode){"后装"->ReminderPurpose.BRACHYTHERAPY; "复查"->ReminderPurpose.FOLLOW_UP; else->ReminderPurpose.GENERAL}
+  val newNumber=if(triggerMode=="放疗次数")number.toInt() else 0
+  val session=if(triggerMode=="后装")brachyNumber.toInt() else 0
+  val newDate=if(triggerMode=="放疗次数")"" else triggerDate
+  val newTime=if(newDate.isBlank())initial.triggerTime else triggerTime
+  val sameTrigger=initial.purpose==purpose && initial.brachytherapyNumber==session && initial.radiationNumber==newNumber && initial.triggerDate==newDate && initial.triggerTime==newTime
+  commit(initial.copy(radiationNumber=newNumber,purpose=purpose,brachytherapyNumber=session,triggerDate=newDate,triggerTime=newTime,text=text.ifBlank{"后装$session"},snoozedUntil=if(sameTrigger)initial.snoozedUntil else null,completedAt=if(sameTrigger)initial.completedAt else null))
+ },enabled=when(triggerMode){
+  "放疗次数"->(number.toIntOrNull()?:0)>0 && text.isNotBlank()
+  "后装"->(brachyNumber.toIntOrNull()?:0)>0
+  else->text.isNotBlank()
+ }){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({commit(initial.copy(completedAt=null,snoozedUntil=null))}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){val heading=ReportNaming.title(r);Text(heading.category,fontWeight=FontWeight.Bold);if(heading.name.isNotBlank())Text(heading.name,fontSize=13.sp,color=Muted)};IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}
