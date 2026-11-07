@@ -47,6 +47,19 @@ class CourseTreatmentTitleTest {
   assertEquals(null,nextPortMaintenanceDate(""))
  }
 
+ @Test fun backfilledPortHistoryRecalculatesIntervalsAndKeepsActualDates(){
+  val a = LocalDate.parse("2020-01-01")
+  val b = LocalDate.parse("2020-01-27")
+  val c = LocalDate.parse("2020-02-26")
+  val history = PortHistory(legacy=b).update(c,false).update(a,true).update(b,false).update(c,false)
+  assertEquals(listOf(b,c),history.flushes)
+  assertEquals(null,history.legacy)
+  assertEquals(26L,history.interval(0))
+  assertEquals(30L,history.interval(1))
+  assertEquals(c,history.latest)
+  assertEquals(29L,history.update(b.plusDays(1),false,b).interval(1))
+ }
+
  @Test fun calendarLookupReturnsOnlyTheSelectedDateCard(){
   val first=record("2026-10-27","放疗")
   val second=record("2026-10-28","观察")

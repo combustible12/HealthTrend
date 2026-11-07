@@ -59,7 +59,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 
 
-private val courseFilterHeight=32.dp
+internal val courseFilterHeight=32.dp
 private val courseFilterWidth=58.dp
 private const val growthFactorInjectionFilter="__growth_factor_injection__"
 
@@ -207,10 +207,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
      TextButton({managingPhases=true},Modifier.align(Alignment.End).height(32.dp),contentPadding=PaddingValues(horizontal=4.dp,vertical=0.dp)){Icon(Icons.Outlined.Edit,"管理分类",Modifier.size(18.dp));Spacer(Modifier.width(4.dp));Text("管理")}
     }
    }
-   Row(Modifier.fillMaxWidth().offset(x=(-6).dp).padding(end=8.dp)){
-    Spacer(Modifier.width(22.dp))
-    PortMaintenanceBar(store,Modifier.weight(1f))
-   }
+   PortMaintenanceSection(store)
    Spacer(Modifier.height(8.dp))
    if(shown.isEmpty())Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text(if(query.isBlank())"还没有病程记录" else "没有找到相关病程记录",color=Muted)}
    else Box(Modifier.fillMaxSize()){
@@ -326,35 +323,20 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
  scheduledDate.toString()
 }.getOrNull()
 
-@Composable private fun PortMaintenanceBar(store:HealthStore,modifier:Modifier=Modifier){
- val context=LocalContext.current
- var lastDate by remember{mutableStateOf(store.portMaintenanceLastDate().orEmpty())}
+@Composable internal fun PortMaintenanceBar(lastDate:String,modifier:Modifier,onPick:()->Unit,onDone:()->Unit){
  val nextDate=nextPortMaintenanceDate(lastDate).orEmpty()
  fun compact(value:String)=runCatching{LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MM/dd"))}.getOrElse{"--/--"}
- fun recordMaintenance(date: String) {
-  store.savePortMaintenanceLastDate(date)
-  lastDate = date
- }
- fun pickLastDate(){
-  val initial=runCatching{LocalDate.parse(lastDate)}.getOrElse{LocalDate.now()}
-  android.app.DatePickerDialog(context,{_,year,month,day->
-   val selected=LocalDate.of(year,month+1,day).toString()
-   recordMaintenance(selected)
-  },initial.year,initial.monthValue-1,initial.dayOfMonth).show()
- }
  Surface(modifier.fillMaxWidth().height(courseFilterHeight).semantics{contentDescription="港维护色块"},shape=RoundedCornerShape(12.dp),color=Color.White){
   Row(Modifier.fillMaxSize().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){
    Text("港维护",fontSize=13.sp,fontWeight=FontWeight.Normal,color=Muted)
    Spacer(Modifier.width(12.dp))
-   Text(compact(lastDate),Modifier.clickable{pickLastDate()},fontSize=13.sp,fontWeight=FontWeight.Normal,color=Ink)
+   Text(compact(lastDate),Modifier.clickable(onClick=onPick),fontSize=13.sp,fontWeight=FontWeight.Normal,color=Ink)
    Spacer(Modifier.width(8.dp))
    Text("→",fontSize=13.sp,fontWeight=FontWeight.Normal,color=Muted)
    Spacer(Modifier.width(8.dp))
    Text(compact(nextDate),fontSize=14.sp,fontWeight=FontWeight.Bold,color=Ink)
    Spacer(Modifier.weight(1f))
-   Text("已维护",Modifier.clickable{
-    recordMaintenance(LocalDate.now().toString())
-   }.padding(start=12.dp,top=4.dp,bottom=4.dp),fontSize=13.sp,fontWeight=FontWeight.Normal,color=Accent)
+   Text("已维护",Modifier.clickable(onClick=onDone).padding(start=12.dp,top=4.dp,bottom=4.dp),fontSize=13.sp,fontWeight=FontWeight.Normal,color=Accent)
   }
  }
 }

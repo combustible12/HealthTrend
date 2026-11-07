@@ -23,6 +23,16 @@ class CourseNavigationTest {
   compose.onNodeWithText("已维护").performClick()
   compose.runOnIdle{assertEquals(today.toString(), store.portMaintenanceLastDate())}
  }
+ @Test fun portHistoryOpensAndShowsPersistedIntervals(){
+  val store=HealthStore(context)
+  store.recordPortDate(java.time.LocalDate.parse("2020-01-01"),true)
+  store.savePortMaintenanceLastDate("2020-01-29")
+  store.savePortMaintenanceLastDate("2020-02-25")
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,emptyList(),HealthStore(context),{},{},{},{_,_->})}}
+  compose.onNodeWithContentDescription("港维护记录").performClick()
+  compose.onNodeWithText("距安港 28 天").assertIsDisplayed()
+  compose.onNodeWithText("距上次冲管 27 天").assertIsDisplayed()
+ }
  @Test fun portMaintenanceMatchesCourseCardWidthAndFilterHeight(){
   val initial=CourseRecord(title="布局核对")
   val store=HealthStore(context)

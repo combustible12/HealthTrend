@@ -129,12 +129,29 @@ class HealthStore(private val context:Context) {
   write("course_text_templates",JSONArray().apply{allCourseTextTemplates().filterNot{it.id==id}.forEach{put(courseTextTemplateToJson(it))}})
  }
  fun defaultCourseText(sectionId:String):String=courseTextTemplates(sectionId).firstOrNull{it.isDefault}?.text.orEmpty()
- fun portMaintenanceLastDate():String?=prefs.getString("port_maintenance_last_date",null)?.takeIf{value->
-  runCatching{java.time.LocalDate.parse(value)}.isSuccess
+ internal fun portHistory(): PortHistory {
+  val data = prefs.getString("port_history", null)
+  if (data == null) {
+   val old = prefs.getString("port_maintenance_last_date", null)
+   return PortHistory(legacy = old?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() })
+  }
+  val json = JSONObject(data)
+  fun date(key: String) = json.optString(key).takeIf { it.isNotEmpty() }?.let { java.time.LocalDate.parse(it) }
+  val dates = json.getJSONArray("flushes")
+  return PortHistory(date("placement"), (0 until dates.length()).map { java.time.LocalDate.parse(dates.getString(it)) }.distinct().sorted(), date("legacy"))
  }
- fun savePortMaintenanceLastDate(value:String){
-  require(runCatching{java.time.LocalDate.parse(value)}.isSuccess){"港维护日期格式错误"}
-  check(prefs.edit().putString("port_maintenance_last_date",value).commit()){"港维护日期保存失败"}
+ internal fun recordPortDate(date: java.time.LocalDate, placement: Boolean, replacing: java.time.LocalDate? = null): PortHistory = synchronized(prefs) {
+  val updated = portHistory().update(date, placement, replacing)
+  val json = JSONObject().put("flushes", JSONArray(updated.flushes.map { it.toString() }))
+  updated.placement?.let { json.put("placement", it.toString()) }
+  updated.legacy?.let { json.put("legacy", it.toString()) }
+  check(prefs.edit().putString("port_history", json.toString())
+   .putString("port_maintenance_last_date", updated.latest?.toString()).commit()) { "港维护记录保存失败" }
+  updated
+ }
+ fun portMaintenanceLastDate(): String? = portHistory().latest?.toString()
+ fun savePortMaintenanceLastDate(value: String) {
+  recordPortDate(java.time.LocalDate.parse(value), false)
  }
  // Startup must never seed obsolete hospital templates on a fresh install.
  // Existing legacy templates remain stored unchanged for compatibility/backup.
@@ -1236,11 +1253,11 @@ class HealthStore(private val context:Context) {
    .putString("metric_preferred_names",preferred.toString())
    .putString("custom_metrics",custom.toString()).commit()){"词典保存失败"}
  }
- internal fun hasRestoreProtectedConfiguration():Boolean = listOf(
+ internal fun hasRestoreProtectedConfiguration():Boolean = portHistory().latest != null || listOf(
   "templates","custom_metrics","metric_aliases","metric_preferred_names","metric_standard_ranges",
   "report_identity_links","report_replacement_archive","trend_identity_mappings","course_section_definitions","course_text_templates"
  ).any{read(it).length()>0}
- fun exportBackup():String=JSONObject().put("schema",4).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
+ fun exportBackup():String=JSONObject().put("schema",4).put("portHistory",prefs.getString("port_history",null)?.let { JSONObject(it) }).put("portMaintenanceLastDate",portMaintenanceLastDate()).put("bloodGroupProfile",bloodGroupProfile().toJson()).put("patientProfile",JSONObject().put("name",patientProfile().name).put("birthDate",patientProfile().birthDate).put("sex",patientProfile().sex).put("note",patientProfile().note).put("bloodType",patientProfile().bloodType)).put("reports",read("reports")).put("reportReplacementArchive",read("report_replacement_archive")).put("templates",read("templates")).put("entries",read("entries")).put("weights",read("weights")).put("courseRecords",read("course_records")).put("courseSectionDefinitions",read("course_section_definitions")).put("courseTextTemplates",read("course_text_templates")).put("standardRanges",read("metric_standard_ranges")).put("metricAliases",read("metric_aliases")).put("customMetrics",read("custom_metrics")).put("reportIdentityLinks",read("report_identity_links")).put("primary",JSONObject().apply{prefs.all.filterKeys{it.startsWith("primary:")}.forEach{(k,v)->put(k,v)}}).toString()
  private fun reportToJson(r:LabReport)=JSONObject().put("id",r.id).put("hospital",r.hospitalKey).put("type",r.reportType).put("reportName",r.reportName?:JSONObject.NULL).put("date",r.testedAtEpochMillis).put("tv",r.templateVersion).put("ocr",r.rawOcr).put("system",r.systemKey).put("images",JSONArray().apply{r.sourceImages.forEach{put(JSONObject().put("uri",it.uri).put("page",it.pageIndex).put("at",it.importedAtEpochMillis))}}).put("results",JSONArray().apply{r.results.forEach{put(JSONObject().put("id",it.id).put("key",it.metricKey).put("raw",it.rawName).put("value",it.value?:JSONObject.NULL).put("text",it.textValue).put("cmp",it.comparator).put("line",it.rawLine).put("referenceRaw",it.referenceRaw).put("reportFlag",it.reportFlag).put("unit",it.unitAtTest).put("low",it.referenceLowAtTest?:JSONObject.NULL).put("high",it.referenceHighAtTest?:JSONObject.NULL).put("edited",it.editedByUser).put("normalizedValue",it.normalizedValue?:JSONObject.NULL).put("normalizedUnit",it.normalizedUnit))}})
  private fun reportFromJson(o:JSONObject):LabReport {
   val id=o.getString("id");val h=o.getString("hospital");val t=o.getString("type");val date=o.getLong("date");val version=o.intOrNull("tv")
