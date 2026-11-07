@@ -71,6 +71,19 @@ class CoursePhasePersistenceTest {
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().putString("course_records","""[{"id":"legacy-custom","date":1,"phase":"观察","title":"旧病程","symptomImages":[],"checkImages":[],"treatmentImages":[],"medicineImages":[],"dietImages":[],"noteImages":[]}]""").commit()
   assertTrue(HealthStore(context).courseRecords().single().customSections.isEmpty())
  }
+ @Test fun postponementSurvivesReopeningForBothReminderTypes(){
+  val deadline=java.time.LocalDateTime.of(2026,11,8,9,0)
+  val at=deadline.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+  for(date in listOf("", "2026-11-07")){
+   val reminder=TreatmentReminder(radiationNumber=5,text="复查",triggerDate=date,snoozedUntil=at)
+   HealthStore(context).saveTreatmentReminder(reminder)
+   val reopened=HealthStore(context).treatmentReminders().single{it.id==reminder.id}
+   assertEquals(at,treatmentReminderTriggerAt(reopened))
+   assertNull(nextDueTreatmentReminder(listOf(reopened),5,now=deadline.minusSeconds(1)))
+   assertEquals(reopened,nextDueTreatmentReminder(listOf(reopened),5,now=deadline))
+   assertNull(nextDueTreatmentReminder(listOf(reopened.copy(completedAt=at)),5,now=deadline))
+  }
+ }
  @Test fun courseTextTemplatesKeepOneExplicitDefaultPerSection(){
   val store=HealthStore(context)
   val first=CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚：")

@@ -125,10 +125,9 @@ class MainActivity:ComponentActivity(){
  var trendCategoryRequest by remember{mutableStateOf<String?>(null)}
  var trendPreview by remember{mutableStateOf<TrendPreviewRequest?>(null)}
  var foregroundSequence by remember{mutableIntStateOf(0)}
- var snoozedReminderIds by remember{mutableStateOf<Set<String>>(emptySet())}
  val lifecycleOwner=LocalLifecycleOwner.current
  DisposableEffect(lifecycleOwner){
-  val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_START){snoozedReminderIds=emptySet();foregroundSequence++}}
+  val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_START){foregroundSequence++}}
   lifecycleOwner.lifecycle.addObserver(observer)
   onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
  }
@@ -290,8 +289,22 @@ class MainActivity:ComponentActivity(){
  if(imageDocument!=null)ImageDocumentViewer(imageDocument!!,imageDocumentPage,imageDocumentMatches,{imageDocument=null},{saved->ImageDocumentStore(ctx).save(saved);imageDocument=saved},{deleted->ImageDocumentStore(ctx).delete(deleted);rememberedDocumentPages=rememberedDocumentPages.filterNot{it.startsWith("${deleted.id}:")};imageDocument=null},{index->imageDocument?.let{rememberPage(it.id,index)}})
  if(courseRecord!=null){val current=courseRecords.firstOrNull{it.id==courseRecord!!.id}?:courseRecord!!;CourseRecordEditor(current,store,{courseRecord=null},{saved,kilograms,weightAt,heightCm->change{store.saveCourseRecord(saved);store.setWeightForCourse(saved.id,weightAt?:saved.date,kilograms,heightCm);courseRecord=null}},{change{store.setWeightForCourse(current.id,current.date,null);store.deleteCourseRecord(current.id);store.ensureCourseRecordsThroughToday();courseRecord=null}},{images,index->viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null;viewer=images;viewerStart=index},onOpenWeightTrend={courseRecord=null;trendCategoryRequest="体重";tab=1},onOpenExisting={existing->courseEditorSection=null;courseRecord=existing},initialSection=courseEditorSection)}
  val radiationNumber=remember(courseRecords){currentRadiotherapyNumber(courseRecords)}
- val dueTreatmentReminder=remember(treatmentReminders,radiationNumber,foregroundSequence,snoozedReminderIds){nextDueTreatmentReminder(treatmentReminders,radiationNumber,snoozedReminderIds)}
- if(dueTreatmentReminder!=null)TreatmentReminderDialog(dueTreatmentReminder,{snoozedReminderIds=snoozedReminderIds+dueTreatmentReminder.id},{change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis()))}})
+ val checkedAt=remember(treatmentReminders,radiationNumber,foregroundSequence){System.currentTimeMillis()}
+ val dueTreatmentReminder=nextDueTreatmentReminder(treatmentReminders,radiationNumber,
+  now=Instant.ofEpochMilli(checkedAt).atZone(ZoneId.systemDefault()).toLocalDateTime())
+ LaunchedEffect(treatmentReminders,checkedAt){
+  val next=treatmentReminders.asSequence().filter{it.completedAt==null}
+   .mapNotNull{treatmentReminderTriggerAt(it)}.filter{it>checkedAt}.minOrNull() ?: return@LaunchedEffect
+  delay((next-System.currentTimeMillis()).coerceAtLeast(1L))
+  foregroundSequence++
+ }
+ if(dueTreatmentReminder!=null){
+  fun postpone(until:Long){change{store.saveTreatmentReminder(dueTreatmentReminder.copy(snoozedUntil=until))}}
+  TreatmentReminderDialog(dueTreatmentReminder,
+   onLater={postpone(System.currentTimeMillis()+60*60_000L)},
+   onTomorrow={postpone(LocalDate.now().plusDays(1).atTime(9,0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())},
+   onComplete={change{store.saveTreatmentReminder(dueTreatmentReminder.copy(completedAt=System.currentTimeMillis(),snoozedUntil=null))}})
+ }
  }
  if(viewer!=null)SourceViewer(viewer!!,{viewer=null;viewerReportId=null;viewerCourseRecordId=null;viewerCourseKind=null},viewerStart,
   onReplace=if(viewerReportId!=null||viewerCourseRecordId!=null){{index->replaceImageIndex=index;replacePicker.launch(arrayOf("image/*"))}}else null,
@@ -337,7 +350,7 @@ class MainActivity:ComponentActivity(){
 
 internal fun nextDueTreatmentReminder(reminders:List<TreatmentReminder>,radiationNumber:Int,snoozedIds:Set<String> = emptySet(),now:LocalDateTime=LocalDateTime.now()):TreatmentReminder?=
  reminders.filter{reminder->
-  reminder.completedAt==null&&reminder.id !in snoozedIds&&if(reminder.triggerDate.isNotBlank())runCatching{
+  reminder.completedAt==null&&reminder.id !in snoozedIds&&if(reminder.snoozedUntil!=null)reminder.snoozedUntil<=now.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() else if(reminder.triggerDate.isNotBlank())runCatching{
    !LocalDate.parse(reminder.triggerDate).atTime(LocalTime.parse(reminder.triggerTime.ifBlank{"09:00"})).isAfter(now)
   }.getOrDefault(false) else reminder.radiationNumber<=radiationNumber
  }.minWithOrNull(compareBy<TreatmentReminder>{if(it.triggerDate.isNotBlank())0 else 1}.thenBy{it.triggerDate}.thenBy{it.triggerTime}.thenBy{it.radiationNumber}.thenBy{it.createdAt})
@@ -380,15 +393,16 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
   }
  }
 }
-@Composable private fun TreatmentReminderDialog(reminder:TreatmentReminder,onLater:()->Unit,onComplete:()->Unit){
+@Composable private fun TreatmentReminderDialog(reminder:TreatmentReminder,onLater:()->Unit,onTomorrow:()->Unit,onComplete:()->Unit){
  Dialog(onDismissRequest=onLater){
   Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(30.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4EC))){
-   Column(Modifier.padding(horizontal=28.dp,vertical=30.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(18.dp)){
+   Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal=28.dp,vertical=30.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(18.dp)){
     Surface(shape=RoundedCornerShape(24.dp),color=Color.White){Icon(Icons.Outlined.NotificationsActive,"治疗提醒",Modifier.padding(18.dp).size(42.dp),tint=Accent)}
     Text(treatmentReminderDialogTitle(reminder),fontSize=20.sp,color=Accent,fontWeight=FontWeight.Bold)
     Text(reminder.text,fontSize=30.sp,lineHeight=38.sp,fontWeight=FontWeight.Bold,textAlign=TextAlign.Center)
     Button(onComplete,Modifier.fillMaxWidth().height(54.dp)){Text("已完成",fontSize=17.sp,color=Color.White)}
-    TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后再提醒",color=Muted)}
+    TextButton(onLater,Modifier.fillMaxWidth()){Text("稍后提醒（1 小时后）",color=Muted)}
+    TextButton(onTomorrow,Modifier.fillMaxWidth()){Text("明天提醒（09:00）",color=Muted)}
    }
   }
  }
@@ -442,7 +456,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=if(
    Surface(onClick={val time=runCatching{LocalTime.parse(triggerTime)}.getOrElse{LocalTime.of(9,0)};android.app.TimePickerDialog(context,{_,hour,minute->triggerTime=LocalTime.of(hour,minute).format(DateTimeFormatter.ofPattern("HH:mm"))},time.hour,time.minute,true).show()},shape=RoundedCornerShape(14.dp),color=Color.White){Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=16.dp),verticalAlignment=Alignment.CenterVertically){Text(triggerTime,Modifier.weight(1f));Icon(Icons.Outlined.Schedule,"选择提醒时间",tint=Accent)}}
   }
   AppInputField(text,{text=it},label="提醒内容",minLines=2)
- }},confirmButton={TextButton({val newNumber=if(triggerMode=="放疗次数")number.toIntOrNull()?:0 else 0;val newDate=if(triggerMode=="日期")triggerDate else "";val newTime=if(triggerMode=="日期")triggerTime else initial.triggerTime;val sameTrigger=initial.radiationNumber==newNumber&&initial.triggerDate==newDate&&initial.triggerTime==newTime;commit(initial.copy(radiationNumber=newNumber,triggerDate=newDate,triggerTime=newTime,text=text,completedAt=if(sameTrigger)initial.completedAt else null))},enabled=(triggerMode=="日期"||((number.toIntOrNull()?:0)>0))&&text.isNotBlank()){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({commit(initial.copy(completedAt=null))}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
+ }},confirmButton={TextButton({val newNumber=if(triggerMode=="放疗次数")number.toIntOrNull()?:0 else 0;val newDate=if(triggerMode=="日期")triggerDate else "";val newTime=if(triggerMode=="日期")triggerTime else initial.triggerTime;val sameTrigger=initial.radiationNumber==newNumber&&initial.triggerDate==newDate&&initial.triggerTime==newTime;commit(initial.copy(radiationNumber=newNumber,triggerDate=newDate,triggerTime=newTime,text=text,snoozedUntil=if(sameTrigger)initial.snoozedUntil else null,completedAt=if(sameTrigger)initial.completedAt else null))},enabled=(triggerMode=="日期"||((number.toIntOrNull()?:0)>0))&&text.isNotBlank()){Text("保存")}},dismissButton={Row{if(initial.completedAt!=null)TextButton({commit(initial.copy(completedAt=null,snoozedUntil=null))}){Text("恢复提醒")};if(existing)TextButton({delete(initial.id);close()}){Text("删除",color=Bad)};TextButton(close){Text("取消")}}})
 }
 @Composable fun Quick(t:String,s:String,icon:androidx.compose.ui.graphics.vector.ImageVector,m:Modifier,onClick:()->Unit){Card(onClick=onClick,modifier=m,shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(18.dp)){Icon(icon,null,tint=Accent);Spacer(Modifier.height(20.dp));Text(t,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=12.sp)}}}
 @Composable fun ReportCard(r:LabReport,open:()->Unit,viewImages:((List<String>)->Unit)?=null,addImage:(()->Unit)?=null){Paper(Modifier.clickable(onClick=open)){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){val heading=ReportNaming.title(r);Text(heading.category,fontWeight=FontWeight.Bold);if(heading.name.isNotBlank())Text(heading.name,fontSize=13.sp,color=Muted)};IconButton(onClick={if(r.sourceImages.isNotEmpty()&&viewImages!=null)viewImages(r.sourceImages.map{it.uri}) else if(addImage!=null)addImage() else open()},modifier=Modifier.size(36.dp)){Icon(Icons.Outlined.Description,contentDescription=if(r.sourceImages.isNotEmpty())"查看报告原图" else "未保存原图，打开报告",tint=if(r.sourceImages.isNotEmpty())Accent else Muted)}};Text("${r.hospitalKey} · ${dateText(r.testedAtEpochMillis)}",color=Muted,fontSize=12.sp);Text("${r.results.size} 个项目 · ${r.results.count{it.status()==ResultStatus.HIGH||it.status()==ResultStatus.LOW}} 个超出参考范围");}}

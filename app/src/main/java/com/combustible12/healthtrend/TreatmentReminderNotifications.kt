@@ -25,7 +25,7 @@ private const val EXTRA_REMINDER_ID="reminder_id"
 internal fun treatmentReminderTriggerAt(
  reminder:TreatmentReminder,
  zoneId:ZoneId=ZoneId.systemDefault()
-):Long?=if(reminder.triggerDate.isBlank())null else runCatching{
+):Long?=reminder.snoozedUntil ?: if(reminder.triggerDate.isBlank())null else runCatching{
  LocalDate.parse(reminder.triggerDate)
   .atTime(LocalTime.parse(reminder.triggerTime.ifBlank{"09:00"}))
   .atZone(zoneId).toInstant().toEpochMilli()
@@ -66,7 +66,8 @@ object TreatmentReminderNotifications {
 
  fun deliver(context:Context,id:String){
   val reminder=HealthStore(context).treatmentReminders().firstOrNull{it.id==id}?:return
-  if(reminder.completedAt!=null||treatmentReminderTriggerAt(reminder)==null)return
+  val triggerAt=treatmentReminderTriggerAt(reminder)?:return
+  if(reminder.completedAt!=null||triggerAt>System.currentTimeMillis())return
   if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU&&
    ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return
   ensureChannel(context)

@@ -1,3 +1,7 @@
+## 2026-11-07 提醒推迟
+
+每条治疗提醒可选稍后 1 小时、次日当地时间 09:00 或已完成。点返回或弹窗外按稍后 1 小时处理。推迟截止时间随提醒保存，重新打开、切到前台及系统通知均遵守同一截止时间。 回归覆盖 `CoursePhasePersistenceTest.postponementSurvivesReopeningForBothReminderTypes`。
+
 ## 2026-11-07 病程卡模板和分区编辑
 
 自动创建病程卡时保存当时各板块的默认模板，卡片首屏与编辑页共用文本；模板预填不算人工记录。日期名称行从头编辑，阶段、升白针、血压、体重及文字板块的图标和内容定位至对应编辑位置。图片保留预览，体重箭头保留趋势入口。 对应回归见 `CoursePhasePersistenceTest` 和 `CourseNavigationTest`。

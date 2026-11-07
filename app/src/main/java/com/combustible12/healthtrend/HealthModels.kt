@@ -262,7 +262,8 @@ data class TreatmentReminder(
  val completedAt:Long?=null,
  val createdAt:Long=System.currentTimeMillis(),
  val triggerDate:String="",
- val triggerTime:String="09:00"
+ val triggerTime:String="09:00",
+ val snoozedUntil:Long?=null
 ):java.io.Serializable
 data class PatientProfile(val name:String="",val birthDate:String="",val sex:String="",val note:String="",val bloodType:String="",val heightCm:String=""):java.io.Serializable
 data class SymptomEntry(val name:String,val severity:Int,val occurredAtEpochMillis:Long,val note:String="")
