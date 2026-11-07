@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -40,17 +41,19 @@ class CourseNavigationTest {
   calendar.performTouchInput{swipeRight()}
   compose.onNodeWithText("${current.year}年${current.monthValue}月").assertIsDisplayed()
  }
- @Test fun calendarTodayUsesPurpleText(){
+ @Test fun calendarTodayUsesBoldPurpleText(){
   compose.setContent{MaterialTheme{CourseCalendar(emptyList(),emptyList()) {}}}
   val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
   compose.onNodeWithText(java.time.LocalDate.now().dayOfMonth.toString(),useUnmergedTree=true)
    .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
   assertEquals(androidx.compose.ui.graphics.Color(0xFF9862C6),layouts.single().layoutInput.style.color)
+  assertEquals(FontWeight.Bold,layouts.single().layoutInput.style.fontWeight)
   layouts.clear()
   val ordinaryDay=if(java.time.LocalDate.now().dayOfMonth==1) "2" else "1"
   compose.onNodeWithText(ordinaryDay,useUnmergedTree=true)
    .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
   assertEquals(Ink,layouts.single().layoutInput.style.color)
+  assertEquals(FontWeight.Normal,layouts.single().layoutInput.style.fontWeight)
  }
  @Test fun calendarOpensRecordedDayAndMovesReminderDotAfterRescheduling(){
   val date=java.time.LocalDate.now().withDayOfMonth(2)
