@@ -16,3 +16,5 @@ Four calendar treatment dots and reminder warning icon
 Reminder badge above date
 
 Calendar light gray background and white dates
+
+Purple calendar today text

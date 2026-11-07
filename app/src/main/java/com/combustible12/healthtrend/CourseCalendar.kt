@@ -115,7 +115,7 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                             ) {
                                 Box {
-                                    Text(day.toString(), color = if (date == today) Accent else Color.White, fontSize = 14.sp)
+                                    Text(day.toString(), color = if (date == today) Color(0xFF9862C6) else Color.White, fontSize = 14.sp)
                                     if (hasReminder) Icon(
                                         Icons.Rounded.Warning, "$key 提醒",
                                         Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-2).dp).size(10.dp),

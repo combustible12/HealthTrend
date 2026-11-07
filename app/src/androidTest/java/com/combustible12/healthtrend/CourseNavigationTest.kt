@@ -28,6 +28,13 @@ class CourseNavigationTest {
   compose.onNodeWithText("外照计划次数").assertIsDisplayed()
   compose.onNodeWithText("后装计划次数").assertIsDisplayed()
  }
+ @Test fun calendarTodayUsesPurpleText(){
+  compose.setContent{MaterialTheme{CourseCalendar(emptyList(),emptyList()) {}}}
+  val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+  compose.onNodeWithText(java.time.LocalDate.now().dayOfMonth.toString(),useUnmergedTree=true)
+   .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
+  assertEquals(androidx.compose.ui.graphics.Color(0xFF9862C6),layouts.single().layoutInput.style.color)
+ }
  @Test fun calendarOpensRecordedDayAndMovesReminderDotAfterRescheduling(){
   val date=java.time.LocalDate.now().withDayOfMonth(2)
   val next=date.plusDays(1)
