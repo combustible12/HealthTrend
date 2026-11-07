@@ -433,7 +433,16 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 @Composable fun Home(m:Modifier,reports:List<LabReport>,entries:List<HealthEntry>,importer:ImportActions,reminders:List<TreatmentReminder>,saveReminder:(TreatmentReminder)->Unit,deleteReminder:(String)->Unit,quick:(EntryKind?)->Unit,open:(LabReport)->Unit,timeline:()->Unit,courseRecords:List<CourseRecord> = emptyList(),openCourse:(CourseRecord)->Unit = {}){
  var showPaste by rememberSaveable{mutableStateOf(false)};var pastedText by rememberSaveable{mutableStateOf("")}
  Screen(m,"导入数据","",spacing=7.dp){
- Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){Column(Modifier.padding(horizontal=22.dp,vertical=11.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold);Button({showPaste=true},Modifier.fillMaxWidth().height(54.dp),shape=RoundedCornerShape(18.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)};Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(importer.manual,enabled=!importer.busy){Text("手动录入")}};if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth());if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)}}
+ Card(shape=RoundedCornerShape(28.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFEEE5))){
+  Column(Modifier.padding(horizontal=22.dp,vertical=5.5.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
+   Text("报告数据",fontSize=21.sp,fontWeight=FontWeight.Bold)
+   Button({showPaste=true},Modifier.fillMaxWidth().heightIn(min=36.dp),shape=RoundedCornerShape(18.dp),
+    contentPadding=PaddingValues(horizontal=12.dp,vertical=3.dp),enabled=!importer.busy){Text("粘贴报告数据",color=Color.White)}
+   Text("手动录入",Modifier.clickable(enabled=!importer.busy,onClick=importer.manual).padding(horizontal=8.dp,vertical=2.dp),color=Accent)
+   if(importer.busy)LinearProgressIndicator(Modifier.fillMaxWidth())
+   if(importer.message.isNotBlank())Text(importer.message,fontSize=12.sp)
+  }
+ }
  TreatmentReminderPanel(reminders,saveReminder,deleteReminder)
  CourseCalendar(courseRecords,reminders,openCourse)
  }
@@ -445,11 +454,11 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
  var showCompleted by rememberSaveable{mutableStateOf(false)}
  val pending=reminders.filter{it.completedAt==null};val completed=reminders.filter{it.completedAt!=null}
  Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-  Column(Modifier.padding(horizontal=18.dp,vertical=9.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Notifications,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("提醒",Modifier.weight(1f),fontSize=20.sp,fontWeight=FontWeight.Bold);IconButton({adding=true}){Icon(Icons.Outlined.Add,"添加提醒",tint=Accent)}}
+  Column(Modifier.padding(horizontal=18.dp,vertical=4.5.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Notifications,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("提醒",Modifier.weight(1f),fontSize=20.sp,fontWeight=FontWeight.Bold);IconButton({adding=true},Modifier.size(32.dp)){Icon(Icons.Outlined.Add,"添加提醒",tint=Accent)}}
    if(pending.isEmpty())Text("暂无待提醒",fontSize=13.sp,color=Muted)
-   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=3.5.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}}
-   if(completed.isNotEmpty()){TextButton({showCompleted=!showCompleted},contentPadding=PaddingValues(0.dp)){Text(if(showCompleted)"收起已完成" else "已完成 ${completed.size}",color=Muted)};if(showCompleted)completed.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=3.dp)){Text("${treatmentReminderTriggerLabel(item)} · ${item.text}",color=Muted)}}}
+   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=1.75.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f));Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}}
+   if(completed.isNotEmpty()){Text(if(showCompleted)"收起已完成" else "已完成 ${completed.size}",Modifier.clickable{showCompleted=!showCompleted}.padding(vertical=2.dp),fontSize=14.sp,color=Muted);if(showCompleted)completed.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=1.5.dp)){Text("${treatmentReminderTriggerLabel(item)} · ${item.text}",color=Muted)}}}
   }
  }
  val target=editing?:if(adding)TreatmentReminder(radiationNumber=1,text="") else null

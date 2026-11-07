@@ -18,3 +18,4 @@ Reminder badge above date
 Calendar light gray background and white dates
 
 Purple calendar today text
+2026-11-07 compile compact home and treatment progress changes

@@ -25,6 +25,7 @@ class CourseNavigationTest {
   assertTrue(control.left>=header.right && control.top<header.bottom && control.bottom>header.top)
   compose.onNodeWithContentDescription("打开进程总控").performClick()
   compose.onNodeWithText("化疗天数：关").assertIsDisplayed()
+  compose.onAllNodes(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo)).assertCountEquals(2)
   compose.onNodeWithText("外照计划次数").assertIsDisplayed()
   compose.onNodeWithText("后装计划次数").assertIsDisplayed()
  }
@@ -34,6 +35,11 @@ class CourseNavigationTest {
   compose.onNodeWithText(java.time.LocalDate.now().dayOfMonth.toString(),useUnmergedTree=true)
    .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
   assertEquals(androidx.compose.ui.graphics.Color(0xFF9862C6),layouts.single().layoutInput.style.color)
+  layouts.clear()
+  val ordinaryDay=if(java.time.LocalDate.now().dayOfMonth==1) "2" else "1"
+  compose.onNodeWithText(ordinaryDay,useUnmergedTree=true)
+   .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
+  assertEquals(Ink,layouts.single().layoutInput.style.color)
  }
  @Test fun calendarOpensRecordedDayAndMovesReminderDotAfterRescheduling(){
   val date=java.time.LocalDate.now().withDayOfMonth(2)

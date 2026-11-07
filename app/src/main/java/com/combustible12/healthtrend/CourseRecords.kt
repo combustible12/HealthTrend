@@ -250,7 +250,7 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  if(managingPhases)CoursePhaseManager(phaseDefinitions,{managingPhases=false}){updated->
   runCatching{store.saveCoursePhaseDefinitions(updated)}.onSuccess{phaseDefinitions=store.coursePhaseDefinitions();if(filter!="全部"&&filter!=growthFactorInjectionFilter&&filter !in phaseDefinitions.map{it.key})filter="全部"}.onFailure{phaseError=it.message?:"分类保存失败"}
  }
- if(managingProcess)CourseProcessEditor(processSettings,currentRadiotherapyNumber(records),{managingProcess=false}){updated->
+ if(managingProcess)CourseProcessEditor(processSettings,currentRadiotherapyNumber(records),records.count { it.phase == "后装" || recordedBrachytherapy.containsMatchIn(it.title) },{managingProcess=false}){updated->
   store.saveCourseProcessSettings(updated);processSettings=updated;managingProcess=false
  }
  phaseError?.let{message->AlertDialog(onDismissRequest={phaseError=null},title={Text("分类保存失败")},text={Text(message)},confirmButton={TextButton({phaseError=null}){Text("关闭")}})}
@@ -264,24 +264,40 @@ private fun courseProcessStageLabel(stage:CourseProcessStage)=when(stage){
  CourseProcessStage.FOLLOW_UP->"结疗复查"
 }
 
+private val recordedBrachytherapy = Regex("""(?:^|-)后装\d+(?:-|$)""")
+
+@Composable private fun PlanProgress(label:String, recorded:Int, total:String, changeTotal:(String)->Unit){
+ val planned=total.toIntOrNull() ?: 0
+ Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+  Text(label,Modifier.weight(1f),fontSize=14.sp)
+  Text("$recorded /",fontSize=14.sp)
+  AppCompactInput(total,changeTotal,Modifier.width(54.dp),containerColor=Warm)
+ }
+ LinearProgressIndicator(progress={if(planned>0)(recorded.toFloat()/planned).coerceIn(0f,1f) else 0f},
+  modifier=Modifier.fillMaxWidth(),color=Color(0xFF76539B),trackColor=SelectedTint)
+}
+
 @OptIn(ExperimentalLayoutApi::class)
-@Composable private fun CourseProcessEditor(initial:CourseProcessSettings,completedRadiotherapy:Int,close:()->Unit,save:(CourseProcessSettings)->Unit){
+@Composable private fun CourseProcessEditor(initial:CourseProcessSettings,completedRadiotherapy:Int,completedBrachytherapy:Int,close:()->Unit,save:(CourseProcessSettings)->Unit){
  var stage by rememberSaveable{mutableStateOf(initial.stage)}
  var chemotherapyDaysEnabled by rememberSaveable{mutableStateOf(initial.chemotherapyDaysEnabled)}
  var radiotherapyEnabled by rememberSaveable{mutableStateOf(initial.radiotherapyEnabled)}
  var radiotherapyTotal by rememberSaveable{mutableStateOf(initial.radiotherapyPlannedTotal.toString())}
  var brachytherapyTotal by rememberSaveable{mutableStateOf(initial.brachytherapyPlannedTotal.toString())}
  AlertDialog(onDismissRequest=close,containerColor=Color.White,title={Text("进程总控")},text={
-  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp){
+  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(4.dp)){
    Text("当前进程",fontWeight=FontWeight.Medium)
-   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(2.67.dp)){
     CourseProcessStage.values().forEach{option->FilterChip(stage==option,{stage=option},label={Text(courseProcessStageLabel(option))},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))}
    }
+   FlowRow(horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(2.67.dp)){
    FilterChip(chemotherapyDaysEnabled,{chemotherapyDaysEnabled=!chemotherapyDaysEnabled},label={Text(if(chemotherapyDaysEnabled)"化疗天数：开" else "化疗天数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
    FilterChip(radiotherapyEnabled,{radiotherapyEnabled=!radiotherapyEnabled},label={Text(if(radiotherapyEnabled)"外照计数：开" else "外照计数：关")},border=null,colors=FilterChipDefaults.filterChipColors(containerColor=Color(0xFFF1F1F1),selectedContainerColor=SelectedTint))
-   if(stage==CourseProcessStage.EXTERNAL_BEAM)Text("已记录外照 ${completedRadiotherapy} 次",fontSize=13.sp,color=Muted)
-   AppInputField(radiotherapyTotal,{radiotherapyTotal=it.filter(Char::isDigit).take(3)},label="外照计划次数",singleLine=true)
-   AppInputField(brachytherapyTotal,{brachytherapyTotal=it.filter(Char::isDigit).take(2)},label="后装计划次数",singleLine=true)
+   }
+   PlanProgress("外照计划次数",completedRadiotherapy,radiotherapyTotal){radiotherapyTotal=it.filter(Char::isDigit).take(3)}
+   PlanProgress("后装计划次数",completedBrachytherapy,brachytherapyTotal){brachytherapyTotal=it.filter(Char::isDigit).take(2)}
+  }
   }
  },confirmButton={TextButton({save(CourseProcessSettings(stage,chemotherapyDaysEnabled,radiotherapyEnabled,radiotherapyTotal.toInt(),brachytherapyTotal.toInt()))},enabled=(radiotherapyTotal.toIntOrNull()?:0)>0&&(brachytherapyTotal.toIntOrNull()?:0)>0){Text("保存")}},dismissButton={TextButton(close){Text("取消")}})
 }
