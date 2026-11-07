@@ -30,3 +30,4 @@ Purple calendar today text
 2026-11-07 verify per-tab browsing state
 2026-11-07 check expandable trend categories and directional icons
 2026-11-07 verify neutral light-gray triangles
+2026-11-07 run import and dictionary safety baseline with synthetic data

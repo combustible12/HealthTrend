@@ -12,6 +12,40 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28],manifest=Config.NONE)
 class CatalogueStorageRoundTripTest {
+ @Test fun reviewAndSavePreserveHistoricalReportDraftDictionaryAndTrend(){
+  val context=RuntimeEnvironment.getApplication()
+  context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()
+  val store=HealthStore(context)
+  val baseline=pastedReportDraft("合成医院\n血常规\n2001-01-02\nHGB 血红蛋白 102.00 g/L 113-151",store=store)
+  val old=materializeReportDraft(baseline.copy(images=listOf("file:///synthetic/report.jpg")),store)
+  store.saveReport(old)
+  store.saveMetricAlias("合成血色素别名","HGB")
+  store.savePreferredMetricName("HGB","合成血红蛋白显示名")
+  val dictionary=store.exportMetricDictionary()
+  val oldPoints=store.trend("HGB")
+  val unfinished=baseline.copy(draftId="unfinished-review",rows=baseline.rows.map{it.copy(text="",uncertain=true)})
+  ReportDraftStore(context).save(unfinished)
+
+  val input="合成医院\n血常规\n2001-01-03\nHGB 血红蛋白 120.00 g/L 100-150"
+  val fresh=pastedReportDraft(input,store=store)
+  val row=fresh.rows.single()
+  assertEquals(listOf("HGB","120.00","g/L","100-150"),listOf(row.key,row.text,row.unit,row.rangeRaw()))
+  assertTrue(reportValidationProblems(fresh).isEmpty())
+  assertFalse(reportValidationProblems(unfinished).isEmpty())
+  val converted=materializeReportDraft(fresh,store)
+  assertEquals(listOf(old),store.reports())
+  assertEquals(oldPoints,store.trend("HGB"))
+  assertEquals(dictionary,store.exportMetricDictionary())
+
+  store.saveReport(converted)
+  val reopened=HealthStore(context)
+  assertEquals(old,reopened.reports().single{it.id==old.id})
+  assertEquals(oldPoints,reopened.trend("HGB").filter{it.first.id==old.id})
+  assertEquals(listOf("120.00"),reopened.trend("HGB").filter{it.first.id==converted.id}.map{it.second.textValue})
+  assertEquals(2,reopened.trend("HGB").size)
+  assertEquals(dictionary,reopened.exportMetricDictionary())
+  assertEquals(unfinished,ReportDraftStore(context).all().single{it.draftId==unfinished.draftId})
+ }
  @Test fun storageAndReplacementRejectCodeNameMismatchWithoutChangingReports(){
   val context=RuntimeEnvironment.getApplication()
   context.getSharedPreferences("healthtrend_store_v1",Context.MODE_PRIVATE).edit().clear().commit()

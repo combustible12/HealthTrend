@@ -292,7 +292,6 @@ class CoreFlowTest{
   compose.onAllNodes(hasSetTextAction()).onFirst().performTextInput("范围版本医院")
   compose.onNodeWithText("编辑").performScrollTo().performClick()
   compose.onNodeWithText("结果（支持 <、>、阴性等）").performScrollTo().performTextReplacement("120")
-  compose.onNodeWithText("本次报告项目或范围有变化").performScrollTo().performClick()
   compose.onNodeWithText("项目名称").performScrollTo().performTextReplacement("血红蛋白")
   compose.onNodeWithText("参考下限").performScrollTo().performTextReplacement("100")
   compose.onNodeWithText("参考上限").performScrollTo().performTextReplacement("150")
@@ -304,7 +303,7 @@ class CoreFlowTest{
   assertEquals(1,older.templateVersion)
   assertEquals(113.0,older.results.single().referenceLowAtTest!!,0.0)
   val newer=saved.reports().first{it.id!=original.id}
-  assertEquals(1,newer.templateVersion)
+  assertNull(newer.templateVersion)
   assertEquals(100.0,newer.results.single().referenceLowAtTest!!,0.0)
   assertEquals(150.0,newer.results.single().referenceHighAtTest!!,0.0)
  }
