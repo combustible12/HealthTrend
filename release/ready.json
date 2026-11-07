@@ -1,6 +1,6 @@
 {
-  "sourceBaseCommit": "e33d761bf65faecda2dcb40d17e5e938710d247b",
-  "validationMode": "calendar-treatment-dots-radiotherapy-phase-only",
-  "versionCode": 2026110705,
-  "versionName": "1.0.197"
+  "sourceBaseCommit": "cadc02fcabeaa11be9350c06597b8e2d900e75ba",
+  "validationMode": "compact-course-progress-and-readable-calendar",
+  "versionCode": 2026110706,
+  "versionName": "1.0.198"
 }
