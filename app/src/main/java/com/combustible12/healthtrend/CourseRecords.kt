@@ -359,8 +359,8 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
   }
   Card(modifier=Modifier.weight(1f).semantics{contentDescription="病程卡片"},shape=RoundedCornerShape(14.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(start=16.dp,top=14.dp,end=12.dp,bottom=14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-     Row(Modifier.weight(1f).clickable(onClick=onOpen).padding(top=2.dp),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+     Row(Modifier.weight(1f).clickable(onClick=onOpen),verticalAlignment=Alignment.CenterVertically){
       val weekday=listOf("一","二","三","四","五","六","日")[Instant.ofEpochMilli(record.date).atZone(ZoneId.systemDefault()).dayOfWeek.value-1]
       Box(Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(phaseColors.first),contentAlignment=Alignment.Center){
        Text(weekday,fontSize=13.sp,fontWeight=FontWeight.Bold,color=phaseColors.second)
@@ -372,7 +372,7 @@ internal fun nextPortMaintenanceDate(lastDate: String): String? = runCatching {
      Spacer(Modifier.width(6.dp))
      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
        if(record.growthFactorInjection)Icon(Icons.Outlined.Vaccines,"当天已打升白针",Modifier.clickable{onSection("injection")}.size(18.dp),tint=phaseColors.second)
-       Surface(onClick={onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
+       Surface(modifier=Modifier.clickable{onSection("phase")},shape=RoundedCornerShape(14.dp),color=phaseColors.first){Text(phaseLabel,Modifier.padding(horizontal=7.dp,vertical=3.dp),color=phaseColors.second,fontSize=10.sp,fontWeight=FontWeight.Medium)}
       }
     }
     Column(Modifier.clickable{onSection("pressure")}){
@@ -533,16 +533,16 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
  val valid=selectedDate!=null&&validWeight&&!busy
  val editorScroll=rememberScrollState()
  var located by rememberSaveable(initial.id,initialSection){mutableStateOf(false)}
- var viewportY by remember { mutableStateOf<Float?>(null) }
+ var viewportCenterY by remember { mutableStateOf<Float?>(null) }
  var headingY by remember(initial.id,initialSection) { mutableStateOf<Float?>(null) }
  fun anchor(id:String):Modifier = if(initialSection==id && !located) Modifier.onGloballyPositioned {
-  headingY=it.positionInRoot().y + editorScroll.value
+  headingY=it.positionInRoot().y + editorScroll.value + it.size.height / 2f
  } else Modifier
- LaunchedEffect(initial.id,initialSection,viewportY,headingY){
-  val top=viewportY ?: return@LaunchedEffect
+ LaunchedEffect(initial.id,initialSection,viewportCenterY,headingY){
+  val center=viewportCenterY ?: return@LaunchedEffect
   val target=headingY ?: return@LaunchedEffect
   if(!located){
-   editorScroll.scrollTo((target-top).roundToInt().coerceAtLeast(0))
+   editorScroll.scrollTo((target-center).roundToInt().coerceIn(0,editorScroll.maxValue))
    located=true
   }
  }
@@ -595,7 +595,7 @@ internal data class CourseEditorDraft(val record:CourseRecord,val date:String,va
   }else if(draft==lastWritten&&notice.isNotEmpty())Text(notice,fontSize=13.sp,color=Muted)
   if(committed)IconButton({deleting=true}){Icon(Icons.Outlined.Delete,"删除病程记录",tint=Bad)}
  }){m->
-  Column(m.onGloballyPositioned{viewportY=it.positionInRoot().y}.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  Column(m.onGloballyPositioned{viewportCenterY=it.positionInRoot().y + it.size.height / 2f}.verticalScroll(editorScroll).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    CourseDateField(date){candidate->
     val millis=courseDateMillis(candidate,initial.date)
     val match=millis?.let{target->val day=courseLocalDate(target);store.courseRecords().firstOrNull{it.id!=record.id&&courseLocalDate(it.date)==day}}

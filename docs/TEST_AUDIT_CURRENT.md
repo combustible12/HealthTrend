@@ -1,3 +1,7 @@
+## 2026-11-07 病程卡排版与港维护记录
+
+CourseNavigationTest 覆盖针头与标题对齐、症状定位和两次冲管的三列排版及间隔。设备测试未运行。
+
 ## 2026-11-07 历史空卡修正
 
 旧空卡不套用当前模板，自动补齐过去日期时保留空白；当日新卡使用建卡时的模板，历史手填内容继续保留。 见 `CoursePhasePersistenceTest.oldBlankCardsAndBackfilledDaysDoNotAcquireTemplates`。

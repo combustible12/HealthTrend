@@ -30,8 +30,28 @@ class CourseNavigationTest {
   store.savePortMaintenanceLastDate("2020-02-25")
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,emptyList(),HealthStore(context),{},{},{},{_,_->})}}
   compose.onNodeWithContentDescription("港维护记录").performClick()
-  compose.onNodeWithText("距安港 28 天").assertIsDisplayed()
-  compose.onNodeWithText("距上次冲管 27 天").assertIsDisplayed()
+  for ((label, date, days) in listOf(Triple("冲1","2020-01-29","28天"), Triple("冲2","2020-02-25","27天"))) {
+   val cells=listOf(label,date,days).map { compose.onNodeWithText(it,useUnmergedTree=true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot }
+   cells.zipWithNext().forEach { (left,right) ->
+    assertTrue(left.right <= right.left)
+    assertEquals(left.center.y,right.center.y,1f)
+   }
+  }
+ }
+ @Test fun symptomOpensAtEditorViewportCenter(){
+  val store=HealthStore(context)
+  val record=CourseRecord(symptomText="测试")
+  compose.setContent{MaterialTheme{CourseRecordEditor(record,store,{},{_,_,_,_->},{},{_,_->},initialSection="symptom")}}
+  val heading=compose.onNodeWithText("症状").assertIsDisplayed()
+  val viewport=compose.onNode(hasScrollAction() and hasAnyDescendant(hasText("症状")))
+  assertEquals(viewport.fetchSemanticsNode().boundsInRoot.center.y,heading.fetchSemanticsNode().boundsInRoot.center.y,compose.density.density*2)
+ }
+ @Test fun injectionIconAlignsWithCardHeading(){
+  val record=CourseRecord(title="对齐",titleAuto=false,growthFactorInjection=true)
+  compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(record),HealthStore(context),{},{},{},{_,_->})}}
+  val title=compose.onNodeWithText(" · 对齐",substring=true,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val icon=compose.onNodeWithContentDescription("当天已打升白针").fetchSemanticsNode().boundsInRoot
+  assertEquals(title.center.y,icon.center.y,compose.density.density)
  }
  @Test fun portMaintenanceMatchesCourseCardWidthAndFilterHeight(){
   val initial=CourseRecord(title="布局核对")

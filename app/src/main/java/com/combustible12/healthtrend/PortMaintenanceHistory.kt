@@ -84,7 +84,7 @@ private fun pickPortDate(context: Context, initial: LocalDate?, select: (LocalDa
     LazyColumn(Modifier.fillMaxWidth().heightIn(max=400.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
      item {
       TextButton(onClick={ pick(history.placement ?: history.legacy, true) }) {
-       Text(history.placement?.let { "安港日期  $it" } ?: "添加安港日期")
+       Text(history.placement?.let { "安港  $it" } ?: "安港")
       }
      }
      history.legacy?.let { old ->
@@ -103,11 +103,11 @@ private fun pickPortDate(context: Context, initial: LocalDate?, select: (LocalDa
       val date = history.flushes[index]
       Card(onClick={ pick(date, false, date) }, modifier=Modifier.fillMaxWidth(),
        colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFFF4F4F4))) {
-       Column(Modifier.padding(12.dp)) {
-        Text("第${index + 1}次冲管   $date")
-        val days = history.interval(index)
-        if (days != null) Text(if (index == 0) "距安港 $days 天" else "距上次冲管 $days 天")
-        else Text("填写安港日期后可查看首次间隔")
+       Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.SpaceBetween,
+        verticalAlignment=Alignment.CenterVertically) {
+        Text("冲${index + 1}")
+        Text(date.toString())
+        Text(history.interval(index)?.let { "${it}天" } ?: "—")
        }
       }
      }

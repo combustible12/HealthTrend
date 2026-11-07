@@ -1,3 +1,7 @@
+## 2026-11-07 病程卡排版与港维护记录
+
+病程首行恢复同排对齐，类目跳转按可视区域居中，港维护历史改为三列。
+
 ## 2026-11-07 历史空卡修正
 
 旧空卡不套用当前模板，自动补齐过去日期时保留空白；当日新卡使用建卡时的模板，历史手填内容继续保留。 见 `CoursePhasePersistenceTest.oldBlankCardsAndBackfilledDaysDoNotAcquireTemplates`。
