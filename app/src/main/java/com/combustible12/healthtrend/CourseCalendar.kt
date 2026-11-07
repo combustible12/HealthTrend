@@ -142,7 +142,7 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                                     }
                                         .clickable {
                                             selectedDate = key
-                                            if (record != null && datedReminders.isEmpty()) openCourse(record)
+                                            if (record != null) openCourse(record)
                                         }.semantics { contentDescription = if (marked) "$key 有记录或提醒" else key }
                                         .heightIn(min = 36.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center

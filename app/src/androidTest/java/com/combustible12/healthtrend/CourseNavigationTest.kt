@@ -82,6 +82,20 @@ class CourseNavigationTest {
   compose.onNodeWithContentDescription("上个月").performClick()
   compose.onNodeWithContentDescription("$next 有记录或提醒").assertExists()
  }
+ @Test fun tappingCalendarRecordWithReminderShowsItsCard(){
+  val today=java.time.LocalDate.now()
+  val date=today.minusDays(14)
+  val store=HealthStore(context)
+  store.saveCourseRecord(CourseRecord(date=date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="日历定位测试",titleAuto=false))
+  store.saveTreatmentReminder(TreatmentReminder(radiationNumber=0,text="核对资料",triggerDate=date.toString(),completedAt=System.currentTimeMillis()))
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText("导入").performClick()
+  if(date.month!=today.month)compose.onNodeWithContentDescription("上个月").performScrollTo().performClick()
+  compose.onNodeWithContentDescription(date.toString()).performScrollTo().performClick()
+  compose.onNodeWithText("病程记录").assertIsDisplayed()
+  compose.onNodeWithText("日历定位测试",substring=true).assertIsDisplayed()
+  compose.onNodeWithText("编辑病程记录").assertDoesNotExist()
+ }
  @Test fun datedBrachytherapyReminderAppearsOnMatchingCourseCard(){
   val at=java.time.LocalDate.of(2031,5,3).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
   val record=CourseRecord(date=at,title="2化35",titleAuto=false,phase="观察")

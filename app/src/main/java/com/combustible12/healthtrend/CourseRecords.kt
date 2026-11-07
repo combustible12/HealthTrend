@@ -152,7 +152,9 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
  view:(List<String>,Int)->Unit,
  openWeightTrend:()->Unit={},
  openSection:(CourseRecord,String)->Unit={ record,_->open(record) },
- reminders:List<TreatmentReminder> = emptyList()
+ reminders:List<TreatmentReminder> = emptyList(),
+ calendarCardId:String?=null,
+ onCalendarCardShown:()->Unit={}
 ){
  val context=LocalContext.current
  var phaseDefinitions by remember{mutableStateOf(store.coursePhaseDefinitions())}
@@ -188,10 +190,19 @@ private fun pressureValueColor(value:Int?,systolic:Boolean):Color=when{
    (hasReview && reviewLabel.contains(query,ignoreCase=true)) || (hasBrachytherapy && brachytherapyLabel.contains(query,ignoreCase=true)))
  }
  val listState=rememberLazyListState();val scope=rememberCoroutineScope()
- LaunchedEffect(requestedRecordId,shown.map{it.id}){
-  val id=requestedRecordId?:return@LaunchedEffect
+ LaunchedEffect(calendarCardId,requestedRecordId,shown.map{it.id}){
+  val id=calendarCardId?:requestedRecordId?:return@LaunchedEffect
+  if(calendarCardId!=null && shown.none{it.id==id} && (filter!="全部" || search.isNotEmpty())){
+   filter="全部"
+   search=""
+   return@LaunchedEffect
+  }
   val index=shown.indexOfFirst{it.id==id}
-  if(index>=0){listState.animateScrollToItem(index);requestedRecordId=null}
+  if(index>=0){
+   if(calendarCardId!=null){listState.scrollToItem(index);onCalendarCardShown()}
+   else listState.animateScrollToItem(index)
+   requestedRecordId=null
+  }
  }
  fun pickCourseDate(){
   val initial=records.firstOrNull()?.let{courseLocalDate(it.date)}?:LocalDate.now()
