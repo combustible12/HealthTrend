@@ -1,1 +1,2 @@
 2026-11-07 verify port history, interval calculations and Compose entry point
+2026-11-07 check course card templates and section navigation

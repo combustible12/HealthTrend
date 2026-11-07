@@ -99,7 +99,7 @@ class HealthStore(private val context:Context) {
  }
  @Synchronized fun removeOrHideCourseSection(id:String):Boolean{
   val all=courseSectionDefinitions();val target=all.firstOrNull{it.id==id}?:return false
-  val hasHistory=courseRecords().any{record->record.customSections.any{it.sectionId==id&&(it.text.isNotBlank()||it.images.isNotEmpty())}}
+  val hasHistory=courseRecords().any{record->record.initialSectionTemplates?.containsKey(id)==true || record.customSections.any{it.sectionId==id&&(it.text.isNotBlank()||it.images.isNotEmpty())}}
   if(hasHistory)saveCourseSectionDefinitions(all.map{if(it.id==id)it.copy(hidden=true) else it})
   else{
    saveCourseSectionDefinitions(all.filterNot{it.id==id})
@@ -1154,8 +1154,9 @@ class HealthStore(private val context:Context) {
  @Synchronized fun deleteCourseRecord(id:String){write("course_records",JSONArray().apply{courseRecords().filterNot{it.id==id}.forEach{put(courseRecordToJson(it))}})}
  @Synchronized fun ensureCourseRecordsThroughToday():Int{
   val zone=java.time.ZoneId.systemDefault();val today=java.time.LocalDate.now(zone);val current=courseRecords()
+  val templates by lazy { defaultCourseSectionTexts(this) }
   if(current.isEmpty()){
-   val draft=CourseRecord(date=today.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(today.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
+   val draft=CourseRecord(initialSectionTemplates=templates,date=today.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(today.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
    val placeholder=draft.copy(title=automaticCourseTitle(draft,emptyList()))
    write("course_records",JSONArray().apply{put(courseRecordToJson(placeholder))})
    return 1
@@ -1167,7 +1168,7 @@ class HealthStore(private val context:Context) {
   require(span in 0..3660){"病程日期跨度异常，请检查最早病程日期"}
   val accumulated=current.toMutableList()
   val missing=generateSequence(start.plusDays(1)){day->day.plusDays(1).takeIf{!it.isAfter(today)}}.filter{!it.isAfter(today)&&it !in existingDays}.map{day->
-   val draft=CourseRecord(date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
+   val draft=CourseRecord(initialSectionTemplates=templates,date=day.atStartOfDay(zone).toInstant().toEpochMilli(),phase=if(day.dayOfWeek.value<=5)"放疗" else "观察",title="",titleAuto=true)
    draft.copy(title=automaticCourseTitle(draft,accumulated)).also{accumulated+=it}
   }.toList()
   if(missing.isNotEmpty())write("course_records",JSONArray().apply{(current+missing).forEach{put(courseRecordToJson(it))}})
@@ -1272,7 +1273,7 @@ class HealthStore(private val context:Context) {
  private fun entryToJson(e:HealthEntry)=JSONObject().put("id",e.id).put("kind",e.kind.name).put("title",e.title).put("date",e.occurredAtEpochMillis).put("note",e.note).put("hospital",e.hospital).put("category",e.category).put("severity",e.severity).put("frequency",e.frequency).put("duration",e.duration).put("dose",e.dose).put("route",e.route).put("end",e.endAtEpochMillis?:JSONObject.NULL).put("images",JSONArray(e.images))
  private fun entryFromJson(o:JSONObject)=HealthEntry(o.getString("id"),EntryKind.valueOf(o.getString("kind")),o.getString("title"),o.getLong("date"),o.optString("note"),o.optString("hospital"),o.optString("category"),o.optInt("severity"),o.optString("frequency"),o.optString("duration"),o.optString("dose"),o.optString("route"),if(o.isNull("end"))null else o.getLong("end"),o.optJSONArray("images")?.let{a->(0 until a.length()).map{a.getString(it)}}?:emptyList())
  private fun courseTextTemplateToJson(t:CourseTextTemplate)=JSONObject().put("id",t.id).put("sectionId",t.sectionId).put("name",t.name).put("text",t.text).put("default",t.isDefault).put("updatedAt",t.updatedAt)
- private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("treatmentText",r.treatmentText).put("treatmentImages",JSONArray(r.treatmentImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("dietText",r.dietText).put("dietImages",JSONArray(r.dietImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("customSections",JSONArray().apply{r.customSections.forEach{put(JSONObject().put("sectionId",it.sectionId).put("text",it.text).put("images",JSONArray(it.images)))}}).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection).put("userEdited",r.userEdited)
+ private fun courseRecordToJson(r:CourseRecord)=JSONObject().put("id",r.id).put("date",r.date).put("phase",r.phase).put("title",r.title).put("titleAuto",r.titleAuto).put("symptomText",r.symptomText).put("systolic",r.systolic?:JSONObject.NULL).put("diastolic",r.diastolic?:JSONObject.NULL).put("pressureTime",r.pressureTime).put("pulse",r.pulse?:JSONObject.NULL).put("additionalPressures",JSONArray().apply{r.additionalPressures.forEach{put(JSONObject().put("time",it.time).put("systolic",it.systolic?:JSONObject.NULL).put("diastolic",it.diastolic?:JSONObject.NULL).put("pulse",it.pulse?:JSONObject.NULL))}}).put("symptomImages",JSONArray(r.symptomImages)).put("checkText",r.checkText).put("checkImages",JSONArray(r.checkImages)).put("treatmentText",r.treatmentText).put("treatmentImages",JSONArray(r.treatmentImages)).put("reminderText",r.reminderText).put("reminderDate",r.reminderDate).put("reminderCompletedAt",r.reminderCompletedAt?:JSONObject.NULL).put("medicineText",r.medicineText).put("medicineImages",JSONArray(r.medicineImages)).put("dietText",r.dietText).put("dietImages",JSONArray(r.dietImages)).put("noteText",r.noteText).put("noteImages",JSONArray(r.noteImages)).put("customSections",JSONArray().apply{r.customSections.forEach{put(JSONObject().put("sectionId",it.sectionId).put("text",it.text).put("images",JSONArray(it.images)))}}).put("createdAt",r.createdAt).put("updatedAt",r.updatedAt).put("growthFactorInjection",r.growthFactorInjection).put("userEdited",r.userEdited).put("initialSectionTemplates",r.initialSectionTemplates?.let { JSONObject(it) })
  private fun treatmentReminderToJson(r:TreatmentReminder)=JSONObject().put("id",r.id).put("radiationNumber",r.radiationNumber).put("text",r.text).put("completedAt",r.completedAt?:JSONObject.NULL).put("createdAt",r.createdAt).put("triggerDate",r.triggerDate).put("triggerTime",r.triggerTime)
  private fun courseRecordFromJson(o:JSONObject)=CourseRecord(
   id=o.getString("id"),
@@ -1304,6 +1305,7 @@ class HealthStore(private val context:Context) {
   updatedAt=o.optLong("updatedAt",o.getLong("date")),
   titleAuto=o.optBoolean("titleAuto",o.optString("title").isBlank()),
   growthFactorInjection=if(o.has("growthFactorInjection"))o.optBoolean("growthFactorInjection") else legacyGrowthFactorInjectionNote(o.optString("noteText")),
+  initialSectionTemplates=o.optJSONObject("initialSectionTemplates")?.let { fields -> fields.keys().asSequence().associateWith { fields.getString(it) } },
   userEdited=o.optBoolean("userEdited",o.optLong("updatedAt",o.getLong("date"))!=o.optLong("createdAt",o.getLong("date")))
  )
 }

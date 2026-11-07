@@ -85,6 +85,21 @@ class CoursePhasePersistenceTest {
   assertEquals("",store.defaultCourseText("diet"))
   assertFalse(store.courseTextTemplates("diet").single().isDefault)
  }
+ @Test fun newDayCapturesAllActiveTemplatesBeforeFirstEdit(){
+  val store=HealthStore(context)
+  val custom=store.addCourseSection("睡眠")
+  val diet=CourseTextTemplate(sectionId="diet",name="三餐",text="早：\n午：\n晚：")
+  store.saveCourseTextTemplate(diet,true)
+  store.saveCourseTextTemplate(CourseTextTemplate(sectionId=custom.id,name="时长",text="小时："),true)
+  store.ensureCourseRecordsThroughToday()
+  store.saveCourseTextTemplate(diet.copy(text="新模板"),true)
+  val card=HealthStore(context).courseRecords().single()
+  assertTrue(card.isBlankCourseCard())
+  assertTrue(store.removeOrHideCourseSection(custom.id))
+  val displayed=card.withDefaultCourseTemplates(store)
+  assertEquals(diet.text,displayed.dietText)
+  assertEquals("小时：",displayed.courseSectionText(custom.id))
+ }
  @Test fun pristineBlankCardReceivesDefaultsButSavedOrExistingContentIsNeverOverwritten(){
   val store=HealthStore(context)
   store.saveCourseTextTemplate(CourseTextTemplate(sectionId="diet",name="早中晚",text="早：\n午：\n晚："),makeDefault=true)

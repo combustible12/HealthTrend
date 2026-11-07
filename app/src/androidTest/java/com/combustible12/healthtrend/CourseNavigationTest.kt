@@ -40,7 +40,7 @@ class CourseNavigationTest {
   compose.setContent{MaterialTheme{CourseRecordsPage(androidx.compose.ui.Modifier,listOf(initial),store,{},{},{},{_,_->})}}
   compose.onNodeWithContentDescription("按日期查看病程记录").assertIsDisplayed()
   val bar=compose.onNodeWithContentDescription("港维护色块").fetchSemanticsNode().boundsInRoot
-  val card=compose.onNode(hasClickAction() and hasAnyDescendant(hasText("布局核对",substring=true))).fetchSemanticsNode().boundsInRoot
+  val card=compose.onNodeWithContentDescription("病程卡片").fetchSemanticsNode().boundsInRoot
   val filter=compose.onNode(hasText("放疗日") and hasClickAction()).fetchSemanticsNode().boundsInRoot
   assertEquals(card.left,bar.left,1f)
   assertEquals(card.right,bar.right,1f)
@@ -221,7 +221,7 @@ class CourseNavigationTest {
   val bmiBlock=compose.onNodeWithContentDescription("体重卡片BMI色块",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   assertEquals(timeBlock.width,weightBlock.width,1f);assertEquals(weightBlock.width,bsaBlock.width,1f);assertEquals(bsaBlock.width,bmiBlock.width,1f)
   assertEquals(timeBlock.height,weightBlock.height,1f);assertEquals(weightBlock.height,bsaBlock.height,1f);assertEquals(bsaBlock.height,bmiBlock.height,1f)
-  compose.onNodeWithContentDescription("体重模块标题").performClick()
+  compose.onNodeWithContentDescription("打开体重趋势").performClick()
   compose.runOnIdle{assertEquals(1,openedTrend)}
  }
  @Test fun editorWeightTitleNavigatesThroughAppToExistingWeightTrend(){
@@ -230,6 +230,15 @@ class CourseNavigationTest {
   compose.onNodeWithContentDescription("体重模块标题").performScrollTo().performClick()
   compose.onNodeWithText("+ 记录体重").assertIsDisplayed()
   compose.onNodeWithText("暂无体重记录").assertIsDisplayed()
+ }
+ @Test fun unopenedCardShowsDietTemplateAndOpensDietEditor(){
+  val store=HealthStore(context)
+  val meals="早：\n午：\n晚："
+  store.saveCourseTextTemplate(CourseTextTemplate(sectionId="diet",name="三餐",text=meals),true)
+  compose.setContent{MaterialTheme{App()}}
+  compose.onNodeWithText(meals).performClick()
+  compose.onNodeWithText("饮食").assertIsDisplayed()
+  compose.onNodeWithText("编辑病程记录").assertIsDisplayed()
  }
  @Test fun startupShowsCourseAndAddButtonSharesTitleRow(){
   compose.setContent{MaterialTheme{App()}}
