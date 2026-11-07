@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -49,7 +50,8 @@ class CourseNavigationTest {
   var opened:String?=null
   compose.setContent{MaterialTheme{CourseCalendar(listOf(record),listOf(reminder.value)){opened=it.id}}}
   compose.onNodeWithContentDescription("${date.minusDays(1)} 化疗圆点").assertExists()
-  compose.onNodeWithContentDescription("${date.minusDays(1)} 放疗圆点").assertExists()
+  compose.onNodeWithContentDescription("${date.minusDays(1)} 放疗圆点", useUnmergedTree=true)
+   .assertWidthIsEqualTo(8.dp).assertHeightIsEqualTo(8.dp)
   compose.onNodeWithContentDescription("$date 提醒").assertExists()
   val reminderBadge=compose.onNodeWithContentDescription("$date 提醒").fetchSemanticsNode().boundsInRoot
   val calendarDay=compose.onNodeWithContentDescription("$date 有记录或提醒").fetchSemanticsNode().boundsInRoot

@@ -19,3 +19,4 @@ Calendar light gray background and white dates
 
 Purple calendar today text
 2026-11-07 compile compact home and treatment progress changes
+2026-11-07 verify continuous calendar grid and larger treatment dots

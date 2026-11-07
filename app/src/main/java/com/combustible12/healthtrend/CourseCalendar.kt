@@ -27,10 +27,10 @@ import java.time.YearMonth
 import java.time.ZoneId
 
 internal enum class CalendarTreatment(val label: String, val color: Color) {
-    CHEMOTHERAPY("化疗", Color(0xFF9862C6)),
-    RADIOTHERAPY("放疗", Color(0xFF3584C6)),
-    BRACHYTHERAPY("后装", Color(0xFF299879)),
-    FOLLOW_UP("复查", Color(0xFFD17A35))
+    CHEMOTHERAPY("化疗", Color(0xFFB579CC)),
+    RADIOTHERAPY("放疗", Color(0xFF6BA7DD)),
+    BRACHYTHERAPY("后装", Color(0xFF52B299)),
+    FOLLOW_UP("复查", Color(0xFFEB9076))
 }
 
 internal fun calendarTreatments(record: CourseRecord?, reminders: List<TreatmentReminder>, chemotherapyDay: Boolean): List<CalendarTreatment> {
@@ -79,7 +79,7 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
             Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 CalendarTreatment.values().forEach { treatment ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Box(Modifier.size(5.dp).background(treatment.color, CircleShape))
+                        Box(Modifier.size(10.dp).background(treatment.color, CircleShape))
                         Text(treatment.label, fontSize = 11.sp, color = Muted)
                     }
                 }
@@ -88,43 +88,45 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                     Text("提醒", fontSize = 11.sp, color = Muted)
                 }
             }
-            Row {
-                "一二三四五六日".forEach { Text(it.toString(), Modifier.weight(1f), color = Muted, textAlign = TextAlign.Center, fontSize = 12.sp) }
-            }
-            repeat((offset + month.lengthOfMonth() + 6) / 7) { week ->
+            Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp))) {
                 Row {
-                    repeat(7) { weekday ->
-                        val day = week * 7 + weekday - offset + 1
-                        if (day !in 1..month.lengthOfMonth()) {
-                            Spacer(Modifier.weight(1f))
-                        } else {
-                            val date = month.atDay(day)
-                            val key = date.toString()
-                            val record = recordsByDate[date]
-                            val datedReminders = remindersByDate[key].orEmpty()
-                            val treatments = calendarTreatments(record, datedReminders, date in chemotherapyDates)
-                            val hasReminder = datedReminders.any { it.completedAt == null }
-                            val marked = treatments.isNotEmpty() || hasReminder
-                            Column(
-                                Modifier.weight(1f).padding(1.dp).background(if (selectedDate == key) SelectedTint else Color.White, RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        selectedDate = key
-                                        if (record != null && datedReminders.isEmpty()) openCourse(record)
-                                    }.semantics { contentDescription = if (marked) "$key 有记录或提醒" else key }
-                                    .heightIn(min = 36.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
-                            ) {
-                                Box {
-                                    Text(day.toString(), color = if (date == today) Color(0xFF9862C6) else Ink, fontSize = 14.sp)
-                                    if (hasReminder) Icon(
-                                        Icons.Rounded.Warning, "$key 提醒",
-                                        Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-2).dp).size(10.dp),
-                                        tint = Color(0xFFE6A34B)
-                                    )
-                                }
-                                Row(Modifier.height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    treatments.forEach { treatment ->
-                                        Box(Modifier.size(4.dp).background(treatment.color, CircleShape).semantics { contentDescription = "$key ${treatment.label}圆点" })
+                    "一二三四五六日".forEach { Text(it.toString(), Modifier.weight(1f), color = Muted, textAlign = TextAlign.Center, fontSize = 12.sp) }
+                }
+                repeat((offset + month.lengthOfMonth() + 6) / 7) { week ->
+                    Row {
+                        repeat(7) { weekday ->
+                            val day = week * 7 + weekday - offset + 1
+                            if (day !in 1..month.lengthOfMonth()) {
+                                Spacer(Modifier.weight(1f))
+                            } else {
+                                val date = month.atDay(day)
+                                val key = date.toString()
+                                val record = recordsByDate[date]
+                                val datedReminders = remindersByDate[key].orEmpty()
+                                val treatments = calendarTreatments(record, datedReminders, date in chemotherapyDates)
+                                val hasReminder = datedReminders.any { it.completedAt == null }
+                                val marked = treatments.isNotEmpty() || hasReminder
+                                Column(
+                                    Modifier.weight(1f).background(if (selectedDate == key) SelectedTint else Color.Transparent, RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            selectedDate = key
+                                            if (record != null && datedReminders.isEmpty()) openCourse(record)
+                                        }.semantics { contentDescription = if (marked) "$key 有记录或提醒" else key }
+                                        .heightIn(min = 36.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box {
+                                        Text(day.toString(), color = if (date == today) Color(0xFF9862C6) else Ink, fontSize = 14.sp)
+                                        if (hasReminder) Icon(
+                                            Icons.Rounded.Warning, "$key 提醒",
+                                            Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-2).dp).size(10.dp),
+                                            tint = Color(0xFFE6A34B)
+                                        )
+                                    }
+                                    Row(Modifier.height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        treatments.forEach { treatment ->
+                                            Box(Modifier.size(8.dp).background(treatment.color, CircleShape).semantics { contentDescription = "$key ${treatment.label}圆点" })
+                                        }
                                     }
                                 }
                             }
