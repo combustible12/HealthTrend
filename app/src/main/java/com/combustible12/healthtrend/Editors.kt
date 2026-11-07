@@ -51,7 +51,7 @@ val LocalPageVisible=staticCompositionLocalOf{true}
  BackHandler(enabled=active,onBack=onClose)
  LaunchedEffect(active){if(active)focus.clearFocus()}
  Surface(color=Warm,modifier=Modifier.fillMaxSize().then(if(active)Modifier else Modifier.clearAndSetSemantics{})){Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()){
-  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回")};Column(Modifier.weight(1f)){Text(title,fontSize=21.sp);if(subtitle.isNotBlank())Text(subtitle,fontSize=13.sp,color=Muted)};topAction()}
+  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClose){Icon(navigationIcon,if(navigationIcon==Icons.Outlined.Close)"关闭" else "返回",tint=if(navigationIcon==SolidArrows.Left)SolidArrows.Tint else LocalContentColor.current)};Column(Modifier.weight(1f)){Text(title,fontSize=21.sp);if(subtitle.isNotBlank())Text(subtitle,fontSize=13.sp,color=Muted)};topAction()}
   Box(Modifier.weight(1f)){content(Modifier.fillMaxSize())}
   if(bottom!=null)Surface(color=ColorWhite){Box(Modifier.fillMaxWidth().padding(12.dp)){bottom()}}
  }}
@@ -302,7 +302,7 @@ private val ColorWhite=androidx.compose.ui.graphics.Color.White
     Column(Modifier.heightIn(max=220.dp).verticalScroll(rememberScrollState())){
      savedAliases.forEach{(name,key)->
       Row(verticalAlignment=Alignment.CenterVertically){
-       Text("$name ▸ $key",modifier=Modifier.weight(1f),fontSize=13.sp)
+       Text(SolidArrows.inlineLabel("$name "," $key"),modifier=Modifier.weight(1f),fontSize=13.sp)
        TextButton({aliasInput=name;aliasKeyInput=key;aliasError="";editingAliasOriginal=name}){Text("修改")}
        TextButton({store.deleteMetricAlias(name);if(editingAliasOriginal==name){editingAliasOriginal=null;aliasInput="";aliasKeyInput=""};aliasRevision++}){Text("删除")}
       }

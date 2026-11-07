@@ -72,7 +72,7 @@ internal fun TrendCategoryPicker(categories: List<String>, selected: String, sel
             }
         }
         IconButton({ expanded = !expanded }, Modifier.size(32.dp)) {
-            Icon(if (expanded) SolidArrows.Up else SolidArrows.Down, if (expanded) "收起趋势分类" else "展开趋势分类", tint = Accent)
+            Icon(if (expanded) SolidArrows.Up else SolidArrows.Down, if (expanded) "收起趋势分类" else "展开趋势分类", tint = SolidArrows.Tint)
         }
     }
 }

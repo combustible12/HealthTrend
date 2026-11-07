@@ -397,7 +397,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
  Box(m.fillMaxSize()){
   Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(spacing)){
    Spacer(Modifier.height(6.dp));if(title.isNotBlank())Text(title,fontSize=28.sp,fontWeight=FontWeight.Bold);if(subtitle.isNotBlank())Text(subtitle,color=Muted);content()
-   if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}
+   if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null,tint=SolidArrows.Tint);Spacer(Modifier.width(6.dp));Text("回到顶部")}
    Spacer(Modifier.height(12.dp))
   }
   ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=20.dp,bottom=20.dp,end=2.dp).width(24.dp).fillMaxHeight())
@@ -407,7 +407,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 @Composable fun ScrollablePageColumn(modifier:Modifier=Modifier,padding:PaddingValues=PaddingValues(0.dp),arrangement:Arrangement.Vertical=Arrangement.Top,content:@Composable ColumnScope.()->Unit){
  val scroll=rememberScrollState();val scope=rememberCoroutineScope()
  Box(modifier){
-  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null);Spacer(Modifier.width(6.dp));Text("回到顶部")}}
+  Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(padding),verticalArrangement=arrangement){content();if(scroll.maxValue>0)TextButton({scope.launch{scroll.animateScrollTo(0)}},Modifier.align(Alignment.CenterHorizontally)){Icon(SolidArrows.Up,null,tint=SolidArrows.Tint);Spacer(Modifier.width(6.dp));Text("回到顶部")}}
   ScrollProgressRail(scroll,Modifier.align(Alignment.CenterEnd).padding(top=12.dp,bottom=12.dp,end=2.dp).width(24.dp).fillMaxHeight())
  }
 }
@@ -478,7 +478,7 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
   Column(Modifier.padding(horizontal=18.dp,vertical=4.5.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Notifications,null,tint=Accent);Spacer(Modifier.width(8.dp));Text("提醒",Modifier.weight(1f),fontSize=20.sp,fontWeight=FontWeight.Bold);IconButton({adding=true},Modifier.size(32.dp)){Icon(Icons.Outlined.Add,"添加提醒",tint=Accent)}}
    if(pending.isEmpty())Text("暂无待提醒",fontSize=13.sp,color=Muted)
-   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=1.75.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f));Icon(SolidArrows.Right,null,tint=Muted)}}
+   pending.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=1.75.dp),verticalAlignment=Alignment.CenterVertically){Text(treatmentReminderTriggerLabel(item),fontWeight=FontWeight.Bold,color=Accent);Spacer(Modifier.width(12.dp));Text(item.text,Modifier.weight(1f));Icon(SolidArrows.Right,null,tint=SolidArrows.Tint)}}
    if(completed.isNotEmpty()){Text(if(showCompleted)"收起已完成" else "已完成 ${completed.size}",Modifier.clickable{showCompleted=!showCompleted}.padding(vertical=2.dp),fontSize=14.sp,color=Muted);if(showCompleted)completed.forEach{item->Row(Modifier.fillMaxWidth().clickable{editing=item}.padding(vertical=1.5.dp)){Text("${treatmentReminderTriggerLabel(item)} · ${item.text}",color=Muted)}}}
   }
  }
@@ -556,10 +556,10 @@ internal fun treatmentReminderDialogTitle(reminder:TreatmentReminder):String=rem
 @Composable internal fun TrendCardActions(primary:Boolean,onMove:()->Unit,onPin:()->Unit){
  Row(horizontalArrangement=Arrangement.spacedBy(2.dp)){
   IconButton(onClick=onMove,modifier=Modifier.size(36.dp)){
-   Icon(SolidArrows.Left,if(primary)"移到其他指标" else "移到重点指标",Modifier.size(20.dp),tint=Accent)
+   Icon(SolidArrows.Left,if(primary)"移到其他指标" else "移到重点指标",Modifier.size(20.dp),tint=SolidArrows.Tint)
   }
   IconButton(onClick=onPin,modifier=Modifier.size(36.dp)){
-   Icon(SolidArrows.Up,"置于最上方",Modifier.size(20.dp),tint=Accent)
+   Icon(SolidArrows.Up,"置于最上方",Modifier.size(20.dp),tint=SolidArrows.Tint)
   }
  }
 }

@@ -183,7 +183,7 @@ private fun URI(s:String)=java.net.URI(s)
   }else{Text(patient.name.ifBlank{"未填写姓名"},fontWeight=FontWeight.Bold);val age=runCatching{java.time.Period.between(java.time.LocalDate.parse(patient.birthDate),java.time.LocalDate.now()).years}.getOrNull();Text(listOfNotNull(patient.sex.takeIf{it.isNotBlank()},patient.birthDate.takeIf{it.isNotBlank()},age?.let{"${it}岁"},patient.heightCm.takeIf{it.isNotBlank()}?.let{"身高 ${it} cm"},patient.bloodType.takeIf{it.isNotBlank()}).joinToString(" · ").ifBlank{"可填写姓名、出生日期、性别和身高"},color=Muted);if(patient.note.isNotBlank())Text(patient.note,color=Muted);TextButton({editPatient=true}){Text("编辑患者资料")}}}
   BloodGroupCard(store,error,changed)
   Card(onClick=records,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text("查看报告 ▸",color=Muted)}
+   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("记录",fontWeight=FontWeight.SemiBold);Text(SolidArrows.inlineLabel("查看报告 "),color=Muted)}
   }
   Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
    Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -199,7 +199,7 @@ private fun URI(s:String)=java.net.URI(s)
    }
   }
   Card(onClick={archiveOpen=true},modifier=Modifier.fillMaxWidth().testTag("archived-reports-entry"),shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){
-   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("封存的旧报告",fontWeight=FontWeight.SemiBold);Text("查看报告 ▸",color=Muted)}
+   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=14.dp),horizontalArrangement=Arrangement.SpaceBetween){Text("封存的旧报告",fontWeight=FontWeight.SemiBold);Text(SolidArrows.inlineLabel("查看报告 "),color=Muted)}
   }
   AppUpdateButton(error)
  }

@@ -4,6 +4,13 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class CourseCalendarTest {
+    @Test fun inlineNavigationTriangleUsesTheSameLightGrayAsControls() {
+        val label = SolidArrows.inlineLabel("左 ", " 右")
+        val span = label.spanStyles.single()
+        assertEquals("▸", label.text.substring(span.start, span.end))
+        assertEquals(androidx.compose.ui.graphics.Color(0xFFB0B0B0), span.item.color)
+    }
+
     @Test fun simultaneousTreatmentsKeepAllFourKindsWithoutDuplicates() {
         val record = CourseRecord(title = "3化1-放18", titleAuto = false, phase = "放化")
         val afterloading = TreatmentReminder(radiationNumber = 0, text = "", purpose = ReminderPurpose.BRACHYTHERAPY)
