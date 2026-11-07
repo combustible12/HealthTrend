@@ -11,3 +11,5 @@
 2026-11-07 verify brachytherapy reminder card linkage and rescheduling
 2026-11-07 verify course process controls and future card generation
 Compact import and reminder cards; course calendar and header control
+
+Four calendar treatment dots and reminder warning icon

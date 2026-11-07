@@ -31,10 +31,13 @@ class CourseNavigationTest {
  @Test fun calendarOpensRecordedDayAndMovesReminderDotAfterRescheduling(){
   val date=java.time.LocalDate.now().withDayOfMonth(2)
   val next=date.plusDays(1)
-  val record=CourseRecord(date=date.minusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="手填记录",titleAuto=false)
+  val record=CourseRecord(date=date.minusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),title="3化1-放2",titleAuto=false,phase="放化")
   val reminder=androidx.compose.runtime.mutableStateOf(TreatmentReminder(radiationNumber=0,text="复查报告",triggerDate=date.toString()))
   var opened:String?=null
   compose.setContent{MaterialTheme{CourseCalendar(listOf(record),listOf(reminder.value)){opened=it.id}}}
+  compose.onNodeWithContentDescription("${date.minusDays(1)} 化疗圆点").assertExists()
+  compose.onNodeWithContentDescription("${date.minusDays(1)} 放疗圆点").assertExists()
+  compose.onNodeWithContentDescription("$date 提醒").assertExists()
   compose.onNodeWithContentDescription("${date.minusDays(1)} 有记录或提醒").performClick()
   compose.runOnIdle{assertEquals(record.id,opened)}
   compose.onNodeWithContentDescription("$date 有记录或提醒").performClick()

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,6 +26,27 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
+internal enum class CalendarTreatment(val label: String, val color: Color) {
+    CHEMOTHERAPY("化疗", Color(0xFF9862C6)),
+    RADIOTHERAPY("放疗", Color(0xFF3584C6)),
+    BRACHYTHERAPY("后装", Color(0xFF299879)),
+    FOLLOW_UP("复查", Color(0xFFD17A35))
+}
+
+internal fun calendarTreatments(record: CourseRecord?, reminders: List<TreatmentReminder>, chemotherapyDay: Boolean): List<CalendarTreatment> {
+    val title = record?.title.orEmpty()
+    val phase = record?.phase.orEmpty()
+    return buildList {
+        if (chemotherapyDay) add(CalendarTreatment.CHEMOTHERAPY)
+        if (phase in setOf("放疗", "放疗日", "放化") || Regex("""(?:^|-)放\\d+(?:-|$)""").containsMatchIn(title))
+            add(CalendarTreatment.RADIOTHERAPY)
+        if (phase == "后装" || title.contains("后装") || reminders.any { it.purpose == ReminderPurpose.BRACHYTHERAPY })
+            add(CalendarTreatment.BRACHYTHERAPY)
+        if (phase == "复查" || phase == "结疗复查" || title.contains("复查") || reminders.any { it.purpose == ReminderPurpose.FOLLOW_UP })
+            add(CalendarTreatment.FOLLOW_UP)
+    }
+}
+
 @Composable
 internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<TreatmentReminder>, openCourse: (CourseRecord) -> Unit) {
     val today = LocalDate.now()
@@ -38,6 +60,9 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
     val remindersByDate = remember(reminders) {
         reminders.filter { it.triggerDate.isNotBlank() }.groupBy { it.triggerDate }
     }
+    val chemotherapyDates = remember(records, zone) {
+        chemotherapyEventDates(records, zone).map { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }.toSet()
+    }
     val offset = month.atDay(1).dayOfWeek.value - 1
     fun changeMonth(delta: Long) {
         monthText = month.plusMonths(delta).toString()
@@ -50,6 +75,18 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                 IconButton({ changeMonth(-1) }) { Icon(Icons.Outlined.ChevronLeft, "上个月") }
                 Text("${month.year}年${month.monthValue}月", fontSize = 14.sp)
                 IconButton({ changeMonth(1) }) { Icon(Icons.Outlined.ChevronRight, "下个月") }
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                CalendarTreatment.values().forEach { treatment ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Box(Modifier.size(5.dp).background(treatment.color, CircleShape))
+                        Text(treatment.label, fontSize = 11.sp, color = Muted)
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Warning, null, Modifier.size(12.dp), tint = Color(0xFFB66B22))
+                    Text("提醒", fontSize = 11.sp, color = Muted)
+                }
             }
             Row {
                 "一二三四五六日".forEach { Text(it.toString(), Modifier.weight(1f), color = Muted, textAlign = TextAlign.Center, fontSize = 12.sp) }
@@ -65,8 +102,9 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                             val key = date.toString()
                             val record = recordsByDate[date]
                             val datedReminders = remindersByDate[key].orEmpty()
-                            val marked = datedReminders.isNotEmpty() || record != null &&
-                                (record.userEdited || !record.isBlankCourseCard() || record.phase !in listOf("", "观察"))
+                            val treatments = calendarTreatments(record, datedReminders, date in chemotherapyDates)
+                            val hasReminder = datedReminders.any { it.completedAt == null }
+                            val marked = treatments.isNotEmpty() || hasReminder
                             Column(
                                 Modifier.weight(1f).background(if (selectedDate == key) SelectedTint else Color.Transparent, RoundedCornerShape(8.dp))
                                     .clickable {
@@ -77,7 +115,12 @@ internal fun CourseCalendar(records: List<CourseRecord>, reminders: List<Treatme
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
                             ) {
                                 Text(day.toString(), color = if (date == today) Accent else Ink, fontSize = 14.sp)
-                                Box(Modifier.size(5.dp).background(if (marked) Accent else Color.Transparent, CircleShape))
+                                Row(Modifier.height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    treatments.forEach { treatment ->
+                                        Box(Modifier.size(4.dp).background(treatment.color, CircleShape).semantics { contentDescription = "$key ${treatment.label}圆点" })
+                                    }
+                                    if (hasReminder) Icon(Icons.Filled.Warning, "$key 提醒", Modifier.size(10.dp), tint = Color(0xFFB66B22))
+                                }
                             }
                         }
                     }
